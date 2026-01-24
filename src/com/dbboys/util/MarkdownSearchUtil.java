@@ -1,0 +1,552 @@
+package com.dbboys.util;
+
+import com.dbboys.app.Main;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.MouseButton;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+import javafx.stage.Popup;
+import javafx.stage.Stage;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.cn.smart.SmartChineseAnalyzer;
+import org.apache.lucene.document.*;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+/**
+ * LuceneIndexer - 为 Markdown 文件夹建立 Lucene 索引
+ *
+ * 说明：
+ * - content 字段被存储（Store.YES），便于在检索后读取原文或做高亮。
+ * - buildIndex 可选择覆盖(CREATE)或追加(APPEND)模式。
+ */
+class LuceneIndexer {
+
+    private static Path indexDir= Path.of("索引");
+    private static Analyzer analyzer = null;
+
+    public LuceneIndexer(Path indexDir) {
+        this.indexDir = indexDir;
+        this.analyzer = new SmartChineseAnalyzer(); // 中文分词器
+    }
+
+    /**
+     * 建立索引
+     *
+     * @param markdownFolder 要索引的 Markdown 文件夹
+     * @param overwrite      true = 覆盖已有索引(重新创建)； false = 追加（增量索引）
+     * @param progress       可选回调，接收当前处理文件路径（用于 UI 更新），可为 null
+     * @throws IOException on IO error
+     */
+    public static void buildIndex(Path markdownFolder, boolean overwrite, Consumer<String> progress) throws IOException {
+        if (markdownFolder == null || !Files.exists(markdownFolder)) {
+            throw new IllegalArgumentException("markdownFolder 不存在: " + markdownFolder);
+        }
+
+        Directory dir = FSDirectory.open(indexDir);
+        IndexWriterConfig.OpenMode mode = overwrite ? IndexWriterConfig.OpenMode.CREATE : IndexWriterConfig.OpenMode.CREATE_OR_APPEND;
+        IndexWriterConfig config = new IndexWriterConfig(analyzer);
+        config.setOpenMode(mode);
+
+        try (IndexWriter writer = new IndexWriter(dir, config);
+             Stream<Path> stream = Files.walk(markdownFolder)) {
+
+            stream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".md"))
+                    .forEach(p -> {
+                        try {
+                            if (progress != null) progress.accept(p.toString());
+                            indexFile(writer, p);
+                        } catch (IOException ex) {
+                            System.err.println("索引文件出错: " + p + " -> " + ex.getMessage());
+                        }
+                    });
+
+            // 强制提交
+            writer.commit();
+        }
+    }
+
+    public void buildIndex(Path markdownFolder) throws IOException {
+        buildIndex(markdownFolder, true, null);
+    }
+
+    /**
+     * 把单个文件添加到索引（若需要实现更新，可先删除同 path 的旧 doc）
+     */
+    private static void indexFile(IndexWriter writer, Path file) throws IOException {
+
+        String content = Files.readString(file);
+        //content=MarkdownUtil.getMarkdownText(content);
+        long modified = Files.getLastModifiedTime(file).toMillis();
+
+        Document doc = new Document();
+
+        // path 字段：存储并索引（便于精确匹配/打开文件）
+        //doc.add(new StringField("path", file.toString(), Field.Store.YES));
+        //分词匹配
+        doc.add(new org.apache.lucene.document.TextField("path", file.toString(), Field.Store.YES));
+
+
+        // fileName 便于展示/加权
+        String fileName = file.getFileName().toString();
+        doc.add(new StringField("filename", fileName, Field.Store.YES));
+
+        // content: 存储并分词（便于高亮与显示）
+        doc.add(new org.apache.lucene.document.TextField("content", content, Field.Store.YES));
+
+        // modified 时间：用于排序或权重
+        doc.add(new LongPoint("modified", modified));
+        // 同时存储 modified 以便检索后取得值
+        doc.add(new StoredField("modified_stored", modified));
+
+        // 如果想让 filename / path 在查询时权重更高，可以在构建 Query 时为这些字段 boost
+        // 或者在创建 Document 时使用 FieldType 并 setBoost()（Lucene 9 推荐在 Query 侧处理）
+
+        // 增量更新：删除已存在的同 path 文档后添加新文档
+        // 这保证了 path 的唯一性（避免重复）
+        writer.updateDocument(new Term("path", file.toString()), doc);
+    }
+
+    /**
+     * 删除索引目录（谨慎使用）
+     */
+    public void deleteIndex() throws IOException {
+        if (Files.exists(indexDir)) {
+            try (Stream<Path> s = Files.walk(indexDir)) {
+                s.sorted((a, b) -> b.compareTo(a)) // 先删除子文件，再删除目录
+                        .forEach(p -> {
+                            try { Files.deleteIfExists(p); } catch (IOException e) { /* ignore */ }
+                        });
+            }
+        }
+    }
+}
+
+class LuceneSearcher {
+    private final Path indexDir;
+    private final Analyzer analyzer = new SmartChineseAnalyzer();
+
+    public LuceneSearcher(Path indexDir) {
+        this.indexDir = indexDir;
+    }
+
+    public List<LuceneSearcher.SearchResult> search(String keyword, int limit) throws Exception {
+        Directory dir = FSDirectory.open(indexDir);
+        DirectoryReader reader = DirectoryReader.open(dir);
+        IndexSearcher searcher = new IndexSearcher(reader);
+
+        String[] fields = {"path", "filename", "content"};
+        Map<String, Float> boosts = Map.of(
+                "path", 1.5f,
+                "filename", 2.0f,
+                "content", 1.0f
+        );
+
+        MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer, boosts);
+        Query query = parser.parse(keyword);
+
+        TopDocs topDocs = searcher.search(query, limit);
+        List<LuceneSearcher.SearchResult> results = new ArrayList<>();
+
+        for (ScoreDoc sd : topDocs.scoreDocs) {
+            Document doc = searcher.storedFields().document(sd.doc);
+            String path = doc.get("path");
+            String content = doc.get("content");
+            if (content == null) content = "";
+
+            // --------- 1) 分词提取搜索 token（和你原来的一样） ----------
+            List<String> tokens = new ArrayList<>();
+            try (TokenStream ts = analyzer.tokenStream("content", keyword)) {
+                ts.reset();
+                while (ts.incrementToken()) {
+                    String term = ts.getAttribute(org.apache.lucene.analysis.tokenattributes.CharTermAttribute.class).toString();
+                    if (!term.isBlank()) tokens.add(term);
+                }
+                ts.end();
+            } catch (Exception ignored) {}
+
+            if (tokens.isEmpty()) tokens.add(keyword);
+
+            // --------- 2) 收集所有匹配区间（去重） ----------
+            String lowerContent = content.toLowerCase();
+            List<int[]> positions = new ArrayList<>();
+            int context = 30; // 每个匹配点前后扩展的字符数，可调整
+
+            for (String token : tokens) {
+                if (token == null || token.isBlank()) continue;
+                String lowerToken = token.toLowerCase();
+                int idx = 0;
+                while ((idx = lowerContent.indexOf(lowerToken, idx)) >= 0) {
+                    int start = Math.max(0, idx - context);
+                    int end = Math.min(content.length(), idx + lowerToken.length() + context);
+                    positions.add(new int[]{start, end});
+                    idx = idx + Math.max(1, lowerToken.length()); // 避免无限循环
+                }
+            }
+
+            // 如果没有找到任何位置，则给出文首一小段作为 snippet
+            if (positions.isEmpty()) {
+                String fallback = content.length() > 120 ? content.substring(0, 120) + " ... " : content;
+                results.add(new LuceneSearcher.SearchResult(path, sd.score, fallback));
+                continue;
+            }
+
+            // --------- 3) 合并重叠或相邻区间 ----------
+            positions.sort((a, b) -> Integer.compare(a[0], b[0]));
+            List<int[]> merged = new ArrayList<>();
+            int mergeGap = 10; // 相邻多少字符以内合并（可调）
+            for (int[] pos : positions) {
+                if (merged.isEmpty()) {
+                    merged.add(new int[]{pos[0], pos[1]});
+                } else {
+                    int[] last = merged.get(merged.size() - 1);
+                    if (pos[0] <= last[1] + mergeGap) {
+                        // 合并到上一个区间，扩展 end
+                        last[1] = Math.max(last[1], pos[1]);
+                    } else {
+                        merged.add(new int[]{pos[0], pos[1]});
+                    }
+                }
+            }
+
+            // --------- 4) 限制段数并从原文生成 snippet（避免重复） ----------
+            int maxSegments = 3;
+            StringBuilder snippetBuilder = new StringBuilder();
+            for (int i = 0; i < Math.min(merged.size(), maxSegments); i++) {
+                int[] range = merged.get(i);
+                // 为了使片段更整洁，可尝试在句子边界截断（向前找换行或句号）
+                int s = range[0];
+                int e = range[1];
+                // 向前扩展到上一句结束（可选）
+                int prevNL = content.lastIndexOf('\n', s);
+                if (prevNL != -1 && s - prevNL < 50) s = Math.max(0, prevNL + 1);
+                // 向后延到句子结束（可选）
+                int nextNL = content.indexOf('\n', e);
+                if (nextNL != -1 && nextNL - e < 50) e = nextNL;
+
+                snippetBuilder.append(content, s, e).append(" ... ");
+            }
+
+            String snippet = snippetBuilder.toString();
+
+            // --------- 5) 可选：对 snippet 中的关键词做高亮（这里不改 TextFlow 渲染，返回原 snippet） ----------
+            // 如果你想返回带 <mark> 的 snippet，可以在此用正则替换 token 为 <mark>xxx</mark>
+            // 但注意：你现在的 UI 用 TextFlow 对 snippet 做高亮，这里返回原文更灵活。
+
+            results.add(new LuceneSearcher.SearchResult(path, sd.score, snippet));
+        }
+
+        return results;
+    }
+
+    public static class SearchResult {
+        public final String path;
+        public final float score;
+        public final String snippet;
+        public SearchResult(String path, float score, String snippet) {
+            this.path = path;
+            this.score = score;
+            this.snippet = snippet;
+        }
+        public SearchResult(String path, float score) {
+            this(path, score, "");
+        }
+    }
+}
+
+
+public class MarkdownSearchUtil {
+    private static Popup search_result_popup = new Popup();
+    private static Path indexDir = Paths.get("index");
+    private static Path markdownFolder;
+    public static String keywordField;
+    private static ListView<LuceneSearcher.SearchResult> resultList = new ListView<>();
+    private static boolean popupListenersAdded = false;
+
+    private TextArea previewArea;
+
+    static {
+        resultList.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            //if (newVal != null) showPreview(newVal.path);
+        });
+        resultList.setCellFactory(lv -> new ListCell<LuceneSearcher.SearchResult>() {
+            @Override
+            protected void updateItem(LuceneSearcher.SearchResult item, boolean empty) {
+                super.updateItem(item, empty);
+                setOnMouseClicked(null);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    TextFlow flow = buildHighlightedText(item, keywordField.trim());
+                    setGraphic(flow);
+                    setOnMouseClicked(event -> {
+                        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1) {
+                            LuceneSearcher.SearchResult clickedItem = getItem();
+                            //UtilclickedItem.path
+                            TabpaneUtil.addCustomMarkdownTab(new File(clickedItem.path),false);
+                            search_result_popup.hide();
+                        }
+                    });
+                }
+
+            }
+
+
+        });
+        search_result_popup.getContent().add(resultList);
+        resultList.setFocusTraversable(false);
+        resultList.setPrefWidth(480);
+    }
+
+    private static TextFlow buildHighlightedText(LuceneSearcher.SearchResult item, String keyword) {
+        TextFlow flow = new TextFlow();
+        flow.setLineSpacing(2);
+
+        if (keyword == null || keyword.isBlank()) {
+            flow.getChildren().add(new Text(item.path + "\n"));
+            return flow;
+        }
+
+        // ====== 分词提取 ======
+        List<String> tokens = new ArrayList<>();
+        try (Analyzer analyzer = new SmartChineseAnalyzer();
+             TokenStream ts = analyzer.tokenStream("content", keyword)) {
+            ts.reset();
+            while (ts.incrementToken()) {
+                String term = ts.getAttribute(org.apache.lucene.analysis.tokenattributes.CharTermAttribute.class).toString();
+                if (!term.isBlank()) tokens.add(term);
+            }
+            ts.end();
+        } catch (Exception ignored) {}
+
+        if (tokens.isEmpty()) tokens.add(keyword);
+
+        // ====== 高亮路径 ======
+        String fullPath = item.path;
+        Pattern pathPattern = Pattern.compile(String.join("|", tokens), Pattern.CASE_INSENSITIVE);
+        Matcher pathMatcher = pathPattern.matcher(fullPath);
+
+        int last = 0;
+        while (pathMatcher.find()) {
+            if (pathMatcher.start() > last) {
+                Text normal = new Text(fullPath.substring(last, pathMatcher.start()));
+                normal.setFont(Font.font("System", FontWeight.BOLD, 10));
+                flow.getChildren().add(normal);
+            }
+            Text match = new Text(fullPath.substring(pathMatcher.start(), pathMatcher.end()));
+            match.setFill(Color.RED);
+            //match.setFill(Paint.valueOf("#d53829"));
+            match.setFont(Font.font("System", FontWeight.BOLD, 10));
+            flow.getChildren().add(match);
+            last = pathMatcher.end();
+        }
+        if (last < fullPath.length()) {
+            Text tail = new Text(fullPath.substring(last));
+            tail.setFont(Font.font("System", FontWeight.BOLD, 10));
+            flow.getChildren().add(tail);
+        }
+
+        flow.getChildren().add(new Text("\n"));
+
+        // ====== 高亮 snippet 内容 ======
+        String snippet = item.snippet == null ? "" : item.snippet.strip();
+        if (snippet.isEmpty()) return flow;
+
+        // 限制 snippet 最多 5 行
+        String[] lines = snippet.split("\\R");
+        StringBuilder limitedSnippet = new StringBuilder();
+        for (int i = 0; i < Math.min(lines.length, 5); i++) {
+            limitedSnippet.append(lines[i]).append("\n");
+        }
+        if (lines.length > 5) limitedSnippet.append("...");
+
+        Matcher snippetMatcher = pathPattern.matcher(limitedSnippet.toString());
+        last = 0;
+        while (snippetMatcher.find()) {
+            if (snippetMatcher.start() > last) {
+                Text normal = new Text(limitedSnippet.substring(last, snippetMatcher.start()));
+                normal.setFill(Color.GRAY);
+                normal.setFont(Font.font("System", FontWeight.NORMAL, 8));
+                flow.getChildren().add(normal);
+            }
+            Text match = new Text(limitedSnippet.substring(snippetMatcher.start(), snippetMatcher.end()));
+            match.setFill(Color.RED);
+            match.setFont(Font.font("System", FontWeight.NORMAL, 8));
+            flow.getChildren().add(match);
+            last = snippetMatcher.end();
+        }
+        if (last < limitedSnippet.length()) {
+            Text tail = new Text(limitedSnippet.substring(last));
+            tail.setFill(Color.GRAY);
+            tail.setFont(Font.font("System", FontWeight.NORMAL, 8));
+            flow.getChildren().add(tail);
+        }
+
+        return flow;
+    }
+
+
+    public static void buildIndex() {
+        new Thread(() -> {
+            Platform.runLater(()->{
+                Main.mainController.rebuild_markdown_index_button.setVisible(false);
+            });
+        try {
+            if (Files.exists(indexDir)) {
+                Files.walk(indexDir)
+                        .sorted(Comparator.reverseOrder())
+                        .forEach(path -> {
+                            try {
+                                Files.delete(path);
+                            } catch (IOException e) {
+                               // System.err.println("删除失败: " + path + " => " + e.getMessage());
+                            }
+                        });
+            }
+            LuceneIndexer indexer = new LuceneIndexer(indexDir);
+            indexer.buildIndex(Paths.get("docs"));
+            Platform.runLater(()->{
+            NotificationUtil.showNotification(Main.mainController.notice_pane,"索引重建完成！");
+                Platform.runLater(()->{
+                    Main.mainController.rebuild_markdown_index_button.setVisible(true);
+                });
+            });
+        } catch (Exception e) {
+            Platform.runLater(()-> {
+                        Main.mainController.rebuild_markdown_index_button.setVisible(true);
+                        AlterUtil.CustomAlert("错误", "索引建立失败：" + e.getMessage());
+                    });
+            e.printStackTrace();
+        }
+        }).start();
+    }
+
+    public static void performSearch(String searchText) {
+        if (searchText.isEmpty()) {
+            return;
+        }
+        try {
+            keywordField=searchText;
+            LuceneSearcher searcher = new LuceneSearcher(indexDir);
+            List<LuceneSearcher.SearchResult> results = searcher.search(keywordField, 50);
+            Platform.runLater(()->{
+                Stage mainStage = (Stage) Main.scene.getWindow();
+                if (!popupListenersAdded) {
+                    mainStage.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+                        if (search_result_popup.isShowing()) {
+                            // 1. 将主窗口内的鼠标坐标转换为屏幕绝对坐标
+                            double mouseX = mainStage.getX() + event.getX();
+                            double mouseY = mainStage.getY() + event.getY();
+
+                            // 2. 获取弹窗的屏幕坐标范围
+                            double popupX = search_result_popup.getX();
+                            double popupY = search_result_popup.getY();
+                            double popupWidth = search_result_popup.getWidth();
+                            double popupHeight = search_result_popup.getHeight();
+
+                            // 3. 判断鼠标是否在弹窗外部
+                            boolean isOutside = mouseX < popupX
+                                    || mouseX > popupX + popupWidth
+                                    || mouseY < popupY
+                                    || mouseY > popupY + popupHeight;
+
+                            if (isOutside) {
+                                search_result_popup.hide();
+                            }
+                        }
+                    });
+                    mainStage.focusedProperty().addListener((obs, oldFocused, newFocused) -> {
+                        // 主窗口失去焦点（切换到其他程序），隐藏 Popup
+                        if (!newFocused && search_result_popup.isShowing()) {
+                            search_result_popup.hide();
+                        }
+                    });
+                    popupListenersAdded=true;
+                }
+                resultList.setItems(FXCollections.observableArrayList(results));
+                resultList.getSelectionModel().select(null);//避免第一个被选中显示背景色
+                resultList.setPrefHeight(mainStage.getHeight()-86);
+                resultList.setStyle("-fx-border-color: #888;-fx-border-width: 0.5;-fx-border-radius: 5");
+                //这个设置可以避免出现search_result_popup在第一次搜索“配置”时靠顶显示
+                search_result_popup.setAutoFix(false);
+                if(resultList.getItems().size()>0){
+                    resultList.scrollTo(0);
+                    search_result_popup.show(mainStage,
+                            mainStage.getX() + 20,
+                            mainStage.getY() + 56);
+                }else{
+                    search_result_popup.hide();
+                    NotificationUtil.showNotification(Main.mainController.notice_pane, "搜索没有匹配项！");
+                }
+
+                DropShadow shadow = new DropShadow();
+                shadow.setRadius(10);              // 模糊半径
+                shadow.setOffsetX(0);              // 阴影水平偏移
+                shadow.setOffsetY(0);              // 阴影垂直偏移
+                shadow.setColor(Color.rgb(0, 0, 0, 0.3));  // 阴影颜色（含透明度）
+
+                resultList.setEffect(shadow);
+            });
+        } catch (Exception e) {
+            Platform.runLater(()->{
+                AlterUtil.CustomAlert("错误",e.getMessage());
+            });
+            e.printStackTrace();
+        }
+    }
+
+    /*
+    private static void showPreview(String path) {
+        try {
+            String content = Files.readString(Paths.get(path));
+            previewArea.setText(content.substring(0, Math.min(2000, content.length())));
+        } catch (Exception e) {
+            previewArea.setText("无法读取文件：" + e.getMessage());
+        }
+    }
+
+     */
+
+
+    public static void warmUpIndex() {
+        try  {
+            keywordField="安装配置";
+            LuceneSearcher searcher = new LuceneSearcher(indexDir);
+            List<LuceneSearcher.SearchResult> results = searcher.search(keywordField, 50);
+        } catch (Exception ignored) {}
+    }
+
+
+}
