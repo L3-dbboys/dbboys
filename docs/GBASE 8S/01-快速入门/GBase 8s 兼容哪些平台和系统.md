@@ -1,0 +1,1 @@
+GBase 8s 支持Linux/Unix部署，支持x86、arm、power、龙芯等芯片。支持centos、kylinv10、uos等系统。

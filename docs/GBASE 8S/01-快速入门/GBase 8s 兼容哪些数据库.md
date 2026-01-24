@@ -1,0 +1,1 @@
+GBase 8s 提供三种SQL会话级SQL模式，默认GBASE模式，支持oracle模式及mysql模式，可兼容oracle、mysql语法。

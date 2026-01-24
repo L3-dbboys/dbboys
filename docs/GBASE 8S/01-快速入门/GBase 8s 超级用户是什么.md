@@ -1,0 +1,1 @@
+GBase 8s 的超级用户是系统用户gbasedbt。

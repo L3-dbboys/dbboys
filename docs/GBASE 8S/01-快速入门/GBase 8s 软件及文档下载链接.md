@@ -1,0 +1,46 @@
+## 说明
+本文下载连接都是重定向链接，自动重定向最新版本。
+## 软件下载
+### SERVER下载（服务端）
+[GBASE 8S SERVER LINUX X86_64 最新版](https://www.dbboys.com/dl/gbase8s/server/x86/latest.tar) 适用于 Linux X86_64 架构的数据库服务端核心程序，包括高可用集群功能。  
+[GBASE 8S SERVER LINUX ARM 最新版](https://www.dbboys.com/dl/gbase8s/server/arm/latest.tar)  适用于 Linux arm 架构的数据库服务端核心程序，包括高可用集群功能。  
+### JDBC驱动下载（客户端）
+[GBASE 8S JDBC JAR 最新版](https://www.dbboys.com/dl/gbase8s/jdbc/latest.jar) JAVA程序JDBC驱动。
+
+### CSDK下载（客户端）
+[GBASE 8S CSDK LINUX X86_64 最新版](https://www.dbboys.com/dl/gbase8s/csdk/x86/latest.tar) Linux X86_64 平台下的C/ODBC开发工具包，包含数据库连接驱动、接口函数库及开发示例。  
+[GBASE 8S CSDK LINUX ARM 最新版](https://www.dbboys.com/dl/gbase8s/csdk/arm/latest.tar) Linux arm 平台下的C/ODBC开发工具包，包含数据库连接驱动、接口函数库及开发示例。  
+[GBASE 8S CSDK WINDOWS 最新版](https://www.dbboys.com/dl/gbase8s/csdk/win/latest.zip) Windows 平台下的C/ODBC开发工具包，包含数据库连接驱动、接口函数库及开发示例。  
+### GSDK下载（客户端）
+[GBASE 8S GSDK LINUX X86_64 最新版](https://www.dbboys.com/dl/gbase8s/gsdk/x86/latest.tar) Linux X86_64 平台下的GCI/GCCI开发工具包，包含数据库连接驱动、接口函数库及开发示例。  
+[GBASE 8S GSDK LINUX ARM 最新版](https://www.dbboys.com/dl/gbase8s/gsdk/arm/latest.tar) Linux arm 平台下的GCI/GCCI开发工具包，包含数据库连接驱动、接口函数库及开发示例。  
+[GBASE 8S GSDK WINDOWS 最新版](https://www.dbboys.com/dl/gbase8s/gsdk/win/latest.zip) Windows 平台下的GCI/GCCI开发工具包，包含数据库连接驱动、接口函数库及开发示例。  
+### 管理工具下载
+[GBaseDataStudio WNDOWS 最新版](https://www.dbboys.com/dl/gbase8s/ds/win/latest.zip) Windows 平台下SQL开发工具。  
+[GBaseDataStudio LINUX X86_64 最新版](https://www.dbboys.com/dl/gbase8s/ds/x86/latest.tar) Linux X86_64 平台下的SQL开发工具。  
+[GBaseDataStudio LINUX ARM 最新版](https://www.dbboys.com/dl/gbase8s/ds/arm/latest.tar) Linux arm 平台下的SQL开发工具。  
+[GBaseDataStudio管理工具手册.pdf](https://www.dbboys.com/dl/gbase8s/docs/GBaseDataStudio_User_Guide.pdf)  
+### 迁移工具下载
+[GBaseMTKWeb LINUX X86_64 最新版](https://www.dbboys.com/dl/gbase8s/mtkweb/x86/latest.tar) Linux X86_64 平台下的数据迁移工具，支持从其他数据库迁移对象结构、数据等。  
+[GBaseMTKWeb LINUX ARM 最新版](https://www.dbboys.com/dl/gbase8s/mtkweb/arm/latest.tar) Linux arm 平台下的数据迁移工具，支持从其他数据库迁移对象结构、数据等。  
+[GBaseMTKWeb使用指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/GBaseMTKWeb_User_Guide.pdf)   
+## 文档下载
+### 官方文档下载
+[GBase 8s 文档汇总.zip](https://www.dbboys.com/dl/gbase8s/docs/all.zip) 包含 GBase 8s 所有官方文档。  
+[GBase 8s 技术白皮书.pdf](https://www.dbboys.com/dl/gbase8s/docs/Technical_White_Paper.pdf) 包含 GBase 8s 的技术架构、核心特性、应用场景及性能指标，快速认知产品价值。  
+[GBase 8s 安装手册.pdf](https://www.dbboys.com/dl/gbase8s/docs/Installation_Guide.pdf) 服务器端数据库部署指南，包含硬件环境要求、系统配置、安装步骤、初始化设置等。  
+[GBase 8s 客户机产品安装指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/Client_Products_Installation_Guide.pdf) 客户端程序安装与配置手册，包含CSDK的介绍及安装说明。  
+[GBase 8s 管理员参考.pdf](https://www.dbboys.com/dl/gbase8s/docs/Administrator_Reference.pdf) 数据库系统库说明，包含管理命令onstat、onmode、onspace等说明和使用，SQL管理接口说明等。  
+[GBase 8s 管理员指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/Administrator_Guide.pdf) 数据库体系架构说明，包含磁盘、内存、进程、逻辑日志、物理日志等说明，高可用功能介绍等。  
+[GBase 8s SQL 指南：参考.pdf](https://www.dbboys.com/dl/gbase8s/docs/Guide_to_SQL_Reference.pdf) 包含系统目录表、数据类型、环境变量等说明。  
+[GBase 8s SQL 指南：教程.pdf](https://www.dbboys.com/dl/gbase8s/docs/Guide_to_SQL_Tutorial.pdf) 包含如何使用SQL访问和处理数据库中的数据，以及存储过程SPL语言和触发器的使用等。  
+[GBase 8s SQL 指南：语法.pdf](https://www.dbboys.com/dl/gbase8s/docs/Guide_to_SQL_Syntax.pdf) 包含SQL的编写语法，SPL语法、数据类型和函数使用语法等。  
+[GBase 8s DB-Access 用户指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/DB-Access_User_Guide.pdf) 介绍如何在服务器上使用dbaccess从数据库服务器查看信息及执行SQL语句。  
+[GBase 8s 导入导出工具指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/Migration_Guide.pdf) 逻辑导入导出、物理导入导出工具介绍。  
+[GBase 8s ESQLC 编程指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/ESQLC_Programmer_Guide.pdf) 介绍任何使用 ESQL/C（ C 的嵌入式结构化查询语言） 来创建具有数据库管理功能的客户端应用。  
+[GBase 8s JDBC Driver 程序员指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/JDBC_Driver_Programmer_Guide.pdf) 介绍JAVA语言如何通过JDBC连接数据库，以及连接串里支持的环境变量使用方法说明。  
+[GBase 8s ODBC Driver 程序员指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/ODBC_Driver_Programmer_Manual.pdf) 介绍C语言如何使用 ODBC 来访问数据库。  
+[GBase 8s 备份与恢复指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/Backup_and_Restore_Guide.pdf) 包含备份与恢复的概念和说明，ontape备份恢复的使用，onbar备份恢复的使用等。  
+[GBase 8s 数据变更捕获(CDC)API_程序员指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/Changex_Data_Capture_API_Programmer_Guide.pdf) 介绍如何使用CDC API捕获数据库数据变更。  
+[GBase 8s 安全技术指南.pdf](https://www.dbboys.com/dl/gbase8s/docs/Security_Guide.pdf) 授权访问控制保护数据安全介绍，以及如何使用数据库服务器安全审计组件。  
+[GBase 8s 错误消息.pdf](https://www.dbboys.com/dl/gbase8s/docs/Error_Messages.pdf) 数据库错误号的详细说明。  

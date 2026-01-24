@@ -1,0 +1,9 @@
+错误信息
+```
+JDBC char包含空格
+```
+解决方案  
+URL添加IFX_TRIMTRAILINGSPACES=1，如
+```
+jdbc:gbasedbt-sqli://192.168.17.101:9088/testdb:GBASEDBTSERVER=gbase01;IFX_LOCK_MODE_WAIT=10;IFX_TRIMTRAILINGSPACES=1;
+```
