@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -143,6 +142,7 @@ class TableInfo{
     String TableComm;           // 表注释
     String TableType;           // 表类型：T 表, E 外部表, V 视图, Q 序列, P 专用同义词, S 公共同义词
     String TableSqlMode;        // 建表模式：Oracle, GBase), MySql
+    int dbVersion;
 
     public String toString(){
         return "Tablename: " + this.TableName + "\n" +
@@ -265,6 +265,7 @@ class ForeignKeyInfo{
 
 
 public class GetDDLUtil {
+
     /**
      * 删除前后空格
      * @param str
@@ -351,7 +352,7 @@ public class GetDDLUtil {
      * @return
      * @throws SQLException
      */
-    private static ArrayList<ColumnsInfo> resultSet2ColumnsInfoList(ResultSet resultSet) throws SQLException {
+    private static ArrayList<ColumnsInfo> resultSet2ColumnsInfoList(ResultSet resultSet, int dbVersion) throws SQLException {
         ArrayList<ColumnsInfo> arrayList = new ArrayList<>();
         int sizeofarrayList = 0;
         // 存在多行的情况，需要考虑使用 insert or update 方式
@@ -376,7 +377,7 @@ public class GetDDLUtil {
             } else {
                 columnsInfo.ColName = resultSet.getString("colname");
                 columnsInfo.ColType = getColTypeName(resultSet.getInt("coltype"), resultSet.getInt("collength"), 0, 0, resultSet.getString("sxname"));
-                columnsInfo.ColLength = getLength(columnsInfo.ColType, resultSet.getInt("collength"));
+                columnsInfo.ColLength = getLength(columnsInfo.ColType, resultSet.getInt("collength"), dbVersion);
                 columnsInfo.TypeP = getPrecision(columnsInfo.ColType, resultSet.getInt("collength"));
                 columnsInfo.TypeS = getScale(columnsInfo.ColType, resultSet.getInt("collength"));
                 columnsInfo.isNullable = (resultSet.getInt("isnullable") == 1) ? true : false;
@@ -461,7 +462,19 @@ public class GetDDLUtil {
      * @param collength
      * @return
      */
+    @Deprecated
     private static int getLength(String coltype, int collength){
+        return getLength(coltype,collength,3);
+    }
+
+    /**
+     * 获取字段长度，按版本区分
+     * @param coltype
+     * @param collength
+     * @param dbver
+     * @return
+     */
+    private static int getLength(String coltype, int collength, int dbver){
         int mycollen = collength;
         if     ("SMALLINT".equals(coltype) || "BOOLEAN".equals(coltype)){ mycollen=5; }
         else if("INTEGER".equals(coltype) || "SERIAL".equals(coltype) || "DATE".equals(coltype)){ mycollen=10; }
@@ -470,7 +483,22 @@ public class GetDDLUtil {
         else if("SMALLFLOAT".equals(coltype)){ mycollen=7; }
         else if("DECIMAL".equals(coltype) || "MONEY".equals(coltype)){ mycollen=collength/256; }
         else if("TEXT".equals(coltype) || "BYTE".equals(coltype) || "BLOB".equals(coltype) || "CLOB".equals(coltype)) { mycollen=2147483647; }
-        else if("VARCHAR".equals(coltype) || "NVARCHAR".equals(coltype) || "VARCHAR2".equals(coltype) || "NVARCHAR2".equals(coltype)){ mycollen=collength%256; }
+        // collength = (min_space * 256) + max_size （对于2.0及之前），collength = (min_space * 65536) + max_size（3.0及之后）
+        else if("VARCHAR".equals(coltype) || "NVARCHAR".equals(coltype) || "VARCHAR2".equals(coltype) || "NVARCHAR2".equals(coltype)){
+            if (dbver == 3) {
+                if(collength > 0){
+                    mycollen = collength%65536;
+                } else {
+                    mycollen = Long.valueOf((collength + 4294967296L) % 65536).intValue();
+                }
+            } else {
+                if(collength > 0){
+                    mycollen=collength%256;
+                } else {
+                    mycollen = (collength + 65536) % 256;
+                }
+            }
+        }
         else if(coltype.startsWith("DATETIME")){ mycollen=getDTLength(collength); }
         return mycollen;
     }
@@ -563,6 +591,7 @@ public class GetDDLUtil {
         TableInfo tableInfo = new TableInfo();
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
+        int dbVersion = 3; // 默认数据库JDBC版本
         String sqlstr = "select t.tabname,dbinfo('dbname') as tablecatalog, t.owner as tableowner,t.locklevel as locktype, " +
                 "t.fextsize as firstextsize, t.nextsize as nextextsize, c.comments as tablecomm, t.tabtype as tabletype," +
                 "t.flags as tableflags " +
@@ -588,6 +617,11 @@ public class GetDDLUtil {
         }
         tableInfo.TableName = tablename;
         resultSet.close();
+
+        String jdbcVersion = connection.getMetaData().getDriverVersion();
+        dbVersion=Integer.parseInt(jdbcVersion.substring(0,1));
+        tableInfo.dbVersion = dbVersion;
+
         preparedStatement.close();
         return tableInfo;
     }
@@ -599,7 +633,7 @@ public class GetDDLUtil {
      * @param delimident
      * @throws SQLException
      */
-    private static ArrayList<ColumnsInfo> getColInfo(Connection connection,String tablename) throws SQLException {
+    private static ArrayList<ColumnsInfo> getColInfo(Connection connection,TableInfo tableInfo) throws SQLException {
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
         ArrayList<ColumnsInfo> arrayList = null;
@@ -637,10 +671,10 @@ public class GetDDLUtil {
                 "WHERE t.tabname = ? " +
                 "ORDER BY sc.colno;";
         preparedStatement = connection.prepareStatement(sqlstr);
-        preparedStatement.setString(1,tablename);
+        preparedStatement.setString(1,tableInfo.TableName);
         resultSet = preparedStatement.executeQuery();
         // 调用函数处理resultset
-        arrayList = resultSet2ColumnsInfoList(resultSet);
+        arrayList = resultSet2ColumnsInfoList(resultSet,tableInfo.dbVersion);
         resultSet.close();
         preparedStatement.close();
         return arrayList;
@@ -980,7 +1014,7 @@ public class GetDDLUtil {
      * @throws SQLException
      * @throws ClassNotFoundException
      */
-    public static String printTable(Connection connection,String tablename) throws SQLException, ClassNotFoundException {
+    public static String printDDL(Connection connection,String tablename) throws SQLException, ClassNotFoundException {
         String ddl = "SET ENVIRONMENT SQLMODE ";
         String parttern_constraint = "^[cur]\\d+_\\d+";              // u=unique,r=reference,c=check
         TableInfo tableInfo = getTableInfo(connection,tablename);
@@ -1012,7 +1046,7 @@ public class GetDDLUtil {
         ddl = ddl + getName(tableInfo.TableName) + " (\n";
 
         ArrayList<CheckInfo> checkInfoArrayList = getCheck(connection,tablename);
-        ArrayList<ColumnsInfo> columnsInfoArrayList = getColInfo(connection,tablename);
+        ArrayList<ColumnsInfo> columnsInfoArrayList = getColInfo(connection,tableInfo);
         ArrayList<PrimaryKeyInfo> primaryKeyInfoArrayList = getPrimarykey(connection,columnsInfoArrayList,tablename);
         ArrayList<IndexesInfo> indexesInfoArrayList = getIndexesInfo(connection,columnsInfoArrayList,tablename);
         ArrayList<FragmentInfo> tableFragmentInfoArrayList = getTableFragmentInfo(connection,tablename);
@@ -2029,7 +2063,6 @@ public class GetDDLUtil {
         }
         return procedureInfo.ProcBoday;
     }
-
     
     //added by L3 20260124
     public static String printPackage (Connection connection,String procname) throws SQLException {
