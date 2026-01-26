@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -1014,7 +1015,7 @@ public class GetDDLUtil {
      * @throws SQLException
      * @throws ClassNotFoundException
      */
-    public static String printDDL(Connection connection,String tablename) throws SQLException, ClassNotFoundException {
+    public static String printTable(Connection connection,String tablename) throws SQLException, ClassNotFoundException {
         String ddl = "SET ENVIRONMENT SQLMODE ";
         String parttern_constraint = "^[cur]\\d+_\\d+";              // u=unique,r=reference,c=check
         TableInfo tableInfo = getTableInfo(connection,tablename);
