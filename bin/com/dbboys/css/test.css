@@ -1,0 +1,20 @@
+.code-area .paragraph-box .paragraph-text {
+    -fx-padding: 5px;
+}
+.code-block {
+    -fx-background-color: #f8f8f8;
+    -fx-border-color: #e1e1e8;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+    -fx-padding: 10px;
+    -fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    -fx-font-size: 13px;
+}
+.code-inline {
+    -fx-background-color: #f9f2f4;
+    -fx-border-radius: 3px;
+    -fx-padding: 2 4 2 4;
+    -fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    -fx-font-size: 13px;
+    -fx-fill: #c7254e;
+}

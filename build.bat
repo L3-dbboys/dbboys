@@ -22,7 +22,7 @@ xcopy /e /h /y /q "src\com\dbboys\css\*" "bin\com\dbboys\css\"
 
 :: 生成jar文件
 jar --create --file lib/lib_nonmodular/dbboys.jar --main-class com.dbboys.app.Main -C bin .
-echo 生成最dbboys.jar完成。
+echo 生成dbboys.jar完成。
 
 
 :: 生成最小化jre
@@ -71,8 +71,6 @@ echo 文件夹已复制。
 :: 压缩dbboys目录
 set "EXE=%~dp0lib\lib_nonmodular\7za.exe"
 set "ZIP_FILE=%~dp0dbboys.zip"
-echo "%ZIP_FILE%"
-echo "%EXE%"
 if exist "%ZIP_FILE%" (
     del /f /q "%ZIP_FILE%"
     echo 已删除旧的dbboys.zip压缩包。
