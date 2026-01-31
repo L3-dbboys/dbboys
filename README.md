@@ -17,5 +17,5 @@ markdown网状知识库管理，支持图片直接粘贴，支持表格，自动
 JDK版本：jdk-25.0.1  
 1、将JDK路径的bin加入系统环境变量  
 2、修改build.bat里的JAVAFX_JMODS为对应的路径  
-3、双击build.bat，当前路径生成dbboys.zip，复制到任意未知解压即可运行  
+3、双击build.bat，当前路径生成dbboys.zip，复制到任意位置解压即可运行  
 
