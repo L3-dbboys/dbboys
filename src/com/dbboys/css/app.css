@@ -864,13 +864,69 @@
     -fx-background-color: none;
 }
 
-/* 设置选中的标签 */
-#treeview_tabpane .tab:selected {
-    -fx-background-color: none;
-    -fx-border-width: 0 0 0 0;
-    -fx-border-color: #074675;
+/*标题栏里顶部和左边的距离*/
+#treeview_tabpane .tab-header-area {
+    -fx-padding: 0 0 0 0;   /* 上 右 下 左 */
 }
 
+/*标题栏高度*/
+#treeview_tabpane .tab {
+    -fx-pref-height: 38px;
+    -fx-min-height: 38px;
+    -fx-max-height: 38px;
+    -fx-background-radius:0px;
+    -fx-border-radius: 0px;
+    -fx-padding: 20;
+    -fx-background-color:none;
+}
+
+/* 设置选中的标签 */
+#treeview_tabpane .tab:selected {
+    -fx-pref-height: 38px;
+    -fx-min-height: 38px;
+    -fx-max-height: 38px;
+    -fx-background-radius:0px;
+    -fx-border-radius: 0px;
+    -fx-padding: 20;
+    -fx-background-color:none;
+}
+
+
+/* 基础样式 */
+.toggle-button {
+    -fx-pref-height: 38px;
+    -fx-min-height: 38px;
+    -fx-max-height: 38px;
+    -fx-background-color:none;
+    -fx-background-radius:0px;
+    -fx-border-radius: 0px;
+    -fx-border-width:2 0 0 0;
+    -fx-border-color:#eee;
+    -fx-padding:15;
+}
+.toggle-button:selected {
+    -fx-pref-height: 38px;
+    -fx-min-height: 38px;
+    -fx-max-height: 38px;
+    -fx-background-color:none;
+    -fx-background-radius:0px;
+    -fx-border-radius: 0px;
+    -fx-border-width:2 0 0 0;
+    -fx-border-color:#074675;
+    -fx-padding:15;
+}
+
+.toggle-button:hover {
+    -fx-pref-height: 38px;
+    -fx-min-height: 38px;
+    -fx-max-height: 38px;
+    -fx-background-color:white;
+    -fx-background-radius:0px;
+    -fx-border-radius: 0px;
+    -fx-border-width:2 0 0 0;
+    -fx-border-color:#074675;
+    -fx-padding:15;
+}
 
 
 #resultset_tabpane .tab-label {
@@ -954,38 +1010,7 @@
 
 
 
-/* 基础样式 */
-.toggle-button {
-    -fx-padding: 3 10 3 10;
-    -fx-background-color: #eee;
-    -fx-background-radius: 3 3 0 0;
-    -fx-border-width: 0;
-    -fx-border-color: #eee;
-    /* 过渡动画（状态变化时平滑过渡） */
-}
 
-
-/* 选中状态（核心状态样式） */
-.toggle-button:hover {
-    -fx-padding: 3 10 3 10;
-    -fx-background-color: white;
-    -fx-border-color: white;
-    -fx-background-radius: 3 3 0 0;
-    -fx-border-width: 0;
-
-
-}
-/* 选中状态（核心状态样式） */
-.toggle-button:selected {
-    -fx-padding: 3 10 3 10;
-    -fx-border-color:#074675 ;
-    -fx-border-width: 0;
-    -fx-border-radius: 3;
-    -fx-background-radius: 3 3 0 0;
-    -fx-text-fill: white;
-    -fx-background-color: linear-gradient(to top, #074675, #0A609B);
-
-}
 
 
 /*listview css*/
