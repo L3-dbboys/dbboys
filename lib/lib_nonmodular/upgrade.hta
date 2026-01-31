@@ -1,0 +1,43 @@
+<html>
+<head>
+<title>dbboys正在升级，请稍等...</title>
+<HTA:APPLICATION
+  APPLICATIONNAME="dbboys 升级程序"
+  BORDER="thin"
+  CAPTION="yes"
+  SHOWINTASKBAR="yes"
+  SINGLEINSTANCE="yes"
+  SCROLL="no"
+  SYSMENU="no"
+  MAXIMIZEBUTTON="no"
+  MINIMIZEBUTTON="no"
+/>
+
+<style>
+body {
+  font-family: "system";
+  text-align: center;
+  margin-top: 40px;
+}
+</style>
+
+<script language="VBScript">
+Sub Window_OnLoad
+  Dim w, h, x, y
+  w = 360
+  h = 30
+
+  window.resizeTo w, h
+
+  x = (screen.availWidth  - w) \ 2
+  y = (screen.availHeight - h) \ 2
+
+  window.moveTo x, y
+End Sub
+
+</script>
+</head>
+
+<body>
+</body>
+</html>

@@ -1,16 +1,21 @@
-### 编译
-```
-javac -encoding UTF-8 -d bin -sourcepath src -cp "lib\lib_modular\*;lib\lib_nonmodular\*" src\com\dbboys\app\Main.java 
-```
-### 生成jar
-```
-jar --create --file lib/lib_nonmodular/dbboys.jar --main-class com.dbboys.app.Main -C bin .
-```
-### 生成最小化jre
-```
-jlink  --module-path "D:\Programs\javafx-jmods-25.0.1;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.analysis.smartcn,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core  --output jre-min --strip-debug --no-man-pages  --no-header-files
-```
-### 打包
-```
-jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx512m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml"
-```
+### dbboys简介
+新一代开源数据库开发管理工具，具备数据库装、用、管、卸全生命周期的管理能力。
+markdown网状知识库管理，支持图片直接粘贴，支持表格，自动标题、自动编号、自动缩进，下载管理。
+支持GBase 8s数据库，支持多版本、多字符集、多sqlmode的无缝切换。
+一键执行sql，兼容所有plsql、ddl、dml混合执行。
+支持绑定变量、结果集编辑
+支持数据库对象拖动展示
+支持安装、一键巡检、空间管理、参数管理、启停等
+支持自动滚动截图
+支持连接级别的变更历史记录
+支持后台任务管理
+支持只读连接
+具备完善的下载管理
+支持在线平滑升级、离线平滑升级
+
+### windows编译方法
+JDK版本：jdk-25.0.1
+1、将JDK路径的bin加入系统环境变量
+2、修改build.bat里的JAVAFX_JMODS为对应的路径
+3、双击build.bat，当前路径生成dbboys.zip，复制到任意未知解压即可运行
+

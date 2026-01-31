@@ -41,8 +41,8 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception {
         //版本号
         JSONObject jsonObject=new JSONObject();
-        jsonObject.put("version", "DBboys V1.0.0beta(20260124)");
-        jsonObject.put("build", 4);
+        jsonObject.put("version", "DBboys V1.0.0beta.20260131");
+        jsonObject.put("build", 5);
         jsonObject.put("url", "");
         jsonObject.put("changelog", "");
         VERSION=new Version(jsonObject);
