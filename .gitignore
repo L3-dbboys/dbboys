@@ -1,0 +1,6 @@
+bin/
+jre-min/
+dbboys/
+*.zip
+sources.txt
+logs/
