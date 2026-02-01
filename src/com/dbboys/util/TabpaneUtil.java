@@ -28,7 +28,6 @@ public class TabpaneUtil {
     private static TabPane tabpane= Main.mainController.sql_tabpane;
 
     public static void addCustomSqlTab(Connect connect){
-
         String tabName = "script";
         for (int i = 1; i <= 9999999; i++) {
             Boolean isContrained = false;

@@ -34,7 +34,13 @@ public class ConnectDBaccessService {
         //根据不同类型数据库，同一类型数据库不同版本驱动可能不兼容，需要加载不同外部驱动
         switch (connect.getDbtype()){
             case "GBASE 8S":
-                URL_STRING = "jdbc:gbasedbt-sqli://" + connect.getIp() + ":" + connect.getPort() + "/"+connect.getDatabase();
+                
+
+                if(connect.getPropByName("GBASEDBTSERVER").isEmpty()){
+                    URL_STRING = "jdbc:gbasedbt-sqli://" + connect.getIp() + ":" + connect.getPort() + "/"+connect.getDatabase();
+                }else{
+                    URL_STRING = "jdbc:gbasedbt-sqli:/"+connect.getDatabase()+":SQLH_TYPE=FILE;SQLH_FILE=extlib/GBASE 8S/sqlhosts;";
+                }
                 className = "com.gbasedbt.jdbc.Driver";
                 jarFilePath = "file:extlib/"+connect.getDbtype()+"/"+connect.getDriver();
                 break;

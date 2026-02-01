@@ -871,9 +871,9 @@
 
 /*标题栏高度*/
 #treeview_tabpane .tab {
-    -fx-pref-height: 38px;
-    -fx-min-height: 38px;
-    -fx-max-height: 38px;
+    -fx-pref-height: 35px;
+    -fx-min-height: 35px;
+    -fx-max-height: 35px;
     -fx-background-radius:0px;
     -fx-border-radius: 0px;
     -fx-padding: 20;
@@ -882,9 +882,9 @@
 
 /* 设置选中的标签 */
 #treeview_tabpane .tab:selected {
-    -fx-pref-height: 38px;
-    -fx-min-height: 38px;
-    -fx-max-height: 38px;
+    -fx-pref-height: 35px;
+    -fx-min-height: 35px;
+    -fx-max-height: 35px;
     -fx-background-radius:0px;
     -fx-border-radius: 0px;
     -fx-padding: 20;
@@ -894,36 +894,38 @@
 
 /* 基础样式 */
 .toggle-button {
-    -fx-pref-height: 38px;
-    -fx-min-height: 38px;
-    -fx-max-height: 38px;
+    -fx-pref-height: 35px;
+    -fx-min-height: 35px;
+    -fx-max-height: 35px;
     -fx-background-color:none;
     -fx-background-radius:0px;
     -fx-border-radius: 0px;
-    -fx-border-width:2 0 0 0;
+    -fx-border-width:0 0 0 0;
     -fx-border-color:#eee;
     -fx-padding:15;
 }
 .toggle-button:selected {
-    -fx-pref-height: 38px;
-    -fx-min-height: 38px;
-    -fx-max-height: 38px;
-    -fx-background-color:none;
-    -fx-background-radius:0px;
+    -fx-pref-height: 35px;
+    -fx-min-height: 35px;
+    -fx-max-height: 35px;
+    -fx-background-color:white;
+    -fx-background-insets:3px;
+    -fx-background-radius:3px;
     -fx-border-radius: 0px;
-    -fx-border-width:2 0 0 0;
+    -fx-border-width:0 0 0 0;
     -fx-border-color:#074675;
     -fx-padding:15;
 }
 
 .toggle-button:hover {
-    -fx-pref-height: 38px;
-    -fx-min-height: 38px;
-    -fx-max-height: 38px;
+    -fx-pref-height: 35px;
+    -fx-min-height: 35px;
+    -fx-max-height: 35px;
     -fx-background-color:white;
-    -fx-background-radius:0px;
+    -fx-background-insets:3px;
+    -fx-background-radius:3px;
     -fx-border-radius: 0px;
-    -fx-border-width:2 0 0 0;
+    -fx-border-width:0 0 0 0;
     -fx-border-color:#074675;
     -fx-padding:15;
 }

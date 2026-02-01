@@ -205,7 +205,7 @@
         <SplitPane fx:id="main_splitpane" style="-fx-border-color: #aaa;-fx-border-width: 0.5 0 0.5 0;-fx-background-insets: 0;-fx-padding: 0">
             <VBox alignment="TOP_LEFT">
                 <StackPane prefHeight="2000">
-                    <TabPane fx:id="treeview_tabpane" side="LEFT" minWidth="38" tabClosingPolicy="UNAVAILABLE">
+                    <TabPane fx:id="treeview_tabpane" side="LEFT" minWidth="35" tabClosingPolicy="UNAVAILABLE">
                         <CustomTreeviewTab fx:id="connect_tab" text="数据库连接" closable="false" >
                             <VBox style="-fx-border-width: 0 0 0 0.5;-fx-border-color: #aaa">
                                 <HBox minHeight="30" alignment="CENTER_LEFT">

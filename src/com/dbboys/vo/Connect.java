@@ -6,7 +6,16 @@ import java.sql.Connection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import com.dbboys.ctrl.CreateConnectController;
+
 public class Connect extends TreeData{
+        private static final Logger log = LogManager.getLogger(Connect.class);
+
     private IntegerProperty  id=new SimpleIntegerProperty();
     private IntegerProperty  parentId=new SimpleIntegerProperty();
     private StringProperty  dbtype=new SimpleStringProperty();
@@ -185,6 +194,29 @@ public class Connect extends TreeData{
 
     public void setProps(String props) {
         this.props.set(props);
+    }
+
+     public void setPropByName(String propName,String propValue) {
+        JSONArray jsonArray=new JSONArray(getProps());
+        for(int i=0;i<jsonArray.length();i++){
+            JSONObject jsonObject=jsonArray.getJSONObject(i);
+            if(jsonObject.getString("propName").equals(propName)){
+                jsonObject.put("propValue",propValue);
+                setProps(jsonArray.toString());
+            }
+        }
+    }
+
+    public String getPropByName(String propName) {
+        String reString="";
+        JSONArray jsonArray=new JSONArray(getProps());
+        for(int i=0;i<jsonArray.length();i++){
+            JSONObject jsonObject=jsonArray.getJSONObject(i);
+            if(jsonObject.getString("propName").equals(propName)){
+                reString= jsonObject.getString("propValue");
+            }
+        }
+        return reString;
     }
 
     public String getInfo() {

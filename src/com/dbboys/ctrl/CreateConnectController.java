@@ -1,6 +1,7 @@
 package com.dbboys.ctrl;
 
 
+import com.dbboys.customnode.CustomInfoCodeArea;
 import com.dbboys.customnode.CustomLostFocusCommitTableCell;
 import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
@@ -26,7 +27,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.Image;
@@ -35,6 +35,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -43,6 +44,7 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -84,6 +86,10 @@ public class CreateConnectController {
     private ButtonType cancel_buttontype;
     @FXML
     private DialogPane dialogPane;
+    @FXML
+    private HBox groupHbox;
+    @FXML
+    private CustomUserTextField group_textfield;
     public  String choiceName;
     public  TreeData treedataPram;
     public  Boolean isCopy;
@@ -102,7 +108,7 @@ public class CreateConnectController {
     public void init(TreeData treedataPram,Boolean isCopy,Dialog dialog){
         this.dialog = dialog;
         //默认属性
-        this.props="[{\"propName\":\"APPENDISAM\",\"propValue\":\"\"},{\"propName\":\"CLIENT_LOCALE\",\"propValue\":\"\"},{\"propName\":\"CSM\",\"propValue\":\"\"},{\"propName\":\"DBANSIWARN\",\"propValue\":\"\"},{\"propName\":\"DBDATE\",\"propValue\":\"Y4MD-\"},{\"propName\":\"DBSPACETEMP\",\"propValue\":\"\"},{\"propName\":\"DBTEMP\",\"propValue\":\"\"},{\"propName\":\"DBUPSPACE\",\"propValue\":\"\"},{\"propName\":\"DB_LOCALE\",\"propValue\":\"\"},{\"propName\":\"DELIMIDENT\",\"propValue\":\"\"},{\"propName\":\"ENABLE_TYPE_CACHE\",\"propValue\":\"\"},{\"propName\":\"ENABLE_HDRSWITCH\",\"propValue\":\"\"},{\"propName\":\"FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONRETRY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONTIME\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTOPCACHE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSTACKSIZE\",\"propValue\":\"\"},{\"propName\":\"IFX_AUTOFREE\",\"propValue\":\"\"},{\"propName\":\"IFX_BATCHUPDATE_PER_SPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_CODESETLOB\",\"propValue\":\"\"},{\"propName\":\"IFX_DIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_EXTDIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_GET_SMFLOAT_AS_FLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_ISOLATION_LEVEL\",\"propValue\":\"\"},{\"propName\":\"IFX_FLAT_UCSQ\",\"propValue\":\"\"},{\"propName\":\"IFX_LOCK_MODE_WAIT\",\"propValue\":\"10\"},{\"propName\":\"IFX_PAD_VARCHAR\",\"propValue\":\"\"},{\"propName\":\"IFX_SET_FLOAT_AS_SMFLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_SOC_TIMEOUT\",\"propValue\":\"\"},{\"propName\":\"IFX_TRIMTRAILINGSPACES\",\"propValue\":\"1\"},{\"propName\":\"IFX_USEPUT\",\"propValue\":\"\"},{\"propName\":\"IFX_USE_STRENC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASTDCOMPLIANCE_XAEND\",\"propValue\":\"\"},{\"propName\":\"IFXHOST\",\"propValue\":\"\"},{\"propName\":\"IFXHOST_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"JDBCTEMP\",\"propValue\":\"\"},{\"propName\":\"LOBCACHE\",\"propValue\":\"\"},{\"propName\":\"LOGINTIMEOUT\",\"propValue\":\"1000\"},{\"propName\":\"NEWCODESET\",\"propValue\":\"\"},{\"propName\":\"NEWNLSMAP\",\"propValue\":\"\"},{\"propName\":\"NODEFDAC\",\"propValue\":\"\"},{\"propName\":\"OPT_GOAL\",\"propValue\":\"\"},{\"propName\":\"OPTCOMPIND\",\"propValue\":\"\"},{\"propName\":\"OPTOFC\",\"propValue\":\"\"},{\"propName\":\"PATH\",\"propValue\":\"\"},{\"propName\":\"PDQPRIORITY\",\"propValue\":\"\"},{\"propName\":\"PORTNO_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"PROXY\",\"propValue\":\"\"},{\"propName\":\"PSORT_DBTEMP\",\"propValue\":\"\"},{\"propName\":\"PSORT_NPROCS\",\"propValue\":\"\"},{\"propName\":\"SECURITY\",\"propValue\":\"\"},{\"propName\":\"SQLH_TYPE\",\"propValue\":\"\"},{\"propName\":\"SQLIDEBUG\",\"propValue\":\"\"},{\"propName\":\"SQLMODE\",\"propValue\":\"\"},{\"propName\":\"SRV_FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"STMT_CACHE\",\"propValue\":\"\"},{\"propName\":\"TRUSTED_CONTEXT\",\"propValue\":\"\"},{\"propName\":\"METADATA_UPPERCASE\",\"propValue\":\"\"}]";
+        this.props="[{\"propName\":\"APPENDISAM\",\"propValue\":\"\"},{\"propName\":\"CLIENT_LOCALE\",\"propValue\":\"\"},{\"propName\":\"CSM\",\"propValue\":\"\"},{\"propName\":\"DBANSIWARN\",\"propValue\":\"\"},{\"propName\":\"DBDATE\",\"propValue\":\"Y4MD-\"},{\"propName\":\"DBSPACETEMP\",\"propValue\":\"\"},{\"propName\":\"DBTEMP\",\"propValue\":\"\"},{\"propName\":\"DBUPSPACE\",\"propValue\":\"\"},{\"propName\":\"DB_LOCALE\",\"propValue\":\"\"},{\"propName\":\"DELIMIDENT\",\"propValue\":\"\"},{\"propName\":\"ENABLE_TYPE_CACHE\",\"propValue\":\"\"},{\"propName\":\"ENABLE_HDRSWITCH\",\"propValue\":\"\"},{\"propName\":\"FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONRETRY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONTIME\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTOPCACHE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSTACKSIZE\",\"propValue\":\"\"},{\"propName\":\"IFX_AUTOFREE\",\"propValue\":\"\"},{\"propName\":\"IFX_BATCHUPDATE_PER_SPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_CODESETLOB\",\"propValue\":\"\"},{\"propName\":\"IFX_DIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_EXTDIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_GET_SMFLOAT_AS_FLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_ISOLATION_LEVEL\",\"propValue\":\"\"},{\"propName\":\"IFX_FLAT_UCSQ\",\"propValue\":\"\"},{\"propName\":\"IFX_LOCK_MODE_WAIT\",\"propValue\":\"10\"},{\"propName\":\"IFX_PAD_VARCHAR\",\"propValue\":\"\"},{\"propName\":\"IFX_SET_FLOAT_AS_SMFLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_SOC_TIMEOUT\",\"propValue\":\"\"},{\"propName\":\"IFX_TRIMTRAILINGSPACES\",\"propValue\":\"1\"},{\"propName\":\"IFX_USEPUT\",\"propValue\":\"\"},{\"propName\":\"IFX_USE_STRENC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASTDCOMPLIANCE_XAEND\",\"propValue\":\"\"},{\"propName\":\"IFXHOST\",\"propValue\":\"\"},{\"propName\":\"IFXHOST_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"JDBCTEMP\",\"propValue\":\"\"},{\"propName\":\"LOBCACHE\",\"propValue\":\"\"},{\"propName\":\"LOGINTIMEOUT\",\"propValue\":\"1000\"},{\"propName\":\"NEWCODESET\",\"propValue\":\"\"},{\"propName\":\"NEWNLSMAP\",\"propValue\":\"\"},{\"propName\":\"NODEFDAC\",\"propValue\":\"\"},{\"propName\":\"OPT_GOAL\",\"propValue\":\"\"},{\"propName\":\"OPTCOMPIND\",\"propValue\":\"\"},{\"propName\":\"OPTOFC\",\"propValue\":\"\"},{\"propName\":\"PATH\",\"propValue\":\"\"},{\"propName\":\"PDQPRIORITY\",\"propValue\":\"\"},{\"propName\":\"PORTNO_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"PROXY\",\"propValue\":\"\"},{\"propName\":\"PSORT_DBTEMP\",\"propValue\":\"\"},{\"propName\":\"PSORT_NPROCS\",\"propValue\":\"\"},{\"propName\":\"SECURITY\",\"propValue\":\"\"},{\"propName\":\"SQLIDEBUG\",\"propValue\":\"\"},{\"propName\":\"SQLMODE\",\"propValue\":\"\"},{\"propName\":\"SRV_FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"STMT_CACHE\",\"propValue\":\"\"},{\"propName\":\"TRUSTED_CONTEXT\",\"propValue\":\"\"},{\"propName\":\"METADATA_UPPERCASE\",\"propValue\":\"\"}]";
         this.treedataPram = treedataPram;
         if(treedataPram!=null&&treedataPram instanceof Connect){
             this.props=((Connect)treedataPram).getProps();
@@ -143,7 +149,7 @@ public class CreateConnectController {
             List dirverList=new ArrayList<String>();
             File driverfolder = new File("extlib/"+connect.getDbtype());
             for (File file : driverfolder.listFiles()) {
-                if (file.isFile()) {
+                if (file.isFile()&&file.getName().toLowerCase().endsWith(".jar")) {
                     dirverList.add(file.getName());
                 }
             }
@@ -175,8 +181,13 @@ public class CreateConnectController {
                 //如果不是分类上右键新建，那就是编辑连接，所有信息填充到表单
                 connectFolder=SqliteDBaccessUtil.getConnectType(((Connect) treedataPram));
                 connectname_textfield.setText(((Connect)treedataPram).getName());
-                ipaddr_textfield.setText(((Connect) treedataPram).getIp());
-                port_textfield.setText(((Connect) treedataPram).getPort());
+                if(!((Connect)treedataPram).getPropByName("GBASEDBTSERVER").isEmpty()){
+                    group_textfield.setText(((Connect)treedataPram).getPropByName("GBASEDBTSERVER"));
+                    switchGroupOrIP();
+                }else{
+                    ipaddr_textfield.setText(((Connect) treedataPram).getIp());
+                    port_textfield.setText(((Connect) treedataPram).getPort());
+                }
                 username_textfield.setText(((Connect) treedataPram).getUsername());
                 passwd_textfield.setText(((Connect) treedataPram).getPassword());
                 readonly_checkbox.setSelected(((Connect) treedataPram).getReadonly());
@@ -235,40 +246,12 @@ public class CreateConnectController {
         Button tryConnectButton = (Button) dialogPane.lookupButton(test_buttontype);
         tryConnectButton.disableProperty().bind(connecting_hbox.visibleProperty());
         tryConnectButton.addEventFilter(ActionEvent.ACTION, event -> {
-            if(ipaddr_textfield.getText().isEmpty()){
+            if(!checkInput())
+            {
                 event.consume();
-                //ipaddr_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                ipaddr_textfield.requestFocus();
-            }
-            else if(port_textfield.getText().isEmpty()){
-                event.consume();
-                //port_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                port_textfield.requestFocus();
-            }
-            else if(username_textfield.getText().isEmpty()){
-                event.consume();
-                // username_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                username_textfield.requestFocus();
-            }
-            else if(passwd_textfield.getText().isEmpty()){
-                event.consume();
-                //passwd_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                passwd_textfield.requestFocus();
             }else {
-                connect.setIp(ipaddr_textfield.getText());
-                connect.setPort(port_textfield.getText());
-                if (connect.getDatabase() == null) {
-                    connect.setDatabase("sysmaster");
-                }
-                connect.setUsername(username_textfield.getText());
-                connect.setPassword(passwd_textfield.getText());
-                connect.setProps(props);
-                connect.setReadonly(readonly_checkbox.isSelected());
-                if (connectname_textfield.getText().isEmpty()) {
-                    connect.setName("[" + connect.getIp() + "_" + connect.getPort() + "]");
-                } else {
-                    connect.setName(connectname_textfield.getText());
-                }
+                setConnect(connect);
+                
                 //如果连接信息可正常连接，检查连接名是否已存在
                 commitConnecting(connect,false);
             }
@@ -279,41 +262,11 @@ public class CreateConnectController {
         final Button commitButton = (Button) dialogPane.lookupButton(commit_buttontype);
         commitButton.disableProperty().bind(connecting_hbox.visibleProperty());
         commitButton.addEventFilter(ActionEvent.ACTION, event1 -> {
-
-            if(ipaddr_textfield.getText().isEmpty()){
+            if(!checkInput())
+            {
                 event1.consume();
-                //ipaddr_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                ipaddr_textfield.requestFocus();
-            }
-            else if(port_textfield.getText().isEmpty()){
-                event1.consume();
-                //port_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                port_textfield.requestFocus();
-            }
-            else if(username_textfield.getText().isEmpty()){
-                event1.consume();
-                // username_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                username_textfield.requestFocus();
-            }
-            else if(passwd_textfield.getText().isEmpty()){
-                event1.consume();
-                //passwd_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                passwd_textfield.requestFocus();
-            }else{
-                connect.setIp(ipaddr_textfield.getText());
-                connect.setPort(port_textfield.getText());
-                if(connect.getDatabase()==null){
-                    connect.setDatabase("sysmaster");
-                }
-                connect.setUsername(username_textfield.getText());
-                connect.setPassword(passwd_textfield.getText());
-                connect.setProps(props);
-                connect.setReadonly(readonly_checkbox.isSelected());
-                if(connectname_textfield.getText().isEmpty()){
-                    connect.setName("["+connect.getIp()+"_"+connect.getPort()+"]");
-                }else{
-                    connect.setName(connectname_textfield.getText());
-                }
+            }else {
+                setConnect(connect);
                 //如果连接信息可正常连接，检查连接名是否已存在
                 if(SqliteDBaccessUtil.checkConnectLeafNameExists(connect)){
                     AlterUtil.CustomAlert("错误","连接名称\""+connect.getName()+"\"已存在，请输入其他名称。");
@@ -330,6 +283,67 @@ public class CreateConnectController {
 
     }
 
+    public void setConnect(Connect connect){
+
+        connect.setProps(props);
+                if(groupHbox.isVisible()){
+                    connect.setPropByName("GBASEDBTSERVER", group_textfield.getText());
+                    if (connectname_textfield.getText().isEmpty()) {
+                    connect.setName(group_textfield.getText());
+                    }else {
+                    connect.setName(connectname_textfield.getText());
+                }
+                    props=connect.getProps();
+                }else{
+                    connect.setIp(ipaddr_textfield.getText());
+                    connect.setPort(port_textfield.getText());
+                    if (connectname_textfield.getText().isEmpty()) {
+                    connect.setName("[" + connect.getIp() + "_" + connect.getPort() + "]");
+                    }else {
+                    connect.setName(connectname_textfield.getText());
+                }
+                }
+
+                if (connect.getDatabase() == null) {
+                    connect.setDatabase("sysmaster");
+                }
+                connect.setUsername(username_textfield.getText());
+                connect.setPassword(passwd_textfield.getText());
+                
+                connect.setReadonly(readonly_checkbox.isSelected());
+            
+    }
+    public boolean checkInput(){
+        if(groupHbox.isVisible()){
+                if(group_textfield.getText().isEmpty()){
+                    group_textfield.requestFocus();
+                    return false;
+                }
+            }else 
+                {
+                    if(ipaddr_textfield.getText().isEmpty()){
+                        //ipaddr_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                        ipaddr_textfield.requestFocus();
+                        return false;
+                    }
+                    else if(port_textfield.getText().isEmpty()){
+                        //port_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                        port_textfield.requestFocus();
+                        return false;
+                    }
+                }
+            if(username_textfield.getText().isEmpty()){
+                // username_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                username_textfield.requestFocus();
+                return false;
+            }
+            else if(passwd_textfield.getText().isEmpty()){
+                //passwd_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                passwd_textfield.requestFocus();
+                return false;
+            }
+            return true;
+    }
 
     public void initialize() throws IOException {
 
@@ -524,6 +538,63 @@ public class CreateConnectController {
     }
 
 
+    //编辑组信息
+    public void modifyGroupProps(){
+    
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("编辑组信息");
+        alert.setHeaderText("");
+        alert.setGraphic(null); //避免显示问号
+        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+        alert.getDialogPane().getScene().getStylesheets().add(getClass().getResource("/com/dbboys/css/app.css").toExternalForm());
+        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
+        alterstage.getIcons().add(new Image("file:images/logo.png"));
+        HBox hbox = new HBox();
+        hbox.setId("modifyProps");
+        hbox.setAlignment(Pos.CENTER_LEFT);
+        Path file = Paths.get("extlib/GBase 8S/sqlhosts");
+        String content="";
+        String defaultContent="db_group\tgroup\t-\t-\ngbase01\tonsoctcp\t192.168.1.1\t9088\tg=db_group\ngbase02\tonsoctcp\t192.168.1.2\t9088\tg=db_group";
+        try {
+            // 1. 判断文件是否存在
+            if (Files.exists(file)) {
+                content = Files.readString(file, StandardCharsets.UTF_8);
+            } else {
+                Files.writeString(file, defaultContent, StandardCharsets.UTF_8);
+                content = defaultContent; // 写入后返回默认内容
+            }
+        } catch (IOException e) {
+            log.error(e.getMessage(),e);
+        }
+        CustomInfoCodeArea codeArea = new CustomInfoCodeArea();
+        VirtualizedScrollPane virtualizedScrollPane=new VirtualizedScrollPane<>(codeArea);
+        hbox.getChildren().add(virtualizedScrollPane);
+        codeArea.setPrefWidth(400);
+        codeArea.setPrefHeight(100);
+        codeArea.setEditable(true);
+        codeArea.replaceText(content);
+        alert.getDialogPane().setContent(hbox);
+
+        // 自定义按钮
+        ButtonType buttonTypeOk = new ButtonType("确认", ButtonBar.ButtonData.OK_DONE);
+        ButtonType buttonTypeCancel = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
+        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        if (result == buttonTypeOk) {
+            try {
+                Files.writeString(file, codeArea.getText(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                log.error(e.getMessage(),e);
+            }
+        }
+    }
+
+    public void switchGroupOrIP(){
+        groupHbox.setVisible(!groupHbox.isVisible());
+    }
+
+
     public void commitConnecting(Connect connect,boolean isCommit){
         try{
             connecting_hbox.setVisible(true);
@@ -625,7 +696,7 @@ public class CreateConnectController {
                             AlterUtil.CustomAlert("错误",result);
                         }
 
-                    //测试连接
+                    //如果不是提交连接，那就是点击了测试连接,需要
                     }else{
                         Platform.runLater(()->{
                             AlterUtil.CustomAlert("通知","测试连接成功，用时【"+(finalEnd -start)+"ms】。");

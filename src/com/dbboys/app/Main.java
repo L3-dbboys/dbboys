@@ -2,6 +2,7 @@ package com.dbboys.app;
 
 import com.dbboys.util.ConfigManagerUtil;
 import com.dbboys.ctrl.MainController;
+import com.dbboys.customnode.CustomSqlEditCodeArea;
 import com.dbboys.util.TabpaneUtil;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Version;
@@ -41,8 +42,8 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception {
         //版本号
         JSONObject jsonObject=new JSONObject();
-        jsonObject.put("version", "DBboys V1.0.0beta.20260131");
-        jsonObject.put("build", 5);
+        jsonObject.put("version", "DBboys V1.0.0beta.20260201");
+        jsonObject.put("build", 6);
         jsonObject.put("url", "");
         jsonObject.put("changelog", "");
         VERSION=new Version(jsonObject);
@@ -91,6 +92,23 @@ public class Main extends Application {
                // primaryStage.initStyle(StageStyle.DECORATED);
                 primaryStage.initStyle(StageStyle.UNDECORATED); //UNDECORATED可以避免加载treelist黑块现象
 
+                // 在后台线程中预加载，避免首次点击时卡顿，首次打开sql编辑界面300+ms下降到50+ms
+                new Thread(() -> {
+                    try {
+                        // 预加载FXML文件
+                        FXMLLoader sqlTabLoader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/SqlTab.fxml"));
+                        sqlTabLoader.load();
+                        
+                        //FXMLLoader resultSetLoader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/ResultSetTab.fxml"));
+                        //resultSetLoader.load();
+                        
+                        // 预创建CustomSqlEditCodeArea实例
+                        new CustomSqlEditCodeArea();
+                    } catch (IOException e) {
+                        log.error("预加载资源失败", e);
+                    }
+                }).start();
+    
 
 
                 //窗口切换
