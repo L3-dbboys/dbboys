@@ -14,7 +14,24 @@ import java.util.regex.Pattern;
 class ProcedureInfo{
     String ProcName;        // name
     String ProcBoday;       // proc boday
+    /*
+     * 函数/过程标识(int 4字节)：
+     * 1, 最低位开始第三位是1时（位与4值为4时），SQLMODE=Oracle，
+     */
+    int ProcFlags;
 
+    /**
+     * 返回存储过程/函数的数据库模式
+     * @return
+     */
+    public String getProcSqlMode(){
+        if((this.ProcFlags & 4) == 4){
+            return "Oracle";
+        }
+        return "GBase";
+    }
+
+    @Override
     public String toString(){
         return "ProcName: " + this.ProcName + "\n" +
                 "ProcBoday: " + this.ProcBoday;
@@ -25,6 +42,22 @@ class ProcedureInfo{
 class ViewInfo{
     String ViewName;        // name
     String ViewBoday;       // view ddl
+    /*
+     * 表标识(smallint两字节)：
+     * 1, 最高位开始第一位是1时（位与16384值为16384时），SQLMODE=Oracle，
+     */
+    int Flags;
+
+    /**
+     * 返回视图的数据库模式
+     * @return
+     */
+    public String getViewSqlMode(){
+        if ((this.Flags & 16384) == 16384) {
+            return "Oracle";
+        }
+        return "GBase";
+    }
 
     public String toString(){
         return "ViewName: " + this.ViewName + "\n" +
@@ -43,6 +76,22 @@ class SynonymInfo{
     String RTabName;        // remote table
     String LOwner;          // local table owner
     String LTabName;        // local table
+    /*
+     * 表标识(smallint两字节)：
+     * 1, 最高位开始第一位是1时（位与16384值为16384时），SQLMODE=Oracle，
+     */
+    int Flags;
+
+    /**
+     * 返回同义词的数据库模式
+     * @return
+     */
+    public String getSynonymSqlMode(){
+        if ((this.Flags & 16384) == 16384) {
+            return "Oracle";
+        }
+        return "GBase";
+    }
 
     public String toString(){
         return "SynType: " + this.SynType + "\n" +
@@ -68,6 +117,22 @@ class SequenceInfo{
     String IsCycle;     // 0 nocycle, 1 cycle;
     long cache;         // 0 nocache
     String IsOrder;     // 0 noorder, 1 order;
+    /*
+     * 表标识(smallint两字节)：
+     * 1, 最高位开始第一位是1时（位与16384值为16384时），SQLMODE=Oracle，
+     */
+    int Flags;
+
+    /**
+     * 返回序列的数据库模式
+     * @return
+     */
+    public String getSequenceSqlMode(){
+        if ((this.Flags & 16384) == 16384) {
+            return "Oracle";
+        }
+        return "GBase";
+    }
 
     public String toString() {
         return "SeqName: " + this.SeqName + "\n";
@@ -137,14 +202,69 @@ class TableInfo{
     String TableName;           // 表名
     String TableCatalog;        // catalog
     String TableOwner;          // 属主
-    String lockType;            // 锁类型
+    String lockType;            // 锁类型 P 页锁， R 行锁， B 页锁和行锁
     int firstExtSize;           // 首区段大小
     int nextExtSize;            // 下一区段大小
     String TableComm;           // 表注释
     String TableType;           // 表类型：T 表, E 外部表, V 视图, Q 序列, P 专用同义词, S 公共同义词
-    String TableSqlMode;        // 建表模式：Oracle, GBase), MySql
+    @Deprecated
+    String TableSqlMode;        // 建表模式：Oracle, GBase, MySql
+    /*
+     * 表标识(smallint两字节)：
+     * 1, 最高位开始第一位是1时（位与16384值为16384时），SQLMODE=Oracle，
+     * 2，最高位开始第二位是1时（位与8192值为8192时），事务级（commit delete）；为0时则为 会话级（COMMIT PRESERVE）
+     * 3，最商位开始第三位是1时（位与4096值为4096时），全局临时表；为0时则为默认的永久表
+     */
+    int Flags;
     int dbVersion;
 
+    /**
+     * 返回 SQLMODE
+     * @return
+     */
+    public String getTableSqlMode(){
+        if ((this.Flags & 16384) == 16384) {
+            return "Oracle";
+        }
+        return "GBase";
+    }
+
+    /**
+     * 返回 全局临时表 标识
+     * @return
+     */
+    public String getTableGlobalTemporary(){
+        if ((this.Flags & 4096) == 4096) {
+            return "GLOBAL TEMPORARY";
+        }
+        return "";
+    }
+
+    /**
+     * 返回 全局临时表 级别
+     * @return
+     */
+    public String getTableGlobalTemporaryLevel(){
+        if ((this.Flags & 8192) == 8192) {
+            return "ON COMMIT DELETE ROWS";
+        }
+        return "ON COMMIT PRESERVE ROWS";
+    }
+
+    /**
+     * 返回表锁类型
+     * @return
+     */
+    public String getLockType(){
+        if("P".equals(this.lockType)){
+            return "PAGE";
+        } else if("B".equals(this.lockType)){
+            return "PAGE,ROW";
+        }
+        return "ROW";
+    }
+
+    @Override
     public String toString(){
         return "Tablename: " + this.TableName + "\n" +
                 "TableCatalog: " + this.TableCatalog + "\n" +
@@ -609,12 +729,7 @@ public class GetDDLUtil {
             tableInfo.nextExtSize = resultSet.getInt("nextextsize");
             tableInfo.TableComm = trim(resultSet.getString("tablecomm"));
             tableInfo.TableType = trim(resultSet.getString("tabletype"));
-            String tabsqlmode = "GBase";
-            // 位与运算，&16384 == 16384为Oracle模式
-            if ((resultSet.getInt("tableflags") & 16384) == 16384) {
-                tabsqlmode = "Oracle";
-            }
-            tableInfo.TableSqlMode = tabsqlmode;
+            tableInfo.Flags = resultSet.getInt("tableflags");
         }
         tableInfo.TableName = tablename;
         resultSet.close();
@@ -1016,22 +1131,22 @@ public class GetDDLUtil {
      * @throws ClassNotFoundException
      */
     public static String printTable(Connection connection,String tablename) throws SQLException, ClassNotFoundException {
-        String ddl = "SET ENVIRONMENT SQLMODE ";
         String parttern_constraint = "^[cur]\\d+_\\d+";              // u=unique,r=reference,c=check
         TableInfo tableInfo = getTableInfo(connection,tablename);
-        String sqlmode = tableInfo.TableSqlMode;
-        ddl = ddl + "'" + sqlmode + "';\n";
+        String sqlmode = tableInfo.getTableSqlMode();
+        String ddl = "SET ENVIRONMENT SQLMODE '" + sqlmode + "';\n";
+        // 视图，序列、同义词暂时只打印自己的信息
         if ("V".equalsIgnoreCase(tableInfo.TableType)){
-            return ddl + printView(connection,tablename);
+            return printView(connection,tablename);
         } else if("Q".equalsIgnoreCase(tableInfo.TableType)) {
-            return ddl + printSequence(connection,tablename);
-        } else if("P".equalsIgnoreCase(tableInfo.TableType)){
-            return ddl + printSynonym(connection,tablename);
-        } else if("S".equalsIgnoreCase(tableInfo.TableType)){
-            return ddl + printSynonym(connection,tablename);
+            return printSequence(connection,tablename);
+        } else if("P".equalsIgnoreCase(tableInfo.TableType) || "S".equalsIgnoreCase(tableInfo.TableType)) {
+            return printSynonym(connection, tablename);
         }
 
         ddl = ddl + "CREATE ";
+        // global temporary
+        ddl = ddl + tableInfo.getTableGlobalTemporary() + " ";
         // external
         if("E".equals(tableInfo.TableType)){
             ddl = ddl + "EXTERNAL TABLE ";
@@ -1080,11 +1195,11 @@ public class GetDDLUtil {
                 if ("Oracle".equalsIgnoreCase(sqlmode)){
                     if (!Pattern.matches(parttern_constraint, checkInfoArrayList.get(i).constrName)) {
                         ddl = ddl + ",\n  CONSTRAINT " + getName(checkInfoArrayList.get(i).constrName);
-                        ddl = ddl + " CHECK " + checkInfoArrayList.get(i).checkText;
+                        ddl = ddl + "  CHECK " + checkInfoArrayList.get(i).checkText;
                     } else {
                         ddl = ddl + ",\n  CHECK " + checkInfoArrayList.get(i).checkText;
                     }
-                // default GBase模式
+                    // default GBase模式
                 } else {
                     ddl = ddl + ",\n  CHECK " + checkInfoArrayList.get(i).checkText;
                     if (!Pattern.matches(parttern_constraint, checkInfoArrayList.get(i).constrName)) {
@@ -1101,20 +1216,20 @@ public class GetDDLUtil {
                     if (!Pattern.matches(parttern_constraint, primaryKeyInfoArrayList.get(i).constrName)) {
                         ddl = ddl + ",\n  CONSTRAINT " + getName(primaryKeyInfoArrayList.get(i).constrName);
                         if ("P".equals(primaryKeyInfoArrayList.get(i).constrType)) {
-                            ddl = ddl + " PRIMARY KEY(";
+                            ddl = ddl + "  PRIMARY KEY(";
                         } else if ("U".equals(primaryKeyInfoArrayList.get(i).constrType)) {
-                            ddl = ddl + " UNIQUE(";
+                            ddl = ddl + "  UNIQUE(";
                         }
                         ddl = ddl + primaryKeyInfoArrayList.get(i).idxCols + ")";
                     } else {
                         if ("P".equals(primaryKeyInfoArrayList.get(i).constrType)) {
-                            ddl = ddl + ",\n PRIMARY KEY(";
+                            ddl = ddl + ",\n  PRIMARY KEY(";
                         } else if ("U".equals(primaryKeyInfoArrayList.get(i).constrType)) {
-                            ddl = ddl + ",\n UNIQUE(";
+                            ddl = ddl + ",\n  UNIQUE(";
                         }
                         ddl = ddl + primaryKeyInfoArrayList.get(i).idxCols + ")";
                     }
-                // default GBase模式
+                    // default GBase模式
                 } else {
                     if ("P".equals(primaryKeyInfoArrayList.get(i).constrType)) {
                         ddl = ddl + ",\n  PRIMARY KEY(";
@@ -1123,7 +1238,7 @@ public class GetDDLUtil {
                     }
                     ddl = ddl + primaryKeyInfoArrayList.get(i).idxCols + ")";
                     if (!Pattern.matches(parttern_constraint, primaryKeyInfoArrayList.get(i).constrName)) {
-                        ddl = ddl + " CONSTRAINT " + getName(primaryKeyInfoArrayList.get(i).constrName);
+                        ddl = ddl + "  CONSTRAINT " + getName(primaryKeyInfoArrayList.get(i).constrName);
                     }
                 }
             }
@@ -1206,14 +1321,15 @@ public class GetDDLUtil {
                 ddl = ddl + buildFragmentString(tableFragmentInfoArrayList);
             }
 
-            // 区段大小及锁模式
-            ddl = ddl + "\nEXTENT SIZE " + tableInfo.firstExtSize + " NEXT SIZE " + tableInfo.nextExtSize;
-            if ("P".equals(tableInfo.lockType)) {
-                ddl = ddl + " LOCK MODE PAGE;";
+            // 全局临时表级别
+            if ("".equals(tableInfo.getTableGlobalTemporary())){
+                ddl = ddl + "\n";
             } else {
-                ddl = ddl + " LOCK MODE ROW;";
+                ddl = ddl + "\n" + tableInfo.getTableGlobalTemporaryLevel() + " ";
             }
-            ddl = ddl + "\n";
+            // 区段大小及锁模式
+            ddl = ddl + "EXTENT SIZE " + tableInfo.firstExtSize + " NEXT SIZE " + tableInfo.nextExtSize;
+            ddl = ddl + " LOCK MODE " + tableInfo.getLockType() + ";\n";
 
             // 索引，去除约束创建的索引
             if (indexesInfoArrayList.size() > 0) {
@@ -1759,7 +1875,7 @@ public class GetDDLUtil {
         SequenceInfo sequenceInfo = new SequenceInfo();
         sqlstr = "SELECT t.owner AS seqowner,t.tabname AS seqname,seq.start_val AS startval, " +
                 "  seq.inc_val AS incval,seq.max_val AS maxval,seq.min_val AS minval, " +
-                "  seq.cycle AS iscycle, seq.cache AS cache,seq.order AS isorder " +
+                "  seq.cycle AS iscycle, seq.cache AS cache,seq.order AS isorder, t.flags  " +
                 "FROM systables t, syssequences seq " +
                 "WHERE t.tabid = seq.tabid " +
                 "AND t.tabname = ? " +
@@ -1793,7 +1909,7 @@ public class GetDDLUtil {
      */
     public static String printSequence(Connection connection, String sequencename) throws SQLException {
         SequenceInfo sequenceInfo = getSequenceInfo(connection,sequencename);
-        String ddl = "CREATE SEQUENCE ";
+        String ddl = "SET ENVIRONMENT SQLMODE '" + sequenceInfo.getSequenceSqlMode() + "';\nCREATE SEQUENCE ";
         if (sequenceInfo == null || sequenceInfo.SeqName == null){
             return "";
         }
@@ -1846,7 +1962,7 @@ public class GetDDLUtil {
         String sqlstr = null;
         sqlstr = "select t1.tabtype AS syntype,t1.owner AS synowner,t1.tabname AS synname, " +
                 "    s.servername AS rservername,s.dbname AS rdbname,s.owner AS rowner,s.tabname AS rtabname, " +
-                "    syn.owner AS lowner,syn.tabname AS ltabname " +
+                "    syn.owner AS lowner,syn.tabname AS ltabname, t1.flags " +
                 "from syssyntable s  " +
                 "LEFT JOIN systables syn ON s.btabid = syn.tabid, systables t1 " +
                 "WHERE s.tabid = t1.tabid " +
@@ -1864,6 +1980,7 @@ public class GetDDLUtil {
             synonymInfo.RTabName = resultSet.getString("rtabname");
             synonymInfo.LOwner = resultSet.getString("lowner");
             synonymInfo.LTabName = resultSet.getString("ltabname");
+            synonymInfo.Flags = resultSet.getInt("flags");
         }
         resultSet.close();
         preparedStatement.close();
@@ -1880,7 +1997,7 @@ public class GetDDLUtil {
      */
     public static String printSynonym(Connection connection, String synonymname) throws SQLException {
         SynonymInfo synonymInfo = getSynonymInfo(connection,synonymname);
-        String ddl = "CREATE ";
+        String ddl = "SET ENVIRONMENT SQLMODE '" + synonymInfo.getSynonymSqlMode() + "';\nCREATE ";
         if (synonymInfo == null || synonymInfo.SynName == null){
             return "";
         }
@@ -1928,7 +2045,8 @@ public class GetDDLUtil {
         ViewInfo viewInfo = new ViewInfo();
         String sqlstr = null;
         String viewbody = "";
-        sqlstr = "select v.viewtext as viewtext " +
+        int flags = 0;
+        sqlstr = "select v.viewtext as viewtext, t.flags " +
                 "from systables t,sysviews v " +
                 "where t.tabid = v.tabid " +
                 "and t.tabtype = 'V' " +
@@ -1939,12 +2057,14 @@ public class GetDDLUtil {
         resultSet = preparedStatement.executeQuery();
         while (resultSet.next()){
             viewbody = viewbody + rtrimascii0(resultSet.getString("viewtext"));
+            flags = resultSet.getInt("flags");
         }
         if ("".equals(viewbody)){
             return null;
         }
         viewInfo.ViewName = viewname;
         viewInfo.ViewBoday = viewbody;
+        viewInfo.Flags = flags;
         resultSet.close();
         preparedStatement.close();
         return viewInfo;
@@ -1960,10 +2080,11 @@ public class GetDDLUtil {
      */
     public static String printView(Connection connection, String viewname) throws SQLException {
         ViewInfo viewInfo = getViewInfo(connection,viewname);
+        String viewsql = "SET ENVIRONMENT SQLMODE '" + viewInfo.getViewSqlMode() + "';\n";
         if (viewInfo == null || viewInfo.ViewName == null){
             return "";
         }
-        return viewInfo.ViewBoday;
+        return viewsql + viewInfo.ViewBoday;
     }
 
     /**
@@ -1985,6 +2106,7 @@ public class GetDDLUtil {
         int numargs = 0;
         String paramtypes = "";
         int isexists = 0;
+        int procflags = 0;
 
         // procdefine: func1(integer,integer)
         tmpproc = procdefine.split("\\(");
@@ -2011,7 +2133,7 @@ public class GetDDLUtil {
         if (isexists == 0){                 // 不存在
             return null;
         } else if (isexists == 1){          //  单个
-            sqlstr = "select p.procname,b.seqno,b.data procbody " +
+            sqlstr = "select p.procname,b.seqno,b.data procbody,p.procflags " +
                     "from sysprocedures p, sysprocbody b " +
                     "where p.procid = b.procid " +
                     "and p.procname = ? " +
@@ -2021,7 +2143,7 @@ public class GetDDLUtil {
             preparedStatement = connection.prepareStatement(sqlstr);
             preparedStatement.setString(1,procname);
         } else if (isexists > 1){           // 多个函数
-            sqlstr = "select p.procname,b.seqno,b.data procbody " +
+            sqlstr = "select p.procname,b.seqno,b.data procbody,p.procflags " +
                     "from sysprocedures p, sysprocbody b " +
                     "where p.procid = b.procid " +
                     "and p.procname = ? " +
@@ -2038,12 +2160,14 @@ public class GetDDLUtil {
         resultSet = preparedStatement.executeQuery();
         while (resultSet.next()){
             procbody = procbody + rtrimascii0(resultSet.getString("procbody"));
+            procflags = resultSet.getInt("procflags");
         }
         if ("".equals(procbody)){
             return null;
         }
         procedureInfo.ProcName = procname;
         procedureInfo.ProcBoday = procbody.trim();
+        procedureInfo.ProcFlags = procflags;
         resultSet.close();
         preparedStatement.close();
         return procedureInfo;
@@ -2062,9 +2186,10 @@ public class GetDDLUtil {
         if (procedureInfo == null || procedureInfo.ProcName == null){
             return "";
         }
-        return procedureInfo.ProcBoday;
+        String procsql = "SET ENVIRONMENT SQLMODE '" + procedureInfo.getProcSqlMode() + "';\n";
+        return procsql + procedureInfo.ProcBoday;
     }
-    
+
     //added by L3 20260124
     public static String printPackage (Connection connection,String procname) throws SQLException {
         PreparedStatement preparedStatement = null;
@@ -2114,7 +2239,7 @@ public class GetDDLUtil {
                 ;
 
         Pattern pattern=Pattern.compile(
-                 STRING_PATTERN
+                STRING_PATTERN
                         + "|" + DOUBLE_STRING_PATTERN
                         + "|" + COMMENT_PATTERN
                         + "|(?<BODY>" + BODY_PATTERN + ")"
@@ -2143,4 +2268,5 @@ public class GetDDLUtil {
         }
         return functionString;
     }
+
 }
