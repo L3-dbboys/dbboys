@@ -17,6 +17,7 @@ import org.json.JSONObject;
 import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -151,6 +152,90 @@ public class ConnectDBaccessService {
 
 
 
+    }
+
+
+
+    public void setConnectInfo(Connect connect) throws Exception{
+        String connectedInstanceInGroup="";
+        Connection connection = MetadataTreeviewUtil.metaDBaccessService.getConnection(connect);
+            //连接切换到gbase模式
+            MetadataTreeviewUtil.metaDBaccessService.sessionChangeToGbaseMode(connection);
+                /*
+                ResultSet rs=connection.createStatement().executeQuery("EXECUTE FUNCTION sysadmin:task(\"onstat\",\"-V\");");
+                rs.next();
+                connect.setInfo(rs.getString(1));
+                rs=connection.createStatement().executeQuery("EXECUTE FUNCTION sysadmin:task(\"onstat\",\"-g osi\");");
+                rs.next();
+                connect.setInfo(connect.getInfo()+rs.getString(1));
+                rs=connection.createStatement().executeQuery("EXECUTE FUNCTION sysadmin:task(\"onstat\",\"-g env\");");
+                rs.next();
+                connect.setInfo(connect.getInfo()+rs.getString(1));
+                */
+            //查询数据库信息，包括版本，启动环境，系统配置
+            ResultSet rs=null;
+            String dbversion=null;
+            if(connect.getUsername().equals("gbasedbt")){
+                //connection.createStatement().executeUpdate("set environment sqlmode 'gbase'");
+                rs=connection.createStatement().executeQuery("EXECUTE FUNCTION sysadmin:task('onstat','-V');");
+                rs.next();
+                dbversion=rs.getString(1).replace("GBase Database Server Version 12.10.FC4G1","").replace(" Software Serial Number AAA#B000000","").replace("\n","");
+                if(!dbversion.contains("GBase8s")){
+                    DatabaseMetaData metaData = connection.getMetaData();
+                    String databaseProductVersion = metaData.getDatabaseProductVersion();
+                    dbversion="GBase8sV"+databaseProductVersion+"_"+dbversion;
+                }
+            }else{
+                dbversion="当前用户无权限获取版本信息，请使用gbasedbt用户连接获取\n";
+            }
+            connect.setDbversion(dbversion); //保存数据库版本,最后有换行
+            String info="##########################################################################################\n";
+            info+="Instance Boot Information\n";
+            info+="##########################################################################################\n";
+            //rs=connection.createStatement().executeQuery("select env_name,case upper(trim(env_value)) when 'ZH_CN.GB18030-2000' then 'zh_CN.5488' when 'ZH_CN.UTF8' then 'zh_CN.57372' else trim(env_value) end from sysmaster:sysenv");
+            rs=connection.createStatement().executeQuery("select env_name,trim(env_value) from sysmaster:sysenv");
+
+            while(rs.next()){
+                info+=String.format("%-30s",rs.getString(1))+rs.getString(2)+"\n";
+                if(rs.getString(1).equals("DB_LOCALE")){
+                    //if(connect.getDatabase().equals("gbasedbt")||connect.getDatabase().equals("sys")||connect.getDatabase().equals("sysadmin")||connect.getDatabase().equals("sysmaster")||connect.getDatabase().equals("sysutils")||connect.getDatabase().equals("syscdcv1")){
+                    //如果连接默认库是系统表，不设置DB_LOCALE
+                    //}else{
+                    //编辑连接属性propName在前
+                    connect.setProps(connect.getProps().replace("{\"propValue\":\"\",\"propName\":\"DB_LOCALE\"}","{\"propValue\":\""+rs.getString(2).toUpperCase().trim().replace("ZH_CN.GB18030-2000","zh_CN.5488").replace("ZH_CN.UTF8","zh_CN.57372")+"\",\"propName\":\"DB_LOCALE\"}"));
+                    //新连接顺序propName在前
+                    connect.setProps(connect.getProps().replace("{\"propName\":\"DB_LOCALE\",\"propValue\":\"\"}","{\"propName\":\"DB_LOCALE\",\"propValue\":\""+rs.getString(2).toUpperCase().trim().replace("ZH_CN.GB18030-2000","zh_CN.5488").replace("ZH_CN.UTF8","zh_CN.57372")+"\"}"));
+                    //}
+
+                }
+                if((!connect.getPropByName("GBASEDBTSERVER").isEmpty())&&rs.getString(1).equals("GBASEDBTSERVER")){
+                    connectedInstanceInGroup=rs.getString(2);
+                }
+            };
+            rs.close();
+            info+="\n##########################################################################################\n";
+            info+="System Information\n";
+            info+="##########################################################################################\n";
+            rs=connection.createStatement().executeQuery("SELECT * from sysmaster:sysmachineinfo ");
+            rs.next();
+            for(int i=1;i<=24;i++){
+                info+=String.format("%-30s",rs.getMetaData().getColumnName(i));
+                info+=rs.getString(i)+"\n";
+            }
+            rs.close();
+
+            if(!connectedInstanceInGroup.isEmpty()){
+                rs=connection.createStatement().executeQuery("SELECT hostname,svcname from sysmaster:syssqlhosts where dbsvrnm='"+connectedInstanceInGroup+"'");
+                rs.next();
+                connect.setIp(rs.getString(1));
+                connect.setPort(rs.getString(2));
+            }
+            rs.close();
+
+            connect.setInfo(info);
+
+            //设置连接驱动的MD5码
+            connect.setDrivermd5(new MD5Util().getMD5Checksum(Paths.get("extlib/"+ connect.getDbtype()+"/"+ connect.getDriver()).toFile().getAbsolutePath()));
     }
 
     public List<Database> getDatabases(Connect connect) {
@@ -1291,7 +1376,7 @@ public class ConnectDBaccessService {
                     systables t left join sysfragments f on t.tabid=f.tabid
                     where t.tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION') and tabtype in ('T','E')
                     ) t
-                    join sysmaster:systabinfo i on i.ti_partnum=partnum
+                    left join sysmaster:systabinfo i on i.ti_partnum=partnum
                     group by 1,2
                     order by  2
                     """);
