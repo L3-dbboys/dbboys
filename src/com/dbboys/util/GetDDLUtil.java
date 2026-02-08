@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.dbboys.vo.ColumnsInfo;
+
 
 // 单个存储过程或者函数
 class ProcedureInfo{
@@ -273,36 +275,6 @@ class TableInfo{
     }
 }
 
-// 表字段信息
-class ColumnsInfo{
-    int ColNo;
-    String ColName;
-    String ColType;
-    int ColLength;
-    int TypeP;
-    int TypeS;
-    boolean isNullable;
-    boolean isPK;
-    String ColDefType;
-    String ColDef;
-    String ColComm;
-    boolean isAutoincrement;
-
-    public String toString(){
-        return "ColNo: " + this.ColNo + "\n" +
-                "ColName: " + this.ColName + "\n" +
-                "ColType: " + this.ColType + "\n" +
-                "ColLength: " + this.ColLength + "\n" +
-                "TypeP: " + this.TypeP  + "\n" +
-                "TypeS: " + this.TypeS  + "\n" +
-                "isNullable: " + this.isNullable + "\n" +
-                "isPK: " + this.isPK + "\n" +
-                "ColDefType: " + this.ColDefType + "\n" +
-                "ColDef: " + this.ColDef + "\n" +
-                "ColComm: " + this.ColComm + "\n" +
-                "isAutoincrement: " + this.isAutoincrement + "\n\n";
-    }
-}
 
 // 检查约束
 class CheckInfo{
@@ -479,34 +451,34 @@ public class GetDDLUtil {
         // 存在多行的情况，需要考虑使用 insert or update 方式
         while(resultSet.next()){
             ColumnsInfo columnsInfo = new ColumnsInfo();
-            columnsInfo.ColNo = resultSet.getInt("colno");
-            sizeofarrayList = arrayList.size();
-            // default值存在多行表示一个值时
-            if(sizeofarrayList > 0 && arrayList.get(sizeofarrayList-1).ColNo == columnsInfo.ColNo){
-                columnsInfo.ColName = arrayList.get(sizeofarrayList-1).ColName;
-                columnsInfo.ColType = arrayList.get(sizeofarrayList-1).ColType;
-                columnsInfo.ColLength = arrayList.get(sizeofarrayList-1).ColLength;
-                columnsInfo.TypeP = arrayList.get(sizeofarrayList-1).TypeP;
-                columnsInfo.TypeS = arrayList.get(sizeofarrayList-1).TypeS;
-                columnsInfo.isNullable = arrayList.get(sizeofarrayList-1).isNullable;
-                columnsInfo.isPK = arrayList.get(sizeofarrayList-1).isPK;
-                columnsInfo.ColDefType = arrayList.get(sizeofarrayList-1).ColDefType;
-                columnsInfo.ColDef = arrayList.get(sizeofarrayList-1).ColDef + trim(resultSet.getString("coldef"));
-                columnsInfo.ColComm = arrayList.get(sizeofarrayList-1).ColComm;
-                columnsInfo.isAutoincrement = arrayList.get(sizeofarrayList-1).isAutoincrement;
+            columnsInfo.setColNo(resultSet.getInt("colno"));
+                sizeofarrayList = arrayList.size();
+                // default值存在多行表示一个值时
+                if(sizeofarrayList > 0 && arrayList.get(sizeofarrayList-1).getColNo() == columnsInfo.getColNo()){
+                columnsInfo.setColName(arrayList.get(sizeofarrayList-1).getColName());
+                columnsInfo.setColType(arrayList.get(sizeofarrayList-1).getColType());
+                columnsInfo.setColLength(arrayList.get(sizeofarrayList-1).getColLength());
+                columnsInfo.setTypeP(arrayList.get(sizeofarrayList-1).getTypeP());
+                columnsInfo.setTypeS(arrayList.get(sizeofarrayList-1).getTypeS());
+                columnsInfo.setIsNullable(arrayList.get(sizeofarrayList-1).isIsNullable());
+                columnsInfo.setIsPK(arrayList.get(sizeofarrayList-1).isIsPK());
+                columnsInfo.setColDefType(arrayList.get(sizeofarrayList-1).getColDefType());
+                columnsInfo.setColDef(arrayList.get(sizeofarrayList-1).getColDef() + trim(resultSet.getString("coldef")));
+                columnsInfo.setColComm(arrayList.get(sizeofarrayList-1).getColComm());
+                columnsInfo.setIsAutoincrement(arrayList.get(sizeofarrayList-1).isIsAutoincrement());
                 arrayList.set(sizeofarrayList-1,columnsInfo);
             } else {
-                columnsInfo.ColName = resultSet.getString("colname");
-                columnsInfo.ColType = getColTypeName(resultSet.getInt("coltype"), resultSet.getInt("collength"), 0, 0, resultSet.getString("sxname"));
-                columnsInfo.ColLength = getLength(columnsInfo.ColType, resultSet.getInt("collength"), dbVersion);
-                columnsInfo.TypeP = getPrecision(columnsInfo.ColType, resultSet.getInt("collength"));
-                columnsInfo.TypeS = getScale(columnsInfo.ColType, resultSet.getInt("collength"));
-                columnsInfo.isNullable = (resultSet.getInt("isnullable") == 1) ? true : false;
-                columnsInfo.isPK = (resultSet.getInt("ispk") == 1) ? true : false;
-                columnsInfo.ColDefType = resultSet.getString("coldeftype");
-                columnsInfo.ColDef = trim(resultSet.getString("coldef"));
-                columnsInfo.ColComm = trim(resultSet.getString("colcomm"));
-                columnsInfo.isAutoincrement = (resultSet.getInt("isautoincrement") == 1) ? true : false;
+                columnsInfo.setColName(resultSet.getString("colname"));
+                columnsInfo.setColType(getColTypeName(resultSet.getInt("coltype"), resultSet.getInt("collength"), 0, 0, resultSet.getString("sxname")));
+                columnsInfo.setColLength(getLength(columnsInfo.getColType(), resultSet.getInt("collength"), dbVersion));
+                columnsInfo.setTypeP(getPrecision(columnsInfo.getColType(), resultSet.getInt("collength")));
+                columnsInfo.setTypeS(getScale(columnsInfo.getColType(), resultSet.getInt("collength")));
+                columnsInfo.setIsNullable((resultSet.getInt("isnullable") == 1) ? true : false);
+                columnsInfo.setIsPK((resultSet.getInt("ispk") == 1) ? true : false);
+                columnsInfo.setColDefType(resultSet.getString("coldeftype"));
+                columnsInfo.setColDef(trim(resultSet.getString("coldef")));
+                columnsInfo.setColComm(trim(resultSet.getString("colcomm")));
+                columnsInfo.setIsAutoincrement((resultSet.getInt("isautoincrement") == 1) ? true : false);
                 arrayList.add(columnsInfo);
             }
         }
@@ -741,6 +713,13 @@ public class GetDDLUtil {
         preparedStatement.close();
         return tableInfo;
     }
+    //added by L3 20260205，用于返回字段列表
+    public static ArrayList<ColumnsInfo> getColInfo(Connection connection,String tabname) throws SQLException {
+        ArrayList<ColumnsInfo> arrayList = new ArrayList<ColumnsInfo>();
+        TableInfo tableInfo=getTableInfo(connection, tabname);
+        arrayList=getColInfo(connection,tableInfo);
+        return arrayList;
+    }
 
     /**
      * 获取字段信息
@@ -919,7 +898,7 @@ public class GetDDLUtil {
     private static ArrayList<String> getColNameListByColumnsInfo(ArrayList<ColumnsInfo> arrayList){
         ArrayList<String> colnamelist = new ArrayList<>();
         for(int i=0;i<arrayList.size();i++){
-            colnamelist.add(arrayList.get(i).ColName);
+            colnamelist.add(arrayList.get(i).getColName());
         }
         return colnamelist;
     }
@@ -1172,16 +1151,16 @@ public class GetDDLUtil {
         // 按顺序处理各个类型
         for (int i=0;i<columnsInfoArrayList.size();i++){
             // 字段名
-            ddl = ddl + "  " + getName(columnsInfoArrayList.get(i).ColName);
+            ddl = ddl + "  " + getName(columnsInfoArrayList.get(i).getColName());
             // 字段类型
-            ddl = ddl + " " + getColTypeName(columnsInfoArrayList.get(i).ColType,columnsInfoArrayList.get(i).ColLength,columnsInfoArrayList.get(i).TypeP,columnsInfoArrayList.get(i).TypeS);
+            ddl = ddl + " " + getColTypeName(columnsInfoArrayList.get(i).getColType(),columnsInfoArrayList.get(i).getColLength(),columnsInfoArrayList.get(i).getTypeP(),columnsInfoArrayList.get(i).getTypeS());
             // 是否为 NOT NULL
-            if (! columnsInfoArrayList.get(i).isNullable){
+            if (! columnsInfoArrayList.get(i).isIsNullable()){
                 ddl = ddl + " NOT NULL";
             }
             // 默认值，依据ColDefType处理
-            if (columnsInfoArrayList.get(i).ColDefType != null){
-                ddl = ddl + " DEFAULT " + getDefaults(columnsInfoArrayList.get(i).ColType,columnsInfoArrayList.get(i).ColDefType,columnsInfoArrayList.get(i).ColDef);
+            if (columnsInfoArrayList.get(i).getColDefType() != null){
+                ddl = ddl + " DEFAULT " + getDefaults(columnsInfoArrayList.get(i).getColType(),columnsInfoArrayList.get(i).getColDefType(),columnsInfoArrayList.get(i).getColDef());
             }
             // 非最后一个字段，后面加上 ,\n
             if (i<columnsInfoArrayList.size()-1){
@@ -1394,10 +1373,10 @@ public class GetDDLUtil {
             }
             // 字段注释
             for (int i = 0; i < columnsInfoArrayList.size(); i++) {
-                if (columnsInfoArrayList.get(i).ColComm != null) {
+                if (columnsInfoArrayList.get(i).getColComm() != null) {
                     ddl = ddl + "\nCOMMENT ON COLUMN \"" + tableInfo.TableOwner + "\"." + getName(tablename) + "." +
-                            getName(columnsInfoArrayList.get(i).ColName) + " IS '" +
-                            columnsInfoArrayList.get(i).ColComm.replace("'", "''") + "';";
+                            getName(columnsInfoArrayList.get(i).getColName()) + " IS '" +
+                            columnsInfoArrayList.get(i).getColComm().replace("'", "''") + "';";
                 }
             }
 

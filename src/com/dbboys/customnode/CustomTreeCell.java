@@ -3,6 +3,7 @@ package com.dbboys.customnode;
 import com.dbboys.app.Main;
 import com.dbboys.util.NotificationUtil;
 import com.dbboys.util.PopupWindowUtil;
+import com.dbboys.util.TabpaneUtil;
 import com.dbboys.util.MetadataTreeviewUtil;
 import com.dbboys.vo.*;
 import javafx.beans.binding.Bindings;
@@ -26,6 +27,8 @@ import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
 import java.sql.SQLException;
+
+import org.apache.poi.ss.formula.functions.T;
 
 public class CustomTreeCell extends TreeCell<TreeData> {
     private Integer iconSize = 11;
@@ -572,6 +575,17 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                     setGraphic(graphicHbox);
 
                     setOnMouseClicked(null);
+                    if(item instanceof Table){
+
+                        setOnMouseClicked(event -> {
+                        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+                            
+                                    TabpaneUtil.addCustomTableInfoTab(getTreeItem());
+                                    
+                            
+                        }
+                    });
+                    }else{
                     setOnMouseClicked(event -> {
                         if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                             DDLTask = new Task<>() {
@@ -593,6 +607,8 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                             item.setRunning(true);
                         }
                     });
+                    }
+                    
 
             }
 

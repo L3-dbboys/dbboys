@@ -64,6 +64,7 @@ public class ConnectDBaccessService {
             }
         }
         connection = driver.connect(URL_STRING, info);
+        log.info("conn info is:"+connection.getMetaData().getURL());
         return connection;
     }
 
@@ -156,11 +157,11 @@ public class ConnectDBaccessService {
 
 
 
-    public void setConnectInfo(Connect connect) throws Exception{
-        String connectedInstanceInGroup="";
-        Connection connection = MetadataTreeviewUtil.metaDBaccessService.getConnection(connect);
+    public String setConnectInfo(Connect connect) throws Exception{
+                String primaryInstance="";
+        Connection connection = getConnection(connect);
             //连接切换到gbase模式
-            MetadataTreeviewUtil.metaDBaccessService.sessionChangeToGbaseMode(connection);
+            sessionChangeToGbaseMode(connection);
                 /*
                 ResultSet rs=connection.createStatement().executeQuery("EXECUTE FUNCTION sysadmin:task(\"onstat\",\"-V\");");
                 rs.next();
@@ -208,9 +209,7 @@ public class ConnectDBaccessService {
                     //}
 
                 }
-                if((!connect.getPropByName("GBASEDBTSERVER").isEmpty())&&rs.getString(1).equals("GBASEDBTSERVER")){
-                    connectedInstanceInGroup=rs.getString(2);
-                }
+
             };
             rs.close();
             info+="\n##########################################################################################\n";
@@ -224,19 +223,23 @@ public class ConnectDBaccessService {
             }
             rs.close();
 
-            if(!connectedInstanceInGroup.isEmpty()){
-                rs=connection.createStatement().executeQuery("SELECT hostname,svcname from sysmaster:syssqlhosts where dbsvrnm='"+connectedInstanceInGroup+"'");
-                rs.next();
-                connect.setIp(rs.getString(1));
-                connect.setPort(rs.getString(2));
+            if(!connect.getPropByName("GBASEDBTSERVER").isEmpty()){
+                rs=connection.createStatement().executeQuery("select dbservername from dual");
+                if(rs.next()){
+                    primaryInstance=rs.getString(1);
+                }
             }
             rs.close();
-
+            connection.close();
             connect.setInfo(info);
 
             //设置连接驱动的MD5码
             connect.setDrivermd5(new MD5Util().getMD5Checksum(Paths.get("extlib/"+ connect.getDbtype()+"/"+ connect.getDriver()).toFile().getAbsolutePath()));
+            return primaryInstance;
     }
+
+
+
 
     public List<Database> getDatabases(Connect connect) {
         //这个方法除了左侧连接树需要外，连接数是全部gbase语法，执行sql的界面上方选择数据库时也会调用，不一定是gbase语法
@@ -2273,6 +2276,44 @@ public class ConnectDBaccessService {
     }
 
 
+    public ArrayList<ColumnsInfo> getCols(TreeItem<TreeData> treeItem){
+        ArrayList<ColumnsInfo> arrayList=null;
+        Connection conn=getMetaSession(treeItem);
+        try{
+       arrayList=GetDDLUtil.getColInfo(conn,treeItem.getValue().getName());
+       } catch (SQLException e) {
+            //e.printStackTrace();
+            if(e.getErrorCode()==-79716||e.getErrorCode()==-79730){
+                Platform.runLater(() -> {
+                    if (AlterUtil.CustomAlertConfirm("错误", "数据库已断开连接，是否需要重新连接？")) {
+                        MetadataTreeviewUtil.reconnectItem(treeItem);
+                    }
+                });
+            }else{
+                Platform.runLater(() -> {
+                    AlterUtil.CustomAlert("错误", "["+e.getErrorCode()+"]"+e.getMessage());
+                });
+            }
+
+        }
+        catch(Exception e){
+            Platform.runLater(() -> {
+                AlterUtil.CustomAlert("错误", e.toString());
+            });
+        }finally  {
+            if(conn!=MetadataTreeviewUtil.getMetaConnect(treeItem).getConn()){
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    Platform.runLater(() -> {
+                        AlterUtil.CustomAlert("错误", e.toString());
+                    });
+                }
+            }
+        }
+       return arrayList;
+
+    }
     public String getDDL(TreeItem<TreeData> treeItem)  {
         String result="";
         Connection conn=getMetaSession(treeItem);

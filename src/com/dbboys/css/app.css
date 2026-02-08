@@ -80,7 +80,7 @@
 }
 /* 自定义复选框中的标记 */
 .check-box:selected > .box > .mark {
-    -fx-background-color: #9f453c; /* 选中时勾的颜色 */
+    -fx-background-color: #074675; /* 选中时勾的颜色 */
 }
 /*背景色设置为白色，避免treecell focus时底色没有颜色显示成了treeview底色*/
 .tree-view,.tree-view:focused,.tree-view:selected{
@@ -90,6 +90,21 @@
     -fx-padding: 0;
     -fx-background-insets: 0; /* 避免focus后会导致背景显示部分颜色*/
 }
+
+
+
+ 
+/* 为表格单元格中的CheckBox添加更具体的样式 */
+.table-check-box,.table-check-box .box {
+    -fx-pref-width: 12px !important;
+    -fx-pref-height: 12px !important;
+    -fx-max-width: 12px !important;
+    -fx-max-height: 12px !important;
+    -fx-min-width: 12px !important;
+    -fx-min-height: 12px !important;
+    -fx-padding: 0 !important;
+}
+
 
 .tree-cell{
     /* treecell的背景色会覆盖tree-view的背景色
@@ -283,8 +298,8 @@
 .column-header ,.table-view .filler{
     -fx-background-color: #f2f2f2;
     -fx-pref-height: 21;
-    -fx-border-color:white;
-    -fx-border-width: 1 1 0 0;
+    -fx-border-color:#888;
+    -fx-border-width: 0.2 0.2 0.2 0;
 }
 
 
@@ -308,6 +323,7 @@
     -fx-background-color: none;
 }
 
+/* 表格行高 */
 .table-row-cell{
     -fx-pref-height:21;
 }
@@ -333,14 +349,50 @@
     -fx-background-color: none;
     -fx-background-insets: 0;
     -fx-alignment:CENTER_LEFT ;
-    -fx-border-color: #e3ecf2;
-    -fx-border-width: 0.5px;
+    -fx-padding: 0;
+    -fx-border-color: #000;
+    -fx-border-width: 0 0.2 0.2 0;
 }
 
+.table-cell:hover {
+    -fx-background-color: #2871a8; /* 选中单元格的背景色 */
+    -fx-text-fill: white;
+    -fx-border-color: #000;
+    -fx-border-width: 0 0.2 0.2 0;
+}
 .table-cell:selected {
     -fx-background-color: #2871a8; /* 选中单元格的背景色 */
     -fx-text-fill: white;
     -fx-border-color: white;
+    -fx-border-width: 0 0.5 0.5 0;
+}
+
+
+
+.table-choice-box .context-menu .menu-item{
+    -fx-pref-width: 150;
+    -fx-graphic-text-gap: 10; /*图标与文字之间的距离,似乎无效，但设置后可避免数据管理右键后图标与文字紧连在一起*/
+}
+
+
+/* 确保表格单元格hover或选中时，ChoiceBox中的文字也变成白色 */
+.table-cell:hover .table-choice-box .label,
+.table-cell:selected .table-choice-box .label {
+    -fx-text-fill: white !important;
+    -fx-background-color: #2871a8;
+}
+
+/* 确保表格单元格hover或选中时，下拉框中的文字是黑色 */
+.table-choice-box .context-menu .menu-item .label{
+    -fx-text-fill: black !important;
+    -fx-font-size: 8;
+    -fx-background-color: none;
+}
+
+/* 确保ChoiceBox的箭头颜色也随单元格状态变化 */
+.table-cell:hover .table-choice-box .arrow,
+.table-cell:selected .table-choice-box .arrow {
+    -fx-background-color: white !important;
 }
 
 /*markdown中嵌入表格样式*/
@@ -790,6 +842,47 @@
     -fx-text-fill: #ccc;
 }
 
+/* SpreadsheetView样式 - 与TableView保持一致 */
+.spreadsheet-view {
+    -fx-padding: 0;
+    -fx-background-color: white;
+}
+
+/*选框边框*/
+.spreadsheet-view .selection-rectangle {
+    -fx-stroke: transparent;
+}
+
+
+
+/* SpreadsheetView单元格样式 */
+.spreadsheet-cell {
+    -fx-font-size: 10;
+    -fx-background-color: none;
+    -fx-background-insets: 0;
+    -fx-alignment: CENTER_LEFT;
+    -fx-border-color: #666;
+    -fx-border-width: 0 0.2 0.2 0;
+    -fx-padding:0;
+}
+
+/* SpreadsheetView鼠标悬停效果 */
+.spreadsheet-cell:hover {
+    -fx-background-color: #2871a8;
+    -fx-text-fill: white;
+}
+
+/* SpreadsheetView选中单元格样式 */
+.spreadsheet-cell:selected {
+    -fx-background-color: #2871a8;
+    -fx-text-fill: white;
+    -fx-border-width: 0.5px;
+    -fx-border-color: white;
+}
+
+
+
+
 .bracket-highlight {
     -fx-fill: #9f453c;
     -fx-font-weight: bold;
@@ -897,12 +990,16 @@
     -fx-pref-height: 35px;
     -fx-min-height: 35px;
     -fx-max-height: 35px;
+    -fx-pref-width: 35px;
+    -fx-min-width: 35px;
+    -fx-max-width: 35px;
     -fx-background-color:none;
     -fx-background-radius:0px;
-    -fx-border-radius: 0px;
-    -fx-border-width:0 0 0 0;
-    -fx-border-color:#eee;
-    -fx-padding:15;
+    -fx-border-insets:3px;
+    -fx-border-radius: 3px;
+    -fx-border-width:1;
+    -fx-border-color:#ccc;
+    -fx-padding:5;
 }
 .toggle-button:selected {
     -fx-pref-height: 35px;
@@ -911,10 +1008,11 @@
     -fx-background-color:white;
     -fx-background-insets:3px;
     -fx-background-radius:3px;
-    -fx-border-radius: 0px;
-    -fx-border-width:0 0 0 0;
+    -fx-border-insets:3px;
+    -fx-border-radius: 3px;
+    -fx-border-width:1;
     -fx-border-color:#074675;
-    -fx-padding:15;
+    -fx-padding:5;
 }
 
 .toggle-button:hover {
@@ -924,10 +1022,11 @@
     -fx-background-color:white;
     -fx-background-insets:3px;
     -fx-background-radius:3px;
-    -fx-border-radius: 0px;
-    -fx-border-width:0 0 0 0;
+    -fx-border-insets:3px;
+    -fx-border-radius: 3px;
+    -fx-border-width:1;
     -fx-border-color:#074675;
-    -fx-padding:15;
+    -fx-padding:5;
 }
 
 
@@ -1109,5 +1208,3 @@
     -fx-border-radius: 0;
     -fx-padding: 0;
 }
-
-

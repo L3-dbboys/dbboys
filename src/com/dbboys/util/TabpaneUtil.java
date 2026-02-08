@@ -11,6 +11,7 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TreeItem;
 import javafx.scene.input.MouseButton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -109,6 +110,28 @@ public class TabpaneUtil {
             }
             if (!isContrained) {
                 CustomInstanceTab newtab = new CustomInstanceTab(connect,tabNum);
+                tabpane.getTabs().add(newtab);
+                tabpane.getSelectionModel().select(newtab);
+            }
+        });
+    }
+
+
+    public static void addCustomTableInfoTab(TreeItem<TreeData> treeItem){
+        TreeData connect = treeItem.getValue();
+        Platform.runLater(() -> {
+            Boolean isContrained = false;
+            for (Tab tab : tabpane.getTabs()) {
+                if (tab instanceof CustomTableInfoTab) {
+                    if (((CustomTableInfoTab) tab).getTitle().equals("[table]"+treeItem.getParent().getParent().getParent().getParent().getValue().getName()+"."+treeItem.getParent().getParent().getValue().getName()+"."+connect.getName())) {
+                        isContrained = true;
+                        tabpane.getSelectionModel().select(tab);
+                        break;
+                    }
+                }
+            }
+            if (!isContrained) {
+                CustomTableInfoTab newtab = new CustomTableInfoTab(treeItem);
                 tabpane.getTabs().add(newtab);
                 tabpane.getSelectionModel().select(newtab);
             }

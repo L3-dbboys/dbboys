@@ -39,6 +39,8 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -111,6 +113,7 @@ public class CustomInstanceTab extends CustomTab {
     private Button stopButton;
     private Label statusLabel;
     private StackPane startStackPane;
+    private Label ipLabel;
 
 
 
@@ -153,7 +156,7 @@ public class CustomInstanceTab extends CustomTab {
             });
             return row;
         });
-        TableColumn<ObservableList<String>, Object> nameColumn = new TableColumn<ObservableList<String>, Object>();
+        TableColumn<ObservableList<String>, Object> nameColumn = new TableColumn<ObservableList<String>, Object>("巡检项");
         nameColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("entry"));
         nameColumn.setReorderable(false); // 禁用拖动
@@ -933,7 +936,7 @@ public class CustomInstanceTab extends CustomTab {
         stopButton.setGraphic(new Group(stopButtonIcon));
         stopButton.setFocusTraversable(false);
         stopButton.setTooltip(new Tooltip("点击关闭数据库"));
-        Label ipLabel=new Label("IP："+connect.getIp());
+        ipLabel=new Label("IP："+connect.getIp());
         statusLabel=new Label("实例状态：未知");
         StackPane startAndStopButton=new StackPane(startButton,stopButton);
         StackPane btnPane=new StackPane(startAndStopButton);
@@ -1093,6 +1096,7 @@ public class CustomInstanceTab extends CustomTab {
         // 异步刷新（避免阻塞 UI）
         new Thread(() -> {
             try {
+                updateGroupInstanceInfo();
                 // 根据当前 Tab 类型执行刷新
                 if (currentTab == infoTab) {
                     loadInfoTabContent(infoTab);
@@ -1116,6 +1120,53 @@ public class CustomInstanceTab extends CustomTab {
             }
         }).start();
     }
+
+    private void updateGroupInstanceInfo() {
+        if(!connect.getPropByName("GBASEDBTSERVER").isEmpty()){
+            try{
+            String primaryInstance=MetadataTreeviewUtil.metaDBaccessService.setConnectInfo(connect);
+            String regex = "^" + primaryInstance + "\\s+.*\\s+g=" + connect.getPropByName("GBASEDBTSERVER") + "\\s*$";
+            Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
+            String sqlhostsContent = Files.readString(Paths.get("extlib/GBASE 8S/sqlhosts"));
+
+            Matcher matcher = pattern.matcher(sqlhostsContent);
+            
+            // 处理匹配到的行
+            while (matcher.find()) {
+                String matchedLine = matcher.group();
+                log.info("匹配到的sqlhosts行: {}", matchedLine);
+                
+                // 这里可以添加对匹配行的处理逻辑
+                // 例如：解析行中的实例信息、更新UI等
+                String[] parts = matchedLine.split("\\s+");
+                if (parts.length >= 4) {
+                    String instanceName = parts[0];
+                    String protocol = parts[1];
+                    String host = parts[2];
+                    connect.setIp(host);
+                    String port = parts[3];
+                    connect.setPort(port);
+                    connect.setInfo(connect.getInfo().replaceAll("(GBASEDBTSERVER\\s+)\\S+", "$1" + instanceName));
+                    Platform.runLater(()->{
+        instanceInfoLabel.setText("当前实例信息 ( IP："+connect.getIp()+"   端口："+connect.getPort()+"   实例名："+instanceName+" )");;
+                        ipLabel.setText("IP："+connect.getIp());
+                    });
+
+                    // 打印解析结果
+                    log.info("实例名: {}, 协议: {}, 主机: {}, 端口: {}", 
+                            instanceName, protocol, host, port);
+                    
+                    // 这里可以添加更新UI的逻辑
+                    // 例如：将实例信息添加到表格中
+                }
+            }
+        }catch(Exception e){
+            log.error(e.getMessage(), e);
+        
+        }
+    }
+
+    }
     /**
      * 通用 Tab 懒加载绑定方法（抽取公共逻辑，避免重复代码）
      * @param tab 目标 Tab
@@ -1134,6 +1185,7 @@ public class CustomInstanceTab extends CustomTab {
                 // 启动线程执行加载任务（避免阻塞 UI）
                 new Thread(() -> {
                     try {
+                        updateGroupInstanceInfo();
                         setLoaded.accept(true); // 标记为已加载
                         loadTask.run(); // 执行加载逻辑
                     } catch (Exception e) {
@@ -1192,6 +1244,7 @@ public class CustomInstanceTab extends CustomTab {
     }
 
     private void loadCheckTabContent(CustomTab checkTab)  {
+        log.info("loadCheckTabContent in,connect.getip is:"+connect.getIp());
 
         checkDatalist.clear();
         //initDatalist(checkDatalist);

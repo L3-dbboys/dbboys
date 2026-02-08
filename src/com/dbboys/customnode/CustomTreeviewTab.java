@@ -37,8 +37,7 @@ public class CustomTreeviewTab extends Tab {
         titleToggleIcon.setScaleY(0.7);
         titleToggleIcon.setFill(Color.valueOf("#074675"));
         titleToggleIcon.setRotate(90);
-        titleToggle.setGraphic(titleToggleIcon);
-
+        titleToggle.setGraphic(new Group(titleToggleIcon));
         titleToggle.setFocusTraversable(false);
         titleToggle.setTooltip(new Tooltip("数据库连接"));
 
@@ -46,7 +45,6 @@ public class CustomTreeviewTab extends Tab {
         setGraphic(header);
         titleToggle.selectedProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
-                log.info("new values is:"+newValue);
                 Platform.runLater(() -> {
                     titleToggleIcon.setFill(Color.valueOf("#074675"));
                 });
