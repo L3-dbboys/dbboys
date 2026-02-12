@@ -11,9 +11,9 @@
 <?import com.dbboys.customnode.CustomUserTextField?>
 <?import com.dbboys.customnode.CustomInfoStackPane?>
 <?import com.dbboys.customnode.CustomResultsetTableView?>
-<VBox fx:id="resultset_vbox" style="-fx-border-width: 0;-fx-border-color: #008000;-fx-background-insets: 0;-fx-background-color: #eee;" fx:controller="com.dbboys.ctrl.ResultSetTabController" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
+<VBox fx:id="resultSetVBox" style="-fx-border-width: 0;-fx-border-color: #008000;-fx-background-insets: 0;-fx-background-color: #eee;" fx:controller="com.dbboys.ctrl.ResultSetTabController" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
     <HBox alignment="CENTER_LEFT" style="-fx-background-color: #f2f2f2;-fx-border-width:1 0 0 0;-fx-border-color: white">
-        <Button fx:id="lastsql_copy_button" styleClass="little-custom-button" focusTraversable="false">
+        <Button fx:id="lastSqlCopyButton" styleClass="little-custom-button" focusTraversable="false">
             <tooltip>
                 <Tooltip text="复制当前执行的SQL语句" />
             </tooltip>
@@ -23,13 +23,13 @@
                 </Group>
             </graphic>
         </Button>
-        <CustomLabelTextField fx:id="lastsql_textfield" text="select 1 from dual;" focusTraversable="false">
+        <CustomLabelTextField fx:id="lastSqlTextField" text="select 1 from dual;" focusTraversable="false">
             <tooltip>
                 <Tooltip text="select 1 from dual;"/>
             </tooltip>
         </CustomLabelTextField>
         <Region HBox.hgrow="ALWAYS"></Region>
-        <Button fx:id="lastsql_refresh_button" styleClass="little-custom-button" focusTraversable="false">
+        <Button fx:id="lastSqlRefreshButton" styleClass="little-custom-button" focusTraversable="false">
             <tooltip>
                 <Tooltip text="重新执行SQL" />
             </tooltip>
@@ -43,13 +43,13 @@
     <StackPane>
         <VBox style="-fx-border-color: none;">
             <HBox style="-fx-background-color: white;">
-                <CustomResultsetTableView fx:id="resultset_tableview">
+                <CustomResultsetTableView fx:id="resultSetTableView">
                 </CustomResultsetTableView>
             </HBox>
-            <HBox fx:id="resultset_button_hbox" minHeight="20" alignment="CENTER_LEFT" style="-fx-border-color: #aaa;-fx-border-width: 0.2 0 0 0">
+            <HBox fx:id="resultSetButtonHBox" minHeight="20" alignment="CENTER_LEFT" style="-fx-border-color: #aaa;-fx-border-width: 0.2 0 0 0">
                 <Label text=" [ "></Label>
                     <StackPane>
-                        <Label visible="false" fx:id="resultset_editable_enabled_label">
+                        <Label visible="false" fx:id="resultSetEditableEnabledLabel">
                             <tooltip>
                                 <Tooltip text="结果集可编辑，包含主键或rowid！" />
                             </tooltip>
@@ -59,7 +59,7 @@
                                 </Group>
                             </graphic>
                         </Label>
-                        <Label fx:id="resultset_editable_disabled_label">
+                        <Label fx:id="resultSetEditableDisabledLabel">
                             <tooltip>
                                 <Tooltip text="结果集不可编辑，单表查询且包含主键或rowid才可编辑！" />
                             </tooltip>
@@ -72,11 +72,11 @@
                     </StackPane>
                 <Label text=" ] "></Label>
                 <Label text=" [ 每次取出行数 ">   </Label>
-                <CustomUserTextField fx:id="resultset_per_time_textfield" text="200" style="-fx-pref-width: 50;-fx-padding: 0;-fx-font-size: 11" >
+                <CustomUserTextField fx:id="resultSetPerTimeTextField" text="200" style="-fx-pref-width: 50;-fx-padding: 0;-fx-font-size: 11" >
                 </CustomUserTextField>
 
                 <Label text=" ]   [">   </Label>
-                <Button fx:id="resultset_nextpage_button" styleClass="little-custom-button" focusTraversable="false">
+                <Button fx:id="resultSetNextPageButton" styleClass="little-custom-button" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="下一页" />
                     </tooltip>
@@ -87,7 +87,7 @@
                     </graphic>
                 </Button>
                 <Label text="] [">   </Label>
-                <Button fx:id="resultset_allrows_button" styleClass="little-custom-button" focusTraversable="false">
+                <Button fx:id="resultSetAllRowsButton" styleClass="little-custom-button" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="获取所有行" />
                     </tooltip>
@@ -99,9 +99,9 @@
                 </Button>
 
                 <Label text="]   [ 已获取 "></Label>
-                <Label fx:id="resultset_fetched_rows_label">?</Label>
+                <Label fx:id="resultSetFetchedRowsLabel">?</Label>
                 <Label text=" 行 ]   ["></Label>
-                <Button fx:id="resultset_count_button" styleClass="little-custom-button" focusTraversable="false">
+                <Button fx:id="resultSetCountButton" styleClass="little-custom-button" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="获取总行数" />
                     </tooltip>
@@ -112,11 +112,11 @@
                     </graphic>
                 </Button>
                 <Label text="总行数 "></Label>
-                <Label fx:id="resultset_total_rows_label">?</Label>
+                <Label fx:id="resultSetTotalRowsLabel">?</Label>
                 <Label text=" 行 ]   [ 执行耗时 "></Label>
-                <Label fx:id="sql_used_time_label">?</Label>
+                <Label fx:id="sqlUsedTimeLabel">?</Label>
                 <Label text=" 秒 ]   ["></Label>
-                <Button fx:id="resultset_export_button" styleClass="little-custom-button" focusTraversable="false">
+                <Button fx:id="resultSetExportButton" styleClass="little-custom-button" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="导出已加载结果集" />
                     </tooltip>
@@ -131,3 +131,4 @@
         </VBox>
     </StackPane>
 </VBox>
+

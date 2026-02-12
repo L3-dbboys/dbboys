@@ -1,4 +1,7 @@
 package com.dbboys.util;
+
+import com.dbboys.vo.Sql;
+
 import java.util.*;
 import java.util.regex.*;
 
@@ -7,6 +10,414 @@ public class SqlParserUtil {
     public static final Pattern DOUBLE_STRING_PATTERN = Pattern.compile("\"[^\"]*\""+"|" + "\"[\\s\\S]*");
     public static final Pattern FANYINHAO_STRING_PATTERN = Pattern.compile("`[^`]*`"+"|" + "`[\\s\\S]*");
     public static final Pattern COMMENT_PATTERN = Pattern.compile("--[^\n]*" + "|"+"/\\*[\\s\\S]*?\\*/"+"|"+"/\\*[\\s\\S]*" +"|"+"\\{[\\s\\S]*?\\}");
+    private static final String STRING_PATTERN_TEXT = "'([^'\\\\]*(\\\\.[^'\\\\]*)*)'" + "|" + "'[\\s\\S]*";
+    private static final String DOUBLE_STRING_PATTERN_TEXT = "\"[^\"]*\"" + "|" + "\"[\\s\\S]*";
+    private static final String COMMENT_PATTERN_TEXT = "--[^\\n]*" + "|"+"/\\*[\\s\\S]*?\\*/"+"|"+"/\\*[\\s\\S]*" +"|"+"\\{[\\s\\S]*?\\}";
+    private static final String MULTI_LINE_START =
+            "(?i)\\bcreate\\s+\\bprocedure\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+(?!(as|is)\\b)" + "|" +
+            "(?i)\\bcreate\\s+\\bfunction\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+\\bRETURNING\\s+[a-zA-Z_][a-zA-Z0-9_$.]*\\s+(?!(as|is)\\b)" + "|" +
+            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package|procedure)\\s+(body\\s+)?([a-zA-Z_][a-zA-Z0-9_$.]*)\\s*(\\([\\s\\S]*?\\)\\s+)?(AS|IS)" + "|" +
+            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(function)\\s+([a-zA-Z0-9_$.]*)\\s*\\([\\s\\S]*?\\)\\s+return\\s+([a-zA-Z0-9_$.]*)\\s+(AS|IS)";
+    private static final String NO_NAME_BLOCK = "(?i)^\\s*\\b(begin)(?!\\s*(;|work))|(?i)^\\s*\\b(DECLARE)(?!\\s*;)";
+    private static final String MULTI_LINE_END =
+            "(?i)\\bend\\s+(procedure|function)\\s*;?" + "|" +
+            "(?i)\\bend\\b\\s+([a-zA-Z_][a-zA-Z0-9_$.]*)?\\s*/" + "|" +
+            "^\\s*/";
+    private static final String DROP_DATABASE = "(?i)(?:drop\\s+)+database\\s+(\\w+)";
+    private static final String CREATE_DATABASE = "(?i)(?:create\\s+)?database\\s+(?<dbname>(\\w+))";
+
+    public static class Segment {
+        private final String text;
+        private final int endIndex;
+
+        public Segment(String text, int endIndex) {
+            this.text = text;
+            this.endIndex = endIndex;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        public int getEndIndex() {
+            return endIndex;
+        }
+    }
+
+    public static boolean isSingleStatement(String sql) {
+        if (sql == null || sql.isEmpty()) {
+            return true;
+        }
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean inLineComment = false;
+        boolean inBlockComment = false;
+        boolean inBrackets = false;
+
+        int length = sql.length();
+        for (int i = 0; i < length; i++) {
+            char current = sql.charAt(i);
+            char next = (i + 1 < length) ? sql.charAt(i + 1) : '\0';
+
+            if (!inSingleQuote && !inDoubleQuote && !inBlockComment && !inBrackets) {
+                if (!inLineComment && current == '-' && next == '-') {
+                    inLineComment = true;
+                    i++;
+                    continue;
+                } else if (inLineComment && current == '\n') {
+                    inLineComment = false;
+                }
+            }
+
+            if (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBrackets) {
+                if (!inBlockComment && current == '/' && next == '*') {
+                    inBlockComment = true;
+                    i++;
+                    continue;
+                } else if (inBlockComment && current == '*' && next == '/') {
+                    inBlockComment = false;
+                    i++;
+                    continue;
+                }
+            }
+
+            if (!inDoubleQuote && !inLineComment && !inBlockComment && !inBrackets && current == '\'') {
+                inSingleQuote = !inSingleQuote;
+            }
+
+            if (!inSingleQuote && !inLineComment && !inBlockComment && !inBrackets && current == '\"') {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment) {
+                if (current == '{') {
+                    inBrackets = true;
+                } else if (current == '}') {
+                    inBrackets = false;
+                }
+            }
+
+            if (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment && !inBrackets && current == ';') {
+                if (hasNonWhitespaceAfter(sql, i + 1)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static boolean hasNonWhitespaceAfter(String sql, int start) {
+        for (int i = start; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static List<Segment> split(String sql) {
+        List<Segment> segments = new ArrayList<>();
+        if (sql == null || sql.isEmpty()) {
+            return segments;
+        }
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean inLineComment = false;
+        boolean inBlockComment = false;
+        boolean inBrackets = false;
+
+        StringBuilder buffer = new StringBuilder();
+        for (int i = 0; i < sql.length(); i++) {
+            char current = sql.charAt(i);
+            char next = (i + 1 < sql.length()) ? sql.charAt(i + 1) : '\0';
+            buffer.append(current);
+
+            if (!inSingleQuote && !inDoubleQuote && !inBlockComment && !inBrackets) {
+                if (!inLineComment && current == '-' && next == '-') {
+                    inLineComment = true;
+                    buffer.append(next);
+                    i++;
+                    continue;
+                } else if (inLineComment && current == '\n') {
+                    inLineComment = false;
+                }
+            }
+
+            if (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBrackets) {
+                if (!inBlockComment && current == '/' && next == '*') {
+                    inBlockComment = true;
+                    buffer.append(next);
+                    i++;
+                    continue;
+                } else if (inBlockComment && current == '*' && next == '/') {
+                    inBlockComment = false;
+                    buffer.append(next);
+                    i++;
+                    continue;
+                }
+            }
+
+            if (!inDoubleQuote && !inLineComment && !inBlockComment && !inBrackets && current == '\'') {
+                inSingleQuote = !inSingleQuote;
+            }
+
+            if (!inSingleQuote && !inLineComment && !inBlockComment && !inBrackets && current == '\"') {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment) {
+                if (current == '{') {
+                    inBrackets = true;
+                } else if (current == '}') {
+                    inBrackets = false;
+                }
+            }
+
+            if (i == sql.length() - 1
+                    || (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment && !inBrackets && current == ';')) {
+                segments.add(new Segment(buffer.toString(), i));
+                buffer.setLength(0);
+            }
+        }
+        return segments;
+    }
+
+    public static Sql modifySql(Sql sql, String addSql) {
+        if (!sql.getSqlRemainder().trim().isEmpty()) {
+            addSql = sql.getSqlRemainder() + addSql;
+            sql.setSqlRemainder("");
+        }
+        sql.setSqlEnd(false);
+
+        Pattern pattern = Pattern.compile(
+                STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+        );
+        Matcher matcherAll = pattern.matcher(addSql);
+        String checkText = addSql.trim();
+
+        if (matcherAll.find()) {
+            checkText = matcherAll.replaceAll("").trim();
+        }
+
+        if (sql.getSqlstr().isEmpty()) {
+            if (checkText.toUpperCase().startsWith("SELECT") || checkText.toUpperCase().startsWith("WITH")) {
+                pattern = Pattern.compile("(?i)\\binto\\b");
+                Matcher matcher = pattern.matcher(checkText);
+                if (matcher.find()) {
+                    sql.setSqlType("SELECT_INTO");
+                } else {
+                    sql.setSqlType("SELECT");
+                }
+                sql.setSqlEnd(true);
+            } else if (checkText.toUpperCase().startsWith("CALL") || checkText.toUpperCase().startsWith("EXECUTE")) {
+                sql.setSqlType("CALL");
+                sql.setSqlEnd(true);
+            } else {
+                pattern = Pattern.compile(
+                        STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                                + "|(?<START>" + MULTI_LINE_START + ")"
+                );
+                Matcher matcher = pattern.matcher(addSql);
+                while (matcher.find()) {
+                    if (matcher.group("START") != null) {
+                        sql.setSqlType("MULTI_LINE_SQL");
+                        break;
+                    }
+                }
+
+                pattern = Pattern.compile(
+                        STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                                + "|(?<BLOCK>" + NO_NAME_BLOCK + ")"
+                );
+                matcher = pattern.matcher(addSql);
+                while (matcher.find()) {
+                    if (matcher.group("BLOCK") != null) {
+                        sql.setSqlType("CALL_BLOCK");
+                        break;
+                    }
+                }
+
+                pattern = Pattern.compile(
+                        STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                                + "|(?<END>" + MULTI_LINE_END + ")"
+                );
+                matcher = pattern.matcher(addSql);
+                while (matcher.find()) {
+                    if (matcher.group("END") != null) {
+                        sql.setSqlRemainder(addSql.substring(matcher.end("END")));
+                        addSql = addSql.substring(0, matcher.end("END") - 1);
+                        sql.setSqlEnd(true);
+                        break;
+                    }
+                }
+
+                if (!sql.getSqlType().equals("MULTI_LINE_SQL") && !sql.getSqlType().equals("CALL_BLOCK")) {
+                    sql.setSqlEnd(true);
+                    pattern = Pattern.compile(
+                            STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT + "|" + DROP_DATABASE
+                                    + "|" + CREATE_DATABASE
+                    );
+                    matcher = pattern.matcher(addSql);
+                    while (matcher.find()) {
+                        if (matcher.group("dbname") != null) {
+                            sql.setSqlType("DATABASE " + matcher.group("dbname").toLowerCase());
+                        }
+                    }
+                }
+            }
+            sql.setSqlStr(addSql);
+        } else {
+            if (sql.getSqlType().equals("MULTI_LINE_SQL") || sql.getSqlType().equals("CALL_BLOCK")) {
+                pattern = Pattern.compile(
+                        STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                                + "|(?<END>" + MULTI_LINE_END + ")"
+                );
+                Matcher matcher = pattern.matcher(addSql);
+                while (matcher.find()) {
+                    if (matcher.group("END") != null) {
+                        sql.setSqlRemainder(addSql.substring(matcher.end("END")));
+                        addSql = addSql.substring(0, matcher.end("END") - 1);
+                        sql.setSqlEnd(true);
+                        break;
+                    }
+                }
+                sql.setSqlStr(sql.getSqlstr() + addSql);
+            }
+        }
+
+        return sql;
+    }
+
+    public static boolean sqlContrainCommit(String remainderSql) {
+        boolean result = false;
+        Pattern pattern = Pattern.compile(
+                STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                        + "|(?<END>" + MULTI_LINE_END + ")"
+        );
+        Matcher matcher = pattern.matcher(remainderSql);
+        while (matcher.find()) {
+            if (matcher.group("END") != null) {
+                result = true;
+            }
+            break;
+        }
+
+        if (!result) {
+            boolean containBegin = false;
+            pattern = Pattern.compile(
+                    STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                            + "|(?<START>" + MULTI_LINE_START + ")"
+            );
+            matcher = pattern.matcher(remainderSql);
+            while (matcher.find()) {
+                if (matcher.group("START") != null) {
+                    containBegin = true;
+                }
+                break;
+            }
+            if (!containBegin && !remainderSql.trim().isEmpty()) {
+                result = true;
+            }
+        }
+
+        return result;
+    }
+
+    public static boolean sqlContrainMoreThanOneCommit(String remainderSql) {
+        boolean result = false;
+        Pattern pattern = Pattern.compile(
+                STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
+                        + "|(?<END>" + MULTI_LINE_END + ")"
+        );
+        int count = 0;
+        Matcher matcher = pattern.matcher(remainderSql);
+        while (matcher.find()) {
+            if (matcher.group("END") != null) {
+                count++;
+            }
+            if (count > 1) {
+                result = true;
+            }
+        }
+        return result;
+    }
+
+    public static String getFromTable(String sql) {
+        String fromTable = null;
+        Pattern pattern = Pattern.compile(
+                "(?<STRING>" + STRING_PATTERN_TEXT + ")"
+                        + "|(?<DOUBLESTRING>" + DOUBLE_STRING_PATTERN_TEXT + ")"
+                        + "|(?<COMMENT>" + COMMENT_PATTERN_TEXT + ")"
+        );
+        Matcher matcherAll = pattern.matcher(sql);
+        String checkText = sql.trim();
+
+        if (matcherAll.find()) {
+            checkText = matcherAll.replaceAll("").trim();
+        }
+
+        while (checkText.contains("(")) {
+            checkText = checkText.replaceAll("\\([^()]*\\)", "");
+        }
+        pattern = Pattern.compile("(?i)\\b(WHERE|ORDER|GROUP)\\b.*", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(checkText);
+        if (matcher.find()) {
+            checkText = matcher.replaceAll("").trim();
+        }
+
+        pattern = Pattern.compile("(?i)\\bfrom\\b\\s+(\\S+)(?!.*,|.*\\bjoin\\b.*)", Pattern.DOTALL);
+        matcher = pattern.matcher(checkText);
+        if (matcher.find()) {
+            fromTable = matcher.group(1).replaceAll(";", "");
+        }
+        return fromTable;
+    }
+
+    public static List getSelectedCols(String sql, List cols) {
+        List selectedCols = null;
+        String regex = "(?i)SELECT\\s+(.*?)\\s+FROM(?![^(]*\\))";
+
+        Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(sql);
+        String selectContent = null;
+        if (matcher.find()) {
+            selectContent = matcher.group(1).trim();
+        }
+
+        String input = selectContent;
+        List<String> result = new ArrayList<>();
+        StringBuilder currentPart = new StringBuilder();
+        int parenthesesLevel = 0;
+
+        for (int i = 0; i < input.length(); i++) {
+            char ch = input.charAt(i);
+
+            if (ch == '(') {
+                parenthesesLevel++;
+                currentPart.append(ch);
+            } else if (ch == ')') {
+                parenthesesLevel--;
+                currentPart.append(ch);
+            } else if (ch == ',' && parenthesesLevel == 0) {
+                result.add(currentPart.toString().replaceAll("(?i)\\b+AS\\b(?s).*", "").trim().replaceAll("\\s[^\\s]*$", "").toLowerCase());
+                currentPart.setLength(0);
+            } else {
+                currentPart.append(ch);
+            }
+        }
+
+        if (currentPart.length() > 0) {
+            result.add(currentPart.toString().replaceAll("(?i)\\b+AS\\b(?s).*", "").trim().replaceAll("\\s[^\\s]*$", "").toLowerCase());
+        }
+        for (int i = 0; i < result.size(); i++) {
+            if (result.get(i).trim().equals("*")) {
+                result.remove(i);
+                result.addAll(i, cols);
+            }
+        }
+        return result;
+    }
 
     public static String formatSql(String sql) {
 

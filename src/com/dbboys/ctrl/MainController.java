@@ -1,4 +1,4 @@
-package com.dbboys.ctrl;
+﻿package com.dbboys.ctrl;
 
 import com.dbboys.app.*;
 import com.dbboys.customnode.*;
@@ -23,7 +23,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
-import java.sql.SQLException;
 import java.util.Iterator;
 
 
@@ -83,7 +82,7 @@ public class MainController {
     @FXML
     public HBox status_hbox;
     @FXML
-    public Button status_backsql_stop_button;
+    public Button status_backsqlStopButton;
     @FXML
     public Label status_backsql_count_label;
     @FXML
@@ -111,7 +110,7 @@ public class MainController {
     private Double window_Y;  //拖动前Y坐标
 
 
-    //public Connect SQLConnect=new Connect();
+    //public Connect sqlConnect=new Connect();
 
     public void initialize() {
         //如果没有下载，界面不显示
@@ -252,7 +251,7 @@ public class MainController {
             if (newTab != null) {
                 if(newTab instanceof CustomSqlTab){
                     Platform.runLater(() -> {
-                        ((CustomSqlTab)newTab).sqlTabController.sql_edit_codearea.requestFocus();                        // 可选：将光标移动到文本末尾
+                        ((CustomSqlTab)newTab).sqlTabController.sqlEditCodeArea.requestFocus();                        // 可选：将光标移动到文本末尾
                     });
                 }
             }
@@ -569,15 +568,11 @@ public class MainController {
         });
 
 
-        status_backsql_stop_button.setOnAction(event->{
-            Iterator<BackgroundSqlTask> iterator = MetadataTreeviewUtil.metaDBaccessService.backSqlTask.iterator();
+        status_backsqlStopButton.setOnAction(event->{
+            Iterator<BackSqlTask> iterator = MetadataTreeviewUtil.backSqlService.backSqlTask.iterator();
             while (iterator.hasNext()) {
-                BackgroundSqlTask bgsql = iterator.next();
-                try {
-                    bgsql.getStmt().cancel();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
+                BackSqlTask bgsql = iterator.next();
+                bgsql.cancel();
             }
 
             NotificationUtil.showNotification(notice_pane,"后台任务已全部取消！");
@@ -588,9 +583,9 @@ public class MainController {
         status_backsql_list_button.setOnAction(event->{
             PopupWindowUtil.openSqlTaskPopupWindow();
         });
-        status_backsql_list_button.disableProperty().bind(status_backsql_stop_button.disableProperty());
+        status_backsql_list_button.disableProperty().bind(status_backsqlStopButton.disableProperty());
 
-        status_backsql_progress.visibleProperty().bind(status_backsql_stop_button.disableProperty().not());
+        status_backsql_progress.visibleProperty().bind(status_backsqlStopButton.disableProperty().not());
 
         //清理sql历史记录保留1000行
         new Thread( () -> { SqliteDBaccessUtil.deleteSqlHistory();} ).start();

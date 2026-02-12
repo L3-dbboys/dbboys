@@ -1,10 +1,13 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
+import com.dbboys.util.AlterUtil;
+import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.util.NotificationUtil;
 import com.dbboys.util.PopupWindowUtil;
 import com.dbboys.util.TabpaneUtil;
 import com.dbboys.util.MetadataTreeviewUtil;
+import javafx.application.Platform;
 import com.dbboys.vo.*;
 import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
@@ -26,6 +29,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 
 import org.apache.poi.ss.formula.functions.T;
@@ -50,7 +54,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private Label descripLabel = new Label();
     private Tooltip tooltip = new Tooltip();
     private String ddl_popupstage_ddlsql;
-    private Task DDLTask;
+    private Task<Object> DDLTask;
 
     public CustomTreeCell() {
         loadingIcon.setFitWidth(iconSize);
@@ -592,7 +596,12 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                                 @Override
                                 protected Void call() throws Exception {
                                     ddl_popupstage_ddlsql = "";
-                                    ddl_popupstage_ddlsql = MetadataTreeviewUtil.metaDBaccessService.getDDL(getTreeItem());
+                                    
+                                    Object parentValue = getTreeItem().getParent() == null ? null : getTreeItem().getParent().getValue();
+                                    ddl_popupstage_ddlsql = MetadataTreeviewUtil.metadataService.withMetaSession(
+                                            getTreeItem(),
+                                            conn -> MetadataTreeviewUtil.metadataService.getDDL(conn, getTreeItem().getValue(), parentValue)
+                                    );
                                     return null;
                                 }
                             };
@@ -602,6 +611,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                                 }
                                 item.setRunning(false);
                             });
+                            GlobalErrorHandlerUtil.bindTask(DDLTask, () -> item.setRunning(false));
                             Thread thread = new Thread(DDLTask);
                             MetadataTreeviewUtil.getMetaConnect(getTreeItem()).executeSqlTask(thread);
                             item.setRunning(true);
@@ -670,22 +680,22 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                             customSqlTab= (CustomSqlTab) Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem();
                         }
                         //如果连接和库名都相等，且没有当前执行任务，在当前窗口执行sql
-                        if((Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab)&&(customSqlTab.sqlTabController.sql_connect_choicebox.getValue().getName().equals(MetadataTreeviewUtil.getMetaConnect(getTreeItem()).getName()))&&(customSqlTab.sqlTabController.sql_db_choicebox.getValue().getName().equals(MetadataTreeviewUtil.getCurrentDatabase(getTreeItem()).getName()))&&(!customSqlTab.sqlTabController.sql_run_button.isDisable())){
+                        if((Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab)&&(customSqlTab.sqlTabController.sqlConnectChoiceBox.getValue().getName().equals(MetadataTreeviewUtil.getMetaConnect(getTreeItem()).getName()))&&(customSqlTab.sqlTabController.sqlDbChoiceBox.getValue().getName().equals(MetadataTreeviewUtil.getCurrentDatabase(getTreeItem()).getName()))&&(!customSqlTab.sqlTabController.sqlRunButton.isDisable())){
 
-                            if(!customSqlTab.sqlTabController.sql_edit_codearea.getText().isEmpty()){
+                            if(!customSqlTab.sqlTabController.sqlEditCodeArea.getText().isEmpty()){
                                 sql="\n"+sql;
                             }
-                            int start = customSqlTab.sqlTabController.sql_edit_codearea.getLength();
-                            customSqlTab.sqlTabController.sql_edit_codearea.appendText(sql);
-                            customSqlTab.sqlTabController.sql_edit_codearea.moveTo(start);
-                            customSqlTab.sqlTabController.sql_edit_codearea.requestFollowCaret();
-                            customSqlTab.sqlTabController.sql_edit_codearea.selectRange(customSqlTab.sqlTabController.sql_edit_codearea.getLength()-(sql.startsWith("\n")?(sql.length()-1):sql.length()), customSqlTab.sqlTabController.sql_edit_codearea.getLength());
-                            customSqlTab.sqlTabController.sql_run_button.fire();
+                            int start = customSqlTab.sqlTabController.sqlEditCodeArea.getLength();
+                            customSqlTab.sqlTabController.sqlEditCodeArea.appendText(sql);
+                            customSqlTab.sqlTabController.sqlEditCodeArea.moveTo(start);
+                            customSqlTab.sqlTabController.sqlEditCodeArea.requestFollowCaret();
+                            customSqlTab.sqlTabController.sqlEditCodeArea.selectRange(customSqlTab.sqlTabController.sqlEditCodeArea.getLength()-(sql.startsWith("\n")?(sql.length()-1):sql.length()), customSqlTab.sqlTabController.sqlEditCodeArea.getLength());
+                            customSqlTab.sqlTabController.sqlRunButton.fire();
                         }
                         else {
                             MetadataTreeviewUtil.databaseOpenFileItem.fire();
                             customSqlTab= (CustomSqlTab) Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem();
-                            customSqlTab.sqlTabController.sql_init=sql;
+                            customSqlTab.sqlTabController.sqlInit=sql;
                         }
 
 

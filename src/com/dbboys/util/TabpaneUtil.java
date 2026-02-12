@@ -52,15 +52,15 @@ public class TabpaneUtil {
 
         //双击新建sql面板，connect是null
         if(connect!=null){
-            newtab.sqlTabController.sql_connect_choicebox.setValue(connect);
+            newtab.sqlTabController.sqlConnectChoiceBox.setValue(connect);
         }
     }
 
 
-    public static void refreshConnectList(){
+    public static void isRefreshConnectList(){
             for (Tab tab : tabpane.getTabs()) {
                 if (tab instanceof  CustomSqlTab) {
-                    ((CustomSqlTab)(tab)).sqlTabController.initConnectList();
+                    ((CustomSqlTab)(tab)).sqlTabController.initializeConnectList();
                 }
         }
 

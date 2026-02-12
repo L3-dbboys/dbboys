@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 public class CustomMarkdownEditCodeArea extends CodeArea {
     private static final Logger log = LogManager.getLogger(CustomMarkdownEditCodeArea.class);
     public Button sql_save_button=new Button();  //保存文件路径
-    public CustomSearchReplaceVbox customSearchReplaceVbox;
+    public CustomSearchReplaceVbox searchReplaceBox;
     public MenuItem viewItem = new  MenuItem("保存并预览 ( Save&View )      Ctrl+Enter");
     public MenuItem codeAreaPasteItem;
     public CustomMarkdownEditCodeArea() {
@@ -108,7 +108,7 @@ public class CustomMarkdownEditCodeArea extends CodeArea {
         setContextMenu(codeAreaMenu);
 
         codeAreaSearchItem.setOnAction(event->{
-            customSearchReplaceVbox.setVisible(true);
+            searchReplaceBox.setVisible(true);
         });
 
         codeAreaCopyItem.setDisable(true);
@@ -146,13 +146,13 @@ public class CustomMarkdownEditCodeArea extends CodeArea {
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.F){
                 codeAreaSearchItem.fire();
-                customSearchReplaceVbox.findField.requestFocus();
+                searchReplaceBox.findField.requestFocus();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.R){
                 codeAreaSearchItem.fire();
-                if(customSearchReplaceVbox.tobottomBtn.isVisible()){
-                    customSearchReplaceVbox.tobottomBtn.fire();
-                    customSearchReplaceVbox.findField.requestFocus();
+                if(searchReplaceBox.tobottomBtn.isVisible()){
+                    searchReplaceBox.tobottomBtn.fire();
+                    searchReplaceBox.findField.requestFocus();
                 }
             }
         });

@@ -56,7 +56,7 @@ public class CustomTab extends Tab {
                 }
                 if(this instanceof CustomSqlTab){
                     Platform.runLater(()->{
-                        ((CustomSqlTab) this).sqlTabController.sql_edit_codearea.requestFocus();
+                        ((CustomSqlTab) this).sqlTabController.sqlEditCodeArea.requestFocus();
                     });
                 }
             }

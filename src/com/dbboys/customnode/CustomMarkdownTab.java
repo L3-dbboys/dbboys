@@ -54,7 +54,7 @@ public class CustomMarkdownTab extends CustomTab{
     //public CustomInlineCssTextArea customInlineCssTextArea;
     public CustomGenericStyledArea customGenericStyledArea;
 
-    public CustomSearchReplaceVbox customSearchReplaceVbox=new CustomSearchReplaceVbox(null);
+    public CustomSearchReplaceVbox searchReplaceBox=new CustomSearchReplaceVbox(null);
     public CustomSearchReplaceVbox customSearchVbox=new CustomSearchReplaceVbox(null);
 
     //sql编辑框以上控件
@@ -78,13 +78,13 @@ public class CustomMarkdownTab extends CustomTab{
 
 
         //编辑界面加载搜索面板
-        customSearchReplaceVbox.setMaxWidth(300);
-        customSearchReplaceVbox.setMaxHeight(26);
-        customSearchReplaceVbox.codeArea=customMarkdownEditCodeArea;
-        StackPane.setAlignment(customSearchReplaceVbox,Pos.TOP_RIGHT);
-        markdown.getChildren().add(1,customSearchReplaceVbox);
-        customMarkdownEditCodeArea.customSearchReplaceVbox=customSearchReplaceVbox;
-        StackPane.setMargin(customSearchReplaceVbox, new Insets(2, 17, 0, 0));
+        searchReplaceBox.setMaxWidth(300);
+        searchReplaceBox.setMaxHeight(26);
+        searchReplaceBox.codeArea=customMarkdownEditCodeArea;
+        StackPane.setAlignment(searchReplaceBox,Pos.TOP_RIGHT);
+        markdown.getChildren().add(1,searchReplaceBox);
+        customMarkdownEditCodeArea.searchReplaceBox=searchReplaceBox;
+        StackPane.setMargin(searchReplaceBox, new Insets(2, 17, 0, 0));
 
         //浏览界面加搜索面板
         customSearchVbox.setMaxWidth(280);
@@ -102,7 +102,7 @@ public class CustomMarkdownTab extends CustomTab{
         customSearchVbox.codeArea=customGenericStyledArea;
         StackPane.setAlignment(customSearchVbox,Pos.TOP_RIGHT);
         markdown.getChildren().add(4,customSearchVbox);
-        customGenericStyledArea.customSearchReplaceVbox=customSearchVbox;
+        customGenericStyledArea.searchReplaceBox=customSearchVbox;
         StackPane.setMargin(customSearchVbox, new Insets(2, 17, 0, 0));
 
         SVGPath modifybtn_icon = new SVGPath();

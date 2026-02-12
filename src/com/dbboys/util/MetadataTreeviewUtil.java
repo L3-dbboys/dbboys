@@ -1,9 +1,11 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.CreateConnectController;
 import com.dbboys.customnode.*;
-import com.dbboys.service.ConnectDBaccessService;
+import com.dbboys.db.DbConnectionFactory;
+import com.dbboys.service.BackSqlService;
+import com.dbboys.service.MetadataService;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -25,10 +27,9 @@ import javafx.scene.shape.SVGPath;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,7 +45,9 @@ public class MetadataTreeviewUtil {
 
     //public static ExecutorService executorService;
     public static List<TreeItem<TreeData>> searchResults = new ArrayList<>();
-    public static ConnectDBaccessService metaDBaccessService;
+    public static BackSqlService backSqlService;
+    public static MetadataService metadataService;
+    public static DbConnectionFactory dbConnectionFactory;
     public static MenuItem refreshItem;
     public static MenuItem databaseOpenFileItem;
     public static MenuItem connectFolderInfoItem;
@@ -53,7 +56,9 @@ public class MetadataTreeviewUtil {
     public static Thread testConnThread;
     static{
         //executorService = Executors.newSingleThreadExecutor();
-        metaDBaccessService = new ConnectDBaccessService();
+        backSqlService=new BackSqlService();
+        metadataService = new MetadataService();
+        dbConnectionFactory = new DbConnectionFactory();
     }
 
 
@@ -400,7 +405,7 @@ public class MetadataTreeviewUtil {
             TreeData connect = selectedItem.getValue();
             Boolean confirm=AlterUtil.CustomAlertConfirm("改为裸表","确定将表\""+selectedItem.getValue().getName()+"\"更改为裸表吗？裸表具有更高的性能但不支持事务回滚，不建议在生产环境使用！");
             if(confirm){
-                metaDBaccessService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(raw)",null);
+                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(raw)",null);
             }
         });
 
@@ -410,7 +415,7 @@ public class MetadataTreeviewUtil {
             TreeData connect = selectedItem.getValue();
             Boolean confirm=AlterUtil.CustomAlertConfirm("改为标准表","确定将表\""+selectedItem.getValue().getName()+"\"更改为标准表吗？");
             if(confirm){
-                metaDBaccessService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(standard)",null);
+                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(standard)",null);
             }
         });
 
@@ -420,7 +425,7 @@ public class MetadataTreeviewUtil {
             TreeData connect = selectedItem.getValue();
             Boolean confirm=AlterUtil.CustomAlertConfirm("清空表","确定要清空表\""+selectedItem.getValue().getName()+"\"吗？");
             if(confirm){
-                metaDBaccessService.executeBackgroundSql(selectedItem,"truncate table "+connect.getName(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"truncate table "+connect.getName(),null);
             }
         });
 
@@ -432,13 +437,13 @@ public class MetadataTreeviewUtil {
             if(connect instanceof Index) {//索引
                 Boolean confirm=AlterUtil.CustomAlertConfirm("禁用索引","确定要禁用索引\""+selectedItem.getValue().getName()+"\"吗？索引禁用后启用需要自动重建耗费较长时间！");
                 if(confirm){
-                    metaDBaccessService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" disabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" disabled",null);
                 }
             }
             if(connect instanceof Trigger) {//触发器
                 Boolean confirm=AlterUtil.CustomAlertConfirm("禁用触发器","确定要禁用触发器\""+selectedItem.getValue().getName()+"\"吗？");
                 if(confirm){
-                    metaDBaccessService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" disabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" disabled",null);
                 }
             }
         });
@@ -450,13 +455,13 @@ public class MetadataTreeviewUtil {
             if(connect instanceof Index) {//索引
                 Boolean confirm=AlterUtil.CustomAlertConfirm("启用索引","确定要启用索引\""+selectedItem.getValue().getName()+"\"吗？启用索引可能会较长时间锁表！");
                 if(confirm){
-                    metaDBaccessService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" enabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" enabled",null);
                 }
             }
             if(connect instanceof Trigger) {//触发器
                 Boolean confirm=AlterUtil.CustomAlertConfirm("启用触发器","确定要启用触发器\""+selectedItem.getValue().getName()+"\"吗？");
                 if(confirm){
-                    metaDBaccessService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" enabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" enabled",null);
                 }
             }
         });
@@ -482,7 +487,7 @@ public class MetadataTreeviewUtil {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             Connect connect=new Connect(MetadataTreeviewUtil.getMetaConnect(selectedItem));
             Database database=MetadataTreeviewUtil.getCurrentDatabase(selectedItem);
-            connect.setProps(metaDBaccessService.modifyProps(connect,database.getDbLocale()));
+            connect.setProps(metadataService.modifyProps(connect,database.getDbLocale()));
             connect.setDatabase(database.getName());
             TabpaneUtil.addCustomSqlTab(connect);
         });
@@ -619,7 +624,7 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert("错误", "两次密码输入不一致！");
                     event1.consume();
                 } else {
-                    metaDBaccessService.executeBackgroundSql(selectedItem, "create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
+                    backSqlService.executeBackgroundSql(selectedItem, "create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
                 }
 
             });
@@ -687,7 +692,7 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert("错误", "两次密码输入不一致！");
                     event1.consume();
                 } else {
-                    metaDBaccessService.executeBackgroundSql(selectedItem, "alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
+                    backSqlService.executeBackgroundSql(selectedItem, "alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
                 }
 
             });
@@ -700,21 +705,21 @@ public class MetadataTreeviewUtil {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             TreeData connect = selectedItem.getValue();
             if (connect instanceof Database) {
-                metaDBaccessService.executeBackgroundSql(selectedItem, "update statistics", null);
+                backSqlService.executeBackgroundSql(selectedItem, "update statistics", null);
             }
             else if (connect instanceof ObjectFolder) {
                 if(connect.getName().equals("系统表/视图")||connect.getName().equals("表")){
-                    metaDBaccessService.executeBackgroundSql(selectedItem, "update statistics high for table force", null);
+                    backSqlService.executeBackgroundSql(selectedItem, "update statistics high for table force", null);
                 }
                 else if(connect.getName().equals("存储过程")){
-                    metaDBaccessService.executeBackgroundSql(selectedItem, "update statistics for procedure", null);
+                    backSqlService.executeBackgroundSql(selectedItem, "update statistics for procedure", null);
                 }
             }
             else if(connect instanceof SysTable||connect instanceof Table){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "update statistics for table "+connect.getName(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "update statistics for table "+connect.getName(),null);
             }
             else if(connect instanceof Procedure){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "update statistics for procedure "+connect.getName(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "update statistics for procedure "+connect.getName(),null);
             }
         });
 
@@ -845,22 +850,18 @@ public class MetadataTreeviewUtil {
 
             ObservableList<String> list = null;
             try {
-                list = FXCollections.observableArrayList(metaDBaccessService.getDBspaceForCreateDatabase((Connect) selectedItem.getParent().getValue()));
-            }catch (SQLException e){
-                log.error(e.getMessage(),e);
-
-                if(e.getErrorCode()==-79716||e.getErrorCode()==-79730) {
-                    Platform.runLater(() -> {
-                        if (AlterUtil.CustomAlertConfirm("错误", "数据库已断开连接，是否需要重新连接？")) {
-                            MetadataTreeviewUtil.reconnectItem(selectedItem);
-                        }
-                    });
-                }else{
-                    AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+                if(selectedItem==null){
+                    log.info("selectitem is null");
                 }
+                else {
+                    log.info("selectitem is "+selectedItem.getValue().getName());
+                }
+                list = FXCollections.observableArrayList(metadataService.getDBspaceForCreateDatabase(((Connect) selectedItem.getParent().getValue()).getConn()));
+            }catch (SQLException e){
+                GlobalErrorHandlerUtil.handle(e);
             }
             catch (Exception e) {
-                AlterUtil.CustomAlert("错误",e.toString());
+                GlobalErrorHandlerUtil.handle(e);
             }
             comboBox1.setItems(list);
             comboBox1.setValue(list.get(0));
@@ -886,7 +887,7 @@ public class MetadataTreeviewUtil {
 
             ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
             if (result == buttonTypeOk) {
-                metaDBaccessService.executeBackgroundSql(selectedItem,"create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
+                backSqlService.executeBackgroundSql(selectedItem,"create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
 
             }
         });
@@ -897,7 +898,9 @@ public class MetadataTreeviewUtil {
                     Task TableMetaTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            Table table=metaDBaccessService.getTable(selectedItem);
+                            Connection conn = MetadataTreeviewUtil.getMetaConnect(selectedItem).getConn();
+                            String dbName = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
+                            Table table = metadataService.getTable(conn, dbName, selectedItem.getValue().getName());
                             if(table.getName()!=null){
                                 selectedItem.setValue(table);
                             }
@@ -914,7 +917,9 @@ public class MetadataTreeviewUtil {
                     Task TableMetaTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            Index index=metaDBaccessService.getIndex(selectedItem);
+                            Connection conn = MetadataTreeviewUtil.getMetaConnect(selectedItem).getConn();
+                            String dbName = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
+                            Index index = metadataService.getIndex(conn, dbName, selectedItem.getValue().getName());
                             if(index.getName()!=null){
                                 selectedItem.setValue(index);
                             }
@@ -931,7 +936,9 @@ public class MetadataTreeviewUtil {
                     Task TableMetaTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            Trigger trigger=metaDBaccessService.getTrigger(selectedItem);
+                            Connection conn = MetadataTreeviewUtil.getMetaConnect(selectedItem).getConn();
+                            String dbName = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
+                            Trigger trigger = metadataService.getTrigger(conn, dbName, selectedItem.getValue().getName());
                             if(trigger.getName()!=null){
                                 selectedItem.setValue(trigger);
                             }
@@ -954,7 +961,14 @@ public class MetadataTreeviewUtil {
         //设置默认数据库
         setDefaultDatabaseItem.setOnAction(event-> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            metaDBaccessService.changeDefaultDatabase(MetadataTreeviewUtil.getMetaConnect(selectedItem),MetadataTreeviewUtil.getCurrentDatabase(selectedItem));
+            MetadataService.ChangeDefaultDatabaseResult result =
+                    metadataService.changeDefaultDatabase(MetadataTreeviewUtil.getMetaConnect(selectedItem),
+                            MetadataTreeviewUtil.getCurrentDatabase(selectedItem));
+            if (result.isDisconnected()) {
+                MetadataTreeviewUtil.connectionDisconnected();
+            } else if (result.getErrorCode() != null) {
+                AlterUtil.CustomAlert("错误", "[" + result.getErrorCode() + "]" + result.getErrorMessage());
+            }
             treeView.refresh();
         });
 
@@ -1109,7 +1123,7 @@ public class MetadataTreeviewUtil {
                             disconnectItem.setDisable(true);
                         }
                     } catch (SQLException e) {
-                        log.error(e.getMessage(),e);
+                        GlobalErrorHandlerUtil.handle(e);
 
                         throw new RuntimeException(e);
                     }
@@ -1267,6 +1281,8 @@ public class MetadataTreeviewUtil {
         if(!(treeData instanceof ConnectFolder)){
             treeItem.expandedProperty().addListener((obs, wasExpanded, isNowExpanded) -> {
                 if (isNowExpanded&& treeItem.getChildren().isEmpty()){
+
+                    Main.mainController.databasemeta_treeview.getSelectionModel().select(treeItem);//避免只点击箭头但连接中断，没有选中的节点不报连接中断错误
                     treeItemAddChildrens(treeItem);
                 };
             });
@@ -1454,24 +1470,24 @@ public class MetadataTreeviewUtil {
                     MetadataTreeviewUtil.reorderTreeview(treeView, selectedItem);
                 }
                 SqliteDBaccessUtil.updateConnect((Connect) selectedItem.getValue());
-                TabpaneUtil.refreshConnectList();
+                TabpaneUtil.isRefreshConnectList();
                 NotificationUtil.showNotification(Main.mainController.notice_pane, "连接已重命名为："+selectedItem.getValue().getName());
             }else if(selectedItem.getValue() instanceof Database){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Table){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Index){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Sequence){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Synonym){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Trigger){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Function){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Procedure){
-                metaDBaccessService.executeBackgroundSql(selectedItem, "rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem, "rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }
         }
     }
@@ -1506,36 +1522,36 @@ public class MetadataTreeviewUtil {
                         selectedItem.getChildren().clear();
                     }
                 } catch (SQLException e) {
-                    log.error(e.getMessage(),e);
+                    GlobalErrorHandlerUtil.handle(e);
                     throw new RuntimeException(e);
                 }
                 SqliteDBaccessUtil.deleteConnectLeaf(connect);
                 selectedItem.getParent().getChildren().remove(selectedItem);
-                TabpaneUtil.refreshConnectList();
+                TabpaneUtil.isRefreshConnectList();
                 NotificationUtil.showNotification(Main.mainController.notice_pane, "数据库连接\""+selectedItem.getValue().getName()+"\"已删除！");
             }
         }else if(selectedItem.getValue() instanceof Database){
-            metaDBaccessService.executeBackgroundSql(selectedItem,"drop database "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop database "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Table){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop table "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop table "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof View){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop view "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop view "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Index){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop index "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop index "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Sequence){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop sequece "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop sequece "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Synonym){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop synonym "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop synonym "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Trigger){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop trigger "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop trigger "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Function){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop function "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop function "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Procedure){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop procedure "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop procedure "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof DBPackage){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop package "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop package "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof User){
-            metaDBaccessService.executeBackgroundSql(selectedItem, "drop user "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem, "drop user "+selectedItem.getValue().getName(),null);
         }
     }
 
@@ -1560,9 +1576,9 @@ public class MetadataTreeviewUtil {
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
                         try{
-                            connect.setConn(metaDBaccessService.getConnection(connect));
-                            //连接之后切换到gbase模式
-                            metaDBaccessService.sessionChangeToGbaseMode(connect.getConn());
+                              connect.setConn(dbConnectionFactory.getConnection(connect));
+                              //连接之后切换到gbase模式
+                              dbConnectionFactory.sessionChangeToGbaseMode(connect.getConn());
                             DatabaseFolder databaseTreeData = new DatabaseFolder("数据库");
                             TreeItem<TreeData> databaseItem=createTreeItem(databaseTreeData);
                             UserFolder userTreeData = new UserFolder("用户");
@@ -1585,27 +1601,39 @@ public class MetadataTreeviewUtil {
                                 //addExpandedPropertyListen(treeItem);
                             });
                         } catch (SQLException e) {
-                            log.error(e.getMessage(),e);
-
                             Platform.runLater(() -> {
                                 treeItem.getChildren().clear();
                                 treeItem.setExpanded(false);
-                                AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
                             });
+                            GlobalErrorHandlerUtil.handle(e);
                         }
                         catch (Exception e) {
                             Platform.runLater(() -> {
                                 treeItem.getChildren().clear();
                                 treeItem.setExpanded(false);
-                                AlterUtil.CustomAlert("错误",e.toString());
                             });
+                            GlobalErrorHandlerUtil.handle(e);
                         }
                     }));
         }else if(treeItem.getValue() instanceof DatabaseFolder){
             //创建子线程加载数据库
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        List<Database> databases = metaDBaccessService.getDatabases(getMetaConnect(treeItem));
+                          final List<Database> databases = new ArrayList<>();
+                          try {
+                              databases.addAll(metadataService.getDatabases(getMetaConnect(treeItem).getConn(), false));
+                          } catch (SQLException e) {
+                              if (e.getErrorCode() == -201) {
+                                  try {
+                                      databases.clear();
+                                      databases.addAll(metadataService.getDatabases(getMetaConnect(treeItem).getConn(), true));
+                                  } catch (SQLException ex) {
+                                      GlobalErrorHandlerUtil.handle(ex);
+                                  }
+                              } else {
+                                  GlobalErrorHandlerUtil.handle(e);
+                              }
+                          }
                         //查询到结果后删除loading节点
                         if(databases.size()>0){
                             Platform.runLater(() -> {
@@ -1627,7 +1655,12 @@ public class MetadataTreeviewUtil {
             //创建子线程加载数据库
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        List<User> users = metaDBaccessService.getUsers(treeItem);
+                          final List<User> users = new ArrayList<>();
+                          try {
+                              users.addAll(metadataService.getUsers(getMetaConnect(treeItem).getConn()));
+                          } catch (SQLException e) {
+                              GlobalErrorHandlerUtil.handle(e);
+                          }
                         //查询到结果后删除loading节点
                         if(users.size()>0){
                             Platform.runLater(() -> {
@@ -1649,8 +1682,21 @@ public class MetadataTreeviewUtil {
         else if(treeItem.getValue() instanceof Database){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getDatabaseObjects(treeItem);
-                        if(objectList.getSuccess()!=null) {
+                        ObjectList objectList;
+                        try {
+                            Database database = MetadataTreeviewUtil.getCurrentDatabase(treeItem);
+                            objectList = metadataService.loadDatabaseObjects(getMetaConnect(treeItem), database);
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
+
+                        if(objectList.getSuccess()) {
+
                             if(objectList.getInfo()==null){
                                 Platform.runLater(() -> {
                                     NotificationUtil.showNotification(Main.mainController.notice_pane, "未找到当前数据库，数据库已被删除！");
@@ -1715,7 +1761,17 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("系统表/视图")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getSystemtables(treeItem);
+                        ObjectList objectList;
+                        try {
+                            objectList = metadataService.loadSystemTables(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1736,7 +1792,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("表")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getTables(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadTables(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1757,7 +1825,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("视图")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getViews(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadViews(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1778,7 +1858,15 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("索引")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getIndexes(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadIndexes(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1799,7 +1887,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("序列")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getSequences(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadSequences(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1820,7 +1920,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("同义词")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getSynonyms(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadSynonyms(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1841,7 +1953,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("触发器")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getTriggers(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadTriggers(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1862,7 +1986,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("函数")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getFunctions(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadFunctions(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1883,7 +2019,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("存储过程")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getProcedures(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadProcedures(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1904,7 +2052,19 @@ public class MetadataTreeviewUtil {
         }else if(treeItem.getValue() instanceof ObjectFolder && treeItem.getValue().getName().equals("包")){
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
-                        ObjectList objectList = metaDBaccessService.getDBPackages(treeItem);
+                        ObjectList objectList;
+                        try {
+                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
+                            Connection conn = getMetaConnect(treeItem).getConn();
+                            objectList = metadataService.loadPackages(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                            Platform.runLater(() -> {
+                                treeItem.getChildren().clear();
+                                treeItem.setExpanded(false);
+                            });
+                            return;
+                        }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
                             ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
@@ -1926,7 +2086,13 @@ public class MetadataTreeviewUtil {
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
                         String packageDDL = "";
-                        packageDDL = metaDBaccessService.getDDL(treeItem);
+                        try {
+                            Object parentValue = treeItem.getParent() == null ? null : treeItem.getParent().getValue();
+                            packageDDL = metadataService.getDDL(getMetaConnect(treeItem).getConn(), treeItem.getValue(), parentValue);
+                    
+                        } catch (Exception e) {
+                            GlobalErrorHandlerUtil.handle(e);
+                        }
                         if (!packageDDL.isEmpty()) {
                             ((DBPackage) treeItem.getValue()).setDDL(packageDDL);
 
@@ -2014,7 +2180,7 @@ public class MetadataTreeviewUtil {
         try {
             ((Connect)treeItem.getValue()).getConn().close();
         } catch (SQLException e) {
-            log.error(e.getMessage(),e);
+            GlobalErrorHandlerUtil.handle(e);
             ((Connect)treeItem.getValue()).setConn(null);
         }
 
@@ -2074,7 +2240,6 @@ public class MetadataTreeviewUtil {
     }
 
 
-
     public static Database getCurrentDatabase(TreeItem<TreeData> treeItem){
         TreeItem<TreeData> retrunTreeItem=treeItem;
         if(retrunTreeItem.getValue() instanceof Database){
@@ -2117,7 +2282,7 @@ public class MetadataTreeviewUtil {
                 connect.getConn().close();
                 for(Tab tab :Main.mainController.sql_tabpane.getTabs()){
                     if(tab instanceof CustomSqlTab) {
-                        if (selectedItem.getValue().getName().equals(((CustomSqlTab) tab).sqlTabController.SQLConnect.getName())) {
+                        if (selectedItem.getValue().getName().equals(((CustomSqlTab) tab).sqlTabController.sqlConnect.getName())) {
                             ((CustomSqlTab) tab).sqlTabController.closeConn();
                         }
                     }
@@ -2134,7 +2299,7 @@ public class MetadataTreeviewUtil {
             }
             if(needToRemove!=null)Main.mainController.sql_tabpane.getTabs().remove(needToRemove);
         } catch (SQLException e) {
-            log.error(e.getMessage(),e);
+            GlobalErrorHandlerUtil.handle(e);
             //new CustomAlert("错误",e.toString());
         }
         selectedItem.setExpanded(false);
@@ -2259,7 +2424,6 @@ public class MetadataTreeviewUtil {
 
     }
 
-
     //弹出创建连接对话框
     public static void showCreateConnectDialog(TreeData treedataPram,Boolean isCopy)  {
         try {
@@ -2286,5 +2450,6 @@ public class MetadataTreeviewUtil {
         }
 
     }
-
 }
+
+

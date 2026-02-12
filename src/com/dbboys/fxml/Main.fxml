@@ -286,7 +286,7 @@
             </StackPane>
         </SplitPane>
         <HBox spacing="10" fx:id="status_hbox" style="-fx-font-size: 10" alignment="CENTER">
-            <Button fx:id="status_backsql_stop_button" styleClass="little-custom-button" focusTraversable="false" disable="true">
+            <Button fx:id="status_backsqlStopButton" styleClass="little-custom-button" focusTraversable="false" disable="true">
                 <tooltip>
                     <Tooltip text="停止所有后台任务"/>
                 </tooltip>

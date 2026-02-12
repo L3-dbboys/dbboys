@@ -37,8 +37,8 @@ public class CustomSqlTab extends CustomTab{
 
         //获取控制器实例
         sqlTabController=loader.getController();
-        sqlTabController.sql_edit_codearea.sql_save_button=sql_save_button;
-        //sql_save_button.disableProperty().bind(sqlTabController.sql_edit_codearea.sql_save_button.disableProperty());
+        sqlTabController.sqlEditCodeArea.sql_save_button=sql_save_button;
+        //sql_save_button.disableProperty().bind(sqlTabController.sqlEditCodeArea.sql_save_button.disableProperty());
 
         //设置标题提示
         setTooltip(new Tooltip(sql_file_path.equals("")?"新建脚本未保存到磁盘":sql_file_path));
@@ -46,16 +46,16 @@ public class CustomSqlTab extends CustomTab{
         getTitleLabel().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                 if (Main.sqledit_codearea_is_max == 1) {
-                    sqlTabController.sql_splitpane.setDividerPositions(1);
+                    sqlTabController.sqlSplitPane.setDividerPositions(1);
                 } else {
-                    sqlTabController.sql_splitpane.setDividerPositions(sqlTabController.sql_splitpane_driver);
+                    sqlTabController.sqlSplitPane.setDividerPositions(sqlTabController.sqlSplitPaneDividerPosition);
                 }
             }
         });
 
         //保存按钮事件
         sql_save_button.setOnAction(event->{
-                    String content=sqlTabController.sql_edit_codearea.getText();
+                    String content=sqlTabController.sqlEditCodeArea.getText();
                     if(sql_file_path.equals("")){
                         FileChooser fileChooser = new FileChooser();
                         fileChooser.setTitle("保存文件");
@@ -115,7 +115,7 @@ public class CustomSqlTab extends CustomTab{
     //打开sql文件
     public void openSqlFile() {
         try {
-            sqlTabController.sql_edit_codearea.replaceText(Files.readString(Path.of(sql_file_path)));
+            sqlTabController.sqlEditCodeArea.replaceText(Files.readString(Path.of(sql_file_path)));
             getTitle().replaceAll("\\*","");
             sql_save_button.setDisable(true);
             setTooltip(new Tooltip(sql_file_path));

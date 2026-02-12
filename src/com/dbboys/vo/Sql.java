@@ -2,15 +2,15 @@ package com.dbboys.vo;
 
 public class Sql {
     private String sql_type="";
-    private String sql_str="";
+    private String sqlText="";
     private String sql_remainder="";
     private Boolean sql_end=true;
     public String getSqlstr() {
-        return sql_str;
+        return sqlText;
     }
 
-    public void setSqlStr(String sql_str) {
-        this.sql_str = sql_str;
+    public void setSqlStr(String sqlText) {
+        this.sqlText = sqlText;
     }
 
     public String getSqlType() {

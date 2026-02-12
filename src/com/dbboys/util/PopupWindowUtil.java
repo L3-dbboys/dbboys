@@ -2,7 +2,7 @@ package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
-import com.dbboys.vo.BackgroundSqlTask;
+import com.dbboys.vo.BackSqlTask;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -28,7 +28,6 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -275,23 +274,22 @@ public class PopupWindowUtil {
                         super.updateItem(item, empty);
                         setGraphic(null);
                         if(!empty) {
-                            Button status_sql_stop_button = new Button("");
-                            status_sql_stop_button.getStyleClass().add("little-custom-button");
-                            status_sql_stop_button.setTooltip(new Tooltip("停止此任务"));
-                            SVGPath status_sql_stop_button_icon = new SVGPath();
-                            status_sql_stop_button_icon.setContent("M19.2031 6.0078 L19.2031 17.7734 Q19.2031 18.3516 18.7812 18.7734 Q18.3594 19.1953 17.7656 19.1953 L6 19.1953 Q5.5156 19.1953 5.1562 18.8516 Q4.8125 18.4922 4.8125 18.0078 L4.8125 6.2422 Q4.8125 5.6484 5.2344 5.2266 Q5.6562 4.8047 6.2344 4.8047 L18 4.8047 Q18.5 4.8047 18.8438 5.1641 Q19.2031 5.5078 19.2031 6.0078 L19.2031 6.0078 Z");
-                            status_sql_stop_button_icon.setScaleX(0.5);
-                            status_sql_stop_button_icon.setScaleY(0.5);
-                            status_sql_stop_button_icon.setFill(Color.valueOf("#9f453c"));
-                            status_sql_stop_button.setGraphic(new Group(status_sql_stop_button_icon));
-                            status_sql_stop_button.setFocusTraversable(false);
-                            setGraphic(status_sql_stop_button);
-                            status_sql_stop_button.setOnAction(event -> {
-                                try {
-                                    ((BackgroundSqlTask)getTableRow().getItem()).getStmt().cancel();
-                                    NotificationUtil.showNotification(notice_pane,"任务已取消！");
-                                } catch (SQLException e) {
-                                    throw new RuntimeException(e);
+                            Button status_sqlStopButton = new Button("");
+                            status_sqlStopButton.getStyleClass().add("little-custom-button");
+                            status_sqlStopButton.setTooltip(new Tooltip("停止此任务"));
+                            SVGPath status_sqlStopButton_icon = new SVGPath();
+                            status_sqlStopButton_icon.setContent("M19.2031 6.0078 L19.2031 17.7734 Q19.2031 18.3516 18.7812 18.7734 Q18.3594 19.1953 17.7656 19.1953 L6 19.1953 Q5.5156 19.1953 5.1562 18.8516 Q4.8125 18.4922 4.8125 18.0078 L4.8125 6.2422 Q4.8125 5.6484 5.2344 5.2266 Q5.6562 4.8047 6.2344 4.8047 L18 4.8047 Q18.5 4.8047 18.8438 5.1641 Q19.2031 5.5078 19.2031 6.0078 L19.2031 6.0078 Z");
+                            status_sqlStopButton_icon.setScaleX(0.5);
+                            status_sqlStopButton_icon.setScaleY(0.5);
+                            status_sqlStopButton_icon.setFill(Color.valueOf("#9f453c"));
+                            status_sqlStopButton.setGraphic(new Group(status_sqlStopButton_icon));
+                            status_sqlStopButton.setFocusTraversable(false);
+                            setGraphic(status_sqlStopButton);
+                            status_sqlStopButton.setOnAction(event -> {
+                                BackSqlTask task = (BackSqlTask) getTableRow().getItem();
+                                if (task != null) {
+                                    task.cancel();
+                                    NotificationUtil.showNotification(notice_pane, "任务已取消！");
                                 }
                             });
                         }

@@ -36,8 +36,8 @@ public class CustomSqlEditCodeArea extends CodeArea {
     private int[] sqledit_codearea_cursor_positon={0,0};  //括号最后配对高亮显示的位置,需要两个位置标记
     private int styleFlag = 0;
     public Button sql_save_button;  //保存文件路径
-    public Button sql_run_button;
-    public CustomSearchReplaceVbox customSearchReplaceVbox;
+    public Button sqlRunButton;
+    public CustomSearchReplaceVbox searchReplaceBox;
 
     public CustomSqlEditCodeArea() {
         super();
@@ -180,7 +180,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 sql_save_button.fire();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.ENTER){
-                sql_run_button.fire();
+                sqlRunButton.fire();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.M){
                 codeAreaFormatItem.fire();
@@ -199,13 +199,13 @@ public class CustomSqlEditCodeArea extends CodeArea {
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.F){
                 codeAreaSearchItem.fire();
-                customSearchReplaceVbox.findField.requestFocus();
+                searchReplaceBox.findField.requestFocus();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.R){
                 codeAreaSearchItem.fire();
-                if(customSearchReplaceVbox.tobottomBtn.isVisible()){
-                    customSearchReplaceVbox.tobottomBtn.fire();
-                    customSearchReplaceVbox.findField.requestFocus();
+                if(searchReplaceBox.tobottomBtn.isVisible()){
+                    searchReplaceBox.tobottomBtn.fire();
+                    searchReplaceBox.findField.requestFocus();
                 }
             }
         });
@@ -291,11 +291,11 @@ public class CustomSqlEditCodeArea extends CodeArea {
         });
 
         codeAreaSearchItem.setOnAction(event->{
-            customSearchReplaceVbox.setVisible(true);
+            searchReplaceBox.setVisible(true);
         });
-        //codeAreaExecuteItem.visibleProperty().bind(sql_run_button.visibleProperty());
+        //codeAreaExecuteItem.visibleProperty().bind(sqlRunButton.visibleProperty());
         codeAreaExecuteItem.setOnAction(event -> {
-            sql_run_button.fire();
+            sqlRunButton.fire();
         });
         codeAreaCopyItem.setDisable(true);
 
@@ -341,7 +341,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 codeAreaPasteItem.setDisable(true);
             }
 
-            if(sql_run_button.isDisable()){
+            if(sqlRunButton.isDisable()){
                 codeAreaExecuteItem.setDisable(true);
             }else{
                 codeAreaExecuteItem.setDisable(false);

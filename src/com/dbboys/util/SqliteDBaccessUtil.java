@@ -1,11 +1,11 @@
 package com.dbboys.util;
 
 import com.dbboys.app.Main;
-import com.dbboys.service.ConnectDBaccessService;
 import com.dbboys.vo.ConnectFolder;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.TreeData;
 import com.dbboys.vo.UpdateResult;
+import com.dbboys.service.MetadataService;
 
 import java.nio.file.Paths;
 import java.sql.*;
@@ -195,7 +195,7 @@ public  class SqliteDBaccessUtil {
         String result = "";
         PreparedStatement psmt = null;
         try {
-            MetadataTreeviewUtil.metaDBaccessService.setConnectInfo(connect);
+            new MetadataService().setConnectInfo(connect);
             psmt=conn.prepareStatement("insert into t_connect(c_parentid,c_name,c_dbtype,c_driver,c_ip,c_port,c_database,c_readonly,c_username,c_password,c_props,c_info,c_drivermd5,c_dbversion) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             psmt.setObject(1, connect.getParentId());
             psmt.setObject(2, connect.getName());
@@ -474,9 +474,7 @@ public  class SqliteDBaccessUtil {
                Connection connection=null;
                try {
                    if(connect.getIp()!=null){ //如果是增加系统分类，没有IP,也不需要测试连接
-                       connection = new ConnectDBaccessService().getConnection(connect);
-                       //连接切换到gbase模式
-                       Main.mainController.metaDBaccessService.sessionChangeToGbaseMode(connection);
+                        // connection = new ConnectionService().getConnection(connect);
 
                        //查询数据库信息，包括版本，启动环境，系统配置
                        ResultSet rs=null;

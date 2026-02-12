@@ -1,4 +1,4 @@
-package com.dbboys.ctrl;
+﻿package com.dbboys.ctrl;
 
 
 import com.dbboys.customnode.CustomInfoCodeArea;
@@ -6,6 +6,7 @@ import com.dbboys.customnode.CustomLostFocusCommitTableCell;
 import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.customnode.CustomUserTextField;
+import com.dbboys.db.DbConnectionFactory;
 import com.dbboys.util.*;
 import com.dbboys.app.Main;
 import com.dbboys.vo.ConnectFolder;
@@ -55,6 +56,7 @@ import java.util.List;
 
 public class CreateConnectController {
     private static final Logger log = LogManager.getLogger(CreateConnectController.class);
+    private final DbConnectionFactory dbConnectionFactory = new DbConnectionFactory();
 
     @FXML
     public ChoiceBox connectfolder_choicebox;
@@ -605,8 +607,8 @@ public class CreateConnectController {
                     Long end = System.currentTimeMillis();
 
                     try {
-                        connect.setConn(MetadataTreeviewUtil.metaDBaccessService.getConnection(connect));
-                       // MetadataTreeviewUtil.metaDBaccessService.getConnection(connect);
+                        connect.setConn(dbConnectionFactory.getConnection(connect));
+                       // connectionService.getConnection(connect);
 
                         end=System.currentTimeMillis();
                         if(isCancelled()) return  null;
@@ -685,7 +687,7 @@ public class CreateConnectController {
                                 });
                             }
                             Platform.runLater(()-> {
-                                TabpaneUtil.refreshConnectList();
+                                TabpaneUtil.isRefreshConnectList();
                             });
 
 

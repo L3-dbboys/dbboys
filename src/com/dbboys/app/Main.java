@@ -1,6 +1,7 @@
 package com.dbboys.app;
 
 import com.dbboys.util.ConfigManagerUtil;
+import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.ctrl.MainController;
 import com.dbboys.customnode.CustomSqlEditCodeArea;
 import com.dbboys.util.TabpaneUtil;
@@ -40,6 +41,8 @@ public class Main extends Application {
     public static Connect lastInstallConnect;
     @Override
     public void start(Stage primaryStage) throws Exception {
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
+
         //版本号
         JSONObject jsonObject=new JSONObject();
         jsonObject.put("version", "DBboys V1.0.0beta.20260201");
@@ -49,6 +52,7 @@ public class Main extends Application {
         VERSION=new Version(jsonObject);
 
         try {
+            Thread.currentThread().setUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
 
             // 创建加载窗口
             Stage loadingStage = new Stage(StageStyle.UNDECORATED);
@@ -112,10 +116,11 @@ public class Main extends Application {
 
 
                 //窗口切换
-                Platform.runLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        primaryStage.setScene(scene);
+            Platform.runLater(new Runnable() {
+                @Override
+                public void run() {
+                    Thread.currentThread().setUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
+                    primaryStage.setScene(scene);
                         //打开软件默认打开一个sql编辑面板
                         //Main.mainController.createNewTab(null);
                         //StageStyle.UNDECORATED

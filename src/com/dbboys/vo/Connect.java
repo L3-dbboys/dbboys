@@ -1,4 +1,4 @@
-package com.dbboys.vo;
+﻿package com.dbboys.vo;
 
 import javafx.beans.property.*;
 
@@ -279,10 +279,11 @@ public class Connect extends TreeData{
                 // 执行数据库操作
                 thread.run();
             } catch (Exception e) {
-                e.printStackTrace();
+                com.dbboys.util.GlobalErrorHandlerUtil.handle(e);
             }
         });
 
 
     }
 }
+

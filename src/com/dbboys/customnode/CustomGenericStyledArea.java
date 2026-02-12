@@ -61,7 +61,7 @@ import java.util.regex.Pattern;
 public class CustomGenericStyledArea extends GenericStyledArea {
     private static final Logger log = LogManager.getLogger(CustomGenericStyledArea.class);
     private int[] headingCounters = new int[6]; // 索引0对应H1，1对应H2，以此类推
-    public CustomSearchReplaceVbox customSearchReplaceVbox;
+    public CustomSearchReplaceVbox searchReplaceBox;
     private static List docType=new ArrayList();
     public  MenuItem codeAreaSearchItem = new javafx.scene.control.MenuItem("查找 ( Search )                               Ctrl+F");
     public  ContextMenu contextMenu = new ContextMenu();
@@ -466,7 +466,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.F){
                 codeAreaSearchItem.fire();
-                customSearchReplaceVbox.findField.requestFocus();
+                searchReplaceBox.findField.requestFocus();
             }
         });
         SVGPath codeAreaSearchItemIcon = new SVGPath();
@@ -530,7 +530,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             }
         });
         codeAreaSearchItem.setOnAction(event->{
-            customSearchReplaceVbox.setVisible(true);
+            searchReplaceBox.setVisible(true);
         });
 
     }

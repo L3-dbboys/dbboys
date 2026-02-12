@@ -1,6 +1,8 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
+import com.dbboys.service.AdminService;
+import com.dbboys.service.MetadataService;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.HealthCheck;
@@ -57,6 +59,8 @@ import java.util.stream.Collectors;
 
 public class CustomInstanceTab extends CustomTab {
     private static final Logger log = LogManager.getLogger(CustomInstanceTab.class);
+    private final AdminService adminService = new AdminService();
+    private final MetadataService metadataService = new MetadataService();
     private List instanceInfo=new ArrayList();
     private Connect connect;
     private boolean infoTabClicked=false;
@@ -827,7 +831,7 @@ public class CustomInstanceTab extends CustomTab {
                         @Override
                         protected Void call() throws Exception {
                             try {
-                                MetadataTreeviewUtil.metaDBaccessService.modifyChunkExtendAble(connect,chunkId,true);
+                                adminService.modifyChunkExtendable(connect, chunkId, true);
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
                             }
@@ -858,7 +862,7 @@ public class CustomInstanceTab extends CustomTab {
                         @Override
                         protected Void call() throws Exception {
                             try {
-                                MetadataTreeviewUtil.metaDBaccessService.modifyChunkExtendAble(connect,chunkId,false);
+                                adminService.modifyChunkExtendable(connect, chunkId, false);
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
                             }
@@ -887,7 +891,7 @@ public class CustomInstanceTab extends CustomTab {
                         @Override
                         protected Void call() throws Exception {
                             try {
-                                MetadataTreeviewUtil.metaDBaccessService.unLimitedSpaceSize(connect,spaceUsage.getName());
+                                adminService.unLimitedSpaceSize(connect, spaceUsage.getName());
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
                             }
@@ -1124,7 +1128,7 @@ public class CustomInstanceTab extends CustomTab {
     private void updateGroupInstanceInfo() {
         if(!connect.getPropByName("GBASEDBTSERVER").isEmpty()){
             try{
-            String primaryInstance=MetadataTreeviewUtil.metaDBaccessService.setConnectInfo(connect);
+            String primaryInstance=metadataService.setConnectInfo(connect);
             String regex = "^" + primaryInstance + "\\s+.*\\s+g=" + connect.getPropByName("GBASEDBTSERVER") + "\\s*$";
             Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
             String sqlhostsContent = Files.readString(Paths.get("extlib/GBASE 8S/sqlhosts"));
@@ -1297,7 +1301,7 @@ public class CustomInstanceTab extends CustomTab {
             onstat_l_llog=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -l |grep -c 'U------'");
             onstat_d_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -d|grep -c PD");
             onstat_d=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -d");
-            spaceTopPercent=MetadataTreeviewUtil.metaDBaccessService.getMaxDbspaceUsed(connect);
+            spaceTopPercent = adminService.getMaxDbspaceUsed(connect);
             onstat_g_arc_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g arc |grep -A 1 ' level ' |sed -n '2p' |awk '{print $4}'");
             onstat_g_arc=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g arc");
             onstat_m=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -c |awk '/^MSGPATH/ {print \"tail -1000 \"$2}' |sh|egrep -ic 'err|failed|warning|allocated|full|long|down|Died|Aborting|Abort'");
@@ -1784,7 +1788,7 @@ public class CustomInstanceTab extends CustomTab {
 
     private void loadSpaceTabContent(CustomTab spaceTab) {
         try {
-            dataList = MetadataTreeviewUtil.metaDBaccessService.getInstanceDbspaceInfo(connect);
+            dataList = adminService.getInstanceDbspaceInfo(connect);
         }
         catch (Exception e){
             log.error(e.getMessage(), e);

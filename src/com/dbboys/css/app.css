@@ -987,14 +987,15 @@
 
 /* 基础样式 */
 .toggle-button {
-    -fx-pref-height: 35px;
-    -fx-min-height: 35px;
-    -fx-max-height: 35px;
-    -fx-pref-width: 35px;
-    -fx-min-width: 35px;
-    -fx-max-width: 35px;
+    -fx-pref-height: 30px;
+    -fx-min-height: 30px;
+    -fx-max-height: 30px;
+    -fx-pref-width: 30px;
+    -fx-min-width: 30px;
+    -fx-max-width: 30px;
     -fx-background-color:none;
-    -fx-background-radius:0px;
+    -fx-background-insets:3px;
+    -fx-background-radius:3px;
     -fx-border-insets:3px;
     -fx-border-radius: 3px;
     -fx-border-width:1;
@@ -1002,9 +1003,12 @@
     -fx-padding:5;
 }
 .toggle-button:selected {
-    -fx-pref-height: 35px;
-    -fx-min-height: 35px;
-    -fx-max-height: 35px;
+    -fx-pref-height: 30px;
+    -fx-min-height: 30px;
+    -fx-max-height: 30px;
+    -fx-pref-width: 30px;
+    -fx-min-width: 30px;
+    -fx-max-width: 30px;
     -fx-background-color:none;
     -fx-background-insets:3px;
     -fx-background-radius:3px;
@@ -1016,9 +1020,12 @@
 }
 
 .toggle-button:hover {
-    -fx-pref-height: 35px;
-    -fx-min-height: 35px;
-    -fx-max-height: 35px;
+    -fx-pref-height: 30px;
+    -fx-min-height: 30px;
+    -fx-max-height: 30px;
+    -fx-pref-width: 30px;
+    -fx-min-width: 30px;
+    -fx-max-width: 30px;
     -fx-background-color:none;
     -fx-background-insets:3px;
     -fx-background-radius:3px;
@@ -1030,7 +1037,7 @@
 }
 
 
-#resultset_tabpane .tab-label {
+#resultsetTabPane .tab-label {
     -fx-content-display: text-only; /* 只显示文字 */
 }
 

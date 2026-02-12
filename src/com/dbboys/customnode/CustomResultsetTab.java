@@ -12,16 +12,16 @@ import java.sql.SQLException;
 
 public class CustomResultsetTab extends Tab {
     public ResultSetTabController resultSetTabController;
-    public VBox resultset_vbox;
+    public VBox resultSetVBox;
 
-    public CustomResultsetTab(Connect SQLConnect, StackPane sql_execute_process_stackpane) throws IOException {
+    public CustomResultsetTab(Connect sqlConnect, StackPane sqlExecuteProcessStackPane) throws IOException {
         //设置标题保证标题溢出下拉正常显示标题
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/ResultSetTab.fxml"));
 
         loader.setControllerFactory(clazz -> {
             if (clazz == ResultSetTabController.class) {
-                return new ResultSetTabController(SQLConnect,sql_execute_process_stackpane);
+                return new ResultSetTabController(sqlConnect,sqlExecuteProcessStackPane);
             } else {
                 try {
                     return clazz.getDeclaredConstructor().newInstance();
@@ -30,19 +30,19 @@ public class CustomResultsetTab extends Tab {
                 }
             }
         });
-        resultset_vbox=loader.load();
-        setContent(resultset_vbox);
+        resultSetVBox=loader.load();
+        setContent(resultSetVBox);
         resultSetTabController=loader.getController();
-        resultSetTabController.lastsql_refresh_button.setVisible(false);
+        resultSetTabController.lastSqlRefreshButton.setVisible(false);
         setStyle("-fx-pref-height: 18;");
         setClosable(true);
         //关闭窗口事件响应
         setOnCloseRequest(event -> {
 
             //似乎只有隐式的结果集需要关闭后才能断开连接，显示声明的结果集可不关闭，连接关闭时自动关闭
-            if(resultSetTabController.sql_resultset!=null) {
+            if(resultSetTabController.sqlResultSet!=null) {
                 try {
-                    resultSetTabController.sql_resultset.close();
+                    resultSetTabController.sqlResultSet.close();
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }

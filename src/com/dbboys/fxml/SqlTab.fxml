@@ -16,7 +16,7 @@
 <?import com.dbboys.customnode.CustomResultsetTableView?>
 <VBox fx:id="sqlTab" fx:controller="com.dbboys.ctrl.SqlTabController" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
     <HBox alignment="CENTER_LEFT" style="-fx-border-color: #aaa;-fx-border-width: 0.2 0 0.2 0">
-        <Button fx:id="sql_run_button" styleClass="custom-button" focusTraversable="false">
+        <Button fx:id="sqlRunButton" styleClass="custom-button" focusTraversable="false">
             <tooltip>
                 <Tooltip text="执行选定SQL，如未选定默认选中所有。" />
             </tooltip>
@@ -26,7 +26,7 @@
                 </Group>
             </graphic>
         </Button>
-        <Button fx:id="sql_explain_button" styleClass="custom-button" focusTraversable="false">
+        <Button fx:id="sqlExplainButton" styleClass="custom-button" focusTraversable="false">
             <tooltip>
                 <Tooltip text="生成选定SQL的执行计划，如未选定默认选中所有。" />
             </tooltip>
@@ -36,7 +36,7 @@
                 </Group>
             </graphic>
         </Button>
-        <Button fx:id="sql_stop_button" styleClass="custom-button" focusTraversable="false">
+        <Button fx:id="sqlStopButton" styleClass="custom-button" focusTraversable="false">
             <tooltip>
                 <Tooltip text="停止执行当前正在运行的SQL" />
             </tooltip>
@@ -47,26 +47,26 @@
             </graphic>
         </Button>
         <Region prefWidth="50"></Region>
-        <StackPane fx:id="sql_connect_choicebox_icon_stackpane"/>
-        <ChoiceBox fx:id="sql_connect_choicebox" styleClass="custom-connectname-choicebox" focusTraversable="false">
+        <StackPane fx:id="sqlConnectChoiceBoxIconStackPane"/>
+        <ChoiceBox fx:id="sqlConnectChoiceBox" styleClass="custom-connectname-choicebox" focusTraversable="false">
         </ChoiceBox>
         <Group>
             <SVGPath content="M21 3.4219 L21 5.5781 Q21 6.9844 17.9219 8 Q14.8594 9 10.5 9 Q6.1406 9 3.0625 8 Q0 6.9844 0 5.5781 L0 3.4219 Q0 2.0156 3.0625 1.0156 Q6.1406 0 10.5 0 Q14.8594 0 17.9219 1.0156 Q21 2.0156 21 3.4219 ZM21 8.25 L21 13.0781 Q21 14.4844 17.9219 15.5 Q14.8594 16.5 10.5 16.5 Q6.1406 16.5 3.0625 15.5 Q0 14.4844 0 13.0781 L0 8.25 Q3.3281 10.5469 10.5 10.5469 Q17.6719 10.5469 21 8.25 ZM21 15.75 L21 20.5781 Q21 21.9844 17.9219 22.9844 Q14.8594 24 10.5 24 Q6.1406 24 3.0625 22.9844 Q0 21.9844 0 20.5781 L0 15.75 Q3.3281 18.0469 10.5 18.0469 Q17.6719 18.0469 21 15.75 Z" fill="#888" scaleX="0.4" scaleY="0.4"/>
         </Group>
-        <ChoiceBox fx:id="sql_db_choicebox"  styleClass="custom-dbname-choicebox" focusTraversable="false">
+        <ChoiceBox fx:id="sqlDbChoiceBox"  styleClass="custom-dbname-choicebox" focusTraversable="false">
         </ChoiceBox>
         <Group>
             <SVGPath content="M7.5 6.9922 Q7.5 8.8672 8.8281 10.1797 Q10.1562 11.4922 12 11.4922 Q13.8594 11.4922 15.1719 10.1797 Q16.5 8.8672 16.5 6.9922 Q16.5 5.1484 15.1719 3.8203 Q13.8594 2.4922 12 2.4922 Q10.1562 2.4922 8.8281 3.8203 Q7.5 5.1484 7.5 6.9922 ZM20 21.5078 L21 21.5078 L21 20.4922 Q21 19.0703 20.4375 17.7734 Q19.9062 16.5078 18.9531 15.5703 Q18 14.6172 16.7188 14.0547 Q15.4531 13.5078 14 13.5078 L10.0156 13.5078 Q8.5625 13.5078 7.2969 14.0547 Q6 14.6172 5.0469 15.5703 Q4.1094 16.5078 3.5625 17.7734 Q3 19.0703 3 20.4922 L3 21.5078 L20 21.5078 L20 21.5078 Z" fill="#888" scaleX="0.55" scaleY="0.55"/>
         </Group>
-        <CustomLabelTextField fx:id="sql_user_textfield" focusTraversable="false" style="-fx-padding: 0 0 0 5">
+        <CustomLabelTextField fx:id="sqlUserTextField" focusTraversable="false" style="-fx-padding: 0 0 0 5">
         </CustomLabelTextField>
-        <ChoiceBox fx:id="sql_sqlmode_choicebox" styleClass="custom-sqlmode-choicebox" focusTraversable="false">
+        <ChoiceBox fx:id="sqlSqlModeChoiceBox" styleClass="custom-sqlmode-choicebox" focusTraversable="false">
         </ChoiceBox>
         <Region HBox.hgrow="ALWAYS"></Region>
         
         <StackPane>
             <HBox alignment="CENTER_RIGHT">
-                <Label fx:id="sql_readonly_label" text=" " visible="false">
+                <Label fx:id="sqlReadOnlyLabel" text=" " visible="false">
                     <graphic>
                         <Group>
                             <SVGPath content="M17 9.0078 L17 7.0078 Q17 5.9609 16.625 5.0391 Q16.2188 4.1328 15.5469 3.4609 Q14.8906 2.7734 13.9688 2.3984 Q13.0625 1.9922 12 1.9922 Q10.9531 1.9922 10.0312 2.3984 Q9.125 2.7734 8.4531 3.4609 Q7.7812 4.1328 7.3906 5.0391 Q7.0156 5.9609 7.0156 7.0078 L7.0156 9.0078 Q5.7188 9.0078 4.8594 9.8828 Q4.0156 10.7422 4.0156 12.0078 L4.0156 19.0078 Q4.0156 20.2734 4.8594 21.1484 Q5.7188 22.0078 7.0156 22.0078 L17 22.0078 Q18.2812 22.0078 19.1406 21.1484 Q20 20.2734 20 19.0078 L20 12.0078 Q20 10.7422 19.1406 9.8828 Q18.2812 9.0078 17 9.0078 L17 9.0078 ZM9 7.0078 Q9 5.7266 9.8594 4.8672 Q10.7344 4.0078 12 4.0078 Q13.2656 4.0078 14.125 4.8672 Q15 5.7266 15 7.0078 L15 9.0078 L9 9.0078 L9 7.0078 L9 7.0078 ZM13.1094 15.4922 Q13.1094 15.4922 13.0625 15.5547 Q13.0156 15.6172 13.0156 15.6172 L13.0156 16.9922 Q13.0156 17.4609 12.7344 17.7422 Q12.4531 18.0078 12 18.0078 Q11.5625 18.0078 11.2812 17.7422 Q11 17.4609 11 16.9922 L11 15.6172 Q10.5469 15.1484 10.5 14.5547 Q10.4531 13.9453 10.9062 13.5078 Q11.3438 13.0547 11.9375 13.0078 Q12.5469 12.9609 13.0156 13.4141 Q13.4531 13.7891 13.5 14.4297 Q13.5469 15.0547 13.1094 15.4922 L13.1094 15.4922 Z" fill="#9f453c" scaleX="0.5" scaleY="0.5"/>
@@ -75,7 +75,7 @@
                 </Label>
             </HBox>
             <HBox>
-                <ChoiceBox fx:id="sql_commitmode_choicebox"  styleClass="custom-commitmode-choicebox" focusTraversable="false">
+                <ChoiceBox fx:id="sqlCommitModeChoiceBox"  styleClass="custom-commitmode-choicebox" focusTraversable="false">
                     <items>
                         <FXCollections fx:factory="observableArrayList">
                             <String fx:value="自动提交" />
@@ -83,7 +83,7 @@
                         </FXCollections>
                     </items>
                 </ChoiceBox>
-                <Button fx:id="sql_recode_button" styleClass="custom-button" focusTraversable="false">
+                <Button fx:id="sqlRecordButton" styleClass="custom-button" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="当前连接执行成功的变更记录" />
                     </tooltip>
@@ -96,16 +96,16 @@
             </HBox>
         </StackPane>
     </HBox>
-    <SplitPane fx:id="sql_splitpane" prefHeight="30000" style="-fx-background-color: none" orientation="VERTICAL">
-        <Pane fx:id="pane_top">
-            <StackPane fx:id="sql_edit_stackpane" alignment="BOTTOM_LEFT">
-                <VirtualizedScrollPane fx:id="sql_edit_scollpane">
+    <SplitPane fx:id="sqlSplitPane" prefHeight="30000" style="-fx-background-color: none" orientation="VERTICAL">
+        <Pane fx:id="topPane">
+            <StackPane fx:id="sqlEditStackPane" alignment="BOTTOM_LEFT">
+                <VirtualizedScrollPane fx:id="sqlEditScrollPane">
                     <content>
-                    <CustomSqlEditCodeArea fx:id="sql_edit_codearea">
+                    <CustomSqlEditCodeArea fx:id="sqlEditCodeArea">
                     </CustomSqlEditCodeArea>
                     </content>
                 </VirtualizedScrollPane>
-                <HBox fx:id="trans_hbox" maxHeight="15" maxWidth="160" alignment="CENTER_LEFT" visible="false">
+                <HBox fx:id="transactionBox" maxHeight="15" maxWidth="160" alignment="CENTER_LEFT" visible="false">
                     <!--
                     <Button fx:id="trans_warning_button"  focusTraversable="false" style="-fx-background-color: none;-fx-border-color: none" visible="false">
                         <graphic>
@@ -115,32 +115,32 @@
                         </graphic>
                     </Button>
                     -->
-                    <Button fx:id="trans_commit_button"  focusTraversable="false" text="commit" styleClass="commit-btn">
+                    <Button fx:id="transactionCommitButton"  focusTraversable="false" text="commit" styleClass="commit-btn">
                     </Button>
                     <Label text=" "></Label>
-                    <Button fx:id="trans_rollback_button"  focusTraversable="false" text="rollback" styleClass="commit-btn">
+                    <Button fx:id="transactionRollbackButton"  focusTraversable="false" text="rollback" styleClass="commit-btn">
                     </Button>
                 </HBox>
             </StackPane>
         </Pane>
         <!--Pane用于避免拖动被元素阻挡 -->
-        <Pane fx:id="pane_bottom">
-            <StackPane fx:id="pane_bottom_stackpane">
-                <TabPane fx:id="resultset_tabpane" tabClosingPolicy="ALL_TABS">
-                    <Tab fx:id="resultset_toatal_tab" text="执行结果" closable="false" style="-fx-pref-height: 18;">
-                        <StackPane fx:id="resultset_stackpane">
-                            <CustomResultsetTableView fx:id="resultset_total_tableview" style="-fx-background-color: white">
+        <Pane fx:id="bottomPane">
+            <StackPane fx:id="bottomPaneStackPane">
+                <TabPane fx:id="resultsetTabPane" tabClosingPolicy="ALL_TABS">
+                    <Tab text="执行结果" closable="false" style="-fx-pref-height: 18;">
+                        <StackPane fx:id="resultsetStackPane">
+                            <CustomResultsetTableView fx:id="resultsetTotalTableView" style="-fx-background-color: white">
                             </CustomResultsetTableView>
                         </StackPane>
 
                     </Tab>
                 </TabPane>
                 <!--<HBox>外层需加一层stackpane，防止HBox设置不可见时导致下层tableview列宽拖动会被卡顿-->
-                <StackPane fx:id="sql_execute_process_stackpane" maxWidth="300" maxHeight="50" alignment="CENTER" visible="false">
+                <StackPane fx:id="sqlExecuteProcessStackPane" maxWidth="300" maxHeight="50" alignment="CENTER" visible="false">
                     <HBox alignment="CENTER">
                         <ProgressIndicator prefWidth="15"></ProgressIndicator>
-                        <Label fx:id="sql_execute_taskInfo"></Label>
-                        <Label fx:id="sql_execute_timeInfo" text="耗时 0 秒"></Label>
+                        <Label fx:id="sqlExecuteTaskInfo"></Label>
+                        <Label fx:id="sqlExecuteTimeInfo" text="耗时 0 秒"></Label>
                     </HBox>
                 </StackPane>
             </StackPane>

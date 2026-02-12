@@ -1,12 +1,10 @@
-package com.dbboys.ctrl;
+﻿package com.dbboys.ctrl;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomLabelTextField;
 import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.customnode.CustomUserTextField;
-import com.dbboys.service.ConnectDBaccessService;
-import com.dbboys.service.SqlparserService;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.UpdateResult;
@@ -43,95 +41,95 @@ public class ResultSetTabController {
     private static final Logger log = LogManager.getLogger(ResultSetTabController.class);
 
     @FXML
-    public CustomLabelTextField lastsql_textfield;
+    public CustomLabelTextField lastSqlTextField;
     @FXML
-    public Button lastsql_refresh_button;
+    public Button lastSqlRefreshButton;
     @FXML
-    public VBox resultset_vbox;
+    public VBox resultSetVBox;
     @FXML
-    public CustomResultsetTableView resultset_tableview;
+    public CustomResultsetTableView resultSetTableView;
     @FXML
-    public HBox resultset_button_hbox;
+    public HBox resultSetButtonHBox;
     @FXML
-    public Label resultset_editable_enabled_label;
+    public Label resultSetEditableEnabledLabel;
     @FXML
-    public Label resultset_editable_disabled_label;
+    public Label resultSetEditableDisabledLabel;
     @FXML
-    public CustomUserTextField resultset_per_time_textfield;
+    public CustomUserTextField resultSetPerTimeTextField;
     @FXML
-    public Button resultset_nextpage_button;
+    public Button resultSetNextPageButton;
     @FXML
-    public Button resultset_allrows_button;
+    public Button resultSetAllRowsButton;
     @FXML
-    public Button resultset_count_button;
+    public Button resultSetCountButton;
     @FXML
-    public Label resultset_fetched_rows_label;
+    public Label resultSetFetchedRowsLabel;
     @FXML
-    public Label resultset_total_rows_label;
+    public Label resultSetTotalRowsLabel;
     @FXML
-    public Label sql_used_time_label;
+    public Label sqlUsedTimeLabel;
     @FXML
-    public Button resultset_export_button;
-    public Button hidden_disconnected_button = new Button();
-    public StackPane sql_execute_process_stackpane;
-    public Connect SQLConnect;
-    public ResultSet sql_resultset;
-    public long sql_fetched_time = 0;
-    public long sql_fetch_start_time = 0;
-    public long sql_fetch_end_time = 0;
-    public Integer sql_fetched_rows = 0;
-    public List<ObservableList<String>> sql_resultset_list = new ArrayList<>();
-    public PreparedStatement sql_statement;
-    public ParameterMetaData paramMetaData;
-    public CallableStatement sql_cstmt;
-    public Boolean callHasResultset = false;
+    public Button resultSetExportButton;
+    public Button hiddenDisconnectedButton = new Button();
+    public StackPane sqlExecuteProcessStackPane;
+    public Connect sqlConnect;
+    public ResultSet sqlResultSet;
+    public long sqlFetchedTime = 0;
+    public long sqlFetchStartTime = 0;
+    public long sqlFetchEndTime = 0;
+    public Integer sqlFetchedRows = 0;
+    public List<ObservableList<String>> sqlResultSetList = new ArrayList<>();
+    public PreparedStatement sqlStatement;
+    public ParameterMetaData parameterMetaData;
+    public CallableStatement sqlCstmt;
+    public Boolean callHasResultSet = false;
     public List<TableColumn<ObservableList<String>, Object>> colList = new ArrayList<>();
-    public Label sql_execute_process_label;
-    public Task<Void> SQLTask = new Task<Void>() {
+    public Label sqlExecuteProcessLabel;
+    public Task<Void> sqlTask = new Task<Void>() {
         @Override
         protected Void call() throws Exception {
             return null;
         }
     };
-    //获取主键相关变量
-    public List<Integer> result_table_pri_num = new ArrayList();
-    public String result_from_table;
-    public List result_table_cols = new ArrayList();
-    public ResultSet pri_sql_result; //获取主键结果集
-    public List sql_param_list = new ArrayList();
-    public ResultSetMetaData sql_metaData;
+//获取主键相关变量
+    public List<Integer> resultTablePriNum = new ArrayList();
+    public String resultFromTable;
+    public List resultTableCols = new ArrayList();
+    public ResultSet priSqlResult; //获取主键结果集
+    public List sqlParamList = new ArrayList();
+    public ResultSetMetaData sqlMetaData;
     public Runnable eventEnd = () -> {
         Platform.runLater(() -> {
-            sql_execute_process_stackpane.setVisible(false);
-            sql_fetch_end_time = System.currentTimeMillis();
-            sql_fetched_time += sql_fetch_end_time - sql_fetch_start_time;
-            resultset_tableview.getItems().addAll(sql_resultset_list);
-            if (sql_fetched_rows > 0) {
-                resultset_fetched_rows_label.setText(String.valueOf((Integer.parseInt(resultset_fetched_rows_label.getText()) + sql_fetched_rows)));
-                sql_used_time_label.setText(String.valueOf(sql_fetched_time / 1000.0));
+            sqlExecuteProcessStackPane.setVisible(false);
+            sqlFetchEndTime = System.currentTimeMillis();
+            sqlFetchedTime += sqlFetchEndTime - sqlFetchStartTime;
+            resultSetTableView.getItems().addAll(sqlResultSetList);
+            if (sqlFetchedRows > 0) {
+                resultSetFetchedRowsLabel.setText(String.valueOf((Integer.parseInt(resultSetFetchedRowsLabel.getText()) + sqlFetchedRows)));
+                sqlUsedTimeLabel.setText(String.valueOf(sqlFetchedTime / 1000.0));
             }
-            sql_resultset_list.clear();
+            sqlResultSetList.clear();
         });
     };
     //最后一次执行的sql
     @FXML
-    private Button lastsql_copy_button;
-    private String sql_result_count;
+    private Button lastSqlCopyButton;
+    private String sqlResultCount;
 
 
-    public ResultSetTabController(Connect SQLConnect, StackPane sql_execute_process_stackpane) {
-        this.sql_execute_process_stackpane = sql_execute_process_stackpane;
-        this.SQLConnect = SQLConnect;
+    public ResultSetTabController(Connect sqlConnect, StackPane sqlExecuteProcessStackPane) {
+        this.sqlExecuteProcessStackPane = sqlExecuteProcessStackPane;
+        this.sqlConnect = sqlConnect;
     }
 
     public void initialize() {
-        resultset_editable_disabled_label.visibleProperty().bind(resultset_editable_enabled_label.visibleProperty().not());
-        sql_execute_process_label = (Label) ((HBox) sql_execute_process_stackpane.getChildren().get(0)).getChildren().get(1);
-        resultset_nextpage_button.disableProperty().bind(sql_execute_process_stackpane.visibleProperty());
-        resultset_allrows_button.disableProperty().bind(sql_execute_process_stackpane.visibleProperty());
-        lastsql_refresh_button.disableProperty().bind(sql_execute_process_stackpane.visibleProperty());
-        resultset_export_button.disableProperty().bind(sql_execute_process_stackpane.visibleProperty());
-        resultset_count_button.disableProperty().bind(sql_execute_process_stackpane.visibleProperty());
+        resultSetEditableDisabledLabel.visibleProperty().bind(resultSetEditableEnabledLabel.visibleProperty().not());
+        sqlExecuteProcessLabel = (Label) ((HBox) sqlExecuteProcessStackPane.getChildren().get(0)).getChildren().get(1);
+        resultSetNextPageButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
+        resultSetAllRowsButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
+        lastSqlRefreshButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
+        resultSetExportButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
+        resultSetCountButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
 
         //执行计划按钮事件
 
@@ -139,80 +137,81 @@ public class ResultSetTabController {
         //连接变更响应事件
 
         //最后sql记录
-        lastsql_textfield.getTooltip().setShowDelay(Duration.millis(100));
+        lastSqlTextField.getTooltip().setShowDelay(Duration.millis(100));
 
         //复制按钮
-        lastsql_copy_button.setOnAction(event -> {
+        lastSqlCopyButton.setOnAction(event -> {
             Clipboard clipboard = Clipboard.getSystemClipboard();
             ClipboardContent content = new ClipboardContent();
-            content.putString(lastsql_textfield.getTooltip().getText());
+            content.putString(lastSqlTextField.getTooltip().getText());
             clipboard.setContent(content);
             NotificationUtil.showNotification(Main.mainController.notice_pane, "已复制！");
         });
 
         //刷新按钮
-        lastsql_refresh_button.setOnAction(event -> {
+        lastSqlRefreshButton.setOnAction(event -> {
         });
 
         //结果集表格
         Label tableview_empty_label = new Label("");
-        resultset_tableview.setPlaceholder(tableview_empty_label);//设置空白表格提示
-        resultset_tableview.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        resultset_tableview.getSelectionModel().setCellSelectionEnabled(true);
-        resultset_tableview.prefWidthProperty().bind(resultset_vbox.widthProperty());
-        resultset_tableview.prefHeightProperty().bind(resultset_vbox.heightProperty());
-        resultset_tableview.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
-        resultset_tableview.setSortPolicy(tv -> {
+        resultSetTableView.setPlaceholder(tableview_empty_label);//设置空白表格提示
+        resultSetTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        resultSetTableView.getSelectionModel().setCellSelectionEnabled(true);
+        resultSetTableView.prefWidthProperty().bind(resultSetVBox.widthProperty());
+        resultSetTableView.prefHeightProperty().bind(resultSetVBox.heightProperty());
+        resultSetTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        //resultSetTableView.setStyle("-fx-background-color: red;");
+        resultSetTableView.setSortPolicy(tv -> {
             TableView.DEFAULT_SORT_POLICY.call((TableView) tv);
             // 使用 Platform.runLater 在排序完成后恢复选中的单元格
             Platform.runLater(() -> {
-                resultset_tableview.getSelectionModel().clearSelection();
+                resultSetTableView.getSelectionModel().clearSelection();
             });
             return true;
         });
 
         //结果集处理按钮
-        resultset_per_time_textfield.setText(ConfigManagerUtil.getProperty("RESULT_FETCH_PER_TIME"));
-        resultset_per_time_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
+        resultSetPerTimeTextField.setText(ConfigManagerUtil.getProperty("RESULT_FETCH_PER_TIME"));
+        resultSetPerTimeTextField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue.matches("\\d*")) {
-                resultset_per_time_textfield.setText(newValue.replaceAll("[^\\d]", ""));
+                resultSetPerTimeTextField.setText(newValue.replaceAll("[^\\d]", ""));
             }
         });
 
 
-        lastsql_textfield.getTooltip().setShowDelay(Duration.millis(100));
+        lastSqlTextField.getTooltip().setShowDelay(Duration.millis(100));
 
         //复制按钮
-        lastsql_copy_button.setOnAction(event -> {
+        lastSqlCopyButton.setOnAction(event -> {
             Clipboard clipboard = Clipboard.getSystemClipboard();
             ClipboardContent content = new ClipboardContent();
-            content.putString(lastsql_textfield.getTooltip().getText());
+            content.putString(lastSqlTextField.getTooltip().getText());
             clipboard.setContent(content);
             NotificationUtil.showNotification(Main.mainController.notice_pane, "已复制！");
         });
         //获取下一个结果集
-        resultset_nextpage_button.setOnAction(event -> {
-            SQLTask = createGetNextPageResultSetTask();
-            new Thread(SQLTask).start();
+        resultSetNextPageButton.setOnAction(event -> {
+            sqlTask = createGetNextPageResultSetTask();
+            new Thread(sqlTask).start();
         });
 
 
         //获取全部结果集
-        resultset_allrows_button.setOnAction(event -> {
-            SQLTask = createGetAllResultSetTask();
-            new Thread(SQLTask).start();
+        resultSetAllRowsButton.setOnAction(event -> {
+            sqlTask = createGetAllResultSetTask();
+            new Thread(sqlTask).start();
 
         });
 
         //获取结果集总数
 
-        resultset_count_button.setOnAction(event -> {
-            SQLTask = createGetResultSetCountTask();
-            new Thread(SQLTask).start();
+        resultSetCountButton.setOnAction(event -> {
+            sqlTask = createGetResultSetCountTask();
+            new Thread(sqlTask).start();
         });
 
-        resultset_export_button.setOnAction(event -> {
-            if (resultset_tableview.getItems().size() == 0) {
+        resultSetExportButton.setOnAction(event -> {
+            if (resultSetTableView.getItems().size() == 0) {
                 AlterUtil.CustomAlert("错误", "当前结果集为空，无数据需要导出！");
             } else if (AlterUtil.CustomAlertConfirm("结果集导出", "导出程序只导出已加载到结果集表格的数据，确定要执行导出吗?")) {
                 FileChooser fileChooser = new FileChooser();
@@ -225,7 +224,7 @@ public class ResultSetTabController {
                     if (file.exists()) {
                         file.delete();
                     }
-                    DownloadManagerUtil.addDownload(resultset_tableview, file, true, sql_metaData);
+                    DownloadManagerUtil.addDownload(resultSetTableView, file, true, sqlMetaData);
                 }
             } else {
 
@@ -236,64 +235,64 @@ public class ResultSetTabController {
     }
 
     public void init() {
-        callHasResultset = false;
+        callHasResultSet = false;
         closeResultSet();
-        sql_fetched_time = 0;
-        sql_fetched_rows = 0;
+        sqlFetchedTime = 0;
+        sqlFetchedRows = 0;
         Platform.runLater(() -> {
-            resultset_editable_enabled_label.setVisible(false);
-            resultset_tableview.setEditable(false);
-            resultset_tableview.getColumns().setAll(resultset_tableview.getColumns().get(0));
-            resultset_tableview.getItems().clear();
-            resultset_fetched_rows_label.setText("0");
-            resultset_total_rows_label.setText("?");
-            sql_used_time_label.setText("0");
+            resultSetEditableEnabledLabel.setVisible(false);
+            resultSetTableView.setEditable(false);
+            resultSetTableView.getColumns().setAll(resultSetTableView.getColumns().get(0));
+            resultSetTableView.getItems().clear();
+            resultSetFetchedRowsLabel.setText("0");
+            resultSetTotalRowsLabel.setText("?");
+            sqlUsedTimeLabel.setText("0");
         });
 
     }
 
     public Task<Void> createGetNextPageResultSetTask() {
-        sql_execute_process_stackpane.setVisible(true);
-        sql_fetched_rows = 0;
-        SQLTask = new Task<>() {
+        sqlExecuteProcessStackPane.setVisible(true);
+        sqlFetchedRows = 0;
+        sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
                 try {
                     //updateMessage("Fetching... ");
                     //游标滚动到上次取数的位置
-                    //sql_result.absolute(sql_fetched_rows);
-                    ResultSetMetaData metaData = sql_resultset.getMetaData();
+                    //sql_result.absolute(sqlFetchedRows);
+                    ResultSetMetaData metaData = sqlResultSet.getMetaData();
                     int columnCount = metaData.getColumnCount();
                     // 添加数据到 TableView
                     Integer j = 1;
-                    sql_resultset_list.clear();
+                    sqlResultSetList.clear();
                     Platform.runLater(() -> {
-                        sql_execute_process_label.setText(" 正在获取结果集...");
+                        sqlExecuteProcessLabel.setText(" 正在获取结果集...");
                     });
-                    sql_fetch_start_time = System.currentTimeMillis();
-                    while (j <= Integer.parseInt(resultset_per_time_textfield.getText()) && sql_resultset.next()) {
+                    sqlFetchStartTime = System.currentTimeMillis();
+                    while (j <= Integer.parseInt(resultSetPerTimeTextField.getText()) && sqlResultSet.next()) {
                         if (isCancelled()) {
                             break;
                         }
                         ObservableList<String> row = FXCollections.observableArrayList();
                         row.add(null);
                         for (int i = 1; i <= columnCount; i++) {
-                            row.add(sql_resultset.getString(i));
+                            row.add(sqlResultSet.getString(i));
                         }
-                        sql_resultset_list.add(row);
+                        sqlResultSetList.add(row);
                         j++;
-                        sql_fetched_rows++;
-                        if (sql_fetched_rows > 0 && sql_fetched_rows % 200 == 0) {
-                            final int sql_fetched_rows_final = sql_fetched_rows;
+                        sqlFetchedRows++;
+                        if (sqlFetchedRows > 0 && sqlFetchedRows % 200 == 0) {
+                            final int sqlFetchedRowsFinal = sqlFetchedRows;
                             Platform.runLater(() -> {
-                                sql_execute_process_label.setText(" 已获取结果集[ " + sql_fetched_rows_final + " ]行，");
+                                sqlExecuteProcessLabel.setText(" 已获取结果集[ " + sqlFetchedRowsFinal + " ]行，");
                             });
                         }
                     }
 
                 } catch (SQLException e) {
                     if (e.getErrorCode() == -79730 || e.getErrorCode() == -79716) {
-                        hidden_disconnected_button.fire();
+                        hiddenDisconnectedButton.fire();
                     } else {
                         Platform.runLater(() -> {
                             AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
@@ -304,52 +303,52 @@ public class ResultSetTabController {
             }
 
         };
-        SQLTask.setOnSucceeded(event1 -> eventEnd.run());
-        SQLTask.setOnCancelled(event1 -> eventEnd.run());
-        SQLTask.setOnFailed(event1 -> eventEnd.run());
-        return SQLTask;
+        sqlTask.setOnSucceeded(event1 -> eventEnd.run());
+        sqlTask.setOnCancelled(event1 -> eventEnd.run());
+        sqlTask.setOnFailed(event1 -> eventEnd.run());
+        return sqlTask;
     }
 
 
     public Task<Void> createGetAllResultSetTask() {
-        sql_fetched_rows = 0;
-        sql_execute_process_stackpane.setVisible(true);
-        SQLTask = new Task<>() {
+        sqlFetchedRows = 0;
+        sqlExecuteProcessStackPane.setVisible(true);
+        sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
                 try {
                     //updateMessage("Fetching... ");
                     //游标滚动到上次取数之后位置
-                    //sql_result.absolute(sql_fetched_rows);
-                    ResultSetMetaData metaData = sql_resultset.getMetaData();
+                    //sql_result.absolute(sqlFetchedRows);
+                    ResultSetMetaData metaData = sqlResultSet.getMetaData();
                     int columnCount = metaData.getColumnCount();
                     // 添加数据到 TableView
-                    sql_resultset_list.clear();
+                    sqlResultSetList.clear();
                     Platform.runLater(() -> {
-                        sql_execute_process_label.setText(" 正在获取结果集...");
+                        sqlExecuteProcessLabel.setText(" 正在获取结果集...");
                     });
-                    sql_fetch_start_time = System.currentTimeMillis();
-                    while (sql_resultset.next()) {
+                    sqlFetchStartTime = System.currentTimeMillis();
+                    while (sqlResultSet.next()) {
                         if (isCancelled()) {
                             break;
                         }
                         ObservableList<String> row = FXCollections.observableArrayList();
                         row.add(null);
                         for (int i = 1; i <= columnCount; i++) {
-                            row.add(sql_resultset.getString(i));
+                            row.add(sqlResultSet.getString(i));
                         }
-                        sql_resultset_list.add(row);
-                        sql_fetched_rows++;
-                        if (sql_fetched_rows > 0 && sql_fetched_rows % 200 == 0) {
-                            final int sql_fetched_rows_final = sql_fetched_rows;
+                        sqlResultSetList.add(row);
+                        sqlFetchedRows++;
+                        if (sqlFetchedRows > 0 && sqlFetchedRows % 200 == 0) {
+                            final int sqlFetchedRowsFinal = sqlFetchedRows;
                             Platform.runLater(() -> {
-                                sql_execute_process_label.setText(" 已获取结果集[ " + sql_fetched_rows_final + " ]行，");
+                                sqlExecuteProcessLabel.setText(" 已获取结果集[ " + sqlFetchedRowsFinal + " ]行，");
                             });
                         }
                     }
                 } catch (SQLException e) {
                     if (e.getErrorCode() == -79730 || e.getErrorCode() == -79716) {
-                        hidden_disconnected_button.fire();
+                        hiddenDisconnectedButton.fire();
                     } else {
                         Platform.runLater(() -> {
                             AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
@@ -360,34 +359,34 @@ public class ResultSetTabController {
             }
 
         };
-        SQLTask.setOnSucceeded(event1 -> {
+        sqlTask.setOnSucceeded(event1 -> {
             eventEnd.run();
             Platform.runLater(() -> {
-                resultset_total_rows_label.setText(resultset_fetched_rows_label.getText());
+                resultSetTotalRowsLabel.setText(resultSetFetchedRowsLabel.getText());
             });
         });
-        SQLTask.setOnCancelled(event1 -> eventEnd.run());
-        SQLTask.setOnFailed(event1 -> eventEnd.run());
-        return SQLTask;
+        sqlTask.setOnCancelled(event1 -> eventEnd.run());
+        sqlTask.setOnFailed(event1 -> eventEnd.run());
+        return sqlTask;
     }
 
 
     public Task<Void> createGetResultSetCountTask() {
         //sql_is_count=true;
-        sql_execute_process_stackpane.setVisible(true);
+        sqlExecuteProcessStackPane.setVisible(true);
         Platform.runLater(() -> {
-            sql_execute_process_label.setText(" 正在获取结果集总数...");
+            sqlExecuteProcessLabel.setText(" 正在获取结果集总数...");
         });
-        String sql_count = "select count(*) from (" + lastsql_textfield.getTooltip().getText().replaceFirst(";\\s*$", "") + ")";
-        SQLTask = new Task<>() {
+        String sqlCount = "select count(*) from (" + lastSqlTextField.getTooltip().getText().replaceFirst(";\\s*$", "") + ")";
+        sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
                 ResultSet rs = null;
                 try {
-                    sql_statement = SQLConnect.getConn().prepareStatement(sql_count);
-                    rs = sql_statement.executeQuery();
+                    sqlStatement = sqlConnect.getConn().prepareStatement(sqlCount);
+                    rs = sqlStatement.executeQuery();
                     rs.next();
-                    sql_result_count = String.valueOf(rs.getInt(1));
+                    sqlResultCount = String.valueOf(rs.getInt(1));
                     rs.close();
                 } catch (SQLException e) {
                     log.error(e.getMessage(), e);
@@ -396,7 +395,7 @@ public class ResultSetTabController {
                         if (rs != null) {
                             rs = null;
                         }
-                        hidden_disconnected_button.fire();
+                        hiddenDisconnectedButton.fire();
                     } else {
                         Platform.runLater(() -> {
                             AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
@@ -413,51 +412,34 @@ public class ResultSetTabController {
             }
         };
 
-        SQLTask.setOnSucceeded(event1 -> {
-            sql_execute_process_stackpane.setVisible(false);
-            resultset_total_rows_label.setText(sql_result_count);
+        sqlTask.setOnSucceeded(event1 -> {
+            sqlExecuteProcessStackPane.setVisible(false);
+            resultSetTotalRowsLabel.setText(sqlResultCount);
         });
-        SQLTask.setOnCancelled(event1 -> {
-            sql_execute_process_stackpane.setVisible(false);
+        sqlTask.setOnCancelled(event1 -> {
+            sqlExecuteProcessStackPane.setVisible(false);
         });
-        SQLTask.setOnFailed(event1 -> {
-            sql_execute_process_stackpane.setVisible(false);
+        sqlTask.setOnFailed(event1 -> {
+            sqlExecuteProcessStackPane.setVisible(false);
         });
 
-        return SQLTask;
+        return sqlTask;
     }
 
 
-    public long executeSelect(String sql_exe, Task SQLTask, Boolean showFething, SimpleStringProperty sql_trans, ChoiceBox commitmode) throws SQLException {
+    public long executeSelect(String sqlExe, Task sqlTask, Boolean showFething, SimpleStringProperty sqlTransactionText, ChoiceBox commitmode) throws SQLException {
         init();
-        sql_fetched_rows = 0;
-        //SQLConnect.getConn().prepareStatement(sql_exe);
-        //如果上一次绑定变量未输入，下一次执行到这里会报213错误（SQLConnect.getConn().prepareStatement(sql_exe)报213错误）
-        /*
-        Connection conn=SQLConnect.getConn();
-        if(conn==null){
-            System.out.println("conn is null");
-        }
-        if(conn.isClosed()){
-            System.out.println("conn is closeed");
+        sqlFetchedRows = 0;
+        final boolean showFetching = Boolean.TRUE.equals(showFething);
+        sqlStatement = sqlConnect.getConn().prepareStatement(sqlExe);
+        parameterMetaData = sqlStatement.getParameterMetaData();
 
-        }
-        conn.prepareStatement("select * from systables");
-
-         */
-        //连接断开后，r28、r61驱动会卡死在这里
-        sql_statement = SQLConnect.getConn().prepareStatement(sql_exe);
-
-        paramMetaData = sql_statement.getParameterMetaData();
-
-        int paramCount = paramMetaData.getParameterCount();
-
+        int paramCount = parameterMetaData.getParameterCount();
         if (paramCount > 0) {
-
             CountDownLatch latch = new CountDownLatch(1);
             Platform.runLater(() -> {
-                sql_param_list.clear();
-                sql_param_list = PopupWindowUtil.openParamWindow(paramCount);
+                sqlParamList.clear();
+                sqlParamList = PopupWindowUtil.openParamWindow(paramCount);
                 latch.countDown();
             });
             try {
@@ -467,37 +449,40 @@ public class ResultSetTabController {
             }
         }
 
-
-        long sql_start_time = System.currentTimeMillis();
-
-        //使用sql_param_list.size()>0会导致连接断开后继续执行，r28，r61驱动卡在sql_resultset.close()，有点奇怪,增加sql_param_list!=null后正常
-        if (sql_param_list != null && !sql_param_list.isEmpty()) {
-            for (int z = 1; z <= sql_param_list.size(); z++) {
-                sql_statement.setObject(z, (sql_param_list.get(z - 1)));
+        long sqlStartTime = System.currentTimeMillis();
+        if (sqlParamList != null && !sqlParamList.isEmpty()) {
+            for (int z = 1; z <= sqlParamList.size(); z++) {
+                sqlStatement.setObject(z, (sqlParamList.get(z - 1)));
             }
         }
 
-        sql_statement.setFetchSize(200);
-        sql_resultset = sql_statement.executeQuery();
-        long sql_end_time = System.currentTimeMillis();
-        sql_fetched_time = sql_end_time - sql_start_time;
+        sqlStatement.setFetchSize(200);
+        try {
+            sqlResultSet = sqlStatement.executeQuery();
+        } catch (SQLException e) {
+            if (sqlTask != null && sqlTask.isCancelled()) {
+                return 0;
+            }
+            throw e;
+        }
+        long sqlEndTime = System.currentTimeMillis();
+        sqlFetchedTime = sqlEndTime - sqlStartTime;
         //updateMessage("Fetching... ");
         //获取结果集
-
-        sql_metaData = sql_resultset.getMetaData();
-        int columnCount = sql_metaData.getColumnCount();
-        //resultset_tableview.refresh();
+        sqlMetaData = sqlResultSet.getMetaData();
+        int columnCount = sqlMetaData.getColumnCount();
+        //resultSetTableView.refresh();
         // 动态生成列
 
         colList.clear();
-        double avgColWidth = (resultset_tableview.getWidth() - 30) / columnCount;
+        double avgColWidth = (resultSetTableView.getWidth() - 30) / columnCount;
 
 
         for (int j = 1; j <= columnCount; j++) {
 
             final int columnIndex = j;
-            String colTypeName = sql_metaData.getColumnTypeName(j);
-            Integer length = sql_metaData.getColumnDisplaySize(j);
+            String colTypeName = sqlMetaData.getColumnTypeName(j);
+            Integer length = sqlMetaData.getColumnDisplaySize(j);
 
 
             TableColumn<ObservableList<String>, Object> column = new TableColumn<ObservableList<String>, Object>();
@@ -518,7 +503,7 @@ public class ResultSetTabController {
 
 
             //如果showFething是单独查询
-            if (showFething) {
+            if (showFetching) {
 
 
                 column.setOnEditCommit(event -> {
@@ -530,73 +515,73 @@ public class ResultSetTabController {
                     //替换换行后显示
                     event.getRowValue().set(columnIndex, colvalue.toString());
 
-                    String update_col = String.valueOf(result_table_cols.get(columnIndex - 1));
-                    String update_sql = "update " + result_from_table + " set " + update_col + "=? where 1=1 ";
-                    String sql_params = "";
+                    String updateCol = String.valueOf(resultTableCols.get(columnIndex - 1));
+                    String updateSql = "update " + resultFromTable + " set " + updateCol + "=? where 1=1 ";
+                    String sqlParams = "";
 
                     try {
 
-                        if (result_table_pri_num != null && !result_table_pri_num.isEmpty()) {
-                            for (Integer colnum : result_table_pri_num) {
-                                update_sql += " and " + result_table_cols.get(colnum) + "=?";
+                        if (resultTablePriNum != null && !resultTablePriNum.isEmpty()) {
+                            for (Integer colnum : resultTablePriNum) {
+                                updateSql += " and " + resultTableCols.get(colnum) + "=?";
                             }
                         }
                         //此处会复现断链卡死，增加tab缩进后正常
 
-                        sql_statement = SQLConnect.getConn().prepareStatement(update_sql);
+                        sqlStatement = sqlConnect.getConn().prepareStatement(updateSql);
 
-                        sql_statement.setObject(1, colvalue.equals("[NULL]") ? null : colvalue);
+                        sqlStatement.setObject(1, colvalue.equals("[NULL]") ? null : colvalue);
 
 
                         if (colvalue.equals("[NULL]")) {
-                            sql_statement.setObject(1, null);
-                            sql_params += "(null";
+                            sqlStatement.setObject(1, null);
+                            sqlParams += "(null";
                             Platform.runLater(() -> {
                                 event.getRowValue().set(columnIndex, null);
                                 event.getTableView().refresh();
                             });
                         } else {
-                            sql_params += "[" + colvalue;
-                            sql_statement.setObject(1, colvalue);
+                            sqlParams += "[" + colvalue;
+                            sqlStatement.setObject(1, colvalue);
                         }
 
 
                         Integer rownumber = event.getTablePosition().getRow();
-                        List selectedData = (List) resultset_tableview.getItems().get(rownumber);
+                        List selectedData = (List) resultSetTableView.getItems().get(rownumber);
                         int prepareNum = 2;
-                        for (Integer colnum : result_table_pri_num) {
-                            TablePosition<?, ?> position = (TablePosition<?, ?>) resultset_tableview.getSelectionModel().getSelectedCells().get(0);
+                        for (Integer colnum : resultTablePriNum) {
+                            TablePosition<?, ?> position = (TablePosition<?, ?>) resultSetTableView.getSelectionModel().getSelectedCells().get(0);
                             if (position.getColumn() == colnum + 1) {
                                 //如果编辑的是主键列，绑定变量为修改前的值
-                                sql_statement.setObject(prepareNum, oldvalue);
-                                sql_params += "," + oldvalue;
+                                sqlStatement.setObject(prepareNum, oldvalue);
+                                sqlParams += "," + oldvalue;
                             } else {
-                                sql_statement.setObject(prepareNum, selectedData.get(colnum + 1));
-                                sql_params += "," + selectedData.get(colnum + 1);
+                                sqlStatement.setObject(prepareNum, selectedData.get(colnum + 1));
+                                sqlParams += "," + selectedData.get(colnum + 1);
                             }
                             prepareNum++;
                         }
 
                         UpdateResult updateResult = new UpdateResult();
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                        int sql_affect = 0;
+                        int sqlAffect = 0;
                         long sql_begin_time = System.currentTimeMillis();
-                        sql_affect = sql_statement.executeUpdate();
+                        sqlAffect = sqlStatement.executeUpdate();
                         long sql_finish_time = System.currentTimeMillis();
-                        updateResult.setConnectId(SQLConnect.getId());
+                        updateResult.setConnectId(sqlConnect.getId());
                         updateResult.setStartTime(sdf.format(sql_begin_time));
                         updateResult.setEndTime(sdf.format(sql_finish_time));
                         updateResult.setElapsedTime(String.format("%.3f", (sql_finish_time - sql_begin_time) / 1000.0) + " sec");
-                        updateResult.setAffectedRows(sql_affect);
-                        updateResult.setDatabase(SQLConnect.getDatabase());
-                        sql_params += "]";
-                        updateResult.setUpdateSql(update_sql);
+                        updateResult.setAffectedRows(sqlAffect);
+                        updateResult.setDatabase(sqlConnect.getDatabase());
+                        sqlParams += "]";
+                        updateResult.setUpdateSql(updateSql);
                         if (commitmode.getValue().toString().equals("手动提交")) {
-                            updateResult.setMark("手动提交，查询结果集编辑，参数" + sql_params);
-                            sql_trans.set(sql_trans.get() + update_sql + "\n");
+                            updateResult.setMark("手动提交，查询结果集编辑，参数" + sqlParams);
+                            sqlTransactionText.set(sqlTransactionText.get() + updateSql + "\n");
                             NotificationUtil.showNotification(Main.mainController.notice_pane, "当前连接为手动提交，修改暂未提交，请点击提交或回滚！");
                         } else {
-                            updateResult.setMark("自动提交，查询结果集编辑，参数" + sql_params);
+                            updateResult.setMark("自动提交，查询结果集编辑，参数" + sqlParams);
                         }
                         SqliteDBaccessUtil.saveSqlHistory(updateResult);
 
@@ -606,14 +591,14 @@ public class ResultSetTabController {
                             event.getRowValue().set(columnIndex, oldvalue == null ? null : oldvalue.toString());
                             event.getTableView().refresh();
                             if (e.getErrorCode() == -79716 || e.getErrorCode() == -79730) {
-                                hidden_disconnected_button.fire();
+                                hiddenDisconnectedButton.fire();
                             } else {
                                 AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
                             }
                         });
                     } finally {
                         try {
-                            sql_statement.close();
+                            sqlStatement.close();
                         } catch (SQLException e) {
                             throw new RuntimeException(e);
                         }
@@ -624,7 +609,7 @@ public class ResultSetTabController {
             StackPane colheader = new StackPane();
             //此处会复现断链卡死
 
-            String colName = sql_metaData.getColumnLabel(j);
+            String colName = sqlMetaData.getColumnLabel(j);
             Label colLabel = new Label(colName);
             Label colType = new Label(colTypeName);
             colheader.getChildren().addAll(colLabel);
@@ -638,88 +623,74 @@ public class ResultSetTabController {
             column.setReorderable(false);
             column.setGraphic(colheader);
             column.getGraphic().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-                resultset_tableview.getSelectionModel().clearSelection();
-                for (int rowIndex = 0; rowIndex < resultset_tableview.getItems().size(); rowIndex++) {
-                    resultset_tableview.getSelectionModel().select(rowIndex, column);
+                resultSetTableView.getSelectionModel().clearSelection();
+                for (int rowIndex = 0; rowIndex < resultSetTableView.getItems().size(); rowIndex++) {
+                    resultSetTableView.getSelectionModel().select(rowIndex, column);
                 }
                 event.consume();
             });
         }
         // 添加数据到 TableView
-        sql_start_time = System.currentTimeMillis();
+        sqlStartTime = System.currentTimeMillis();
         Integer perpage = 0;
-        if (resultset_per_time_textfield.getText().equals("") || resultset_per_time_textfield.getText().equals("0") || resultset_per_time_textfield.getText().startsWith("-")) {
+        if (resultSetPerTimeTextField.getText().equals("") || resultSetPerTimeTextField.getText().equals("0") || resultSetPerTimeTextField.getText().startsWith("-")) {
             perpage = 999999999;
         } else {
-            perpage = Integer.parseInt(resultset_per_time_textfield.getText());
+            perpage = Integer.parseInt(resultSetPerTimeTextField.getText());
         }
-        if (showFething) {
+        if (showFetching) {
             Platform.runLater(() -> {
-                sql_execute_process_label.setText(" 正在获取结果集...");
+                sqlExecuteProcessLabel.setText(" 正在获取结果集...");
             });
         }
 
-
-        while (sql_fetched_rows < perpage && sql_resultset.next()) {
-            //如果被取消了，退出循环不再执行
-            if (SQLTask.isCancelled()) {
-                break;
-            } else {
-                ObservableList<String> row = FXCollections.observableArrayList();
-                row.add(null);  //第一列为序号，不许要数据
-                for (int z = 1; z <= columnCount; z++) {
-                    row.add(sql_resultset.getString(z));
-                }
-                //不在主线程中加载列可能导致数据错误
-                sql_resultset_list.add(row);
-                sql_fetched_rows++;
-                if (showFething) {
-                    if (sql_fetched_rows > 0 && sql_fetched_rows % 200 == 0) {
-                        final int sql_fetched_rows_final = sql_fetched_rows;
-                        Platform.runLater(() -> {
-                            sql_execute_process_label.setText(" 已获取结果集[ " + sql_fetched_rows_final + " ]行，");
-                        });
-                    }
-                }
-            }
-
-        }
+        List<ObservableList<String>> fetchedRows = fetchRows(
+                sqlResultSet,
+                perpage,
+                sqlTask, columnCount,
+                showFetching ? fetched -> Platform.runLater(() ->
+                        sqlExecuteProcessLabel.setText(" 已获取结果集[ " + fetched + " ]行，")) : null
+        );
+        sqlResultSetList.addAll(fetchedRows);
+        sqlFetchedRows += fetchedRows.size();
 
 
         Platform.runLater(() -> {
-            lastsql_textfield.setText(sql_exe);
-            lastsql_textfield.getTooltip().setText(sql_exe);
-            resultset_tableview.getColumns().addAll(colList);
-            resultset_tableview.getItems().addAll(sql_resultset_list);
-            resultset_tableview.refresh();//此处不刷新可能导致部分行显示空白
-            resultset_fetched_rows_label.setText(sql_fetched_rows.toString());
-            sql_used_time_label.setText(String.format("%.3f", sql_fetched_time / 1000.0));
-            sql_resultset_list.clear();
+            lastSqlTextField.setText(sqlExe);
+            lastSqlTextField.getTooltip().setText(sqlExe);
+            resultSetTableView.getColumns().addAll(colList);
+            resultSetTableView.getItems().addAll(sqlResultSetList);
+            resultSetTableView.refresh();//此处不刷新可能导致部分行显示空白
+            resultSetFetchedRowsLabel.setText(sqlFetchedRows.toString());
+            sqlUsedTimeLabel.setText(String.format("%.3f", sqlFetchedTime / 1000.0));
+            sqlResultSetList.clear();
         });
 
-        sql_end_time = System.currentTimeMillis();
-        sql_fetched_time += sql_end_time - sql_start_time;
-        //sql_statement.close();
+        sqlEndTime = System.currentTimeMillis();
+        sqlFetchedTime += sqlEndTime - sqlStartTime;
+        //sqlStatement.close();
 
 
-        return sql_fetched_time;
+        return sqlFetchedTime;
 
 
     }
 
 
-    public long executeCall(String sql_exe, Task SQLTask, Boolean showFething) throws SQLException {
+    public long executeCall(String sqlExe, Task sqlTask, Boolean showFething) throws SQLException {
         init();
-        sql_fetched_rows = 0;
-        sql_cstmt = SQLConnect.getConn().prepareCall(sql_exe);
-        paramMetaData = sql_cstmt.getParameterMetaData();
-        int paramCount = paramMetaData.getParameterCount();
-        long sql_start_time = System.currentTimeMillis();
+        sqlFetchedRows = 0;
+        final boolean showFetching = Boolean.TRUE.equals(showFething);
+        sqlCstmt = sqlConnect.getConn().prepareCall(sqlExe);
+
+        parameterMetaData = sqlCstmt.getParameterMetaData();
+        int paramCount = parameterMetaData.getParameterCount();
+        long sqlStartTime = System.currentTimeMillis();
         if (paramCount > 0) {
             CountDownLatch latch = new CountDownLatch(1);
             Platform.runLater(() -> {
-                sql_param_list.clear();
-                sql_param_list = PopupWindowUtil.openParamWindow(paramCount);
+                sqlParamList.clear();
+                sqlParamList = PopupWindowUtil.openParamWindow(paramCount);
                 latch.countDown();
             });
             try {
@@ -727,31 +698,35 @@ public class ResultSetTabController {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            sql_start_time = System.currentTimeMillis();
-            if (sql_param_list.size() > 0) {
-                for (int z = 1; z <= sql_param_list.size(); z++) {
-                    sql_cstmt.setObject(z, (sql_param_list.get(z - 1)));
+            sqlStartTime = System.currentTimeMillis();
+            if (sqlParamList.size() > 0) {
+                for (int z = 1; z <= sqlParamList.size(); z++) {
+                    sqlCstmt.setObject(z, (sqlParamList.get(z - 1)));
                 }
             }
         }
 
-        callHasResultset = sql_cstmt.execute();
-        if (callHasResultset) {
-            sql_resultset = sql_cstmt.getResultSet();
-            long sql_end_time = System.currentTimeMillis();
-            sql_fetched_time = sql_end_time - sql_start_time;
-            //updateMessage("Fetching... ");
-            //获取结果集
-            sql_metaData = sql_resultset.getMetaData();
-            int columnCount = sql_metaData.getColumnCount();
-            //resultset_tableview.refresh();
-            // 动态生成列
+        try {
+            callHasResultSet = sqlCstmt.execute();
+        } catch (SQLException e) {
+            if (sqlTask != null && sqlTask.isCancelled()) {
+                return 0;
+            }
+            throw e;
+        }
+
+        if (callHasResultSet) {
+            sqlResultSet = sqlCstmt.getResultSet();
+            long sqlEndTime = System.currentTimeMillis();
+            sqlFetchedTime = sqlEndTime - sqlStartTime;
+            sqlMetaData = sqlResultSet.getMetaData();
+            int columnCount = sqlMetaData.getColumnCount();
             colList.clear();
-            double avgColWidth = (resultset_tableview.getWidth() - 30) / columnCount;
+            double avgColWidth = (resultSetTableView.getWidth() - 30) / columnCount;
             for (int j = 1; j <= columnCount; j++) {
                 final int columnIndex = j;
-                String colTypeName = sql_metaData.getColumnTypeName(j);
-                Integer length = sql_metaData.getColumnDisplaySize(j);
+                String colTypeName = sqlMetaData.getColumnTypeName(j);
+                Integer length = sqlMetaData.getColumnDisplaySize(j);
                 TableColumn<ObservableList<String>, Object> column = new TableColumn<ObservableList<String>, Object>();
                 if (colTypeName.equals("int") || colTypeName.equals("serial") || colTypeName.equals("smallint")) {
                     column.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(columnIndex) == null ? null : Integer.parseInt(data.getValue().get(columnIndex))));
@@ -762,94 +737,74 @@ public class ResultSetTabController {
                     if (!colTypeName.startsWith("date")) {
                         colTypeName = colTypeName + "(" + length + ")";
                     }
-                    //字符串排序不忽略前导空格并忽略大小写
                     column.setComparator((str1, str2) -> str1.toString().toLowerCase().compareTo(str2.toString().toLowerCase()));
                 }
 
                 column.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
-
                 colList.add(column);
-                Label colLabel = new Label(sql_metaData.getColumnName(j));
-                //Label colLabel = new Label(sql_metaData.getColumnLabel(j));
+                Label colLabel = new Label(sqlMetaData.getColumnName(j));
                 Tooltip tp = new Tooltip(colTypeName);
                 tp.setShowDelay(Duration.millis(100));
                 colLabel.setTooltip(tp);
-
                 column.setPrefWidth(Math.max(colLabel.getText().length() * 15, avgColWidth));
                 colLabel.setMaxWidth(Double.MAX_VALUE);
                 column.setReorderable(false);
                 column.setGraphic(colLabel);
-                //column.setGraphic(new javafx.scene.control.Label(colLabel.getText()));  // Ensure a graphic node is present
 
                 column.getGraphic().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-                    resultset_tableview.getSelectionModel().clearSelection();
-                    for (int rowIndex = 0; rowIndex < resultset_tableview.getItems().size(); rowIndex++) {
-                        resultset_tableview.getSelectionModel().select(rowIndex, column);
+                    resultSetTableView.getSelectionModel().clearSelection();
+                    for (int rowIndex = 0; rowIndex < resultSetTableView.getItems().size(); rowIndex++) {
+                        resultSetTableView.getSelectionModel().select(rowIndex, column);
                     }
                     event.consume();
                 });
-
             }
-            // 添加数据到 TableView
-            sql_start_time = System.currentTimeMillis();
+
+            sqlStartTime = System.currentTimeMillis();
             Integer perpage = 0;
-            if (resultset_per_time_textfield.getText().equals("") || resultset_per_time_textfield.getText().equals("0") || resultset_per_time_textfield.getText().startsWith("-")) {
+            if (resultSetPerTimeTextField.getText().equals("") || resultSetPerTimeTextField.getText().equals("0") || resultSetPerTimeTextField.getText().startsWith("-")) {
                 perpage = 999999999;
             } else {
-                perpage = Integer.parseInt(resultset_per_time_textfield.getText());
+                perpage = Integer.parseInt(resultSetPerTimeTextField.getText());
             }
-            if (showFething) {
+            if (showFetching) {
                 Platform.runLater(() -> {
-                    sql_execute_process_label.setText(" 正在获取结果集...");
+                    sqlExecuteProcessLabel.setText(" \u6b63\u5728\u83b7\u53d6\u7ed3\u679c\u96c6...");
                 });
             }
-            while (sql_fetched_rows < perpage && sql_resultset.next()) {
-                //如果被取消了，退出循环不再执行
-                if (SQLTask.isCancelled()) {
-                    break;
-                } else {
-                    ObservableList<String> row = FXCollections.observableArrayList();
-                    row.add(null);  //第一列为序号，不许要数据
-                    for (int z = 1; z <= columnCount; z++) {
-                        row.add(sql_resultset.getString(z));
-                    }
-                    //不在主线程中加载列可能导致数据错误
-                    sql_resultset_list.add(row);
-                    sql_fetched_rows++;
-                    if (showFething) {
-                        if (sql_fetched_rows > 0 && sql_fetched_rows % 200 == 0) {
-                            final int sql_fetched_rows_final = sql_fetched_rows;
-                            Platform.runLater(() -> {
-                                sql_execute_process_label.setText(" 已获取结果集[ " + sql_fetched_rows_final + " ]行，");
-                            });
-                        }
-                    }
-                }
 
-            }
+            List<ObservableList<String>> fetchedRows = fetchRows(
+                    sqlResultSet,
+                    perpage,
+                    sqlTask,
+                    columnCount,
+                    showFetching ? fetched -> Platform.runLater(() ->
+                            sqlExecuteProcessLabel.setText(" 已获取结果集[ " + fetched + " ]行，")) : null
+            );
+            sqlResultSetList.addAll(fetchedRows);
+            sqlFetchedRows += fetchedRows.size();
             Platform.runLater(() -> {
-                resultset_button_hbox.getChildren().remove(resultset_count_button);
-                lastsql_textfield.setText(sql_exe);
-                lastsql_textfield.getTooltip().setText(sql_exe);
-                resultset_tableview.getColumns().addAll(colList);
-                resultset_tableview.getItems().addAll(sql_resultset_list);
-                resultset_tableview.refresh();//此处不刷新可能导致部分行显示空白
-                resultset_fetched_rows_label.setText(sql_fetched_rows.toString());
-                sql_used_time_label.setText(String.format("%.3f", sql_fetched_time / 1000.0));
-                sql_resultset_list.clear();
+                resultSetButtonHBox.getChildren().remove(resultSetCountButton);
+                lastSqlTextField.setText(sqlExe);
+                lastSqlTextField.getTooltip().setText(sqlExe);
+                resultSetTableView.getColumns().addAll(colList);
+                resultSetTableView.getItems().addAll(sqlResultSetList);
+                resultSetTableView.refresh();
+                resultSetFetchedRowsLabel.setText(sqlFetchedRows.toString());
+                sqlUsedTimeLabel.setText(String.format("%.3f", sqlFetchedTime / 1000.0));
+                sqlResultSetList.clear();
             });
 
-            sql_end_time = System.currentTimeMillis();
-            sql_fetched_time += sql_end_time - sql_start_time;
+            sqlEndTime = System.currentTimeMillis();
+            sqlFetchedTime += sqlEndTime - sqlStartTime;
         }
-        //sql_cstmt.close();
-        return sql_fetched_time;
+        return sqlFetchedTime;
     }
 
 
-    public void getPrimaryKeys(String sql_exe) {
-        result_table_pri_num.clear();
-        result_from_table = new SqlparserService().getFromTable(sql_exe);
+    public void getPrimaryKeys(String sqlExe) {
+        resultTablePriNum.clear();
+        resultFromTable = SqlParserUtil.getFromTable(sqlExe);
         String sql_get_primary = """
                 select trim(case when i.part1>0 then (select colname from syscolumns where colno=i.part1 and tabid=i.tabid) else '' end)||
                 trim(case when i.part2>0 then (select ','||colname from syscolumns where colno=i.part2 and tabid=i.tabid) else '' end)||
@@ -881,12 +836,12 @@ public class ResultSetTabController {
 
         //获取主键任务
 
-        SQLTask = new Task<>() {
+        sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                if (sql_statement != null) {
+                if (sqlStatement != null) {
                     try {
-                        sql_statement.cancel();
+                        sqlStatement.cancel();
                     } catch (SQLException e) {
                     }
                 }
@@ -895,44 +850,43 @@ public class ResultSetTabController {
                 try {
                     //获取主键
                     String pri = null;
-                    //Connection conn=new ConnectDBaccessService().getConnection((Connect) SQLConnect.clone());
-                    //sql_statement=conn.prepareStatement(finalSql_get_primary);
-                    sql_statement = SQLConnect.getConn().prepareStatement(finalSql_get_primary);
-                    sql_statement.setObject(1, result_from_table);
-                    pri_sql_result = sql_statement.executeQuery(); //一个statment只能打开一个结果集游标
-                    if (pri_sql_result.next()) {
-                        pri = pri_sql_result.getString(1);
+                    //sqlStatement=conn.prepareStatement(finalSql_get_primary);
+                    sqlStatement = sqlConnect.getConn().prepareStatement(finalSql_get_primary);
+                    sqlStatement.setObject(1, resultFromTable);
+                    priSqlResult = sqlStatement.executeQuery(); //一个statment只能打开一个结果集游标
+                    if (priSqlResult.next()) {
+                        pri = priSqlResult.getString(1);
                     } else {
                     }
                     //过程中有多个结果集，必须先关闭，避免执行database切换时报错-267
-                    pri_sql_result.close();
+                    priSqlResult.close();
 
-                    //pri_sql_result.close();
-                    //sql_statement.close();
+                    //priSqlResult.close();
+                    //sqlStatement.close();
 
                     //获取*所有字段
                     List cols = new ArrayList();
-                    //sql_statement=conn.prepareStatement("select colname from syscolumns c,systables t where  t.tabid=c.tabid and tabname=?");
+                    //sqlStatement=conn.prepareStatement("select colname from syscolumns c,systables t where  t.tabid=c.tabid and tabname=?");
 
-                    sql_statement = SQLConnect.getConn().prepareStatement("select colname from syscolumns c,systables t where  t.tabid=c.tabid and tabname=?");
-                    sql_statement.setObject(1, result_from_table);
-                    pri_sql_result = sql_statement.executeQuery();
-                    while (pri_sql_result.next()) {
-                        cols.add(pri_sql_result.getObject(1));
+                    sqlStatement = sqlConnect.getConn().prepareStatement("select colname from syscolumns c,systables t where  t.tabid=c.tabid and tabname=?");
+                    sqlStatement.setObject(1, resultFromTable);
+                    priSqlResult = sqlStatement.executeQuery();
+                    while (priSqlResult.next()) {
+                        cols.add(priSqlResult.getObject(1));
                     }
-                    pri_sql_result.close();
-                    //sql_statement.close();
+                    priSqlResult.close();
+                    //sqlStatement.close();
                     //解析sql，并替换*为所有字段
-                    result_table_cols = new SqlparserService().getSelectedCols(sql_exe, cols);
+                    resultTableCols = SqlParserUtil.getSelectedCols(sqlExe, cols);
                     //如果有主键而且select字段包含所有主键
-                    if (pri != null && result_table_cols.containsAll(List.of(pri.split(",")))) {
+                    if (pri != null && resultTableCols.containsAll(List.of(pri.split(",")))) {
                         for (String key : pri.split(",")) {
-                            int columnIndex = result_table_cols.indexOf(key);
-                            result_table_pri_num.add(columnIndex);
+                            int columnIndex = resultTableCols.indexOf(key);
+                            resultTablePriNum.add(columnIndex);
                             Platform.runLater(() -> {
-                                resultset_editable_enabled_label.setVisible(true);
+                                resultSetEditableEnabledLabel.setVisible(true);
                                 //这里如果执行sql结果集表格刷新太快，可能报错，但不影响，表明主键还未获取到就已经开始执行其他sql了
-                                TableColumn<String, Object> column = (TableColumn<String, Object>) resultset_tableview.getColumns().get(columnIndex + 1);
+                                TableColumn<String, Object> column = (TableColumn<String, Object>) resultSetTableView.getColumns().get(columnIndex + 1);
                                 StackPane sp = new StackPane();
                                 Label priLabel = new Label("PRI");
                                 priLabel.setStyle("-fx-font-size: 8;-fx-text-fill: #9f453c");
@@ -941,19 +895,19 @@ public class ResultSetTabController {
                                 column.getGraphic().setStyle("-fx-text-fill:#9f453c ");
                                 sp.getChildren().add(column.getGraphic()); // 添加现有的列头内容
                                 column.setGraphic(sp); // 将按钮设置为列头的 graphic
-                                if (!SQLConnect.getReadonly()) {
-                                    resultset_tableview.setEditable(true);
+                                if (!sqlConnect.getReadonly()) {
+                                    resultSetTableView.setEditable(true);
                                 }
                             });
                         }
                         //如果select字段中没有主键，检查是否有rowid代替主键
-                    } else if (result_table_cols.contains("rowid")) {
-                        int columnIndex = result_table_cols.indexOf("rowid");
-                        result_table_pri_num.add(columnIndex);
+                    } else if (resultTableCols.contains("rowid")) {
+                        int columnIndex = resultTableCols.indexOf("rowid");
+                        resultTablePriNum.add(columnIndex);
                         System.out.println(columnIndex);
                         Platform.runLater(() -> {
-                            resultset_editable_enabled_label.setVisible(true);
-                            TableColumn<String, Object> column = (TableColumn<String, Object>) resultset_tableview.getColumns().get(columnIndex + 1);
+                            resultSetEditableEnabledLabel.setVisible(true);
+                            TableColumn<String, Object> column = (TableColumn<String, Object>) resultSetTableView.getColumns().get(columnIndex + 1);
                             StackPane sp = new StackPane();
                             Label priLabel = new Label("ROWID");
                             priLabel.setStyle("-fx-font-size: 5;-fx-text-fill: #9f453c");
@@ -962,12 +916,12 @@ public class ResultSetTabController {
                             column.getGraphic().setStyle("-fx-text-fill:#9f453c ");
                             sp.getChildren().add(column.getGraphic()); // 添加现有的列头内容
                             column.setGraphic(sp); // 将按钮设置为列头的 graphic
-                            if (!SQLConnect.getReadonly()) {
-                                resultset_tableview.setEditable(true);
+                            if (!sqlConnect.getReadonly()) {
+                                resultSetTableView.setEditable(true);
                             }
                         });
                     } else {
-                        resultset_tableview.setEditable(false);
+                        resultSetTableView.setEditable(false);
                     }
                 } catch (SQLException e) {
                     //System.out.println("error no:"+e.getErrorCode());
@@ -975,47 +929,79 @@ public class ResultSetTabController {
                     //log.error(e.getMessage(), e);
                     //throw new Exception("ERROR");
                 }
-                sql_statement.close();
+                sqlStatement.close();
                 return null;
             }
 
         };
 
-        new Thread(SQLTask).start();
+        new Thread(sqlTask).start();
     }
 
     public void closeResultSet() {
         try {
-            if (sql_resultset != null) {
-                sql_resultset.close();
+            if (sqlResultSet != null) {
+                sqlResultSet.close();
             }
-            if (pri_sql_result != null) {
-                pri_sql_result.close();
+            if (priSqlResult != null) {
+                priSqlResult.close();
             }
         } catch (SQLException e) {
-            sql_resultset = null;
-            pri_sql_result = null;
+            sqlResultSet = null;
+            priSqlResult = null;
             log.error(e.getMessage(), e);
         }
     }
 
     public void cancel() {
-        if (SQLTask != null && SQLTask.isRunning()) {
-            SQLTask.cancel();
+        if (sqlTask != null && sqlTask.isRunning()) {
+            sqlTask.cancel();
 
         }
-        try {
-            if (sql_statement != null && !sql_statement.isClosed()) {
-                sql_statement.cancel();
-                sql_statement = null; //必须设置为null，下次执行SQLConnect.getConn().prepareStatement(sql_exe);才不会报213错误
+        if (sqlStatement != null) {
+            try {
+                sqlStatement.cancel();
+            } catch (SQLException e) {
+                log.error(e.getErrorCode(), e);
+            } finally {
+                sqlStatement = null; // Avoid prepareStatement error 213 on next run
             }
-            if (this.sql_cstmt != null && !sql_cstmt.isClosed()) {
-                sql_cstmt.cancel();
-                sql_cstmt = null;
-            }
-
-        } catch (SQLException e) {
-            log.error(e.getMessage(), e);
         }
+        if (sqlCstmt != null) {
+            try {
+                sqlCstmt.cancel();
+            } catch (SQLException e) {
+                log.error(e.getMessage(), e);
+            } finally {
+                sqlCstmt = null;
+            }
+        }
+        closeResultSet();
+    }
+
+    private static List<ObservableList<String>> fetchRows(ResultSet resultSet,
+                                                          int perpage,
+                                                          Task sqlTask,
+                                                          int columnCount,
+                                                          java.util.function.IntConsumer progressCallback) throws SQLException {
+        List<ObservableList<String>> rows = new ArrayList<>();
+        int fetched = 0;
+        while (fetched < perpage && resultSet.next()) {
+            if (sqlTask != null && sqlTask.isCancelled()) {
+                break;
+            }
+            ObservableList<String> row = FXCollections.observableArrayList();
+            row.add(null);
+            for (int z = 1; z <= columnCount; z++) {
+                row.add(resultSet.getString(z));
+            }
+            rows.add(row);
+            fetched++;
+            if (progressCallback != null && fetched % 200 == 0) {
+                progressCallback.accept(fetched);
+            }
+        }
+        return rows;
     }
 }
+
