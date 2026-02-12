@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomSpaceChart;
@@ -79,7 +79,7 @@ public class SnapshotUtil {
         } catch (IOException e) {
             e.printStackTrace();
             NotificationUtil.showNotification(
-                    Main.mainController.notice_pane,
+                    Main.mainController.noticePane,
                     "截图写入临时文件失败：" + e.getMessage()
             );
         }
@@ -98,7 +98,7 @@ public class SnapshotUtil {
         params.setTransform(Transform.scale(scale, scale));
         Main.scene.getRoot().snapshot(params,image);
         //WritableImage image = snapshot_root_button.getScene().getRoot().snapshot(null,null);
-        copyToClipboard(image,Main.mainController.notice_pane);
+        copyToClipboard(image,Main.mainController.noticePane);
 
     }
 
@@ -112,7 +112,7 @@ public class SnapshotUtil {
         params.setTransform(Transform.scale(scale, scale));
         node.snapshot(params,image);
         //WritableImage image = snapshot_root_button.getScene().getRoot().snapshot(null,null);
-        copyToClipboard(image,Main.mainController.notice_pane);
+        copyToClipboard(image,Main.mainController.noticePane);
 
     }
 
@@ -154,7 +154,7 @@ public class SnapshotUtil {
         tableView.snapshot(params, image);
 
 
-        copyToClipboard(image,Main.mainController.notice_pane);
+        copyToClipboard(image,Main.mainController.noticePane);
 
         // 4. 恢复原状态
         tableView.setPrefHeight(originalPrefHeight);
@@ -166,3 +166,4 @@ public class SnapshotUtil {
 
 
 }
+

@@ -656,7 +656,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                             MetadataTreeviewUtil.connectFolderInfoItem.fire();
                         }
                         else{
-                            NotificationUtil.showNotification(Main.mainController.notice_pane,"当前分类无连接!");
+                            NotificationUtil.showNotification(Main.mainController.noticePane,"当前分类无连接!");
                         }
                     }else if(item instanceof Connect){
                         MetadataTreeviewUtil.connectInfoItem.fire();
@@ -676,11 +676,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                         }
                         sql+=";";
                         CustomSqlTab customSqlTab=null;
-                        if(Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab){
-                            customSqlTab= (CustomSqlTab) Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem();
+                        if(Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab){
+                            customSqlTab= (CustomSqlTab) Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem();
                         }
                         //如果连接和库名都相等，且没有当前执行任务，在当前窗口执行sql
-                        if((Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab)&&(customSqlTab.sqlTabController.sqlConnectChoiceBox.getValue().getName().equals(MetadataTreeviewUtil.getMetaConnect(getTreeItem()).getName()))&&(customSqlTab.sqlTabController.sqlDbChoiceBox.getValue().getName().equals(MetadataTreeviewUtil.getCurrentDatabase(getTreeItem()).getName()))&&(!customSqlTab.sqlTabController.sqlRunButton.isDisable())){
+                        if((Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab)&&(customSqlTab.sqlTabController.sqlConnectChoiceBox.getValue().getName().equals(MetadataTreeviewUtil.getMetaConnect(getTreeItem()).getName()))&&(customSqlTab.sqlTabController.sqlDbChoiceBox.getValue().getName().equals(MetadataTreeviewUtil.getCurrentDatabase(getTreeItem()).getName()))&&(!customSqlTab.sqlTabController.sqlRunButton.isDisable())){
 
                             if(!customSqlTab.sqlTabController.sqlEditCodeArea.getText().isEmpty()){
                                 sql="\n"+sql;
@@ -694,7 +694,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                         }
                         else {
                             MetadataTreeviewUtil.databaseOpenFileItem.fire();
-                            customSqlTab= (CustomSqlTab) Main.mainController.sql_tabpane.getSelectionModel().getSelectedItem();
+                            customSqlTab= (CustomSqlTab) Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem();
                             customSqlTab.sqlTabController.sqlInit=sql;
                         }
 
@@ -706,3 +706,4 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         }
     }
 }
+

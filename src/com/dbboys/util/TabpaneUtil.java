@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
@@ -26,7 +26,7 @@ import java.util.List;
 public class TabpaneUtil {
     private static final Logger log = LogManager.getLogger(CustomGenericStyledArea.class);
 
-    private static TabPane tabpane= Main.mainController.sql_tabpane;
+    private static TabPane tabpane= Main.mainController.sqlTabPane;
 
     public static void addCustomSqlTab(Connect connect){
         String tabName = "script";
@@ -224,7 +224,7 @@ public class TabpaneUtil {
 
     public static void closeAllTabs(){
         Boolean sureToclosed=true;
-        TabPane tabpane= Main.mainController.sql_tabpane;
+        TabPane tabpane= Main.mainController.sqlTabPane;
         for(Tab t:tabpane.getTabs()){
             if(t.getText().startsWith("*")) {
                 if (!AlterUtil.CustomAlertConfirm("提示", "部分打开的文件未保存，确定要关闭吗？")) {
@@ -244,7 +244,7 @@ public class TabpaneUtil {
             tabpane.getTabs().removeAll(tabpane.getTabs());
 
             //tabpane增加一个监听确保双击增加页面有效
-            Main.mainController.sql_tabpane.setOnMouseClicked(event -> {
+            Main.mainController.sqlTabPane.setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.PRIMARY &&event.getClickCount() == 2) {
                     TabpaneUtil.addCustomSqlTab(null);
                 }
@@ -253,3 +253,4 @@ public class TabpaneUtil {
         }
     }
 }
+

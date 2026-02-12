@@ -56,44 +56,45 @@ import java.util.List;
 
 public class CreateConnectController {
     private static final Logger log = LogManager.getLogger(CreateConnectController.class);
+    private static final String DEFAULT_PROPS = "[{\"propName\":\"APPENDISAM\",\"propValue\":\"\"},{\"propName\":\"CLIENT_LOCALE\",\"propValue\":\"\"},{\"propName\":\"CSM\",\"propValue\":\"\"},{\"propName\":\"DBANSIWARN\",\"propValue\":\"\"},{\"propName\":\"DBDATE\",\"propValue\":\"Y4MD-\"},{\"propName\":\"DBSPACETEMP\",\"propValue\":\"\"},{\"propName\":\"DBTEMP\",\"propValue\":\"\"},{\"propName\":\"DBUPSPACE\",\"propValue\":\"\"},{\"propName\":\"DB_LOCALE\",\"propValue\":\"\"},{\"propName\":\"DELIMIDENT\",\"propValue\":\"\"},{\"propName\":\"ENABLE_TYPE_CACHE\",\"propValue\":\"\"},{\"propName\":\"ENABLE_HDRSWITCH\",\"propValue\":\"\"},{\"propName\":\"FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONRETRY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONTIME\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTOPCACHE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSTACKSIZE\",\"propValue\":\"\"},{\"propName\":\"IFX_AUTOFREE\",\"propValue\":\"\"},{\"propName\":\"IFX_BATCHUPDATE_PER_SPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_CODESETLOB\",\"propValue\":\"\"},{\"propName\":\"IFX_DIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_EXTDIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_GET_SMFLOAT_AS_FLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_ISOLATION_LEVEL\",\"propValue\":\"\"},{\"propName\":\"IFX_FLAT_UCSQ\",\"propValue\":\"\"},{\"propName\":\"IFX_LOCK_MODE_WAIT\",\"propValue\":\"10\"},{\"propName\":\"IFX_PAD_VARCHAR\",\"propValue\":\"\"},{\"propName\":\"IFX_SET_FLOAT_AS_SMFLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_SOC_TIMEOUT\",\"propValue\":\"\"},{\"propName\":\"IFX_TRIMTRAILINGSPACES\",\"propValue\":\"1\"},{\"propName\":\"IFX_USEPUT\",\"propValue\":\"\"},{\"propName\":\"IFX_USE_STRENC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASTDCOMPLIANCE_XAEND\",\"propValue\":\"\"},{\"propName\":\"IFXHOST\",\"propValue\":\"\"},{\"propName\":\"IFXHOST_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"JDBCTEMP\",\"propValue\":\"\"},{\"propName\":\"LOBCACHE\",\"propValue\":\"\"},{\"propName\":\"LOGINTIMEOUT\",\"propValue\":\"1000\"},{\"propName\":\"NEWCODESET\",\"propValue\":\"\"},{\"propName\":\"NEWNLSMAP\",\"propValue\":\"\"},{\"propName\":\"NODEFDAC\",\"propValue\":\"\"},{\"propName\":\"OPT_GOAL\",\"propValue\":\"\"},{\"propName\":\"OPTCOMPIND\",\"propValue\":\"\"},{\"propName\":\"OPTOFC\",\"propValue\":\"\"},{\"propName\":\"PATH\",\"propValue\":\"\"},{\"propName\":\"PDQPRIORITY\",\"propValue\":\"\"},{\"propName\":\"PORTNO_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"PROXY\",\"propValue\":\"\"},{\"propName\":\"PSORT_DBTEMP\",\"propValue\":\"\"},{\"propName\":\"PSORT_NPROCS\",\"propValue\":\"\"},{\"propName\":\"SECURITY\",\"propValue\":\"\"},{\"propName\":\"SQLIDEBUG\",\"propValue\":\"\"},{\"propName\":\"SQLMODE\",\"propValue\":\"\"},{\"propName\":\"SRV_FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"STMT_CACHE\",\"propValue\":\"\"},{\"propName\":\"TRUSTED_CONTEXT\",\"propValue\":\"\"},{\"propName\":\"METADATA_UPPERCASE\",\"propValue\":\"\"}]";
     private final DbConnectionFactory dbConnectionFactory = new DbConnectionFactory();
 
     @FXML
-    public ChoiceBox connectfolder_choicebox;
+    public ChoiceBox connectFolderChoiceBox;
     @FXML
-    private ChoiceBox dbtype_choicebox;
+    private ChoiceBox dbTypeChoiceBox;
     @FXML
-    private ChoiceBox driver_choicebox;
+    private ChoiceBox driverChoiceBox;
     @FXML
-    private CustomUserTextField connectname_textfield;
+    private CustomUserTextField connectNameTextField;
     @FXML
-    private TextField ipaddr_textfield;
+    private TextField ipAddressTextField;
     @FXML
-    private TextField port_textfield;
+    private TextField portTextField;
     @FXML
-    private TextField username_textfield;
+    private TextField usernameTextField;
     @FXML
-    private PasswordField passwd_textfield;
+    private PasswordField passwordTextField;
     @FXML
-    private CheckBox readonly_checkbox;
+    private CheckBox readOnlyCheckBox;
     @FXML
-    private HBox connecting_hbox;
+    private HBox connectingHBox;
     @FXML
-    private Button connecting_stop_button;
+    private Button connectingStopButton;
     @FXML
-    private ButtonType commit_buttontype;
+    private ButtonType commitButtonType;
     @FXML
-    private ButtonType test_buttontype;
+    private ButtonType testButtonType;
     @FXML
-    private ButtonType cancel_buttontype;
+    private ButtonType cancelButtonType;
     @FXML
     private DialogPane dialogPane;
     @FXML
     private HBox groupHbox;
     @FXML
-    private CustomUserTextField group_textfield;
+    private CustomUserTextField groupTextField;
     public  String choiceName;
-    public  TreeData treedataPram;
+    public  TreeData treeDataParam;
     public  Boolean isCopy;
     public  String props;
     public  Button cancelButton;
@@ -107,108 +108,118 @@ public class CreateConnectController {
     //    this.choiceName = choiceName;
     //}
 
-    public void init(TreeData treedataPram,Boolean isCopy,Dialog dialog){
+    public void init(TreeData treeDataParam,Boolean isCopy,Dialog dialog){
         this.dialog = dialog;
         //默认属性
-        this.props="[{\"propName\":\"APPENDISAM\",\"propValue\":\"\"},{\"propName\":\"CLIENT_LOCALE\",\"propValue\":\"\"},{\"propName\":\"CSM\",\"propValue\":\"\"},{\"propName\":\"DBANSIWARN\",\"propValue\":\"\"},{\"propName\":\"DBDATE\",\"propValue\":\"Y4MD-\"},{\"propName\":\"DBSPACETEMP\",\"propValue\":\"\"},{\"propName\":\"DBTEMP\",\"propValue\":\"\"},{\"propName\":\"DBUPSPACE\",\"propValue\":\"\"},{\"propName\":\"DB_LOCALE\",\"propValue\":\"\"},{\"propName\":\"DELIMIDENT\",\"propValue\":\"\"},{\"propName\":\"ENABLE_TYPE_CACHE\",\"propValue\":\"\"},{\"propName\":\"ENABLE_HDRSWITCH\",\"propValue\":\"\"},{\"propName\":\"FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONRETRY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTCONTIME\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTOPCACHE\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSERVER_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"GBASEDBTSTACKSIZE\",\"propValue\":\"\"},{\"propName\":\"IFX_AUTOFREE\",\"propValue\":\"\"},{\"propName\":\"IFX_BATCHUPDATE_PER_SPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_CODESETLOB\",\"propValue\":\"\"},{\"propName\":\"IFX_DIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_EXTDIRECTIVES\",\"propValue\":\"\"},{\"propName\":\"IFX_GET_SMFLOAT_AS_FLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_ISOLATION_LEVEL\",\"propValue\":\"\"},{\"propName\":\"IFX_FLAT_UCSQ\",\"propValue\":\"\"},{\"propName\":\"IFX_LOCK_MODE_WAIT\",\"propValue\":\"10\"},{\"propName\":\"IFX_PAD_VARCHAR\",\"propValue\":\"\"},{\"propName\":\"IFX_SET_FLOAT_AS_SMFLOAT\",\"propValue\":\"\"},{\"propName\":\"IFX_SOC_TIMEOUT\",\"propValue\":\"\"},{\"propName\":\"IFX_TRIMTRAILINGSPACES\",\"propValue\":\"1\"},{\"propName\":\"IFX_USEPUT\",\"propValue\":\"\"},{\"propName\":\"IFX_USE_STRENC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASPEC\",\"propValue\":\"\"},{\"propName\":\"IFX_XASTDCOMPLIANCE_XAEND\",\"propValue\":\"\"},{\"propName\":\"IFXHOST\",\"propValue\":\"\"},{\"propName\":\"IFXHOST_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"JDBCTEMP\",\"propValue\":\"\"},{\"propName\":\"LOBCACHE\",\"propValue\":\"\"},{\"propName\":\"LOGINTIMEOUT\",\"propValue\":\"1000\"},{\"propName\":\"NEWCODESET\",\"propValue\":\"\"},{\"propName\":\"NEWNLSMAP\",\"propValue\":\"\"},{\"propName\":\"NODEFDAC\",\"propValue\":\"\"},{\"propName\":\"OPT_GOAL\",\"propValue\":\"\"},{\"propName\":\"OPTCOMPIND\",\"propValue\":\"\"},{\"propName\":\"OPTOFC\",\"propValue\":\"\"},{\"propName\":\"PATH\",\"propValue\":\"\"},{\"propName\":\"PDQPRIORITY\",\"propValue\":\"\"},{\"propName\":\"PORTNO_SECONDARY\",\"propValue\":\"\"},{\"propName\":\"PROXY\",\"propValue\":\"\"},{\"propName\":\"PSORT_DBTEMP\",\"propValue\":\"\"},{\"propName\":\"PSORT_NPROCS\",\"propValue\":\"\"},{\"propName\":\"SECURITY\",\"propValue\":\"\"},{\"propName\":\"SQLIDEBUG\",\"propValue\":\"\"},{\"propName\":\"SQLMODE\",\"propValue\":\"\"},{\"propName\":\"SRV_FET_BUF_SIZE\",\"propValue\":\"\"},{\"propName\":\"STMT_CACHE\",\"propValue\":\"\"},{\"propName\":\"TRUSTED_CONTEXT\",\"propValue\":\"\"},{\"propName\":\"METADATA_UPPERCASE\",\"propValue\":\"\"}]";
-        this.treedataPram = treedataPram;
-        if(treedataPram!=null&&treedataPram instanceof Connect){
-            this.props=((Connect)treedataPram).getProps();
+        this.props = DEFAULT_PROPS;
+        this.treeDataParam = treeDataParam;
+        if(treeDataParam!=null&&treeDataParam instanceof Connect){
+            this.props=((Connect)treeDataParam).getProps();
         }
         this.isCopy=isCopy;
         Connect connect=new Connect();
         ObservableList<TreeData> list = FXCollections.observableArrayList(SqliteDBaccessUtil.getConnectFolders());
-        connectfolder_choicebox.setItems(list);
-        connectfolder_choicebox.getValue();
-        connectfolder_choicebox.getSelectionModel().select(0);
-        connect.setParentId(((ConnectFolder)connectfolder_choicebox.getSelectionModel().getSelectedItem()).getId());
-        connectfolder_choicebox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
+        connectFolderChoiceBox.setItems(list);
+        connectFolderChoiceBox.getValue();
+        connectFolderChoiceBox.getSelectionModel().select(0);
+        connect.setParentId(((ConnectFolder)connectFolderChoiceBox.getSelectionModel().getSelectedItem()).getId());
+        connectFolderChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
             connect.setParentId(((ConnectFolder)newValue).getId());
         });
         //根据目录里的文件夹，读取数据库种类
         List dbtypes=new ArrayList<String>();
         File folder = new File("extlib");
-        for (File file : folder.listFiles()) {
-            if (file.isDirectory()) {
-                dbtypes.add(file.getName());
+        File[] dbTypeFolders = folder.listFiles();
+        if (dbTypeFolders != null) {
+            for (File file : dbTypeFolders) {
+                if (file.isDirectory()) {
+                    dbtypes.add(file.getName());
+                }
             }
+        } else {
+            log.warn("extlib directory not found or not accessible: {}", folder.getAbsolutePath());
         }
         Collections.sort(dbtypes);
         ObservableList<Connect> dbtypelist = FXCollections.observableArrayList(dbtypes);
-        dbtype_choicebox.setItems(dbtypelist);
+        dbTypeChoiceBox.setItems(dbtypelist);
 
 
         //driver增加监听，发生变化重置connect.driver
-        driver_choicebox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
-            //driver_choicebox.setItems会触发此事件，此时newvalue==null，需要排除
+        driverChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
+            //driverChoiceBox.setItems会触发此事件，此时newvalue==null，需要排除
             if(newValue!=null){
                 connect.setDriver(newValue.toString());
             }
         });
         //dbtype发生变化监听，变化后设置connect的dbtype属性，并改变driver驱动列表
-        dbtype_choicebox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
+        dbTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
             connect.setDbtype(newValue.toString());
-            List dirverList=new ArrayList<String>();
+            List driverList=new ArrayList<String>();
             File driverfolder = new File("extlib/"+connect.getDbtype());
-            for (File file : driverfolder.listFiles()) {
-                if (file.isFile()&&file.getName().toLowerCase().endsWith(".jar")) {
-                    dirverList.add(file.getName());
+            File[] driverFiles = driverfolder.listFiles();
+            if (driverFiles != null) {
+                for (File file : driverFiles) {
+                    if (file.isFile()&&file.getName().toLowerCase().endsWith(".jar")) {
+                        driverList.add(file.getName());
+                    }
                 }
+            } else {
+                log.warn("Driver directory not found or not accessible: {}", driverfolder.getAbsolutePath());
             }
-            Collections.sort(dirverList);
-            ObservableList<Connect> driverItems = FXCollections.observableArrayList(dirverList);
-            driver_choicebox.setItems(driverItems); //触发内容变化监听
-            driver_choicebox.getSelectionModel().select(driverItems.size()-1);
+            Collections.sort(driverList);
+            ObservableList<Connect> driverItems = FXCollections.observableArrayList(driverList);
+            driverChoiceBox.setItems(driverItems); //触发内容变化监听
+            driverChoiceBox.getSelectionModel().select(driverItems.size()-1);
         });
-        dbtype_choicebox.getSelectionModel().select(0);
+        dbTypeChoiceBox.getSelectionModel().select(0);
 
         //如果安装了数据库，用最后一次安装的配置填充表单
         if(Main.lastInstallConnect!=null){
-            ipaddr_textfield.setText(Main.lastInstallConnect.getIp());
-            port_textfield.setText(Main.lastInstallConnect.getPort());
-            username_textfield.setText(Main.lastInstallConnect.getUsername());
-            passwd_textfield.setText(Main.lastInstallConnect.getPassword());
+            ipAddressTextField.setText(Main.lastInstallConnect.getIp());
+            portTextField.setText(Main.lastInstallConnect.getPort());
+            usernameTextField.setText(Main.lastInstallConnect.getUsername());
+            passwordTextField.setText(Main.lastInstallConnect.getPassword());
         }else{
-            username_textfield.setText("gbasedbt");
-            port_textfield.setText("9088");
+            usernameTextField.setText("gbasedbt");
+            portTextField.setText("9088");
         }
 
         //如果传了参数，可能树分类上右键新建连接或编辑连接，需将已有参数填充到表单
-        if(treedataPram!=null){
+        if(treeDataParam!=null){
             String connectFolder=null;
             //如果当前选中的元素级别为2，就是在分类上右键创建连接，默认选择对应的系统分类就行
-            if(treedataPram instanceof ConnectFolder){
-                connectFolder=treedataPram.getName();
+            if(treeDataParam instanceof ConnectFolder){
+                connectFolder=treeDataParam.getName();
             }else{
                 //如果不是分类上右键新建，那就是编辑连接，所有信息填充到表单
-                connectFolder=SqliteDBaccessUtil.getConnectType(((Connect) treedataPram));
-                connectname_textfield.setText(((Connect)treedataPram).getName());
-                if(!((Connect)treedataPram).getPropByName("GBASEDBTSERVER").isEmpty()){
-                    group_textfield.setText(((Connect)treedataPram).getPropByName("GBASEDBTSERVER"));
+                connectFolder=SqliteDBaccessUtil.getConnectType(((Connect) treeDataParam));
+                connectNameTextField.setText(((Connect)treeDataParam).getName());
+                if(!((Connect)treeDataParam).getPropByName("GBASEDBTSERVER").isEmpty()){
+                    groupTextField.setText(((Connect)treeDataParam).getPropByName("GBASEDBTSERVER"));
                     switchGroupOrIP();
                 }else{
-                    ipaddr_textfield.setText(((Connect) treedataPram).getIp());
-                    port_textfield.setText(((Connect) treedataPram).getPort());
+                    ipAddressTextField.setText(((Connect) treeDataParam).getIp());
+                    portTextField.setText(((Connect) treeDataParam).getPort());
                 }
-                username_textfield.setText(((Connect) treedataPram).getUsername());
-                passwd_textfield.setText(((Connect) treedataPram).getPassword());
-                readonly_checkbox.setSelected(((Connect) treedataPram).getReadonly());
-                connect.setId(((Connect) treedataPram).getId()); //用于检查连接名称是否已存在，如果是编辑，要排除自己的名字
-                connect.setDatabase(((Connect) treedataPram).getDatabase());
+                usernameTextField.setText(((Connect) treeDataParam).getUsername());
+                passwordTextField.setText(((Connect) treeDataParam).getPassword());
+                readOnlyCheckBox.setSelected(((Connect) treeDataParam).getReadonly());
+                connect.setId(((Connect) treeDataParam).getId()); //用于检查连接名称是否已存在，如果是编辑，要排除自己的名字
+                connect.setDatabase(((Connect) treeDataParam).getDatabase());
                 int j=0;
-                ObservableList<String> items = dbtype_choicebox.getItems();
+                ObservableList<String> items = dbTypeChoiceBox.getItems();
                 for (String item : items) {
-                    if(item.equals(((Connect) treedataPram).getDbtype())){
-                        dbtype_choicebox.getSelectionModel().select(j);
+                    if(item.equals(((Connect) treeDataParam).getDbtype())){
+                        dbTypeChoiceBox.getSelectionModel().select(j);
                     }
                     j++;
                 }
 
                 int z=0;
-                ObservableList<String> driveritems = driver_choicebox.getItems();
+                ObservableList<String> driveritems = driverChoiceBox.getItems();
                 for (String item : driveritems) {
-                    if(item.equals(((Connect) treedataPram).getDriver())){
-                        driver_choicebox.getSelectionModel().select(z);
+                    if(item.equals(((Connect) treeDataParam).getDriver())){
+                        driverChoiceBox.getSelectionModel().select(z);
                     }
                     z++;
                 }
@@ -217,7 +228,7 @@ public class CreateConnectController {
             int i=0;
             for(TreeData treeData:list){
                 if(treeData.getName().equals(connectFolder)){
-                    connectfolder_choicebox.getSelectionModel().select(i);
+                    connectFolderChoiceBox.getSelectionModel().select(i);
                     break;
                 }
                 i++;
@@ -225,28 +236,12 @@ public class CreateConnectController {
 
         }
 
-        connectname_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-            connectname_textfield.setText(newValue.replace(" ", ""));
-        });
-        ipaddr_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-            ipaddr_textfield.setText(newValue.replace(" ", ""));
-        });
-        port_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.matches("\\d*")) {
-                port_textfield.setText(newValue.replaceAll("[^\\d]", ""));
-            }
-        });
-
-        username_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-            username_textfield.setText(newValue.replace(" ", ""));
-        });
-        passwd_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-        });
+        applyTextFormatters();
 
 
 
-        Button tryConnectButton = (Button) dialogPane.lookupButton(test_buttontype);
-        tryConnectButton.disableProperty().bind(connecting_hbox.visibleProperty());
+        Button tryConnectButton = (Button) dialogPane.lookupButton(testButtonType);
+        tryConnectButton.disableProperty().bind(connectingHBox.visibleProperty());
         tryConnectButton.addEventFilter(ActionEvent.ACTION, event -> {
             if(!checkInput())
             {
@@ -261,8 +256,8 @@ public class CreateConnectController {
         });
 
 
-        final Button commitButton = (Button) dialogPane.lookupButton(commit_buttontype);
-        commitButton.disableProperty().bind(connecting_hbox.visibleProperty());
+        final Button commitButton = (Button) dialogPane.lookupButton(commitButtonType);
+        commitButton.disableProperty().bind(connectingHBox.visibleProperty());
         commitButton.addEventFilter(ActionEvent.ACTION, event1 -> {
             if(!checkInput())
             {
@@ -279,9 +274,9 @@ public class CreateConnectController {
                 }
             }
         });
-        //connectname_textfield.requestFocus();
+        //connectNameTextField.requestFocus();
 
-        cancelButton = (Button) dialogPane.lookupButton(cancel_buttontype);
+        cancelButton = (Button) dialogPane.lookupButton(cancelButtonType);
 
     }
 
@@ -289,59 +284,59 @@ public class CreateConnectController {
 
         connect.setProps(props);
                 if(groupHbox.isVisible()){
-                    connect.setPropByName("GBASEDBTSERVER", group_textfield.getText());
-                    if (connectname_textfield.getText().isEmpty()) {
-                    connect.setName(group_textfield.getText());
+                    connect.setPropByName("GBASEDBTSERVER", groupTextField.getText());
+                    if (connectNameTextField.getText().isEmpty()) {
+                    connect.setName(groupTextField.getText());
                     }else {
-                    connect.setName(connectname_textfield.getText());
+                    connect.setName(connectNameTextField.getText());
                 }
                     props=connect.getProps();
                 }else{
-                    connect.setIp(ipaddr_textfield.getText());
-                    connect.setPort(port_textfield.getText());
-                    if (connectname_textfield.getText().isEmpty()) {
+                    connect.setIp(ipAddressTextField.getText());
+                    connect.setPort(portTextField.getText());
+                    if (connectNameTextField.getText().isEmpty()) {
                     connect.setName("[" + connect.getIp() + "_" + connect.getPort() + "]");
                     }else {
-                    connect.setName(connectname_textfield.getText());
+                    connect.setName(connectNameTextField.getText());
                 }
                 }
 
                 if (connect.getDatabase() == null) {
                     connect.setDatabase("sysmaster");
                 }
-                connect.setUsername(username_textfield.getText());
-                connect.setPassword(passwd_textfield.getText());
+                connect.setUsername(usernameTextField.getText());
+                connect.setPassword(passwordTextField.getText());
                 
-                connect.setReadonly(readonly_checkbox.isSelected());
+                connect.setReadonly(readOnlyCheckBox.isSelected());
             
     }
     public boolean checkInput(){
         if(groupHbox.isVisible()){
-                if(group_textfield.getText().isEmpty()){
-                    group_textfield.requestFocus();
+                if(groupTextField.getText().isEmpty()){
+                    groupTextField.requestFocus();
                     return false;
                 }
             }else 
                 {
-                    if(ipaddr_textfield.getText().isEmpty()){
-                        //ipaddr_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                        ipaddr_textfield.requestFocus();
+                    if(ipAddressTextField.getText().isEmpty()){
+                        //ipAddressTextField.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                        ipAddressTextField.requestFocus();
                         return false;
                     }
-                    else if(port_textfield.getText().isEmpty()){
-                        //port_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                        port_textfield.requestFocus();
+                    else if(portTextField.getText().isEmpty()){
+                        //portTextField.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                        portTextField.requestFocus();
                         return false;
                     }
                 }
-            if(username_textfield.getText().isEmpty()){
-                // username_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                username_textfield.requestFocus();
+            if(usernameTextField.getText().isEmpty()){
+                // usernameTextField.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                usernameTextField.requestFocus();
                 return false;
             }
-            else if(passwd_textfield.getText().isEmpty()){
-                //passwd_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
-                passwd_textfield.requestFocus();
+            else if(passwordTextField.getText().isEmpty()){
+                //passwordTextField.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
+                passwordTextField.requestFocus();
                 return false;
             }
             return true;
@@ -352,9 +347,45 @@ public class CreateConnectController {
 
     }
 
+    private void applyTextFormatters() {
+        connectNameTextField.setTextFormatter(new TextFormatter<String>(change -> {
+            String text = change.getText();
+            if (text != null && text.contains(" ")) {
+                change.setText(text.replace(" ", ""));
+            }
+            return change;
+        }));
+        ipAddressTextField.setTextFormatter(new TextFormatter<String>(change -> {
+            String text = change.getText();
+            if (text != null && text.contains(" ")) {
+                change.setText(text.replace(" ", ""));
+            }
+            return change;
+        }));
+        usernameTextField.setTextFormatter(new TextFormatter<String>(change -> {
+            String text = change.getText();
+            if (text != null && text.contains(" ")) {
+                change.setText(text.replace(" ", ""));
+            }
+            return change;
+        }));
+        portTextField.setTextFormatter(new TextFormatter<String>(change -> {
+            String newText = change.getControlNewText();
+            return newText.matches("\\d*") ? change : null;
+        }));
+    }
+
+    private void setConnectingVisible(boolean visible) {
+        if (Platform.isFxApplicationThread()) {
+            connectingHBox.setVisible(visible);
+        } else {
+            Platform.runLater(() -> connectingHBox.setVisible(visible));
+        }
+    }
+
 
         //添加驱动包
-        public void addDriverCliecked(){
+        public void addDriverClicked(){
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("选择驱动程序");
             fileChooser.getExtensionFilters().addAll(
@@ -364,21 +395,21 @@ public class CreateConnectController {
             File selectedFile = fileChooser.showOpenDialog(new Stage());
             if (selectedFile != null) {
                 // 处理选中的文件
-                ObservableList<String> items = driver_choicebox.getItems();
+                ObservableList<String> items = driverChoiceBox.getItems();
                 if(items.stream().anyMatch(name -> name.equals(selectedFile.getName()))){
                     AlterUtil.CustomAlert("错误","该驱动包同名文件已存在！");
                 }else{
 
                     Path sourcePath = Paths.get(selectedFile.getAbsolutePath());
-                    Path targetPath = Paths.get("extlib/"+dbtype_choicebox.getValue()+"/"+selectedFile.getName());
+                    Path targetPath = Paths.get("extlib/"+dbTypeChoiceBox.getValue()+"/"+selectedFile.getName());
                     Boolean md5same=false;
                     String sourceSamename=null;
                     try {
                         String sourceMd5=MD5Util.getMD5Checksum(sourcePath.toFile().getAbsolutePath());
                         String targetMd5=null;
-                        ObservableList<String> drivers = driver_choicebox.getItems();
+                        ObservableList<String> drivers = driverChoiceBox.getItems();
                         for (String driver : drivers) {
-                            targetMd5=MD5Util.getMD5Checksum(Paths.get("extlib/"+dbtype_choicebox.getValue()+"/"+driver).toFile().getAbsolutePath());
+                            targetMd5=MD5Util.getMD5Checksum(Paths.get("extlib/"+dbTypeChoiceBox.getValue()+"/"+driver).toFile().getAbsolutePath());
                             if(targetMd5.equals(sourceMd5)){
                                 md5same=true;
                                 sourceSamename=driver;
@@ -390,8 +421,8 @@ public class CreateConnectController {
                         }
                         else{
                             String newItem=selectedFile.getName();
-                            driver_choicebox.getItems().add(newItem);
-                            driver_choicebox.setValue(newItem);
+                            driverChoiceBox.getItems().add(newItem);
+                            driverChoiceBox.setValue(newItem);
                             Files.copy(sourcePath, targetPath);
                         }
                     } catch (Exception e) {
@@ -402,12 +433,12 @@ public class CreateConnectController {
         }
 
         //删除当前驱动包
-        public void deleteDriverCliecked(){
-            if(driver_choicebox.getItems().size()<=1){
+        public void deleteDriverClicked(){
+            if(driverChoiceBox.getItems().size()<=1){
                 AlterUtil.CustomAlert("错误","当前仅有一个驱动，不可删除！");
             }else{
-                String currItem=(String)driver_choicebox.getValue();
-                File file = new File("extlib/"+dbtype_choicebox.getValue()+"/"+currItem);
+                String currItem=(String)driverChoiceBox.getValue();
+                File file = new File("extlib/"+dbTypeChoiceBox.getValue()+"/"+currItem);
                 if(SqliteDBaccessUtil.checkDriverInUse(currItem)){
                     //如果正在使用，提示是否确认要删除
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -430,16 +461,16 @@ public class CreateConnectController {
                     ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
                     if (result == buttonTypeOk) {
                         if(file.delete()) {
-                            driver_choicebox.getItems().remove(currItem);
-                            driver_choicebox.getSelectionModel().select(0);
+                            driverChoiceBox.getItems().remove(currItem);
+                            driverChoiceBox.getSelectionModel().select(0);
                         }else{
                             AlterUtil.CustomAlert("错误","无法删除，该驱动文件已被打开，需重启软件后删除！");
                         }
                     }
                 }else{
                     if(file.delete()) {
-                        driver_choicebox.getItems().remove(currItem);
-                        driver_choicebox.getSelectionModel().select(0);
+                        driverChoiceBox.getItems().remove(currItem);
+                        driverChoiceBox.getSelectionModel().select(0);
                     }else{
                         AlterUtil.CustomAlert("错误","无法删除，该驱动文件已被打开，需重启软件后删除！");
                     }
@@ -464,7 +495,8 @@ public class CreateConnectController {
             row.add(jsonObject.getString("propName"));
             row.add(jsonObject.getString("propValue"));
             initdata.add(row);
-            datalist.add(row);
+            ObservableList<String> rowCopy = FXCollections.observableArrayList(row);
+            datalist.add(rowCopy);
         }
         CustomResultsetTableView tableView = new CustomResultsetTableView();
         tableView.setEditable(true);
@@ -599,7 +631,7 @@ public class CreateConnectController {
 
     public void commitConnecting(Connect connect,boolean isCommit){
         try{
-            connecting_hbox.setVisible(true);
+            setConnectingVisible(true);
             Task task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
@@ -621,7 +653,7 @@ public class CreateConnectController {
                         Long finalEnd = end;
                         Platform.runLater(()-> {
                             AlterUtil.CustomAlert("错误", "[" + e1.getErrorCode() + "]" + e1.getMessage()+"用时【"+(finalEnd -start)+"ms】。");
-                            connecting_hbox.setVisible(false);
+                            setConnectingVisible(false);
                         });
                         return null;
                     }catch (Exception e1){
@@ -642,7 +674,7 @@ public class CreateConnectController {
                         String result=SqliteDBaccessUtil.createConnectLeaf(connect);
                         if(result.equals("")){
                             Platform.runLater(()-> {
-                               connecting_hbox.setVisible(false);
+                               setConnectingVisible(false);
 
                                 cancelButton.fire();
                             });
@@ -651,13 +683,13 @@ public class CreateConnectController {
 
 
                             //判断是否为编辑连接，符合条件表示为编辑连接
-                            if (treedataPram != null && treedataPram instanceof Connect &&!isCopy) {
+                            if (treeDataParam != null && treeDataParam instanceof Connect &&!isCopy) {
                                 Platform.runLater(()->{
                                     TreeItem<TreeData> currItem = new TreeItem<>();
-                                    currItem = Main.mainController.databasemeta_treeview.getSelectionModel().getSelectedItem();
+                                    currItem = Main.mainController.databaseMetaTreeView.getSelectionModel().getSelectedItem();
                                     currItem.getParent().getChildren().remove(currItem);
-                                    MetadataTreeviewUtil.createConnectLeaf(Main.mainController.databasemeta_treeview, treeItem);
-                                    SqliteDBaccessUtil.deleteConnectLeaf((Connect) treedataPram);//删除数据库中老节点
+                                    MetadataTreeviewUtil.createConnectLeaf(Main.mainController.databaseMetaTreeView, treeItem);
+                                    SqliteDBaccessUtil.deleteConnectLeaf((Connect) treeDataParam);//删除数据库中老节点
 
                                     //如果当前编辑的连接为空或已断开，不处理
                                     try {
@@ -678,7 +710,7 @@ public class CreateConnectController {
 
                             } else { //否则为新建连接或复制连接
                                 Platform.runLater(()-> {
-                                    MetadataTreeviewUtil.createConnectLeaf(Main.mainController.databasemeta_treeview, treeItem);
+                                    MetadataTreeviewUtil.createConnectLeaf(Main.mainController.databaseMetaTreeView, treeItem);
                                     //展开触发展开事件，展开事件会连接数据库，改变连接状态
                                     treeItem.setExpanded(true);
                                     //数据库连接后，默认折叠
@@ -702,7 +734,7 @@ public class CreateConnectController {
                     }else{
                         Platform.runLater(()->{
                             AlterUtil.CustomAlert("通知","测试连接成功，用时【"+(finalEnd -start)+"ms】。");
-                            connecting_hbox.setVisible(false);
+                            setConnectingVisible(false);
                         });
                         try {
                             if(connect.getConn()!=null)
@@ -720,10 +752,10 @@ public class CreateConnectController {
             cancelButton.setOnAction(event -> {
                 task.cancel();
             });
-            connecting_stop_button.setOnAction(event1 -> {
+            connectingStopButton.setOnAction(event1 -> {
                 //MetadataTreeviewUtil.testConnThread.interrupt();
                 task.cancel();
-                connecting_hbox.setVisible(false);
+                setConnectingVisible(false);
             });
             dialog.setOnCloseRequest(event -> {
                 task.cancel();
@@ -741,3 +773,5 @@ public class CreateConnectController {
 
     }
 }
+
+

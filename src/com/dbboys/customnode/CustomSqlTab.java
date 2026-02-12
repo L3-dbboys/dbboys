@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.SqlTabController;
@@ -91,8 +91,8 @@ public class CustomSqlTab extends CustomTab{
 
         setOnCloseRequest(event1 -> {
             /*避免关闭后双击无响应*/
-            if (Main.mainController.sql_tabpane.getTabs().size() == 1) {
-                Main.mainController.sql_tabpane.setOnMouseClicked(event -> {
+            if (Main.mainController.sqlTabPane.getTabs().size() == 1) {
+                Main.mainController.sqlTabPane.setOnMouseClicked(event -> {
                     if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                         TabpaneUtil.addCustomSqlTab(null);
                     }
@@ -127,3 +127,4 @@ public class CustomSqlTab extends CustomTab{
 
 
 }
+

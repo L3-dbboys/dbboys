@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.util.NotificationUtil;
@@ -128,7 +128,7 @@ public class CustomInfoStackPane extends StackPane {
                     content.putImage(image);
                     clipboard.setContent(content);
                     if(showNoticeInMain){
-                        NotificationUtil.showNotification(Main.mainController.notice_pane, "截图成功复制到剪切板！可在微信、word、画图等软件粘贴！");
+                        NotificationUtil.showNotification(Main.mainController.noticePane, "截图成功复制到剪切板！可在微信、word、画图等软件粘贴！");
                     }else{
                         NotificationUtil.showNotification(notice_pane, "截图成功复制到剪切板！");
                     }
@@ -137,7 +137,7 @@ public class CustomInfoStackPane extends StackPane {
                 }
 
                  */
-                SnapshotUtil.copyToClipboard(image,showNoticeInMain?Main.mainController.notice_pane:notice_pane);
+                SnapshotUtil.copyToClipboard(image,showNoticeInMain?Main.mainController.noticePane:notice_pane);
             });
         });
         return scrollTask;
@@ -236,3 +236,4 @@ public class CustomInfoStackPane extends StackPane {
     }
 
 }
+

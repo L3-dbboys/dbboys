@@ -1,4 +1,4 @@
-package com.dbboys.app;
+﻿package com.dbboys.app;
 
 import com.dbboys.util.ConfigManagerUtil;
 import com.dbboys.util.GlobalErrorHandlerUtil;
@@ -30,6 +30,10 @@ public class Main extends Application {
     private static final Logger log = LogManager.getLogger(Main.class);
 
     //版本号
+    private static final String VERSION_NAME = "DBboys V1.0.0beta.20260201";
+    private static final int BUILD_NUMBER = 6;
+    private static final String VERSION_URL = "";
+    private static final String CHANGELOG = "";
     public static Version VERSION;
     //静态类实例，用于弹出界面与主程序的交互调用
     public static MainController mainController;
@@ -45,10 +49,10 @@ public class Main extends Application {
 
         //版本号
         JSONObject jsonObject=new JSONObject();
-        jsonObject.put("version", "DBboys V1.0.0beta.20260201");
-        jsonObject.put("build", 6);
-        jsonObject.put("url", "");
-        jsonObject.put("changelog", "");
+        jsonObject.put("version", VERSION_NAME);
+        jsonObject.put("build", BUILD_NUMBER);
+        jsonObject.put("url", VERSION_URL);
+        jsonObject.put("changelog", CHANGELOG);
         VERSION=new Version(jsonObject);
 
         try {
@@ -129,31 +133,31 @@ public class Main extends Application {
                         loadingStage.hide();
                         primaryStage.show();//此处有黑色闪现，不使用系统自带窗口后正常
                         //页面渲染后增加监听,否则无法正常监听
-                        mainController.main_splitpane.lookupAll(".split-pane-divider").forEach(divider -> {
+                        mainController.mainSplitPane.lookupAll(".split-pane-divider").forEach(divider -> {
                             // 鼠标拖动事件
                             divider.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
-                                split1Pos=mainController.main_splitpane.getDividers().get(0).getPosition();
+                                split1Pos=mainController.mainSplitPane.getDividers().get(0).getPosition();
                             });
                         });
 
                         /*双击空白区域增加tab*/
-                        if (mainController.sql_tabpane.lookup(".tab-header-area") != null) {
-                            mainController.sql_tabpane.lookup(".tab-header-area").addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+                        if (mainController.sqlTabPane.lookup(".tab-header-area") != null) {
+                            mainController.sqlTabPane.lookup(".tab-header-area").addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
                                 if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                                     // 检查双击的是否是 tab 空白区域（非 tab 或标签）
                                     var targetClass = event.getTarget().getClass().getName();
                                     if (!targetClass.contains("Tab") && !targetClass.contains("Label")) {
-                                       // if(mainController.treeview_tabpane.getSelectionModel().getSelectedIndex()==0){
+                                       // if(mainController.treeviewTabPane.getSelectionModel().getSelectedIndex()==0){
                                             TabpaneUtil.addCustomSqlTab(null);
                                     }
                                 }
                             });
                         }
 
-                        //Main.mainController.main_splitpane.prefWidthProperty().bind(primaryStage.widthProperty());
+                        //Main.mainController.mainSplitPane.prefWidthProperty().bind(primaryStage.widthProperty());
 
                         //打开软件默认最大化
-                        Main.mainController.window_maxsize_button.fire();
+                        Main.mainController.windowMaximizeButton.fire();
                         //ResizeHelper.addResizeListener(primaryStage);
                         log.info("dbboys已启动。");
 
@@ -172,8 +176,5 @@ public class Main extends Application {
 
         launch(args);
     }
-    private static boolean isInResizeZone(MouseEvent e, Stage stage) {
-        return e.getX() > stage.getWidth() - 1 &&
-                e.getY() > stage.getHeight() - 1;
-    }
 }
+

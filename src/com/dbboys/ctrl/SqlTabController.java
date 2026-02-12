@@ -154,7 +154,10 @@ public class SqlTabController {
     private boolean suppressConnectChange = false;
     private boolean suppressDbChange = false;
     private boolean suppressCommitModeChange = false;
-private ResultSetTabController activeResultSetController;
+    private ResultSetTabController activeResultSetController;
+    private Label sqlConnectChoiceBoxDbIcon;
+    private Label sqlConnectChoiceBoxLoadingIcon;
+    private SVGPath sqlConnectIconPath;
 
     private void clearUpdateResults() {
         Platform.runLater(() -> updateResults.clear());
@@ -274,137 +277,17 @@ private ResultSetTabController activeResultSetController;
 
     public void initialize() throws IOException {
 
-        //提交回滚按钮提示绑定
-        commitButtonTooltip.textProperty().bind(sqlTransactionText);
-        commitButtonTooltip.setShowDelay(Duration.millis(100));
-        transactionCommitButton.setTooltip(commitButtonTooltip);
-        transactionRollbackButton.setTooltip(commitButtonTooltip);
-
-        //加载搜索面板
-        searchReplaceBox.setMaxWidth(300);
-        searchReplaceBox.setMaxHeight(26);
-        StackPane.setAlignment(searchReplaceBox, Pos.TOP_RIGHT);
-        StackPane.setMargin(searchReplaceBox, new Insets(2, 17, 0, 0));
-        sqlEditStackPane.getChildren().add(searchReplaceBox);
-        sqlEditCodeArea.searchReplaceBox = searchReplaceBox;
-
-
-        //隐藏sqlmode选框
-        sqlSqlModeChoiceBox.setVisible(false);
-        //加载结果集界面
-
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/ResultSetTab.fxml"));
-
-        loader.setControllerFactory(clazz -> {
-            if (clazz == ResultSetTabController.class) {
-                return new ResultSetTabController(sqlConnect, sqlExecuteProcessStackPane);
-            } else {
-                try {
-                    return clazz.getDeclaredConstructor().newInstance();
-                } catch (Exception e) {
-                    log.error(e.getMessage(),e);
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        resultSetVBox = loader.load();
-        resultsetStackPane.getChildren().add(resultSetVBox);
-        currentResultSetTabController = loader.getController();
-        currentResultSetTabController.hiddenDisconnectedButton.setOnAction(event -> {
-            connectionDisconnected();
-        });
-
-        //增加执行计划面板
-        explain_result_stackpane = new CustomInfoStackPane(new CustomInfoCodeArea());
-        explain_result_stackpane.setVisible(false);
-        resultsetStackPane.getChildren().add(explain_result_stackpane);
-
-        currentResultSetTabController.lastSqlRefreshButton.setOnAction(event -> {
-            isSqlRefresh = true;
-            sqlRunButton.fire();
-        });
-
-        //splitpane分隔符
-        sqlSplitPane.setDividerPositions(Main.sqledit_codearea_is_max == 1 ? 1 : sqlSplitPaneDividerPosition);
-        sqlSplitPane.heightProperty().addListener((obs, oldVal, newVal) -> {
-            if (Main.sqledit_codearea_is_max == 1) {
-                //保留两位小数设置，否则可能因为小数过多而设置不准
-                Platform.runLater(() -> {
-                    sqlSplitPane.setDividerPositions(1);
-                });
-            } else {
-                Platform.runLater(() -> {
-                    sqlSplitPane.setDividerPositions(sqlSplitPaneDividerPosition);
-                });
-            }
-        });
-
-        //sqlSplitPane被加载后，等split-pane-divider渲染完成后才能增加监听，否则找不到split-pane-divider
-        //该事件用于最大化后恢复原窗口大小时的分隔符位置
-        new Thread(() -> {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            sqlSplitPane.lookupAll(".split-pane-divider").forEach(divider -> {
-                // 鼠标拖动事件
-                divider.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
-                    sqlSplitPaneDividerPosition = sqlSplitPane.getDividers().get(0).getPosition();
-                });
-            });
-        }).start();
-
-        //绑定才能让pane填充整个界面，必须使用pane，避免分隔栏拖动被阻挡
-        sqlEditCodeArea.prefWidthProperty().bind(topPane.widthProperty());
-        sqlEditCodeArea.prefHeightProperty().bind(topPane.heightProperty());
-
-        //初始化连接图标
-        Label sqlConnectChoiceBoxDbIcon = new Label();
-        Label sqlConnectChoiceBoxLoadingIcon = new Label();
-        sqlConnectChoiceBoxLoadingIcon.setVisible(false);
-        sqlConnectChoiceBoxIconStackPane.getChildren().addAll(sqlConnectChoiceBoxDbIcon, sqlConnectChoiceBoxLoadingIcon);
-        SVGPath svgPath = new SVGPath();
-        svgPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
-        sqlConnectChoiceBoxDbIcon.setGraphic(new Group(svgPath));
-        svgPath.setScaleX(0.6);
-        svgPath.setScaleY(0.6);
-
-        ImageView loading_icon = new ImageView(new Image("file:images/loading.gif"));
-        loading_icon.setScaleX(0.7);
-        loading_icon.setScaleY(0.7);
-        sqlConnectChoiceBoxLoadingIcon.setGraphic(loading_icon);
-        Tooltip tooltip = new Tooltip("正在连接数据库");
-        tooltip.setShowDelay(Duration.millis(100));
-        sqlConnectChoiceBoxLoadingIcon.setTooltip(tooltip);
-
-        svgPath.setFill(Paint.valueOf("#888"));
-
-        //初始化数据库连接相关信息，初始化数据
-        defaultConnect.setName("请选择数据库连接");
-        defaultDatabase.setName("N/A");
-        sqlConnectChoiceBox.setValue(defaultConnect);
-        sqlDbChoiceBox.setValue(defaultDatabase);
-        sqlUserTextField.setText("N/A");
-        sqlCommitModeChoiceBox.getSelectionModel().selectFirst();
-
-        sqlEditCodeArea.sqlRunButton = sqlRunButton;
-        sqlConnect = defaultConnect;
-
-        //初始化连接数据
-        List connect_list = new ArrayList<Connect>();
-        for (TreeItem<TreeData> ti : Main.mainController.databasemeta_treeview.getRoot().getChildren()) {
-            for (TreeItem<TreeData> t : ti.getChildren()) {
-                Connect newConnect = new Connect((Connect) t.getValue());
-                newConnect.setConn(null);
-                connect_list.add(newConnect);
-            }
-        }
-        ObservableList<Connect> dbtypelist = FXCollections.observableArrayList(connect_list);
-        sqlConnectChoiceBox.setItems(dbtypelist);
+        setupTransactionTooltips();
+        setupSearchReplacePanel();
+        setupResultSetView();
+        setupSplitPaneBehavior();
+        bindEditorSizeToPane();
+        setupConnectIcons();
+        setupDefaultConnectionState();
+        loadConnectChoices();
         /*
         List connect_list = new ArrayList<Connect>();
-        for (TreeItem<TreeData> ti : Main.mainController.databasemeta_treeview.getRoot().getChildren()) {
+        for (TreeItem<TreeData> ti : Main.mainController.databaseMetaTreeView.getRoot().getChildren()) {
             for (TreeItem<TreeData> t : ti.getChildren()) {
                 Connect newConnect = new Connect((Connect) t.getValue());
                 newConnect.setConn(null);
@@ -421,194 +304,9 @@ private ResultSetTabController activeResultSetController;
 
 
 
-        //头部按钮设置绑定关系
-        sqlConnectChoiceBox.disableProperty().bind(Bindings.or(
-                transactionBox.visibleProperty(),
-                sqlExecuteProcessStackPane.visibleProperty()
-        ));
-        transactionBox.visibleProperty().bind(
-                Bindings.notEqual("", sqlTransactionText) // 对比字符串与空值，取反后绑定可见性
-        );
-        sqlDbChoiceBox.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
-        sqlSqlModeChoiceBox.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
-        sqlCommitModeChoiceBox.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
-        sqlUserTextField.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
-
-        sqlStopButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty().not());
-        sqlRunButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
-        sqlExplainButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
-
-        resultsetTabPane.prefWidthProperty().bind(bottomPane.widthProperty());
-        resultsetTabPane.prefHeightProperty().bind(bottomPane.heightProperty());
-        resultsetTotalTableView.prefWidthProperty().bind(bottomPane.widthProperty());
-        resultsetTotalTableView.prefHeightProperty().bind(bottomPane.heightProperty());
-        resultsetTotalTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        resultsetTotalTableView.getSelectionModel().setCellSelectionEnabled(true);
-        resultsetTotalTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
-
-        //初始化结果集总表
-        TableColumn<ObservableList<String>, Object> resultcol;
-        TableColumn<ObservableList<String>, Object> begin;
-        TableColumn<ObservableList<String>, Object> stop;
-        TableColumn<ObservableList<String>, Object> drution;
-        TableColumn<ObservableList<String>, Object> affect;
-        TableColumn<ObservableList<String>, Object> sqlcol;
-        TableColumn<ObservableList<String>, Object> databasecol;
-        TableColumn<ObservableList<String>, Object> markcol;
-        //定义结果集表结构
-        resultcol = new TableColumn<ObservableList<String>, Object>("执行结果");
-        resultcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> result = new TableColumn<>("Execute Result");
-        resultcol.setCellValueFactory(new PropertyValueFactory<>("result"));
-        //result.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(1)));
-        resultcol.setPrefWidth(120);
-        resultcol.setReorderable(false);
-        resultcol.setSortable(false);
-
-        begin = new TableColumn<ObservableList<String>, Object>("开始时间");
-        begin.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> begin = new TableColumn<>("Begin Time");
-        begin.setCellValueFactory(new PropertyValueFactory<>("startTime"));
-        //begin.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(2)));
-        begin.setPrefWidth(190);
-        begin.setReorderable(false);
-        begin.setSortable(false);
-
-        stop = new TableColumn<ObservableList<String>, Object>("结束时间");
-        stop.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> stop= new TableColumn<>("End Time");
-        stop.setCellValueFactory(new PropertyValueFactory<>("endTime"));
-        //stop.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(3)));
-        stop.setPrefWidth(190);
-        stop.setReorderable(false);
-        stop.setSortable(false);
-
-        drution = new TableColumn<ObservableList<String>, Object>("执行耗时");
-        drution.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> drution = new TableColumn<>("Elapsed Time");
-        drution.setCellValueFactory(new PropertyValueFactory<>("elapsedTime"));
-        //drution.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(4)));
-        drution.setPrefWidth(100);
-        drution.setReorderable(false);
-        drution.setSortable(false);
-
-        databasecol = new TableColumn<ObservableList<String>, Object>("库/模式");
-        databasecol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> drution = new TableColumn<>("Elapsed Time");
-        databasecol.setCellValueFactory(new PropertyValueFactory<>("database"));
-        //drution.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(4)));
-        databasecol.setPrefWidth(100);
-        databasecol.setReorderable(false);
-        databasecol.setSortable(false);
-
-
-        markcol = new TableColumn<ObservableList<String>, Object>("备注");
-        markcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> result = new TableColumn<>("Execute Result");
-        markcol.setCellValueFactory(new PropertyValueFactory<>("mark"));
-        //result.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(1)));
-        markcol.setPrefWidth(120);
-        markcol.setReorderable(false);
-        markcol.setSortable(false);
-
-        affect = new TableColumn<ObservableList<String>, Object>("更新行数");
-        affect.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, Integer> affect = new TableColumn<>("Affect Rows");
-        affect.setCellValueFactory(new PropertyValueFactory<>("affectedRows"));
-        //affect.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(5)));
-        affect.setPrefWidth(100);
-        affect.setReorderable(false);
-        affect.setSortable(false);
-
-        sqlcol = new TableColumn<ObservableList<String>, Object>("执行语句");
-        sqlcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
-        //TableColumn<ObservableList<UpdateResult>, String> sqlcol = new TableColumn<>("Execute SQL");
-        sqlcol.setCellValueFactory(new PropertyValueFactory<>("updateSql"));
-        //sqlcol.setCellValueFactory(data -> javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().get(6)));
-
-        sqlcol.setPrefWidth(300);
-        sqlcol.setReorderable(false);
-        sqlcol.setSortable(false);
-
-        resultsetTotalTableView.getColumns().addAll(resultcol, databasecol, sqlcol, affect, drution, begin, stop, markcol);
-        updateResults = FXCollections.observableArrayList();
-        UpdateResult updateResult = new UpdateResult();
-        updateResult.setResult("执行结果，此处显示执行成功或执行失败");
-        updateResult.setDatabase("库名");
-        updateResult.setUpdateSql("执行的SQL语句");
-        updateResult.setStartTime("SQL开始执行的时间");
-        updateResult.setEndTime("SQL完成执行的时间");
-        updateResult.setElapsedTime("执行耗时");
-        updateResult.setAffectedRows(0);
-        //updateResult.setMark(sqlCommitModeChoiceBox.getValue().toString()+"，"+sqlSqlModeChoiceBox.getValue()==null?"":sqlSqlModeChoiceBox.getValue()+sql_param_string);
-        resultsetTotalTableView.setItems(updateResults);
-
-
-        //停止按钮事件
-
-        sqlStopButton.setOnAction(event -> {
-            cancelCurrentExecution();
-
-        });
-
-        //运行按钮事件
-        sqlRunButton.setOnAction(event -> {
-
-            if (sqlConnectChoiceBox.getValue().getName().equals("请选择数据库连接")) {
-                NotificationUtil.showNotification(Main.mainController.notice_pane,"请选择数据库连接！" );
-            } else {
-
-                //result_list=new ArrayList<>();
-                sqlText = resolveSqlText(true);
-
-                if (sqlText.isEmpty()) {
-                    NotificationUtil.showNotification(Main.mainController.notice_pane,"请输入需要执行的SQL语句！" );
-                } else {
-                    //执行前取消可能还没完成的任务
-                    if (sqlTask != null && sqlTask.isRunning()) {
-                        cancelCurrentExecution();
-                    }
-
-                    sqlExecuteProcessStackPane.setVisible(true);
-                    sqlTask = createExecuteSqlTask();
-                    closeResultSet(); //关闭结果集在删除结果集表格，避免游标未释放无法关闭连接
-                    resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
-                    // 启动任务
-                    new Thread(sqlTask).start();
-                    if (sqlSplitPane.getDividers().get(0).getPosition() > Main.split2Pos) {
-                        sqlSplitPane.getDividers().get(0).setPosition(Main.split2Pos);
-                    }
-                }
-            }
-
-
-        });
-
-        //执行计划按钮事件
-        sqlExplainButton.setOnAction(event -> {
-            if (sqlConnectChoiceBox.getValue().getName().equals("请选择数据库连接")) {
-                NotificationUtil.showNotification(Main.mainController.notice_pane,"请选择数据库连接！" );
-            } else {
-                sqlText = resolveSqlText(false);
-                if (sqlText.isEmpty()) {
-                    NotificationUtil.showNotification(Main.mainController.notice_pane,"请输入需要查看执行计划的SQL语句！" );
-                } else {
-                    //执行前取消可能还没完成的任务
-                    if (sqlTask != null && sqlTask.isRunning()) {
-                        cancelCurrentExecution();
-                    }
-                    sqlExecuteProcessStackPane.setVisible(true);
-                    sqlTask = createExplainTask();
-                    closeResultSet();
-                    resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
-                    // 启动任务
-                    new Thread(sqlTask).start();
-                    if (sqlSplitPane.getDividers().get(0).getPosition() > Main.split2Pos) {
-                        sqlSplitPane.getDividers().get(0).setPosition(Main.split2Pos);
-                    }
-                }
-            }
-        });
+        bindHeaderControls();
+        setupResultsetTotalTable();
+        setupRunStopExplainActions();
 
 
         //连接变更响应事件
@@ -619,10 +317,10 @@ private ResultSetTabController activeResultSetController;
                     }
                     if (newVal == defaultConnect) {
                         sqlConnect.setConn(null);
-                        svgPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
-                        sqlConnectChoiceBoxDbIcon.setGraphic(svgPath);
-                        svgPath.setScaleX(0.6);
-                        svgPath.setScaleY(0.6);
+                        sqlConnectIconPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
+                        sqlConnectChoiceBoxDbIcon.setGraphic(sqlConnectIconPath);
+                        sqlConnectIconPath.setScaleX(0.6);
+                        sqlConnectIconPath.setScaleY(0.6);
                         sqlConnectChoiceBoxDbIcon.setVisible(true);
                         sqlConnectChoiceBoxLoadingIcon.setVisible(false);
                         //sqlConnectChoiceBox_icon.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
@@ -678,7 +376,7 @@ private ResultSetTabController activeResultSetController;
                                 sqlConnect.setConn(conn);
                                 //默认结果集面板中的连接同步更改，保证结果集中相关需要连接的操作正常
                                 currentResultSetTabController.sqlConnect = sqlConnect;
-                                for (TreeItem<TreeData> ti : Main.mainController.databasemeta_treeview.getRoot().getChildren()) {
+                                for (TreeItem<TreeData> ti : Main.mainController.databaseMetaTreeView.getRoot().getChildren()) {
                                     for (TreeItem<TreeData> t : ti.getChildren()) {
                                         Connect connect = (Connect) t.getValue();
                                         if (t.getValue().getName().equals(sqlConnect.getName())) {
@@ -714,15 +412,15 @@ private ResultSetTabController activeResultSetController;
                                 //更换数据库类型图标
                                 Platform.runLater(() -> {
                                     if (sqlConnect.getDbtype().equals("GBASE 8S")) {
-                                        svgPath.setContent("M194.66509,348.01735h-.00287a5.08422,5.08422,0,0,0-5.06208-5.01688H168.04l.02117,8.74355,17.86467.0072v5.689H159.89729c-.01728,0-.03124.0036-.05527.0036a3.14023,3.14023,0,0,1-3.13816-3.13668v-.00713h-.014V340.521h.014v-.009a3.14519,3.14519,0,0,1,3.13816-3.13844c.038,0,.07967.01323.1184.01323h29.59451l5.089-8.79625s-36.00025-.00433-36.08815,0a11.3304,11.3304,0,0,0-10.73466,11.31421c0,.21932.00647.42674.02227.63812V354.1787c-.00581.206-.02227.407-.02227.62085a11.34988,11.34988,0,0,0,11.353,11.348c.23616,0,1.21231-.0086,1.5066-.0086l28.93911.0036v-.00433a5.08677,5.08677,0,0,0,5.04239-5.07539V361.05h.00287Z");
-                                        sqlConnectChoiceBoxDbIcon.setGraphic(new Group(svgPath));
-                                        svgPath.setScaleX(0.2);
-                                        svgPath.setScaleY(0.2);
+                                        sqlConnectIconPath.setContent("M194.66509,348.01735h-.00287a5.08422,5.08422,0,0,0-5.06208-5.01688H168.04l.02117,8.74355,17.86467.0072v5.689H159.89729c-.01728,0-.03124.0036-.05527.0036a3.14023,3.14023,0,0,1-3.13816-3.13668v-.00713h-.014V340.521h.014v-.009a3.14519,3.14519,0,0,1,3.13816-3.13844c.038,0,.07967.01323.1184.01323h29.59451l5.089-8.79625s-36.00025-.00433-36.08815,0a11.3304,11.3304,0,0,0-10.73466,11.31421c0,.21932.00647.42674.02227.63812V354.1787c-.00581.206-.02227.407-.02227.62085a11.34988,11.34988,0,0,0,11.353,11.348c.23616,0,1.21231-.0086,1.5066-.0086l28.93911.0036v-.00433a5.08677,5.08677,0,0,0,5.04239-5.07539V361.05h.00287Z");
+                                        sqlConnectChoiceBoxDbIcon.setGraphic(new Group(sqlConnectIconPath));
+                                        sqlConnectIconPath.setScaleX(0.2);
+                                        sqlConnectIconPath.setScaleY(0.2);
                                     } else {
-                                        svgPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
-                                        sqlConnectChoiceBoxDbIcon.setGraphic(new Group(svgPath));
-                                        svgPath.setScaleX(0.6);
-                                        svgPath.setScaleY(0.6);
+                                        sqlConnectIconPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
+                                        sqlConnectChoiceBoxDbIcon.setGraphic(new Group(sqlConnectIconPath));
+                                        sqlConnectIconPath.setScaleX(0.6);
+                                        sqlConnectIconPath.setScaleY(0.6);
                                     }
 
                                     if (sqlConnect.getReadonly()) {
@@ -944,6 +642,285 @@ private ResultSetTabController activeResultSetController;
 
     }
 
+    private void setupTransactionTooltips() {
+        commitButtonTooltip.textProperty().bind(sqlTransactionText);
+        commitButtonTooltip.setShowDelay(Duration.millis(100));
+        transactionCommitButton.setTooltip(commitButtonTooltip);
+        transactionRollbackButton.setTooltip(commitButtonTooltip);
+    }
+
+    private void setupSearchReplacePanel() {
+        searchReplaceBox.setMaxWidth(300);
+        searchReplaceBox.setMaxHeight(26);
+        StackPane.setAlignment(searchReplaceBox, Pos.TOP_RIGHT);
+        StackPane.setMargin(searchReplaceBox, new Insets(2, 17, 0, 0));
+        sqlEditStackPane.getChildren().add(searchReplaceBox);
+        sqlEditCodeArea.searchReplaceBox = searchReplaceBox;
+    }
+
+    private void setupResultSetView() throws IOException {
+        sqlSqlModeChoiceBox.setVisible(false);
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/ResultSetTab.fxml"));
+        loader.setControllerFactory(clazz -> {
+            if (clazz == ResultSetTabController.class) {
+                return new ResultSetTabController(sqlConnect, sqlExecuteProcessStackPane);
+            }
+            try {
+                return clazz.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                throw new RuntimeException(e);
+            }
+        });
+        resultSetVBox = loader.load();
+        resultsetStackPane.getChildren().add(resultSetVBox);
+        currentResultSetTabController = loader.getController();
+        currentResultSetTabController.hiddenDisconnectedButton.setOnAction(event -> connectionDisconnected());
+
+        explain_result_stackpane = new CustomInfoStackPane(new CustomInfoCodeArea());
+        explain_result_stackpane.setVisible(false);
+        resultsetStackPane.getChildren().add(explain_result_stackpane);
+
+        currentResultSetTabController.lastSqlRefreshButton.setOnAction(event -> {
+            isSqlRefresh = true;
+            sqlRunButton.fire();
+        });
+    }
+
+    private void setupSplitPaneBehavior() {
+        sqlSplitPane.setDividerPositions(Main.sqledit_codearea_is_max == 1 ? 1 : sqlSplitPaneDividerPosition);
+        sqlSplitPane.heightProperty().addListener((obs, oldVal, newVal) -> {
+            if (Main.sqledit_codearea_is_max == 1) {
+                Platform.runLater(() -> sqlSplitPane.setDividerPositions(1));
+            } else {
+                Platform.runLater(() -> sqlSplitPane.setDividerPositions(sqlSplitPaneDividerPosition));
+            }
+        });
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            sqlSplitPane.lookupAll(".split-pane-divider").forEach(divider -> {
+                divider.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
+                    sqlSplitPaneDividerPosition = sqlSplitPane.getDividers().get(0).getPosition();
+                });
+            });
+        }).start();
+    }
+
+    private void bindEditorSizeToPane() {
+        sqlEditCodeArea.prefWidthProperty().bind(topPane.widthProperty());
+        sqlEditCodeArea.prefHeightProperty().bind(topPane.heightProperty());
+    }
+
+    private void setupConnectIcons() {
+        sqlConnectChoiceBoxDbIcon = new Label();
+        sqlConnectChoiceBoxLoadingIcon = new Label();
+        sqlConnectChoiceBoxLoadingIcon.setVisible(false);
+        sqlConnectChoiceBoxIconStackPane.getChildren().addAll(sqlConnectChoiceBoxDbIcon, sqlConnectChoiceBoxLoadingIcon);
+
+        sqlConnectIconPath = new SVGPath();
+        sqlConnectIconPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
+        sqlConnectChoiceBoxDbIcon.setGraphic(new Group(sqlConnectIconPath));
+        sqlConnectIconPath.setScaleX(0.6);
+        sqlConnectIconPath.setScaleY(0.6);
+
+        ImageView loadingIcon = new ImageView(new Image("file:images/loading.gif"));
+        loadingIcon.setScaleX(0.7);
+        loadingIcon.setScaleY(0.7);
+        sqlConnectChoiceBoxLoadingIcon.setGraphic(loadingIcon);
+        Tooltip tooltip = new Tooltip("正在连接数据库");
+        tooltip.setShowDelay(Duration.millis(100));
+        sqlConnectChoiceBoxLoadingIcon.setTooltip(tooltip);
+
+        sqlConnectIconPath.setFill(Paint.valueOf("#888"));
+    }
+
+    private void setupDefaultConnectionState() {
+        defaultConnect.setName("请选择数据库连接");
+        defaultDatabase.setName("N/A");
+        sqlConnectChoiceBox.setValue(defaultConnect);
+        sqlDbChoiceBox.setValue(defaultDatabase);
+        sqlUserTextField.setText("N/A");
+        sqlCommitModeChoiceBox.getSelectionModel().selectFirst();
+
+        sqlEditCodeArea.sqlRunButton = sqlRunButton;
+        sqlConnect = defaultConnect;
+    }
+
+    private void loadConnectChoices() {
+        List connect_list = new ArrayList<Connect>();
+        for (TreeItem<TreeData> ti : Main.mainController.databaseMetaTreeView.getRoot().getChildren()) {
+            for (TreeItem<TreeData> t : ti.getChildren()) {
+                Connect newConnect = new Connect((Connect) t.getValue());
+                newConnect.setConn(null);
+                connect_list.add(newConnect);
+            }
+        }
+        ObservableList<Connect> dbtypelist = FXCollections.observableArrayList(connect_list);
+        sqlConnectChoiceBox.setItems(dbtypelist);
+    }
+
+    private void bindHeaderControls() {
+        sqlConnectChoiceBox.disableProperty().bind(Bindings.or(
+                transactionBox.visibleProperty(),
+                sqlExecuteProcessStackPane.visibleProperty()
+        ));
+        transactionBox.visibleProperty().bind(
+                Bindings.notEqual("", sqlTransactionText)
+        );
+        sqlDbChoiceBox.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
+        sqlSqlModeChoiceBox.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
+        sqlCommitModeChoiceBox.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
+        sqlUserTextField.disableProperty().bind(sqlConnectChoiceBox.disableProperty());
+
+        sqlStopButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty().not());
+        sqlRunButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
+        sqlExplainButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
+
+        resultsetTabPane.prefWidthProperty().bind(bottomPane.widthProperty());
+        resultsetTabPane.prefHeightProperty().bind(bottomPane.heightProperty());
+        resultsetTotalTableView.prefWidthProperty().bind(bottomPane.widthProperty());
+        resultsetTotalTableView.prefHeightProperty().bind(bottomPane.heightProperty());
+        resultsetTotalTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        resultsetTotalTableView.getSelectionModel().setCellSelectionEnabled(true);
+        resultsetTotalTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+    }
+
+    private void setupResultsetTotalTable() {
+        TableColumn<ObservableList<String>, Object> resultcol;
+        TableColumn<ObservableList<String>, Object> begin;
+        TableColumn<ObservableList<String>, Object> stop;
+        TableColumn<ObservableList<String>, Object> drution;
+        TableColumn<ObservableList<String>, Object> affect;
+        TableColumn<ObservableList<String>, Object> sqlcol;
+        TableColumn<ObservableList<String>, Object> databasecol;
+        TableColumn<ObservableList<String>, Object> markcol;
+
+        resultcol = new TableColumn<ObservableList<String>, Object>("执行结果");
+        resultcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        resultcol.setCellValueFactory(new PropertyValueFactory<>("result"));
+        resultcol.setPrefWidth(120);
+        resultcol.setReorderable(false);
+        resultcol.setSortable(false);
+
+        begin = new TableColumn<ObservableList<String>, Object>("开始时间");
+        begin.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        begin.setCellValueFactory(new PropertyValueFactory<>("startTime"));
+        begin.setPrefWidth(190);
+        begin.setReorderable(false);
+        begin.setSortable(false);
+
+        stop = new TableColumn<ObservableList<String>, Object>("结束时间");
+        stop.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        stop.setCellValueFactory(new PropertyValueFactory<>("endTime"));
+        stop.setPrefWidth(190);
+        stop.setReorderable(false);
+        stop.setSortable(false);
+
+        drution = new TableColumn<ObservableList<String>, Object>("执行耗时");
+        drution.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        drution.setCellValueFactory(new PropertyValueFactory<>("elapsedTime"));
+        drution.setPrefWidth(100);
+        drution.setReorderable(false);
+        drution.setSortable(false);
+
+        databasecol = new TableColumn<ObservableList<String>, Object>("库/模式");
+        databasecol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        databasecol.setCellValueFactory(new PropertyValueFactory<>("database"));
+        databasecol.setPrefWidth(100);
+        databasecol.setReorderable(false);
+        databasecol.setSortable(false);
+
+        markcol = new TableColumn<ObservableList<String>, Object>("备注");
+        markcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        markcol.setCellValueFactory(new PropertyValueFactory<>("mark"));
+        markcol.setPrefWidth(120);
+        markcol.setReorderable(false);
+        markcol.setSortable(false);
+
+        affect = new TableColumn<ObservableList<String>, Object>("更新行数");
+        affect.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        affect.setCellValueFactory(new PropertyValueFactory<>("affectedRows"));
+        affect.setPrefWidth(100);
+        affect.setReorderable(false);
+        affect.setSortable(false);
+
+        sqlcol = new TableColumn<ObservableList<String>, Object>("执行语句");
+        sqlcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
+        sqlcol.setCellValueFactory(new PropertyValueFactory<>("updateSql"));
+        sqlcol.setPrefWidth(300);
+        sqlcol.setReorderable(false);
+        sqlcol.setSortable(false);
+
+        resultsetTotalTableView.getColumns().addAll(resultcol, databasecol, sqlcol, affect, drution, begin, stop, markcol);
+        updateResults = FXCollections.observableArrayList();
+        UpdateResult updateResult = new UpdateResult();
+        updateResult.setResult("执行结果，此处显示执行成功或执行失败");
+        updateResult.setDatabase("库名");
+        updateResult.setUpdateSql("执行的SQL语句");
+        updateResult.setStartTime("SQL开始执行的时间");
+        updateResult.setEndTime("SQL完成执行的时间");
+        updateResult.setElapsedTime("执行耗时");
+        updateResult.setAffectedRows(0);
+        resultsetTotalTableView.setItems(updateResults);
+    }
+
+    private void setupRunStopExplainActions() {
+        sqlStopButton.setOnAction(event -> cancelCurrentExecution());
+
+        sqlRunButton.setOnAction(event -> {
+            if (sqlConnectChoiceBox.getValue().getName().equals("请选择数据库连接")) {
+                NotificationUtil.showNotification(Main.mainController.noticePane, "请选择数据库连接！");
+            } else {
+                sqlText = resolveSqlText(true);
+                if (sqlText.isEmpty()) {
+                    NotificationUtil.showNotification(Main.mainController.noticePane, "请输入需要执行的SQL语句！");
+                } else {
+                    if (sqlTask != null && sqlTask.isRunning()) {
+                        cancelCurrentExecution();
+                    }
+
+                    sqlExecuteProcessStackPane.setVisible(true);
+                    sqlTask = createExecuteSqlTask();
+                    closeResultSet();
+                    resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
+                    new Thread(sqlTask).start();
+                    if (sqlSplitPane.getDividers().get(0).getPosition() > Main.split2Pos) {
+                        sqlSplitPane.getDividers().get(0).setPosition(Main.split2Pos);
+                    }
+                }
+            }
+        });
+
+        sqlExplainButton.setOnAction(event -> {
+            if (sqlConnectChoiceBox.getValue().getName().equals("请选择数据库连接")) {
+                NotificationUtil.showNotification(Main.mainController.noticePane, "请选择数据库连接！");
+            } else {
+                sqlText = resolveSqlText(false);
+                if (sqlText.isEmpty()) {
+                    NotificationUtil.showNotification(Main.mainController.noticePane, "请输入需要查看执行计划的SQL语句！");
+                } else {
+                    if (sqlTask != null && sqlTask.isRunning()) {
+                        cancelCurrentExecution();
+                    }
+                    sqlExecuteProcessStackPane.setVisible(true);
+                    sqlTask = createExplainTask();
+                    closeResultSet();
+                    resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
+                    new Thread(sqlTask).start();
+                    if (sqlSplitPane.getDividers().get(0).getPosition() > Main.split2Pos) {
+                        sqlSplitPane.getDividers().get(0).setPosition(Main.split2Pos);
+                    }
+                }
+            }
+        });
+    }
+
 
     //连接断开处理
     public void connectionDisconnected() {
@@ -958,7 +935,7 @@ private ResultSetTabController activeResultSetController;
                         sqlConnectChoiceBox.setValue(sqlConnect);
                         Platform.runLater(() -> {
                             if (MetadataTreeviewUtil.metadataService.testConn(sqlConnect)) {
-                                NotificationUtil.showNotification(Main.mainController.notice_pane, "重连数据库成功！");
+                                NotificationUtil.showNotification(Main.mainController.noticePane, "重连数据库成功！");
                                 //    data_manager_sqlRunButton.fire();
                             }
                         });
@@ -1582,7 +1559,7 @@ private ResultSetTabController activeResultSetController;
 
 
         List connect_list = new ArrayList<Connect>();
-        for (TreeItem<TreeData> ti : Main.mainController.databasemeta_treeview.getRoot().getChildren()) {
+        for (TreeItem<TreeData> ti : Main.mainController.databaseMetaTreeView.getRoot().getChildren()) {
             for (TreeItem<TreeData> t : ti.getChildren()) {
                 if(t.getValue().getName().equals(sqlConnectChoiceBox.getSelectionModel().getSelectedItem().getName())){
                 }else{
@@ -1600,5 +1577,6 @@ private ResultSetTabController activeResultSetController;
 
 
 }
+
 
 

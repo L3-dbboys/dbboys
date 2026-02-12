@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomInstanceTab;
@@ -254,7 +254,7 @@ class DownloadTaskWrapper {
                                 if(file.getName().contains("dbboys.upgrade.")){
                                     Main.mainController.checkVersion();
                                 }else{
-                                    NotificationUtil.showNotification(Main.mainController.notice_pane, "下载已完成！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, "下载已完成！");
                                 }
                                 //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                             });
@@ -339,7 +339,7 @@ class DownloadTaskWrapper {
                     updateProgress(1,1);
                     Platform.runLater(() -> {
 
-                        NotificationUtil.showNotification(Main.mainController.notice_pane, "导出已完成！");
+                        NotificationUtil.showNotification(Main.mainController.noticePane, "导出已完成！");
                         //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                         if (autoCloseOnComplete) stackPaneRemoveSelf();
                     });
@@ -403,12 +403,12 @@ class DownloadTaskWrapper {
                 stackPaneRemoveSelf();
                 if(param instanceof String) {
                     NotificationUtil.showNotification(
-                            Main.mainController.notice_pane,
+                            Main.mainController.noticePane,
                             // success ? "文件【" + file.getName() + "】下载已取消！" :
                             success ? "下载已取消！" :"文件【" + file.getName() + "】删除失败，可能被占用！"
                     );
                 }else{
-                    NotificationUtil.showNotification(Main.mainController.notice_pane,"导出已取消！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane,"导出已取消！");
                 }
             });
         }).start();
@@ -426,7 +426,7 @@ public class DownloadManagerUtil {
     private static List<DownloadTaskWrapper> downloads = new ArrayList<>();
     private static int currentIndex = 0;
     static {
-        stackPane= Main.mainController.download_stackpane;
+        stackPane= Main.mainController.downloadStackPane;
         // 自动轮播
         Thread switcher = new Thread(() -> {
             try {
@@ -592,3 +592,4 @@ public class DownloadManagerUtil {
 
 
 }
+

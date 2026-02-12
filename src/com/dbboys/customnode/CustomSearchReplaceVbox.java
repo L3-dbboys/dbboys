@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.util.NotificationUtil;
@@ -245,7 +245,7 @@ public class CustomSearchReplaceVbox extends VBox {
             lastFindPosition = foundPos;
         } else {
            // System.out.println("已到达末尾，未找到: " + findText);
-            NotificationUtil.showNotification(Main.mainController.notice_pane,"已到达结尾，下一个从开头开始查找！");
+            NotificationUtil.showNotification(Main.mainController.noticePane,"已到达结尾，下一个从开头开始查找！");
             lastFindPosition = -1;
         }
     }
@@ -272,7 +272,7 @@ public class CustomSearchReplaceVbox extends VBox {
             lastFindPosition = foundPos;
         } else {
             //System.out.println("已到达开头，未找到: " + findText);
-            NotificationUtil.showNotification(Main.mainController.notice_pane,"已到达开头，下一个从结尾开始搜索!");
+            NotificationUtil.showNotification(Main.mainController.noticePane,"已到达开头，下一个从结尾开始搜索!");
             lastFindPosition = -1;
         }
     }
@@ -294,7 +294,7 @@ public class CustomSearchReplaceVbox extends VBox {
 
             // 执行替换
             codeArea.replaceText(lastFindPosition, lastFindPosition + findText.length(), replaceText);
-            //NotificationUtil.showNotification(Main.mainController.notice_pane,"已替换一处!");
+            //NotificationUtil.showNotification(Main.mainController.noticePane,"已替换一处!");
 
             // 继续查找下一个
             lastFindPosition = lastFindPosition + replaceText.length();
@@ -339,7 +339,7 @@ public class CustomSearchReplaceVbox extends VBox {
         // 更新文本
         if (count > 0) {
             codeArea.replaceText(0, text.length(), newText.toString());
-            NotificationUtil.showNotification(Main.mainController.notice_pane,"已替换全部 " + count + " 处！");
+            NotificationUtil.showNotification(Main.mainController.noticePane,"已替换全部 " + count + " 处！");
             lastFindPosition = -1;
         } else {
         }
@@ -412,3 +412,4 @@ public class CustomSearchReplaceVbox extends VBox {
 
 
 }
+

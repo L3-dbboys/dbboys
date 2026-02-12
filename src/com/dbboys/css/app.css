@@ -952,18 +952,18 @@
 }
 
 /*隐藏标题，只显示自定义图形,保证设置了text并且异常下拉框可以正常显示标题*/
-#treeview_tabpane .tab-label,#sql_tabpane .tab-label {
+#treeviewTabPane .tab-label,#sqlTabPane .tab-label {
     -fx-content-display: graphic-only; /* 只显示graphic */
     -fx-background-color: none;
 }
 
 /*标题栏里顶部和左边的距离*/
-#treeview_tabpane .tab-header-area {
+#treeviewTabPane .tab-header-area {
     -fx-padding: 0 0 0 0;   /* 上 右 下 左 */
 }
 
 /*标题栏高度*/
-#treeview_tabpane .tab {
+#treeviewTabPane .tab {
     -fx-pref-height: 35px;
     -fx-min-height: 35px;
     -fx-max-height: 35px;
@@ -974,7 +974,7 @@
 }
 
 /* 设置选中的标签 */
-#treeview_tabpane .tab:selected {
+#treeviewTabpane .tab:selected {
     -fx-pref-height: 35px;
     -fx-min-height: 35px;
     -fx-max-height: 35px;

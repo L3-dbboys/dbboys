@@ -30,99 +30,119 @@ public class MainController {
     private static final Logger log = LogManager.getLogger(MainController.class);
 
     @FXML
-    private Region window_title_blank;
+    private Region windowTitleBlank;
     @FXML
-    private Button window_minsize_button;
+    private Button windowMinimizeButton;
     @FXML
-    public Button window_maxsize_button;
+    public Button windowMaximizeButton;
     @FXML
-    private Button window_close_button;
+    private Button windowCloseButton;
     @FXML
-    private Pane resize_layer_right;
+    private Pane resizeLayerRight;
     @FXML
-    private Pane resize_layer_left;
+    private Pane resizeLayerLeft;
     @FXML
-    private Pane resize_layer_bottom;
+    private Pane resizeLayerBottom;
     @FXML
-    private Pane resize_layer_top;
+    private Pane resizeLayerTop;
     @FXML
-    private Pane resize_layer_bottom_left;
+    private Pane resizeLayerBottom_left;
     @FXML
-    private Pane resize_layer_bottom_right;
+    private Pane resizeLayerBottom_right;
     @FXML
     private StackPane root;
     @FXML
-    public VBox main_vbox;
+    public VBox mainVBox;
     @FXML
-    public TabPane treeview_tabpane;
+    public TabPane treeviewTabPane;
     @FXML
-    public CustomTreeviewTab connect_tab;
+    public CustomTreeviewTab connectTab;
     @FXML
-    public CustomTreeviewTab markdown_tab;
+    public CustomTreeviewTab markdownTab;
     @FXML
-    public CustomUserTextField connect_search_textfield;
+    public CustomUserTextField connectSearchTextField;
     @FXML
-    public CustomUserTextField markdown_search_textfield;
+    public CustomUserTextField markdownSearchTextField;
     @FXML
-    public Button connect_search_button;
+    public Button connectSearchButton;
     @FXML
-    public Button markdown_search_button;
+    public Button markdownSearchButton;
     @FXML
-    public TreeView<TreeData> databasemeta_treeview;
+    public TreeView<TreeData> databaseMetaTreeView;
     @FXML
-    public VBox markdown_treeview_vbox;
+    public VBox markdownTreeViewVBox;
     @FXML
-    public MenuItem new_sqlfile_menuitem;
+    public MenuItem newSqlFileMenuItem;
     @FXML
-    public SplitPane main_splitpane;
+    public SplitPane mainSplitPane;
     @FXML
-    public TabPane sql_tabpane;
+    public TabPane sqlTabPane;
     @FXML
-    public StackPane notice_pane;
+    public StackPane noticePane;
     @FXML
-    public HBox status_hbox;
+    public HBox statusHBox;
     @FXML
-    public Button status_backsqlStopButton;
+    public Button statusBackSqlStopButton;
     @FXML
-    public Label status_backsql_count_label;
+    public Label statusBackSqlCountLabel;
     @FXML
-    public Button status_backsql_list_button;
+    public Button statusBackSqlListButton;
     @FXML
-    public ProgressIndicator status_backsql_progress;
+    public ProgressIndicator statusBackSqlProgress;
     @FXML
-    public Button snapshot_root_button;
+    public Button snapshotRootButton;
     @FXML
-    public StackPane rebuild_markdown_index_button_stackpane;
+    public StackPane rebuildMarkdownIndexButton_stackpane;
     @FXML
-    public Button rebuild_markdown_index_button;
+    public Button rebuildMarkdownIndexButton;
     @FXML
-    public StackPane markdown_search_icon_stackpane;
+    public StackPane markdownSearchIconStackPane;
     @FXML
-    public StackPane download_stackpane;
+    public StackPane downloadStackPane;
 
-    private Boolean window_max_maximized=false;
-    private Double window_max_prevX=0.0;
-    private Double window_max_prevY=0.0;
-    private Double window_max_prevWidth=800.0;
-    private Double window_max_prevHeight=600.0;
-    private Double window_X;  //拖动前X坐标
-    private Double window_X_POS;  //最大化的时候拖动记录鼠标位置，自动缩小后需要自动设置坐标保持鼠标在相同的相对位置
-    private Double window_Y;  //拖动前Y坐标
+    private Boolean windowMaximized=false;
+    private Double windowMaxPrevX=0.0;
+    private Double windowMaxPrevY=0.0;
+    private Double windowMaxPrevWidth=800.0;
+    private Double windowMaxPrevHeight=600.0;
+    private Double windowX;  //拖动前X坐标
+    private Double windowXPos;  //最大化的时候拖动记录鼠标位置，自动缩小后需要自动设置坐标保持鼠标在相同的相对位置
+    private Double windowY;  //拖动前Y坐标
 
 
     //public Connect sqlConnect=new Connect();
 
     public void initialize() {
+        Main.loadProgressBar.setProgress(0.2);
+        initDownloadVisibility();
+        initSidebarTabs();
+        initSidebarSearch();
+        initMarkdownPanel();
+        initSqlTabInteractions();
+        initMenuActions();
+        initSplitPaneResizeBehavior();
+        initWindowControls();
+        initTreeView();
+        Main.loadProgressBar.setProgress(0.4);
+        initStatusBar();
+        Main.loadProgressBar.setProgress(0.6);
+        initBackgroundTasks();
+        Main.loadProgressBar.setProgress(1);
+    }
+    //初始化界面完成
+
+    private void initDownloadVisibility() {
         //如果没有下载，界面不显示
-        download_stackpane.visibleProperty().bind(
-                Bindings.size(download_stackpane.getChildren()).greaterThan(0)
+        downloadStackPane.visibleProperty().bind(
+                Bindings.size(downloadStackPane.getChildren()).greaterThan(0)
         );
-        //download_stackpane.managedProperty().bind(download_stackpane.visibleProperty());
+        //downloadStackPane.managedProperty().bind(downloadStackPane.visibleProperty());
+    }
 
-
+    private void initSqlTabInteractions() {
         //拖动表或视图响应
-        sql_tabpane.setOnDragOver(event -> {
-            if (event.getGestureSource() != sql_tabpane && event.getDragboard().hasString()) {
+        sqlTabPane.setOnDragOver(event -> {
+            if (event.getGestureSource() != sqlTabPane && event.getDragboard().hasString()) {
                 Dragboard db = event.getDragboard();
                 if (MarkdownUtil.sourceTreeItems==null||(MarkdownUtil.sourceTreeItems.size()==1)&&(!new File(db.getString().replace(";","")).isDirectory())) {
                     event.acceptTransferModes(TransferMode.COPY_OR_MOVE);
@@ -131,7 +151,7 @@ public class MainController {
             event.consume();
         });
 
-        sql_tabpane.setOnDragDropped(event -> {
+        sqlTabPane.setOnDragDropped(event -> {
             Dragboard db = event.getDragboard();
             if (db.hasString()) {  //拖入表或库
                 event.setDropCompleted(true);
@@ -139,7 +159,7 @@ public class MainController {
                     if(db.getString().endsWith(".md")){
                         TabpaneUtil.addCustomMarkdownTab(new File(db.getString()),false);
                     }else{
-                        NotificationUtil.showNotification(Main.mainController.notice_pane,"不支持Markdown以外的文件格式编辑！");
+                        NotificationUtil.showNotification(Main.mainController.noticePane,"不支持Markdown以外的文件格式编辑！");
                     }
                 }
 
@@ -148,106 +168,10 @@ public class MainController {
             }
             event.consume();
         });
-
         //拖动表或视图响应结束
 
-        //左侧连接面板
-        connect_tab.setTitle(connect_tab.getText());
-        //connect_tab.titleToggle.setSelected(true);
-
-        //知识库面板
-        markdown_tab.setTitle(markdown_tab.getText());
-
-
-
-        markdown_tab.titleToggle.setOnContextMenuRequested(event -> {
-            if(markdown_tab.titleToggle.isSelected()){
-            MarkdownUtil.treeView.getSelectionModel().clearSelection();
-            MarkdownUtil.contextMenu.show(markdown_tab.titleToggle, event.getScreenX(), event.getScreenY());
-            }
-        });
-        markdown_tab.titleToggle.setTooltip(new Tooltip("数据库知识库"));
-        markdown_tab.titleToggleIcon.setContent("M21.0469 4.4844 Q21.5938 4.4844 22.0312 4.9219 Q22.4844 5.3594 22.4844 6 L22.4844 18 Q22.4844 18.6406 22.0312 19.0781 Q21.5938 19.5156 21.0469 19.5156 L3.0469 19.5156 Q2.4062 19.5156 1.9531 19.0781 Q1.5156 18.6406 1.5156 18 L1.5156 6 Q1.5156 5.3594 1.9531 4.9219 Q2.4062 4.4844 2.9531 4.4844 L21.0469 4.4844 ZM3.0469 2.9531 Q1.7656 2.9531 0.875 3.8438 Q0 4.7188 0 6 L0 18 Q0 19.2812 0.875 20.1719 Q1.7656 21.0469 2.9531 21.0469 L21.0469 21.0469 Q22.2344 20.9531 23.1094 20.125 Q24 19.2812 24 18 L24 6 Q24 4.7188 23.1094 3.8438 Q22.2344 2.9531 20.9531 2.9531 L3.0469 2.9531 ZM13.6875 12.2344 Q13.9219 12 14.2344 12 Q14.5625 12 14.7969 12.2344 L17.2812 14.7188 L19.6875 12.2344 Q19.9219 12 20.2344 12 Q20.5625 12 20.7969 12.2031 Q21.0469 12.4062 21.0469 12.7344 Q21.0469 13.0469 20.7969 13.2812 L17.7656 16.3125 Q17.5938 16.4844 17.2656 16.4844 Q16.9531 16.4844 16.7188 16.3125 L13.6875 13.2812 Q13.5156 13.0469 13.5156 12.7344 Q13.5156 12.4062 13.6875 12.2344 ZM17.2812 7.5156 Q17.5938 7.5156 17.7969 7.7188 Q18 7.9219 18 8.2344 L18 14.2344 Q18 14.5625 17.7969 14.8125 Q17.5938 15.0469 17.2656 15.0469 Q16.9531 15.0469 16.7188 14.8125 Q16.4844 14.5625 16.4844 14.2344 L16.4844 8.2344 Q16.4844 7.9219 16.7188 7.7188 Q16.9531 7.5156 17.2812 7.5156 ZM5.3594 16.4844 L5.3594 10.4844 L5.4375 10.4844 L7.5938 15.3594 L8.7188 15.3594 L10.875 10.4844 L10.9531 10.4844 L10.9531 16.4844 L12.5625 16.4844 L12.5625 7.5156 L10.7188 7.5156 L8.1562 13.3594 L8.1562 13.3594 L5.5938 7.5156 L3.7656 7.5156 L3.7656 16.4844 L5.3594 16.4844 Z");
-        //搜索事件
-        connect_search_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-            connect_search_textfield.setText(newValue.replace(" ", ""));
-            if(!connect_search_textfield.getText().equals(oldValue.replace(" ", ""))){
-                String searchText=connect_search_textfield.getText();
-                if (!searchText.isEmpty()&&searchText.length()>=2) {
-                    MetadataTreeviewUtil.searchTree(databasemeta_treeview,searchText,connect_search_button);
-                }else{
-                    connect_search_button.setDisable(true);
-                }
-            }
-
-        });
-
-        //左侧tabpane默认选中上次关闭前tab
-        for(Tab tab:treeview_tabpane.getTabs()){
-            if(((CustomTreeviewTab)tab).getTitle().equals(ConfigManagerUtil.getProperty("DEFAULT_LISTVIEW_TAB"))){
-                treeview_tabpane.getSelectionModel().select(tab);
-                ((CustomTreeviewTab)tab).titleToggle.setSelected(true);
-                break;
-            }
-        }
-
-        markdown_treeview_vbox.getChildren().add(MarkdownUtil.treeView);
-
-        Label rebuild_index_running_icon=new Label();
-        ImageView loading_icon=new ImageView(new Image("file:images/loading.gif"));
-        loading_icon.setScaleX(0.7);
-        loading_icon.setScaleY(0.7);
-        rebuild_index_running_icon.setGraphic(loading_icon);
-        Tooltip tooltip=new Tooltip("正在重建索引");
-        tooltip.setShowDelay(Duration.millis(100));
-        rebuild_index_running_icon.setTooltip(tooltip);
-        rebuild_markdown_index_button_stackpane.getChildren().add(rebuild_index_running_icon);
-        rebuild_index_running_icon.visibleProperty().bind(rebuild_markdown_index_button.visibleProperty().not());
-
-        Label sreach_running_label=new Label();
-        ImageView sreach_running_icon=new ImageView(new Image("file:images/loading.gif"));
-        sreach_running_icon.setScaleX(0.7);
-        sreach_running_icon.setScaleY(0.7);
-        sreach_running_label.setGraphic(sreach_running_icon);
-        Tooltip sreach_running_tooltip=new Tooltip("正在搜索");
-        sreach_running_tooltip.setShowDelay(Duration.millis(100));
-        sreach_running_label.setTooltip(tooltip);
-        markdown_search_icon_stackpane.getChildren().add(sreach_running_label);
-        sreach_running_label.visibleProperty().bind(markdown_search_button.visibleProperty().not());
-
-        markdown_search_button.setOnAction(event -> {
-
-            new Thread(()->{
-                Platform.runLater(()->{
-                    markdown_search_button.setVisible(false);
-                });
-                MarkdownSearchUtil.performSearch(markdown_search_textfield.getText());
-                Platform.runLater(()->{
-                        markdown_search_button.setVisible(true);
-                    });
-            }).start();
-
-        });
-
-        markdown_search_textfield.textProperty().addListener((observable, oldValue, newValue) -> {
-            if(markdown_search_textfield.getText().isEmpty()){
-                markdown_search_button.setDisable(true);
-            }else{
-                markdown_search_button.setDisable(false);
-            }
-                });
-
-        markdown_search_textfield.setOnKeyPressed(event -> {
-            // 判断按下的是否为 Enter 键（包含普通 Enter 和小键盘 Enter）
-            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
-                if(!markdown_search_button.isDisable()&&markdown_search_button.isVisible()){
-                    markdown_search_button.fire();
-                }
-            }
-        });
-
         //切换tab时，sql编辑器获取焦点，以确保响应各类鼠标事件
-        sql_tabpane.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
+        sqlTabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
             if (newTab != null) {
                 if(newTab instanceof CustomSqlTab){
                     Platform.runLater(() -> {
@@ -257,64 +181,167 @@ public class MainController {
             }
         });
 
-
-        sql_tabpane.setOnMouseClicked(event -> {
+        sqlTabPane.setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY &&event.getClickCount() == 2) {
                 TabpaneUtil.addCustomSqlTab(null);
             }
         });
+    }
 
+    private void initSidebarTabs() {
+        //左侧连接面板
+        connectTab.setTitle(connectTab.getText());
+        //connectTab.titleToggle.setSelected(true);
 
+        //知识库面板
+        markdownTab.setTitle(markdownTab.getText());
 
-        new_sqlfile_menuitem.setOnAction(event -> {
-            TabpaneUtil.addCustomSqlTab(null);});
-        main_splitpane.widthProperty().addListener((obs, oldVal, newVal) -> {
-            if(Main.sqledit_codearea_is_max==0) {
-                //保留两位小数设置，否则可能因为小数过多而设置不准
-                Platform.runLater(() -> {
-                    main_splitpane.setDividerPositions(Main.split1Pos);
+        markdownTab.titleToggle.setOnContextMenuRequested(event -> {
+            if(markdownTab.titleToggle.isSelected()){
+                MarkdownUtil.treeView.getSelectionModel().clearSelection();
+                MarkdownUtil.contextMenu.show(markdownTab.titleToggle, event.getScreenX(), event.getScreenY());
+            }
+        });
+        markdownTab.titleToggle.setTooltip(new Tooltip("数据库知识库"));
+        markdownTab.titleToggleIcon.setContent("M21.0469 4.4844 Q21.5938 4.4844 22.0312 4.9219 Q22.4844 5.3594 22.4844 6 L22.4844 18 Q22.4844 18.6406 22.0312 19.0781 Q21.5938 19.5156 21.0469 19.5156 L3.0469 19.5156 Q2.4062 19.5156 1.9531 19.0781 Q1.5156 18.6406 1.5156 18 L1.5156 6 Q1.5156 5.3594 1.9531 4.9219 Q2.4062 4.4844 2.9531 4.4844 L21.0469 4.4844 ZM3.0469 2.9531 Q1.7656 2.9531 0.875 3.8438 Q0 4.7188 0 6 L0 18 Q0 19.2812 0.875 20.1719 Q1.7656 21.0469 2.9531 21.0469 L21.0469 21.0469 Q22.2344 20.9531 23.1094 20.125 Q24 19.2812 24 18 L24 6 Q24 4.7188 23.1094 3.8438 Q22.2344 2.9531 20.9531 2.9531 L3.0469 2.9531 ZM13.6875 12.2344 Q13.9219 12 14.2344 12 Q14.5625 12 14.7969 12.2344 L17.2812 14.7188 L19.6875 12.2344 Q19.9219 12 20.2344 12 Q20.5625 12 20.7969 12.2031 Q21.0469 12.4062 21.0469 12.7344 Q21.0469 13.0469 20.7969 13.2812 L17.7656 16.3125 Q17.5938 16.4844 17.2656 16.4844 Q16.9531 16.4844 16.7188 16.3125 L13.6875 13.2812 Q13.5156 13.0469 13.5156 12.7344 Q13.5156 12.4062 13.6875 12.2344 ZM17.2812 7.5156 Q17.5938 7.5156 17.7969 7.7188 Q18 7.9219 18 8.2344 L18 14.2344 Q18 14.5625 17.7969 14.8125 Q17.5938 15.0469 17.2656 15.0469 Q16.9531 15.0469 16.7188 14.8125 Q16.4844 14.5625 16.4844 14.2344 L16.4844 8.2344 Q16.4844 7.9219 16.7188 7.7188 Q16.9531 7.5156 17.2812 7.5156 ZM5.3594 16.4844 L5.3594 10.4844 L5.4375 10.4844 L7.5938 15.3594 L8.7188 15.3594 L10.875 10.4844 L10.9531 10.4844 L10.9531 16.4844 L12.5625 16.4844 L12.5625 7.5156 L10.7188 7.5156 L8.1562 13.3594 L8.1562 13.3594 L5.5938 7.5156 L3.7656 7.5156 L3.7656 16.4844 L5.3594 16.4844 Z");
+
+        //左侧tabpane默认选中上次关闭前tab
+        for(Tab tab:treeviewTabPane.getTabs()){
+            if(((CustomTreeviewTab)tab).getTitle().equals(ConfigManagerUtil.getProperty("DEFAULT_LISTVIEW_TAB"))){
+                treeviewTabPane.getSelectionModel().select(tab);
+                ((CustomTreeviewTab)tab).titleToggle.setSelected(true);
+                break;
+            }
+        }
+    }
+
+    private void initSidebarSearch() {
+        //搜索事件
+        connectSearchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
+            connectSearchTextField.setText(newValue.replace(" ", ""));
+            if(!connectSearchTextField.getText().equals(oldValue.replace(" ", ""))){
+                String searchText=connectSearchTextField.getText();
+                if (!searchText.isEmpty()&&searchText.length()>=2) {
+                    MetadataTreeviewUtil.searchTree(databaseMetaTreeView,searchText,connectSearchButton);
+                }else{
+                    connectSearchButton.setDisable(true);
+                }
+            }
+
+        });
+    }
+
+    private void initMarkdownPanel() {
+        markdownTreeViewVBox.getChildren().add(MarkdownUtil.treeView);
+
+        Label rebuild_index_running_icon=new Label();
+        ImageView loading_icon=new ImageView(new Image("file:images/loading.gif"));
+        loading_icon.setScaleX(0.7);
+        loading_icon.setScaleY(0.7);
+        rebuild_index_running_icon.setGraphic(loading_icon);
+        Tooltip tooltip=new Tooltip("正在重建索引");
+        tooltip.setShowDelay(Duration.millis(100));
+        rebuild_index_running_icon.setTooltip(tooltip);
+        rebuildMarkdownIndexButton_stackpane.getChildren().add(rebuild_index_running_icon);
+        rebuild_index_running_icon.visibleProperty().bind(rebuildMarkdownIndexButton.visibleProperty().not());
+
+        Label sreach_running_label=new Label();
+        ImageView sreach_running_icon=new ImageView(new Image("file:images/loading.gif"));
+        sreach_running_icon.setScaleX(0.7);
+        sreach_running_icon.setScaleY(0.7);
+        sreach_running_label.setGraphic(sreach_running_icon);
+        Tooltip sreach_running_tooltip=new Tooltip("正在搜索");
+        sreach_running_tooltip.setShowDelay(Duration.millis(100));
+        sreach_running_label.setTooltip(tooltip);
+        markdownSearchIconStackPane.getChildren().add(sreach_running_label);
+        sreach_running_label.visibleProperty().bind(markdownSearchButton.visibleProperty().not());
+
+        markdownSearchButton.setOnAction(event -> {
+
+            new Thread(()->{
+                Platform.runLater(()->{
+                    markdownSearchButton.setVisible(false);
                 });
+                MarkdownSearchUtil.performSearch(markdownSearchTextField.getText());
+                Platform.runLater(()->{
+                    markdownSearchButton.setVisible(true);
+                });
+            }).start();
+
+        });
+
+        markdownSearchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
+            if(markdownSearchTextField.getText().isEmpty()){
+                markdownSearchButton.setDisable(true);
             }else{
-                Platform.runLater(() -> {
-                    main_splitpane.setDividerPositions(0);
-                });
+                markdownSearchButton.setDisable(false);
             }
         });
 
+        markdownSearchTextField.setOnKeyPressed(event -> {
+            // 判断按下的是否为 Enter 键（包含普通 Enter 和小键盘 Enter）
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                if(!markdownSearchButton.isDisable()&&markdownSearchButton.isVisible()){
+                    markdownSearchButton.fire();
+                }
+            }
+        });
+    }
 
-        window_title_blank.setOnMouseClicked(event -> {
+    private void initMenuActions() {
+        newSqlFileMenuItem.setOnAction(event -> {
+            TabpaneUtil.addCustomSqlTab(null);});
+    }
+
+    private void initSplitPaneResizeBehavior() {
+        mainSplitPane.widthProperty().addListener((obs, oldVal, newVal) -> {
+            if(Main.sqledit_codearea_is_max==0) {
+                //保留两位小数设置，否则可能因为小数过多而设置不准
+                Platform.runLater(() -> {
+                    mainSplitPane.setDividerPositions(Main.split1Pos);
+                });
+            }else{
+                Platform.runLater(() -> {
+                    mainSplitPane.setDividerPositions(0);
+                });
+            }
+        });
+    }
+
+    private void initWindowControls() {
+        windowTitleBlank.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
-                window_maxsize_button.fire();
+                windowMaximizeButton.fire();
                 // 你可以在这里执行最大化窗口、缩放等操作
             }
         });
 
-        window_title_blank.setOnMousePressed(event -> {
-            Stage stage = (Stage) window_title_blank.getScene().getWindow();
-            window_X = event.getScreenX() - stage.getX();
-            window_Y = event.getScreenY() - stage.getY();
-            window_X_POS=event.getScreenX()/stage.getWidth();
+        windowTitleBlank.setOnMousePressed(event -> {
+            Stage stage = (Stage) windowTitleBlank.getScene().getWindow();
+            windowX = event.getScreenX() - stage.getX();
+            windowY = event.getScreenY() - stage.getY();
+            windowXPos=event.getScreenX()/stage.getWidth();
         });
 
-        window_title_blank.setOnMouseDragged(event -> {
+        windowTitleBlank.setOnMouseDragged(event -> {
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            if(window_max_maximized){
-                window_maxsize_button.fire();
-                stage.setX(event.getScreenX()-stage.getWidth()*window_X_POS);
-                window_X = event.getScreenX() - stage.getX();
-                //window_Y = event.getScreenY() - stage.getY();
+            if(windowMaximized){
+                windowMaximizeButton.fire();
+                stage.setX(event.getScreenX()-stage.getWidth()*windowXPos);
+                windowX = event.getScreenX() - stage.getX();
+                //windowY = event.getScreenY() - stage.getY();
             }
             else {
-                stage.setX(event.getScreenX() - window_X);
-                stage.setY(event.getScreenY() - window_Y);
+                stage.setX(event.getScreenX() - windowX);
+                stage.setY(event.getScreenY() - windowY);
             }
         });
 
         //上下左右隐藏拖动边框事件
-        resize_layer_right.prefHeightProperty().bind(root.heightProperty());
-        resize_layer_right.setOnMouseDragged(event -> {
-            if(!window_max_maximized) {
-                resize_layer_right.setCursor(Cursor.E_RESIZE);
+        resizeLayerRight.prefHeightProperty().bind(root.heightProperty());
+        resizeLayerRight.setOnMouseDragged(event -> {
+            if(!windowMaximized) {
+                resizeLayerRight.setCursor(Cursor.E_RESIZE);
                 Stage stage = (Stage) root.getScene().getWindow();
                 double newWidth = event.getSceneX();
                 if (newWidth > stage.getMinWidth()) {
@@ -323,20 +350,20 @@ public class MainController {
             }
         });
 
-        resize_layer_right.setOnMouseMoved(event -> {
-                    if(!window_max_maximized) {
-                        resize_layer_right.setCursor(Cursor.E_RESIZE);
-                    }
-                });
-
-        resize_layer_right.setOnMouseExited(event -> {
-            resize_layer_right.setCursor(Cursor.DEFAULT);
+        resizeLayerRight.setOnMouseMoved(event -> {
+            if(!windowMaximized) {
+                resizeLayerRight.setCursor(Cursor.E_RESIZE);
+            }
         });
 
-        resize_layer_bottom.prefWidthProperty().bind(root.widthProperty());
-        resize_layer_bottom.setOnMouseDragged(event -> {
-            if(!window_max_maximized) {
-                resize_layer_bottom.setCursor(Cursor.S_RESIZE);
+        resizeLayerRight.setOnMouseExited(event -> {
+            resizeLayerRight.setCursor(Cursor.DEFAULT);
+        });
+
+        resizeLayerBottom.prefWidthProperty().bind(root.widthProperty());
+        resizeLayerBottom.setOnMouseDragged(event -> {
+            if(!windowMaximized) {
+                resizeLayerBottom.setCursor(Cursor.S_RESIZE);
                 Stage stage = (Stage) root.getScene().getWindow();
                 double newHeight = event.getSceneY();
                 //拖动不超过任务栏
@@ -346,20 +373,20 @@ public class MainController {
             }
         });
 
-        resize_layer_bottom.setOnMouseMoved(event -> {
-            if(!window_max_maximized) {
-                resize_layer_bottom.setCursor(Cursor.S_RESIZE);
+        resizeLayerBottom.setOnMouseMoved(event -> {
+            if(!windowMaximized) {
+                resizeLayerBottom.setCursor(Cursor.S_RESIZE);
             }
         });
 
-        resize_layer_bottom.setOnMouseExited(event -> {
-            resize_layer_bottom.setCursor(Cursor.DEFAULT);
+        resizeLayerBottom.setOnMouseExited(event -> {
+            resizeLayerBottom.setCursor(Cursor.DEFAULT);
         });
 
-        resize_layer_left.prefHeightProperty().bind(root.heightProperty());
-        resize_layer_left.setOnMouseDragged(event -> {
-            if(!window_max_maximized) {
-                resize_layer_left.setCursor(Cursor.W_RESIZE);
+        resizeLayerLeft.prefHeightProperty().bind(root.heightProperty());
+        resizeLayerLeft.setOnMouseDragged(event -> {
+            if(!windowMaximized) {
+                resizeLayerLeft.setCursor(Cursor.W_RESIZE);
                 Stage stage = (Stage) root.getScene().getWindow();
                 double deltaX = event.getScreenX() - stage.getX();
                 double newWidth = stage.getWidth() - deltaX; // 新宽度，保持右边界不变
@@ -371,20 +398,20 @@ public class MainController {
             }
         });
 
-        resize_layer_left.setOnMouseMoved(event -> {
-            if(!window_max_maximized) {
-                resize_layer_left.setCursor(Cursor.W_RESIZE);
+        resizeLayerLeft.setOnMouseMoved(event -> {
+            if(!windowMaximized) {
+                resizeLayerLeft.setCursor(Cursor.W_RESIZE);
             }
         });
 
-        resize_layer_left.setOnMouseExited(event -> {
-            resize_layer_left.setCursor(Cursor.DEFAULT);
+        resizeLayerLeft.setOnMouseExited(event -> {
+            resizeLayerLeft.setCursor(Cursor.DEFAULT);
         });
 
-        resize_layer_top.prefWidthProperty().bind(root.widthProperty());
-        resize_layer_top.setOnMouseDragged(event -> {
-            if(!window_max_maximized) {
-                resize_layer_top.setCursor(Cursor.N_RESIZE);
+        resizeLayerTop.prefWidthProperty().bind(root.widthProperty());
+        resizeLayerTop.setOnMouseDragged(event -> {
+            if(!windowMaximized) {
+                resizeLayerTop.setCursor(Cursor.N_RESIZE);
                 Stage stage = (Stage) root.getScene().getWindow();
                 double deltaY = event.getScreenY() - stage.getY();
                 double newHeight = stage.getHeight() - deltaY; // 新宽度，保持右边界不变
@@ -396,19 +423,19 @@ public class MainController {
             }
         });
 
-        resize_layer_top.setOnMouseMoved(event -> {
-            if(!window_max_maximized) {
-                resize_layer_top.setCursor(Cursor.N_RESIZE);
+        resizeLayerTop.setOnMouseMoved(event -> {
+            if(!windowMaximized) {
+                resizeLayerTop.setCursor(Cursor.N_RESIZE);
             }
         });
 
-        resize_layer_top.setOnMouseExited(event -> {
-            resize_layer_top.setCursor(Cursor.DEFAULT);
+        resizeLayerTop.setOnMouseExited(event -> {
+            resizeLayerTop.setCursor(Cursor.DEFAULT);
         });
 
-        resize_layer_bottom_left.setOnMouseDragged(event -> {
-            if(!window_max_maximized) {
-                resize_layer_bottom_left.setCursor(Cursor.SW_RESIZE);
+        resizeLayerBottom_left.setOnMouseDragged(event -> {
+            if(!windowMaximized) {
+                resizeLayerBottom_left.setCursor(Cursor.SW_RESIZE);
                 Stage stage = (Stage) root.getScene().getWindow();
                 double newHeight = event.getSceneY();
                 //拖动不超过任务栏
@@ -425,19 +452,19 @@ public class MainController {
             }
         });
 
-        resize_layer_bottom_left.setOnMouseMoved(event -> {
-            if(!window_max_maximized) {
-                resize_layer_bottom_left.setCursor(Cursor.SW_RESIZE);
+        resizeLayerBottom_left.setOnMouseMoved(event -> {
+            if(!windowMaximized) {
+                resizeLayerBottom_left.setCursor(Cursor.SW_RESIZE);
             }
         });
 
-        resize_layer_bottom_left.setOnMouseExited(event -> {
-            resize_layer_bottom_left.setCursor(Cursor.DEFAULT);
+        resizeLayerBottom_left.setOnMouseExited(event -> {
+            resizeLayerBottom_left.setCursor(Cursor.DEFAULT);
         });
 
-        resize_layer_bottom_right.setOnMouseDragged(event -> {
-            if(!window_max_maximized) {
-                resize_layer_bottom_right.setCursor(Cursor.SE_RESIZE);
+        resizeLayerBottom_right.setOnMouseDragged(event -> {
+            if(!windowMaximized) {
+                resizeLayerBottom_right.setCursor(Cursor.SE_RESIZE);
                 Stage stage = (Stage) root.getScene().getWindow();
                 double newHeight = event.getSceneY();
                 //拖动不超过任务栏
@@ -451,14 +478,14 @@ public class MainController {
             }
         });
 
-        resize_layer_bottom_right.setOnMouseMoved(event -> {
-            if(!window_max_maximized) {
-                resize_layer_bottom_right.setCursor(Cursor.SE_RESIZE);
+        resizeLayerBottom_right.setOnMouseMoved(event -> {
+            if(!windowMaximized) {
+                resizeLayerBottom_right.setCursor(Cursor.SE_RESIZE);
             }
         });
 
-        resize_layer_bottom_right.setOnMouseExited(event -> {
-            resize_layer_bottom_right.setCursor(Cursor.DEFAULT);
+        resizeLayerBottom_right.setOnMouseExited(event -> {
+            resizeLayerBottom_right.setCursor(Cursor.DEFAULT);
         });
 
         //窗口最大化按钮
@@ -477,49 +504,49 @@ public class MainController {
         window_maxsize_button_recover.setScaleX(0.4);
         window_maxsize_button_recover.setScaleY(0.4);
         window_maxsize_button_recover.setFill(Color.valueOf("#000"));
-        window_maxsize_button.setGraphic(new Group(window_maxsize_button_recover));
-        window_minsize_button.setGraphic(new Group(window_minsize_button_icon));
-        window_minsize_button.setOnAction(event->{
+        windowMaximizeButton.setGraphic(new Group(window_maxsize_button_recover));
+        windowMinimizeButton.setGraphic(new Group(window_minsize_button_icon));
+        windowMinimizeButton.setOnAction(event->{
             Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             primaryStage.setIconified(true);
         });
-        window_maxsize_button.setOnAction(event -> {
+        windowMaximizeButton.setOnAction(event -> {
             Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            if (window_max_maximized) {
+            if (windowMaximized) {
                 // 还原
 
-                    window_maxsize_button.setGraphic(new Group(window_maxsize_button_max));
-                    primaryStage.setX(window_max_prevX);
-                    primaryStage.setY(window_max_prevY);
-                    primaryStage.setWidth(window_max_prevWidth);
-                    primaryStage.setHeight(window_max_prevHeight);
+                windowMaximizeButton.setGraphic(new Group(window_maxsize_button_max));
+                primaryStage.setX(windowMaxPrevX);
+                primaryStage.setY(windowMaxPrevY);
+                primaryStage.setWidth(windowMaxPrevWidth);
+                primaryStage.setHeight(windowMaxPrevHeight);
 
             } else {
                 // 记录原始位置和大小
 
-                    window_maxsize_button.setGraphic(new Group(window_maxsize_button_recover));
+                windowMaximizeButton.setGraphic(new Group(window_maxsize_button_recover));
 
-                    window_max_prevX = primaryStage.getX();
-                    window_max_prevY = primaryStage.getY();
-                    window_max_prevWidth = primaryStage.getWidth();
-                    window_max_prevHeight = primaryStage.getHeight();
+                windowMaxPrevX = primaryStage.getX();
+                windowMaxPrevY = primaryStage.getY();
+                windowMaxPrevWidth = primaryStage.getWidth();
+                windowMaxPrevHeight = primaryStage.getHeight();
 
-                    // 最大化为屏幕尺寸
-                    primaryStage.setX(0);
-                    primaryStage.setY(0);
-                    primaryStage.setWidth(Screen.getPrimary().getVisualBounds().getWidth());
-                    primaryStage.setHeight(Screen.getPrimary().getVisualBounds().getHeight());
+                // 最大化为屏幕尺寸
+                primaryStage.setX(0);
+                primaryStage.setY(0);
+                primaryStage.setWidth(Screen.getPrimary().getVisualBounds().getWidth());
+                primaryStage.setHeight(Screen.getPrimary().getVisualBounds().getHeight());
 
             }
-            window_max_maximized = !window_max_maximized;
+            windowMaximized = !windowMaximized;
         });
 
         //窗口关闭按钮
 
-        window_close_button.setOnAction(event->{
+        windowCloseButton.setOnAction(event->{
             Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             Boolean sureToclosed=true;
-            for (Tab tab : sql_tabpane.getTabs()) {
+            for (Tab tab : sqlTabPane.getTabs()) {
                 if (tab.getText().startsWith("*")) {
                     if(!AlterUtil.CustomAlertConfirm("提示","部分打开的SQL文件未保存，确定要关闭软件吗？")){
                         sureToclosed=false;
@@ -543,58 +570,51 @@ public class MainController {
                 log.info("dbboys已关闭。");
             }
         });
+    }
 
-
-
-        Main.loadProgressBar.setProgress(0.2);
-
-
+    private void initTreeView() {
         //连接列表上面的连接管理面板结束
 
         //设置树根节点
         // 初始化显示连接树
         try {
-            MetadataTreeviewUtil.initDatabaseObjectsTreeview(databasemeta_treeview);
+            MetadataTreeviewUtil.initDatabaseObjectsTreeview(databaseMetaTreeView);
         }catch (Exception e){
         }
+    }
 
-        Main.loadProgressBar.setProgress(0.4);
-
-
+    private void initStatusBar() {
         //状态栏
-        snapshot_root_button.setOnAction(event->{
+        snapshotRootButton.setOnAction(event->{
             SnapshotUtil.snapshotRoot();
 
         });
 
-
-        status_backsqlStopButton.setOnAction(event->{
+        statusBackSqlStopButton.setOnAction(event->{
             Iterator<BackSqlTask> iterator = MetadataTreeviewUtil.backSqlService.backSqlTask.iterator();
             while (iterator.hasNext()) {
                 BackSqlTask bgsql = iterator.next();
                 bgsql.cancel();
             }
 
-            NotificationUtil.showNotification(notice_pane,"后台任务已全部取消！");
+            NotificationUtil.showNotification(noticePane,"后台任务已全部取消！");
 
         });
-        Main.loadProgressBar.setProgress(0.6);
 
-        status_backsql_list_button.setOnAction(event->{
+        statusBackSqlListButton.setOnAction(event->{
             PopupWindowUtil.openSqlTaskPopupWindow();
         });
-        status_backsql_list_button.disableProperty().bind(status_backsqlStopButton.disableProperty());
+        statusBackSqlListButton.disableProperty().bind(statusBackSqlStopButton.disableProperty());
 
-        status_backsql_progress.visibleProperty().bind(status_backsqlStopButton.disableProperty().not());
+        statusBackSqlProgress.visibleProperty().bind(statusBackSqlStopButton.disableProperty().not());
+    }
 
+    private void initBackgroundTasks() {
         //清理sql历史记录保留1000行
         new Thread( () -> { SqliteDBaccessUtil.deleteSqlHistory();} ).start();
         //运行一次搜索，避免首次搜索慢
         new Thread( () -> { MarkdownSearchUtil.warmUpIndex();}).start();
-        Main.loadProgressBar.setProgress(1);
-
     }
-    //初始化界面完成
 
     //初始化数据库，响应恢复出厂设置
     public void initDB() {
@@ -630,13 +650,13 @@ public class MainController {
     //文件-新建连接分类响应函数
 
     public void createConnectFolder() {
-        MetadataTreeviewUtil.createConnectFolder(databasemeta_treeview);
+        MetadataTreeviewUtil.createConnectFolder(databaseMetaTreeView);
     }
 
 
     //文件-断开所有连接响应函数
     public void disconnectAll() {
-        for (TreeItem<TreeData> ti : Main.mainController.databasemeta_treeview.getRoot().getChildren()) {
+        for (TreeItem<TreeData> ti : Main.mainController.databaseMetaTreeView.getRoot().getChildren()) {
             MetadataTreeviewUtil.disconnectFolder(ti);
         }
     };
@@ -645,14 +665,14 @@ public class MainController {
     public void openSqlFile(){
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("选择SQL文件");
-        File selectedFile = fileChooser.showOpenDialog(window_close_button.getScene().getWindow());
+        File selectedFile = fileChooser.showOpenDialog(windowCloseButton.getScene().getWindow());
         if (selectedFile != null) {
             String tabName = selectedFile.getName();
             Boolean isOpened = false;
-            for (Tab tab : sql_tabpane.getTabs()) {
+            for (Tab tab : sqlTabPane.getTabs()) {
                 if (((CustomSqlTab) tab).sql_file_path.equals(selectedFile.getAbsolutePath())) {
                     isOpened = true;
-                    sql_tabpane.getSelectionModel().select(tab);
+                    sqlTabPane.getSelectionModel().select(tab);
                     break;
                 }
             }
@@ -660,8 +680,8 @@ public class MainController {
                 CustomSqlTab newtab = new CustomSqlTab(tabName);
                 newtab.sql_file_path=selectedFile.getAbsolutePath();
                 newtab.openSqlFile();
-                sql_tabpane.getTabs().add(newtab);
-                sql_tabpane.getSelectionModel().select(newtab);
+                sqlTabPane.getTabs().add(newtab);
+                sqlTabPane.getSelectionModel().select(newtab);
             }
         }
     }
@@ -680,4 +700,6 @@ public class MainController {
 
 
 }
+
+
 

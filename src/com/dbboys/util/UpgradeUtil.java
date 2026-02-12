@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.MainController;
@@ -94,7 +94,7 @@ public class UpgradeUtil {
                 }
             }else{
 
-                NotificationUtil.showNotification(Main.mainController.notice_pane,"当前已是最新版本，无需更新！");
+                NotificationUtil.showNotification(Main.mainController.noticePane,"当前已是最新版本，无需更新！");
             }
 
         } catch (Exception e) {
@@ -161,3 +161,4 @@ public class UpgradeUtil {
         ConfigManagerUtil.setProperty("SPLIT_DRIVER_SQL","0.6");
     }
 }
+

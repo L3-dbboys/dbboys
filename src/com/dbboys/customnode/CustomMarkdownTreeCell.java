@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.util.AlterUtil;
@@ -96,7 +96,7 @@ public class CustomMarkdownTreeCell extends TreeCell<Markdown> {
                     }catch (Exception e){
                         log.error(e.getMessage(), e);
                     }
-                    //NotificationUtil.showNotification(Main.mainController.notice_pane, "不支持Markdown以外的文件格式编辑！");
+                    //NotificationUtil.showNotification(Main.mainController.noticePane, "不支持Markdown以外的文件格式编辑！");
                 }
             }
         }
@@ -397,3 +397,4 @@ public class CustomMarkdownTreeCell extends TreeCell<Markdown> {
         return g;
     }
 }
+

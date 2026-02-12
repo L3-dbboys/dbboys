@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.util.AlterUtil;
@@ -247,7 +247,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                     ClipboardContent content = new ClipboardContent();
                                     content.putString(url);
                                     clipboard.setContent(content);
-                                    NotificationUtil.showNotification(Main.mainController.notice_pane, "链接已复制！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, "链接已复制！");
                                 });
                             }
                             ContextMenu linkContextMenu = new ContextMenu();
@@ -288,7 +288,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                     } else if (saveFileTemp.exists()) {
                                         AlterUtil.CustomAlert("错误", "该文件正在下载，请勿重复下载！");
                                     } else {
-                                        NotificationUtil.showNotification(Main.mainController.notice_pane, "文件将下载到桌面！");
+                                        NotificationUtil.showNotification(Main.mainController.noticePane, "文件将下载到桌面！");
                                         DownloadManagerUtil.addDownload(url, saveFile, true, null);
                                     }
 
@@ -346,7 +346,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                         textArea.setText(e.getLeft());
                         textArea.prefWidthProperty().bind(
                                 //Bindings.subtract(customGenericStyledArea.widthProperty(), 27)
-                                Bindings.subtract(Main.mainController.sql_tabpane.widthProperty(), 37)
+                                Bindings.subtract(Main.mainController.sqlTabPane.widthProperty(), 37)
                         );
 
                         textArea.focusedProperty().addListener((obs, oldFocus, newFocus) -> {
@@ -369,7 +369,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                 ClipboardContent content = new ClipboardContent();
                                 content.putString(textArea.getText());
                                 clipboard.setContent(content);
-                                NotificationUtil.showNotification(Main.mainController.notice_pane, "代码块已复制！");
+                                NotificationUtil.showNotification(Main.mainController.noticePane, "代码块已复制！");
                             }
                         });
 
@@ -395,7 +395,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                             customUserTextField.setText(e.getLeft());
                             customUserTextField.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;-fx-background-color:none;-fx-border-width: 0;-fx-effect:none");
                             customUserTextField.prefWidthProperty().bind(
-                                    Bindings.subtract(Main.mainController.sql_tabpane.widthProperty(), 36)
+                                    Bindings.subtract(Main.mainController.sqlTabPane.widthProperty(), 36)
                             );
                             customUserTextField.focusedProperty().addListener((obs, oldFocus, newFocus) -> {
                                 if (!newFocus) {
@@ -416,7 +416,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                     ClipboardContent content = new ClipboardContent();
                                     content.putString(customUserTextField.getText());
                                     clipboard.setContent(content);
-                                    NotificationUtil.showNotification(Main.mainController.notice_pane, "标题已复制！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, "标题已复制！");
                                 }
                             });
 
@@ -738,7 +738,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                                 targetFile.toPath(),
                                                 StandardCopyOption.REPLACE_EXISTING // 覆盖选项
                                         );
-                                        NotificationUtil.showNotification(Main.mainController.notice_pane, "图片已保存！");
+                                        NotificationUtil.showNotification(Main.mainController.noticePane, "图片已保存！");
                                     } catch (IOException e) {
                                         e.printStackTrace();
                                     }
@@ -752,7 +752,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
                                     // 复制到剪贴板
                                     clipboard.setContent(content);
-                                    NotificationUtil.showNotification(Main.mainController.notice_pane, "图片已复制到剪切板！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, "图片已复制到剪切板！");
 
                                 });
                                 imageContextMenu.show(pane, event.getScreenX(), event.getScreenY());
@@ -955,7 +955,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         CustomResultsetTableView tableView = new CustomResultsetTableView();
         tableView.setStyle("-fx-border-color: #dddddd; -fx-border-width: 1px;");
         tableView.prefWidthProperty().bind(widthProperty().subtract(20)); // 自适应宽度
-        //tableView.prefWidthProperty().bind(Main.mainController.sql_tabpane.widthProperty().subtract(20)); // 自适应宽度
+        //tableView.prefWidthProperty().bind(Main.mainController.sqlTabPane.widthProperty().subtract(20)); // 自适应宽度
 
         // 获取表头行（第一行）
         List<String> headers = tableRows.get(0);
@@ -1042,3 +1042,4 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
 
 }
+

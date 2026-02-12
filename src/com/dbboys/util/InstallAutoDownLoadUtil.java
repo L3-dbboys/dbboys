@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomPasswordField;
@@ -254,7 +254,7 @@ class InstallDownloadTaskWrapper {
                                 }
                                 InstallAutoDownLoadUtil.installFilePathField.setText(file.getAbsolutePath());
                                 InstallAutoDownLoadUtil.remotePathField.setText("/tmp/"+file.getName());
-                                NotificationUtil.showNotification(Main.mainController.notice_pane, "下载已完成！");
+                                NotificationUtil.showNotification(Main.mainController.noticePane, "下载已完成！");
                                 //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                                 if (autoCloseOnComplete) stackPaneRemoveSelf();
                             });
@@ -338,7 +338,7 @@ class InstallDownloadTaskWrapper {
                     updateProgress(1,1);
                     Platform.runLater(() -> {
 
-                        NotificationUtil.showNotification(Main.mainController.notice_pane, "导出已完成！");
+                        NotificationUtil.showNotification(Main.mainController.noticePane, "导出已完成！");
                         //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                         if (autoCloseOnComplete) stackPaneRemoveSelf();
                     });
@@ -402,12 +402,12 @@ class InstallDownloadTaskWrapper {
                 stackPaneRemoveSelf();
                 if(param instanceof String) {
                     NotificationUtil.showNotification(
-                            Main.mainController.notice_pane,
+                            Main.mainController.noticePane,
                             // success ? "文件【" + file.getName() + "】下载已取消！" :
                             success ? "下载已取消！" :"文件【" + file.getName() + "】删除失败，可能被占用！"
                     );
                 }else{
-                    NotificationUtil.showNotification(Main.mainController.notice_pane,"导出已取消！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane,"导出已取消！");
                 }
             });
         }).start();
@@ -517,3 +517,4 @@ public class InstallAutoDownLoadUtil {
     }
 
 }
+

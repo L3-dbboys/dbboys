@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import javafx.application.Platform;
@@ -421,7 +421,7 @@ public class MarkdownSearchUtil {
     public static void buildIndex() {
         new Thread(() -> {
             Platform.runLater(()->{
-                Main.mainController.rebuild_markdown_index_button.setVisible(false);
+                Main.mainController.rebuildMarkdownIndexButton.setVisible(false);
             });
         try {
             if (Files.exists(indexDir)) {
@@ -438,14 +438,14 @@ public class MarkdownSearchUtil {
             LuceneIndexer indexer = new LuceneIndexer(indexDir);
             indexer.buildIndex(Paths.get("docs"));
             Platform.runLater(()->{
-            NotificationUtil.showNotification(Main.mainController.notice_pane,"索引重建完成！");
+            NotificationUtil.showNotification(Main.mainController.noticePane,"索引重建完成！");
                 Platform.runLater(()->{
-                    Main.mainController.rebuild_markdown_index_button.setVisible(true);
+                    Main.mainController.rebuildMarkdownIndexButton.setVisible(true);
                 });
             });
         } catch (Exception e) {
             Platform.runLater(()-> {
-                        Main.mainController.rebuild_markdown_index_button.setVisible(true);
+                        Main.mainController.rebuildMarkdownIndexButton.setVisible(true);
                         AlterUtil.CustomAlert("错误", "索引建立失败：" + e.getMessage());
                     });
             e.printStackTrace();
@@ -508,7 +508,7 @@ public class MarkdownSearchUtil {
                             mainStage.getY() + 56);
                 }else{
                     search_result_popup.hide();
-                    NotificationUtil.showNotification(Main.mainController.notice_pane, "搜索没有匹配项！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane, "搜索没有匹配项！");
                 }
 
                 DropShadow shadow = new DropShadow();
@@ -550,3 +550,4 @@ public class MarkdownSearchUtil {
 
 
 }
+

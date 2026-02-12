@@ -382,7 +382,7 @@ public class MetadataTreeviewUtil {
             ClipboardContent content = new ClipboardContent();
             content.putString(selectedItem.getValue().getName());
             clipboard.setContent(content);
-            //NotificationUtil.showNotification(Main.mainController.notice_pane, "对象名称已复制");
+            //NotificationUtil.showNotification(Main.mainController.noticePane, "对象名称已复制");
         });
         packageDDLItem.setOnAction(event-> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
@@ -1282,7 +1282,7 @@ public class MetadataTreeviewUtil {
             treeItem.expandedProperty().addListener((obs, wasExpanded, isNowExpanded) -> {
                 if (isNowExpanded&& treeItem.getChildren().isEmpty()){
 
-                    Main.mainController.databasemeta_treeview.getSelectionModel().select(treeItem);//避免只点击箭头但连接中断，没有选中的节点不报连接中断错误
+                    Main.mainController.databaseMetaTreeView.getSelectionModel().select(treeItem);//避免只点击箭头但连接中断，没有选中的节点不报连接中断错误
                     treeItemAddChildrens(treeItem);
                 };
             });
@@ -1462,7 +1462,7 @@ public class MetadataTreeviewUtil {
                     reorderTreeview(treeView, selectedItem);
                 }
                 SqliteDBaccessUtil.updateConnectFolder((ConnectFolder) treeData);
-                NotificationUtil.showNotification(Main.mainController.notice_pane, "分类已重命名为：" + selectedItem.getValue().getName());
+                NotificationUtil.showNotification(Main.mainController.noticePane, "分类已重命名为：" + selectedItem.getValue().getName());
             }else if(selectedItem.getValue() instanceof Connect){
                 selectedItem.getValue().setName(textField.getText());
                 //connect_list_treeview.refresh();
@@ -1471,7 +1471,7 @@ public class MetadataTreeviewUtil {
                 }
                 SqliteDBaccessUtil.updateConnect((Connect) selectedItem.getValue());
                 TabpaneUtil.isRefreshConnectList();
-                NotificationUtil.showNotification(Main.mainController.notice_pane, "连接已重命名为："+selectedItem.getValue().getName());
+                NotificationUtil.showNotification(Main.mainController.noticePane, "连接已重命名为："+selectedItem.getValue().getName());
             }else if(selectedItem.getValue() instanceof Database){
                 backSqlService.executeBackgroundSql(selectedItem, "rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Table){
@@ -1505,12 +1505,12 @@ public class MetadataTreeviewUtil {
                     disconnectFolder(selectedItem);
                     selectedItem.getParent().getChildren().remove(selectedItem);
                     SqliteDBaccessUtil.deleteConnectFolder((ConnectFolder) selectedItem.getValue());
-                    NotificationUtil.showNotification(Main.mainController.notice_pane, "数据库连接分类\""+selectedItem.getValue().getName()+"\"已删除！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane, "数据库连接分类\""+selectedItem.getValue().getName()+"\"已删除！");
                 }
             } else {
                 SqliteDBaccessUtil.deleteConnectFolder((ConnectFolder)selectedItem.getValue());
                 selectedItem.getParent().getChildren().remove(selectedItem);
-                NotificationUtil.showNotification(Main.mainController.notice_pane, "数据库连接分类\""+selectedItem.getValue().getName()+"\"已删除！");
+                NotificationUtil.showNotification(Main.mainController.noticePane, "数据库连接分类\""+selectedItem.getValue().getName()+"\"已删除！");
             }
 
         }else if(selectedItem.getValue() instanceof Connect){
@@ -1528,7 +1528,7 @@ public class MetadataTreeviewUtil {
                 SqliteDBaccessUtil.deleteConnectLeaf(connect);
                 selectedItem.getParent().getChildren().remove(selectedItem);
                 TabpaneUtil.isRefreshConnectList();
-                NotificationUtil.showNotification(Main.mainController.notice_pane, "数据库连接\""+selectedItem.getValue().getName()+"\"已删除！");
+                NotificationUtil.showNotification(Main.mainController.noticePane, "数据库连接\""+selectedItem.getValue().getName()+"\"已删除！");
             }
         }else if(selectedItem.getValue() instanceof Database){
             backSqlService.executeBackgroundSql(selectedItem,"drop database "+selectedItem.getValue().getName(),null);
@@ -1699,7 +1699,7 @@ public class MetadataTreeviewUtil {
 
                             if(objectList.getInfo()==null){
                                 Platform.runLater(() -> {
-                                    NotificationUtil.showNotification(Main.mainController.notice_pane, "未找到当前数据库，数据库已被删除！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, "未找到当前数据库，数据库已被删除！");
                                     treeItem.getParent().getChildren().remove(treeItem);
                                 });
                             }else {
@@ -2176,7 +2176,7 @@ public class MetadataTreeviewUtil {
     }
 
     public static void connectionDisconnected(){
-        TreeItem<TreeData> treeItem=getMetaConnTreeItem(Main.mainController.databasemeta_treeview.getSelectionModel().getSelectedItem());
+        TreeItem<TreeData> treeItem=getMetaConnTreeItem(Main.mainController.databaseMetaTreeView.getSelectionModel().getSelectedItem());
         try {
             ((Connect)treeItem.getValue()).getConn().close();
         } catch (SQLException e) {
@@ -2280,7 +2280,7 @@ public class MetadataTreeviewUtil {
             //关闭主连接
             if(connect.getConn()!=null&&!connect.getConn().isClosed()) {
                 connect.getConn().close();
-                for(Tab tab :Main.mainController.sql_tabpane.getTabs()){
+                for(Tab tab :Main.mainController.sqlTabPane.getTabs()){
                     if(tab instanceof CustomSqlTab) {
                         if (selectedItem.getValue().getName().equals(((CustomSqlTab) tab).sqlTabController.sqlConnect.getName())) {
                             ((CustomSqlTab) tab).sqlTabController.closeConn();
@@ -2290,14 +2290,14 @@ public class MetadataTreeviewUtil {
                 }
             }
             CustomInstanceTab needToRemove=null;
-            for(Tab tab :Main.mainController.sql_tabpane.getTabs()) {
+            for(Tab tab :Main.mainController.sqlTabPane.getTabs()) {
                 if (tab instanceof CustomInstanceTab) {
                     if (("[instance check]"+selectedItem.getValue().getName()).equals( ((CustomInstanceTab) tab).getTitle())) {
                         needToRemove=(CustomInstanceTab)tab;
                     }
                 }
             }
-            if(needToRemove!=null)Main.mainController.sql_tabpane.getTabs().remove(needToRemove);
+            if(needToRemove!=null)Main.mainController.sqlTabPane.getTabs().remove(needToRemove);
         } catch (SQLException e) {
             GlobalErrorHandlerUtil.handle(e);
             //new CustomAlert("错误",e.toString());
@@ -2358,7 +2358,7 @@ public class MetadataTreeviewUtil {
 
         // 处理搜索结果
         if (searchResults.isEmpty()) {
-            NotificationUtil.showNotification(Main.mainController.notice_pane,"未搜索到匹配项，请确保需查找的对象已加载！");
+            NotificationUtil.showNotification(Main.mainController.noticePane,"未搜索到匹配项，请确保需查找的对象已加载！");
         } else {
             findNext(treeView);
             // 更新按钮状态
@@ -2389,9 +2389,9 @@ public class MetadataTreeviewUtil {
         // 如果是最后一个，提示用户下一次将从头开始
         if (currentIndex == searchResults.size() - 1) {
             if(currentIndex==0){
-                NotificationUtil.showNotification(Main.mainController.notice_pane,"仅匹配当前一个！");
+                NotificationUtil.showNotification(Main.mainController.noticePane,"仅匹配当前一个！");
             }else{
-                NotificationUtil.showNotification(Main.mainController.notice_pane,"搜索已到最后，下一个从头开始搜索！");
+                NotificationUtil.showNotification(Main.mainController.noticePane,"搜索已到最后，下一个从头开始搜索！");
             }
         }
     }
@@ -2425,21 +2425,21 @@ public class MetadataTreeviewUtil {
     }
 
     //弹出创建连接对话框
-    public static void showCreateConnectDialog(TreeData treedataPram,Boolean isCopy)  {
+    public static void showCreateConnectDialog(TreeData treeDataParam,Boolean isCopy)  {
         try {
             FXMLLoader loader = new FXMLLoader(CreateConnectController.class.getResource("/com/dbboys/fxml/CreateConnect.fxml"));
             DialogPane dialogPane = loader.load();
             CreateConnectController controller = loader.getController();
             Dialog<ButtonType> dialog = new Dialog<>();
-            controller.init(treedataPram, isCopy,dialog);
+            controller.init(treeDataParam, isCopy,dialog);
             dialog.setDialogPane(dialogPane);
             dialog.setTitle("新建/编辑/复制数据库连接");
             Stage alterstage = (Stage) dialog.getDialogPane().getScene().getWindow();
             alterstage.getIcons().add(new Image("file:images/logo.png"));
             dialogPane.getScene().getStylesheets().add(MetadataTreeviewUtil.class.getResource("/com/dbboys/css/app.css").toExternalForm());
-            TextField connectname_textfield = (TextField) loader.getNamespace().get("connectname_textfield");
+            TextField connectNameTextField = (TextField) loader.getNamespace().get("connectNameTextField");
             dialogPane.getScene().getWindow().setOnShown(event -> {
-                connectname_textfield.requestFocus();
+                connectNameTextField.requestFocus();
             });
             dialog.setOnCloseRequest(e -> {
                 dialog.close();
@@ -2451,5 +2451,6 @@ public class MetadataTreeviewUtil {
 
     }
 }
+
 
 

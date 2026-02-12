@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -61,12 +61,12 @@ public class CustomTreeviewTab extends Tab {
                     }
                 }
                 if(Main.mainController!=null){
-                    Main.mainController.main_splitpane.setDividerPositions(Main.split1Pos);
+                    Main.mainController.mainSplitPane.setDividerPositions(Main.split1Pos);
                     Main.sqledit_codearea_is_max=0;
                 }
 
             } else {
-                Main.mainController.main_splitpane.setDividerPositions(0);
+                Main.mainController.mainSplitPane.setDividerPositions(0);
                 Main.sqledit_codearea_is_max=1;
                 Platform.runLater(() -> {
                 titleToggleIcon.setFill(Color.valueOf("#ddd"));
@@ -138,10 +138,10 @@ public class CustomTreeviewTab extends Tab {
         titleLabel.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
                 if(Main.sqledit_codearea_is_max==1){
-                    Main.mainController.main_splitpane.setDividerPositions(Main.split1Pos);
+                    Main.mainController.mainSplitPane.setDividerPositions(Main.split1Pos);
                     Main.sqledit_codearea_is_max=0;
                 }else{
-                    Main.mainController.main_splitpane.setDividerPositions(0);
+                    Main.mainController.mainSplitPane.setDividerPositions(0);
                     Main.sqledit_codearea_is_max=1;
                 }
             }
@@ -161,3 +161,4 @@ public class CustomTreeviewTab extends Tab {
     }
 
 }
+

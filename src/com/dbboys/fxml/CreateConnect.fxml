@@ -29,7 +29,7 @@
                         </Group>
                     </graphic>
                 </Label>
-                <CustomUserTextField fx:id="connectname_textfield" promptText="可选输入，默认[IP_端口]，不能有空格" prefWidth="315"></CustomUserTextField>
+                <CustomUserTextField fx:id="connectNameTextField" promptText="可选输入，默认[IP_端口]，不能有空格" prefWidth="315"></CustomUserTextField>
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label text="连接分类" prefWidth="100">
@@ -39,7 +39,7 @@
                         </Group>
                     </graphic>
                 </Label>
-                <ChoiceBox fx:id="connectfolder_choicebox" focusTraversable="false">
+                <ChoiceBox fx:id="connectFolderChoiceBox" focusTraversable="false">
                 </ChoiceBox>
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
@@ -50,7 +50,7 @@
                         </Group>
                     </graphic>
                 </Label>
-                <ChoiceBox fx:id="dbtype_choicebox" focusTraversable="false">
+                <ChoiceBox fx:id="dbTypeChoiceBox" focusTraversable="false">
                 </ChoiceBox>
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
@@ -61,10 +61,10 @@
                         </Group>
                     </graphic>
                 </Label>
-                <ChoiceBox fx:id="driver_choicebox" focusTraversable="false">
+                <ChoiceBox fx:id="driverChoiceBox" focusTraversable="false">
                 </ChoiceBox>
                 <Label text=" "></Label>
-                <Button fx:id="adddriver_button" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#addDriverCliecked" styleClass="custom-button-with-radius">
+                <Button fx:id="addDriverButton" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#addDriverClicked" styleClass="custom-button-with-radius">
                     <tooltip>
                         <Tooltip text="增加驱动"/>
                     </tooltip>
@@ -75,7 +75,7 @@
                     </graphic>
                 </Button>
                 <Label text=" "></Label>
-                <Button fx:id="deletedriver_button" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#deleteDriverCliecked" styleClass="custom-button-with-radius">
+                <Button fx:id="deleteDriverButton" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#deleteDriverClicked" styleClass="custom-button-with-radius">
                     <tooltip>
                         <Tooltip text="删除当前驱动"/>
                     </tooltip>
@@ -86,7 +86,7 @@
                     </graphic>
                 </Button>
                 <Label text=" "></Label>
-                <Button fx:id="modifydriver_button" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#modifyDriverProps" styleClass="custom-button-with-radius">
+                <Button fx:id="modifyDriverButton" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#modifyDriverProps" styleClass="custom-button-with-radius">
                     <tooltip>
                         <Tooltip text="编辑连接属性"/>
                     </tooltip>
@@ -106,7 +106,7 @@
                             </Group>
                         </graphic>
                     </Label>
-                    <CustomUserTextField fx:id="ipaddr_textfield" promptText="数据库IP地址或域名" prefWidth="200"></CustomUserTextField>
+                    <CustomUserTextField fx:id="ipAddressTextField" promptText="数据库IP地址或域名" prefWidth="200"></CustomUserTextField>
                     <Label text="" prefWidth="10"></Label>
                     <Label text="端口 ">
                         <graphic>
@@ -115,7 +115,7 @@
                             </Group>
                         </graphic>
                     </Label>
-                    <CustomUserTextField fx:id="port_textfield" promptText="数字" prefWidth="48"></CustomUserTextField>
+                    <CustomUserTextField fx:id="portTextField" promptText="数字" prefWidth="48"></CustomUserTextField>
                 </HBox>
                 <HBox fx:id="groupHbox" prefHeight="30" alignment="CENTER_LEFT" style="-fx-background-color: #f5f5f5" visible="false">
                     <Label text="数据库组名" prefWidth="100">
@@ -125,9 +125,9 @@
                             </Group>
                         </graphic>
                     </Label>
-                    <CustomUserTextField fx:id="group_textfield" text="db_group" promptText="数据库组名" prefWidth="200"></CustomUserTextField>
+                    <CustomUserTextField fx:id="groupTextField" text="db_group" promptText="数据库组名" prefWidth="200"></CustomUserTextField>
                     <Label text=" "></Label>
-                    <Button fx:id="modifygroup_button" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#modifyGroupProps" styleClass="custom-button-with-radius">
+                    <Button fx:id="modifyGroupButton" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#modifyGroupProps" styleClass="custom-button-with-radius">
                     <tooltip>
                         <Tooltip text="编辑组实例信息"/>
                     </tooltip>
@@ -150,7 +150,7 @@
                 </Button>
                 
             </StackPane>
-            <HBox alignment="CENTER_LEFT" fx:id="instanceHbox">
+            <HBox alignment="CENTER_LEFT" fx:id="instanceHBox">
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label text="数据库用户名" prefWidth="100">
@@ -160,7 +160,7 @@
                         </Group>
                     </graphic>
                 </Label>
-                <CustomUserTextField fx:id="username_textfield" promptText="此处输入数据库用户名" prefWidth="200"></CustomUserTextField>
+                <CustomUserTextField fx:id="usernameTextField" promptText="此处输入数据库用户名" prefWidth="200"></CustomUserTextField>
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label text="数据库密码" prefWidth="100">
@@ -170,9 +170,9 @@
                         </Group>
                     </graphic>
                 </Label>
-                <CustomPasswordField fx:id="passwd_textfield" promptText="此处输入数据库密码" prefWidth="200"></CustomPasswordField>
+                <CustomPasswordField fx:id="passwordTextField" promptText="此处输入数据库密码" prefWidth="200"></CustomPasswordField>
                 <Label text="  "></Label>
-                <CheckBox fx:id="readonly_checkbox" text="仅查询">
+                <CheckBox fx:id="readOnlyCheckBox" text="仅查询">
                     <graphic>
                         <Group>
                             <SVGPath content="M17 9.0078 L17 7.0078 Q17 5.9609 16.625 5.0391 Q16.2188 4.1328 15.5469 3.4609 Q14.8906 2.7734 13.9688 2.3984 Q13.0625 1.9922 12 1.9922 Q10.9531 1.9922 10.0312 2.3984 Q9.125 2.7734 8.4531 3.4609 Q7.7812 4.1328 7.3906 5.0391 Q7.0156 5.9609 7.0156 7.0078 L7.0156 9.0078 Q5.7188 9.0078 4.8594 9.8828 Q4.0156 10.7422 4.0156 12.0078 L4.0156 19.0078 Q4.0156 20.2734 4.8594 21.1484 Q5.7188 22.0078 7.0156 22.0078 L17 22.0078 Q18.2812 22.0078 19.1406 21.1484 Q20 20.2734 20 19.0078 L20 12.0078 Q20 10.7422 19.1406 9.8828 Q18.2812 9.0078 17 9.0078 L17 9.0078 ZM9 7.0078 Q9 5.7266 9.8594 4.8672 Q10.7344 4.0078 12 4.0078 Q13.2656 4.0078 14.125 4.8672 Q15 5.7266 15 7.0078 L15 9.0078 L9 9.0078 L9 7.0078 L9 7.0078 ZM13.1094 15.4922 Q13.1094 15.4922 13.0625 15.5547 Q13.0156 15.6172 13.0156 15.6172 L13.0156 16.9922 Q13.0156 17.4609 12.7344 17.7422 Q12.4531 18.0078 12 18.0078 Q11.5625 18.0078 11.2812 17.7422 Q11 17.4609 11 16.9922 L11 15.6172 Q10.5469 15.1484 10.5 14.5547 Q10.4531 13.9453 10.9062 13.5078 Q11.3438 13.0547 11.9375 13.0078 Q12.5469 12.9609 13.0156 13.4141 Q13.4531 13.7891 13.5 14.4297 Q13.5469 15.0547 13.1094 15.4922 L13.1094 15.4922 Z" fill="#888" scaleX="0.5" scaleY="0.5"/>
@@ -181,7 +181,7 @@
                 </CheckBox>
             </HBox>
         </VBox>
-            <HBox fx:id="connecting_hbox" alignment="CENTER" style="-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;" visible="false">
+            <HBox fx:id="connectingHBox" alignment="CENTER" style="-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;" visible="false">
                 <HBox maxWidth="100" maxHeight="15" style="-fx-background-color: white;-fx-background-radius: 2;-fx-padding: 0 0 0 5" alignment="CENTER">
                 <ImageView fitHeight="12" fitWidth="12">
                     <image>
@@ -189,7 +189,7 @@
                     </image>
                 </ImageView>
                     <Label text=" 正在连接... "></Label>
-                <Button fx:id="connecting_stop_button" styleClass="little-custom-button" focusTraversable="false">
+                <Button fx:id="connectingStopButton" styleClass="little-custom-button" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="停止连接"/>
                     </tooltip>
@@ -208,13 +208,14 @@
     </content>
     <buttonTypes>
 
-        <ButtonType fx:id="test_buttontype" text="测试连接" buttonData="NO">
+        <ButtonType fx:id="testButtonType" text="测试连接" buttonData="NO">
         </ButtonType>
-        <ButtonType fx:id="commit_buttontype" text="确认" buttonData="OK_DONE">
+        <ButtonType fx:id="commitButtonType" text="确认" buttonData="OK_DONE">
         </ButtonType>
 
-        <ButtonType fx:id="cancel_buttontype" text="取消" buttonData="CANCEL_CLOSE">
+        <ButtonType fx:id="cancelButtonType" text="取消" buttonData="CANCEL_CLOSE">
         </ButtonType>
     </buttonTypes>
 
 </DialogPane>
+
