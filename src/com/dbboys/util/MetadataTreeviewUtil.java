@@ -3,12 +3,24 @@ package com.dbboys.util;
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.CreateConnectController;
 import com.dbboys.customnode.*;
-import com.dbboys.db.DbConnectionFactory;
+
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.service.BackSqlService;
-import com.dbboys.service.MetadataService;
+import com.dbboys.service.ConnectionService;
+import com.dbboys.service.DatabaseService;
+import com.dbboys.service.FunctionService;
+import com.dbboys.service.IndexService;
+import com.dbboys.service.PackageService;
+import com.dbboys.service.ProcedureService;
+import com.dbboys.service.SequenceService;
+import com.dbboys.service.SynonymService;
+import com.dbboys.service.TableService;
+import com.dbboys.service.TriggerService;
+import com.dbboys.service.UserService;
+import com.dbboys.service.ViewService;
+import com.dbboys.impl.metaObjectImpl;
 import com.dbboys.vo.*;
 import javafx.beans.binding.Bindings;
 import javafx.application.Platform;
@@ -41,8 +53,6 @@ import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.UnaryOperator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MetadataTreeviewUtil {
     private static final Logger log = LogManager.getLogger(MetadataTreeviewUtil.class);
@@ -51,8 +61,18 @@ public class MetadataTreeviewUtil {
     //public static ExecutorService executorService;
     public static List<TreeItem<TreeData>> searchResults = new ArrayList<>();
     public static BackSqlService backSqlService;
-    public static MetadataService metadataService;
-    public static DbConnectionFactory dbConnectionFactory;
+    public static ConnectionService metadataService;
+    public static DatabaseService databaseService;
+    public static IndexService indexService;
+    public static TableService tableService;
+    public static TriggerService triggerService;
+    public static ViewService viewService;
+    public static SequenceService sequenceService;
+    public static SynonymService synonymService;
+    public static FunctionService functionService;
+    public static ProcedureService procedureService;
+    public static PackageService packageService;
+    public static UserService userService;
     public static CustomShortcutMenuItem refreshItem;
     public static CustomShortcutMenuItem databaseOpenFileItem;
     public static CustomShortcutMenuItem connectFolderInfoItem;
@@ -62,8 +82,38 @@ public class MetadataTreeviewUtil {
     static{
         //executorService = Executors.newSingleThreadExecutor();
         backSqlService=new BackSqlService();
-        metadataService = new MetadataService();
-        dbConnectionFactory = new DbConnectionFactory();
+        metadataService = new ConnectionService();
+        databaseService = new DatabaseService();
+        indexService = new IndexService();
+        tableService = new TableService();
+        triggerService = new TriggerService();
+        viewService = new ViewService();
+        sequenceService = new SequenceService();
+        synonymService = new SynonymService();
+        functionService = new FunctionService();
+        procedureService = new ProcedureService();
+        packageService = new PackageService();
+        userService = new UserService();
+    }
+
+    private static void executeBackgroundSql(String sql, String charset) {
+        backSqlService.executeBackgroundSql(sql, charset, MetadataTreeviewUtil::refreshCurrentTreeItem);
+    }
+
+    private static void refreshCurrentTreeItem() {
+        if (Main.mainController == null || Main.mainController.databaseMetaTreeView == null) {
+            return;
+        }
+        TreeItem<TreeData> selected = Main.mainController.databaseMetaTreeView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+        TreeItem<TreeData> target = selected.isLeaf() ? selected.getParent() : selected;
+        if (target != null) {
+            target.getChildren().clear();
+            target.setExpanded(false);
+            target.setExpanded(true);
+        }
     }
 
     public static void initDatabaseObjectsTreeview(TreeView<TreeData> treeView){
@@ -268,7 +318,7 @@ public class MetadataTreeviewUtil {
                             .formatted(selectedItem.getValue().getName())
             );
             if(confirm){
-                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(raw)",null);
+                executeBackgroundSql("alter table "+connect.getName()+" type(raw)",null);
             }
         });
 
@@ -282,7 +332,7 @@ public class MetadataTreeviewUtil {
                             .formatted(selectedItem.getValue().getName())
             );
             if(confirm){
-                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(standard)",null);
+                executeBackgroundSql("alter table "+connect.getName()+" type(standard)",null);
             }
         });
 
@@ -296,7 +346,7 @@ public class MetadataTreeviewUtil {
                             .formatted(selectedItem.getValue().getName())
             );
             if(confirm){
-                backSqlService.executeBackgroundSql(selectedItem,"truncate table "+connect.getName(),null);
+                executeBackgroundSql("truncate table "+connect.getName(),null);
             }
         });
 
@@ -312,7 +362,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" disabled",null);
+                    executeBackgroundSql("set indexes "+connect.getName()+" disabled",null);
                 }
             }
             if(connect instanceof Trigger) {//触发器
@@ -322,7 +372,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" disabled",null);
+                    executeBackgroundSql("set triggers "+connect.getName()+" disabled",null);
                 }
             }
         });
@@ -338,7 +388,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" enabled",null);
+                    executeBackgroundSql("set indexes "+connect.getName()+" enabled",null);
                 }
             }
             if(connect instanceof Trigger) {//触发器
@@ -348,7 +398,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" enabled",null);
+                    executeBackgroundSql("set triggers "+connect.getName()+" enabled",null);
                 }
             }
         });
@@ -499,7 +549,7 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("metadata.error.password_not_match", "两次密码输入不一致！"));
                     event1.consume();
                 } else {
-                    backSqlService.executeBackgroundSql(selectedItem, "create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
+                    executeBackgroundSql("create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
                 }
 
             });
@@ -559,7 +609,7 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("metadata.error.password_not_match", "两次密码输入不一致！"));
                     event1.consume();
                 } else {
-                    backSqlService.executeBackgroundSql(selectedItem, "alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
+                    executeBackgroundSql("alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
                 }
 
             });
@@ -572,22 +622,22 @@ public class MetadataTreeviewUtil {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             TreeData connect = selectedItem.getValue();
             if (connect instanceof Database) {
-                backSqlService.executeBackgroundSql(selectedItem, "update statistics", null);
+                executeBackgroundSql("update statistics", null);
             }
             else if (connect instanceof ObjectFolder) {
                 ObjectFolderKind objectFolderKind = getObjectFolderKind(selectedItem);
                 if(objectFolderKind == ObjectFolderKind.SYSTEM_TABLE_VIEW || objectFolderKind == ObjectFolderKind.TABLES){
-                    backSqlService.executeBackgroundSql(selectedItem, "update statistics high for table force", null);
+                    executeBackgroundSql("update statistics high for table force", null);
                 }
                 else if(objectFolderKind == ObjectFolderKind.PROCEDURES){
-                    backSqlService.executeBackgroundSql(selectedItem, "update statistics for procedure", null);
+                    executeBackgroundSql("update statistics for procedure", null);
                 }
             }
             else if(connect instanceof SysTable||connect instanceof Table){
-                backSqlService.executeBackgroundSql(selectedItem, "update statistics for table "+connect.getName(),null);
+                executeBackgroundSql("update statistics for table "+connect.getName(),null);
             }
             else if(connect instanceof Procedure){
-                backSqlService.executeBackgroundSql(selectedItem, "update statistics for procedure "+connect.getName(),null);
+                executeBackgroundSql("update statistics for procedure "+connect.getName(),null);
             }
         });
 
@@ -728,7 +778,7 @@ public class MetadataTreeviewUtil {
                 else {
                     log.info("selectitem is "+selectedItem.getValue().getName());
                 }
-                list = FXCollections.observableArrayList(metadataService.getDBspaceForCreateDatabase(((Connect) selectedItem.getParent().getValue()).getConn()));
+                list = FXCollections.observableArrayList(databaseService.getDBspaceForCreateDatabase(((Connect) selectedItem.getParent().getValue()).getConn()));
             }catch (SQLException e){
                 GlobalErrorHandlerUtil.handle(e);
             }
@@ -759,7 +809,7 @@ public class MetadataTreeviewUtil {
 
             ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
             if (result == buttonTypeOk) {
-                backSqlService.executeBackgroundSql(selectedItem,"create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
+                executeBackgroundSql("create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
 
             }
         });
@@ -770,9 +820,7 @@ public class MetadataTreeviewUtil {
                     Task TableMetaTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            Connection conn = MetadataTreeviewUtil.getMetaConnect(selectedItem).getConn();
-                            String dbName = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
-                            Table table = metadataService.getTable(conn, dbName, selectedItem.getValue().getName());
+                            Table table = tableService.getTable(MetadataTreeviewUtil.getMetaConnect(selectedItem), MetadataTreeviewUtil.getCurrentDatabase(selectedItem), selectedItem.getValue().getName());
                             if(table.getName()!=null){
                                 selectedItem.setValue(table);
                             }
@@ -789,9 +837,7 @@ public class MetadataTreeviewUtil {
                     Task TableMetaTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            Connection conn = MetadataTreeviewUtil.getMetaConnect(selectedItem).getConn();
-                            String dbName = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
-                            Index index = metadataService.getIndex(conn, dbName, selectedItem.getValue().getName());
+                            Index index = indexService.getIndex(MetadataTreeviewUtil.getMetaConnect(selectedItem), MetadataTreeviewUtil.getCurrentDatabase(selectedItem), selectedItem.getValue().getName());
                             if(index.getName()!=null){
                                 selectedItem.setValue(index);
                             }
@@ -808,9 +854,7 @@ public class MetadataTreeviewUtil {
                     Task TableMetaTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            Connection conn = MetadataTreeviewUtil.getMetaConnect(selectedItem).getConn();
-                            String dbName = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
-                            Trigger trigger = metadataService.getTrigger(conn, dbName, selectedItem.getValue().getName());
+                            Trigger trigger = triggerService.getTrigger(MetadataTreeviewUtil.getMetaConnect(selectedItem), MetadataTreeviewUtil.getCurrentDatabase(selectedItem), selectedItem.getValue().getName());
                             if(trigger.getName()!=null){
                                 selectedItem.setValue(trigger);
                             }
@@ -833,7 +877,7 @@ public class MetadataTreeviewUtil {
         //设置默认数据库
         setDefaultDatabaseItem.setOnAction(event-> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            MetadataService.ChangeDefaultDatabaseResult result =
+            ConnectionService.ChangeDefaultDatabaseResult result =
                     metadataService.changeDefaultDatabase(MetadataTreeviewUtil.getMetaConnect(selectedItem),
                             MetadataTreeviewUtil.getCurrentDatabase(selectedItem));
             if (result.isDisconnected()) {
@@ -1346,21 +1390,21 @@ public class MetadataTreeviewUtil {
                 NotificationUtil.showNotification(Main.mainController.noticePane,
                         I18n.t("metadata.notice.connection_renamed", "连接已重命名为：%s").formatted(selectedItem.getValue().getName()));
             }else if(selectedItem.getValue() instanceof Database){
-                backSqlService.executeBackgroundSql(selectedItem, "rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Table){
-                backSqlService.executeBackgroundSql(selectedItem, "rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Index){
-                backSqlService.executeBackgroundSql(selectedItem, "rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Sequence){
-                backSqlService.executeBackgroundSql(selectedItem, "rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Synonym){
-                backSqlService.executeBackgroundSql(selectedItem, "rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Trigger){
-                backSqlService.executeBackgroundSql(selectedItem, "rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Function){
-                backSqlService.executeBackgroundSql(selectedItem, "rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Procedure){
-                backSqlService.executeBackgroundSql(selectedItem, "rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                executeBackgroundSql("rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }
         }
     }
@@ -1414,27 +1458,27 @@ public class MetadataTreeviewUtil {
                         I18n.t("metadata.notice.connection_deleted", "数据库连接\"%s\"已删除！").formatted(selectedItem.getValue().getName()));
             }
         }else if(selectedItem.getValue() instanceof Database){
-            backSqlService.executeBackgroundSql(selectedItem,"drop database "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop database "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Table){
-            backSqlService.executeBackgroundSql(selectedItem, "drop table "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop table "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof View){
-            backSqlService.executeBackgroundSql(selectedItem, "drop view "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop view "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Index){
-            backSqlService.executeBackgroundSql(selectedItem, "drop index "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop index "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Sequence){
-            backSqlService.executeBackgroundSql(selectedItem, "drop sequece "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop sequece "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Synonym){
-            backSqlService.executeBackgroundSql(selectedItem, "drop synonym "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop synonym "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Trigger){
-            backSqlService.executeBackgroundSql(selectedItem, "drop trigger "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop trigger "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Function){
-            backSqlService.executeBackgroundSql(selectedItem, "drop function "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop function "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Procedure){
-            backSqlService.executeBackgroundSql(selectedItem, "drop procedure "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop procedure "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof DBPackage){
-            backSqlService.executeBackgroundSql(selectedItem, "drop package "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop package "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof User){
-            backSqlService.executeBackgroundSql(selectedItem, "drop user "+selectedItem.getValue().getName(),null);
+            executeBackgroundSql("drop user "+selectedItem.getValue().getName(),null);
         }
     }
 
@@ -1459,9 +1503,9 @@ public class MetadataTreeviewUtil {
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
                         try{
-                              connect.setConn(dbConnectionFactory.getConnection(connect));
+                              connect.setConn(metadataService.getConnection(connect));
                               //连接之后切换到gbase模式
-                              dbConnectionFactory.sessionChangeToGbaseMode(connect.getConn());
+                              metadataService.sessionChangeToGbaseMode(connect.getConn());
 
 
                             //TreeItem<TreeData> scanItem=createTreeItem(checkTreeData);
@@ -1506,12 +1550,12 @@ public class MetadataTreeviewUtil {
                     new Thread(() -> {
                           final List<Database> databases = new ArrayList<>();
                           try {
-                              databases.addAll(metadataService.getDatabases(getMetaConnect(treeItem).getConn(), false));
+                              databases.addAll(databaseService.getDatabases(getMetaConnect(treeItem).getConn(), false));
                           } catch (SQLException e) {
                               if (e.getErrorCode() == -201) {
                                   try {
                                       databases.clear();
-                                      databases.addAll(metadataService.getDatabases(getMetaConnect(treeItem).getConn(), true));
+                                      databases.addAll(databaseService.getDatabases(getMetaConnect(treeItem).getConn(), true));
                                   } catch (SQLException ex) {
                                       GlobalErrorHandlerUtil.handle(ex);
                                   }
@@ -1542,7 +1586,7 @@ public class MetadataTreeviewUtil {
                     new Thread(() -> {
                           final List<User> users = new ArrayList<>();
                           try {
-                              users.addAll(metadataService.getUsers(getMetaConnect(treeItem).getConn()));
+                              users.addAll(userService.getUsers(getMetaConnect(treeItem).getConn()));
                           } catch (SQLException e) {
                               GlobalErrorHandlerUtil.handle(e);
                           }
@@ -1570,7 +1614,7 @@ public class MetadataTreeviewUtil {
                         ObjectList objectList;
                         try {
                             Database database = MetadataTreeviewUtil.getCurrentDatabase(treeItem);
-                            objectList = metadataService.loadDatabaseObjects(getMetaConnect(treeItem), database);
+                            objectList = databaseService.loadObjects(getMetaConnect(treeItem), database);
                         } catch (Exception e) {
                             GlobalErrorHandlerUtil.handle(e);
                             Platform.runLater(() -> {
@@ -1649,7 +1693,7 @@ public class MetadataTreeviewUtil {
                     new Thread(() -> {
                         ObjectList objectList;
                         try {
-                            objectList = metadataService.loadSystemTables(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                            objectList = tableService.loadSystemTables(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
                         } catch (Exception e) {
                             GlobalErrorHandlerUtil.handle(e);
                             Platform.runLater(() -> {
@@ -1675,14 +1719,17 @@ public class MetadataTreeviewUtil {
                             });
                         }
                     }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.TABLES)) {
+        }else if (isLoadableObjectFolder(treeItem)) {
             MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
                     new Thread(() -> {
                         ObjectList objectList;
+                        ObjectFolderKind kind = getObjectFolderKind(treeItem);
+                        metaObjectImpl service = getMetaObjectService(kind);
+                        if (service == null) {
+                            return;
+                        }
                         try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadTables(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
+                            objectList = service.loadObjects(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
                         } catch (Exception e) {
                             GlobalErrorHandlerUtil.handle(e);
                             Platform.runLater(() -> {
@@ -1691,277 +1738,13 @@ public class MetadataTreeviewUtil {
                             });
                             return;
                         }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
+                        if (objectList.getInfo() != null && !objectList.getItems().isEmpty()) {
+                            ((ObjectFolder) treeItem.getValue()).setDescription((String) objectList.getInfo());
                             Platform.runLater(() -> {
                                 treeItem.getChildren().clear();
-                                List<Table> tables = objectList.getItems();
-                                for (Table tabname : tables) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(tabname);
-                                    treeItem.getChildren().add(item);
-                                }
+                                appendObjectFolderChildren(treeItem, kind, objectList);
                             });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.VIEWS)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadViews(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<View> views = objectList.getItems();
-                                for (View view : views) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(view);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.INDEXES)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadIndexes(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<Index> indexes = objectList.getItems();
-                                for (Index index : indexes) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(index);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.SEQUENCES)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadSequences(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<Sequence> sequences = objectList.getItems();
-                                for (Sequence sequence : sequences) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(sequence);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.SYNONYMS)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadSynonyms(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<Synonym> synonyms = objectList.getItems();
-                                for (Synonym synonym : synonyms) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(synonym);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.TRIGGERS)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadTriggers(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<Trigger> triggers = objectList.getItems();
-                                for (Trigger trigger : triggers) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(trigger);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.FUNCTIONS)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadFunctions(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<Function> functions = objectList.getItems();
-                                for (Function function : functions) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(function);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.PROCEDURES)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadProcedures(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<Procedure> procedures = objectList.getItems();
-                                for (Procedure procedure : procedures) {
-                                    TreeItem<TreeData> item = createLeafTreeItem(procedure);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                        }
-                    }));
-        }else if (isObjectFolder(treeItem, ObjectFolderKind.PACKAGES)) {
-            MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(
-                    new Thread(() -> {
-                        ObjectList objectList;
-                        try {
-                            String databaseName = MetadataTreeviewUtil.getCurrentDatabase(treeItem).getName();
-                            Connection conn = getMetaConnect(treeItem).getConn();
-                            objectList = metadataService.loadPackages(getMetaConnect(treeItem), getCurrentDatabase(treeItem));
-                        } catch (Exception e) {
-                            GlobalErrorHandlerUtil.handle(e);
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                treeItem.setExpanded(false);
-                            });
-                            return;
-                        }
-                        if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
-                            Platform.runLater(() -> {
-                                treeItem.getChildren().clear();
-                                List<DBPackage> packages = objectList.getItems();
-                                for (DBPackage pkg : packages) {
-                                    TreeItem<TreeData> item = createTreeItem(pkg);
-                                    treeItem.getChildren().add(item);
-                                }
-                            });
-                        }else{
+                        } else {
                             Platform.runLater(() -> {
                                 treeItem.getChildren().clear();
                                 treeItem.setExpanded(false);
@@ -1973,8 +1756,8 @@ public class MetadataTreeviewUtil {
                     new Thread(() -> {
                         String packageDDL = "";
                         try {
-                            Object parentValue = treeItem.getParent() == null ? null : treeItem.getParent().getValue();
-                            packageDDL = metadataService.getDDL(getMetaConnect(treeItem).getConn(), treeItem.getValue(), parentValue);
+                            //Object parentValue = treeItem.getParent() == null ? null : treeItem.getParent().getValue();
+                            packageDDL = packageService.getDDL(getMetaConnect(treeItem), getCurrentDatabase(treeItem),treeItem.getValue().getName());
                     
                         } catch (Exception e) {
                             GlobalErrorHandlerUtil.handle(e);
@@ -1982,43 +1765,15 @@ public class MetadataTreeviewUtil {
                         if (!packageDDL.isEmpty()) {
                             ((DBPackage) treeItem.getValue()).setDDL(packageDDL);
 
-                            String STRING_PATTERN = "'([^'\\\\]*(\\\\.[^'\\\\]*)*)'" + "|" + "'[\\s\\S]*";
-                            String DOUBLE_STRING_PATTERN = "\"[^\"]*\"" + "|" + "\"[\\s\\S]*";
-                            String FANYINHAO_STRING_PATTERN = "`[^`]*`" + "|" + "`[\\s\\S]*";
-                            String COMMENT_PATTERN = "--[^\n]*" + "|" + "/\\*[\\s\\S]*?\\*/" + "|" + "/\\*[\\s\\S]*" + "|" + "\\{[\\s\\S]*?\\}";//正常，未堆栈溢出
-                            String BODY_PATTERN = "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package)\\s+body\\s+([a-zA-Z_][a-zA-Z0-9_$.]*)\\s+(AS|IS)";
-                            String FUNCTION_PATTERN = "(?i)function\\s+(?<FUNC>[a-zA-Z0-9_$.]*)\\s*\\([\\s\\S]*?\\)\\s+return\\s+([a-zA-Z0-9_$.]*)\\s+(PIPELINED\\s+|DETERMINISTIC\\s+|RESULT_CACHE\\s+)?(AS|IS)" + "|" +
-                                    "(?i)procedure\\s+(?<PROC>[a-zA-Z0-9_$.]*)\\s*\\([\\s\\S]*?\\)\\s+(AS|IS)";
-
-                            Pattern pattern = Pattern.compile(
-                                    "(?<STRING>" + STRING_PATTERN + ")"
-                                            + "|(?<DOUBLESTRING>" + DOUBLE_STRING_PATTERN + ")"
-                                            + "|(?<COMMENT>" + COMMENT_PATTERN + ")"
-                                            + "|(?<BODY>" + BODY_PATTERN + ")"
-                            );
-                            Matcher matcher = pattern.matcher(packageDDL);
-                            String bodySql = "";
-                            while (matcher.find()) {
-                                if (matcher.group("BODY") != null) {
-                                    bodySql = packageDDL.substring(matcher.start("BODY"));
-                                }
-                            }
-
-                            pattern = Pattern.compile(
-                                    STRING_PATTERN
-                                            + "|" + DOUBLE_STRING_PATTERN
-                                            + "|" + COMMENT_PATTERN
-                                            + "|" + FUNCTION_PATTERN
-                            );
-                            matcher = pattern.matcher(bodySql);
+                            List<SqlParserUtil.PackageMember> members = SqlParserUtil.parsePackageMembers(packageDDL);
 
                             Platform.runLater(() -> {
                                 treeItem.getChildren().clear();
                             });
 
-                            while (matcher.find()) {
-                                if (matcher.group("FUNC") != null) {
-                                    String functionname = matcher.group("FUNC");
+                            for (SqlParserUtil.PackageMember member : members) {
+                                if ("FUNC".equals(member.getType())) {
+                                    String functionname = member.getName();
                                     PackageFunction packageFunction = new PackageFunction(functionname);
                                     packageFunction.setDescription("FUNC");
                                     TreeItem<TreeData> item = createLeafTreeItem(packageFunction);
@@ -2026,8 +1781,8 @@ public class MetadataTreeviewUtil {
                                         treeItem.getChildren().add(item);
                                     });
                                 }
-                                if (matcher.group("PROC") != null) {
-                                    String functionname = matcher.group("PROC");
+                                if ("PROC".equals(member.getType())) {
+                                    String functionname = member.getName();
                                     PackageProcedure packageProcedure = new PackageProcedure(functionname);
                                     packageProcedure.setDescription("PROC");
                                     TreeItem<TreeData> item = createLeafTreeItem(packageProcedure);
@@ -2357,6 +2112,96 @@ public class MetadataTreeviewUtil {
         UNKNOWN
     }
 
+    private static boolean isLoadableObjectFolder(TreeItem<TreeData> treeItem) {
+        ObjectFolderKind kind = getObjectFolderKind(treeItem);
+        return kind == ObjectFolderKind.TABLES
+                || kind == ObjectFolderKind.VIEWS
+                || kind == ObjectFolderKind.INDEXES
+                || kind == ObjectFolderKind.SEQUENCES
+                || kind == ObjectFolderKind.SYNONYMS
+                || kind == ObjectFolderKind.TRIGGERS
+                || kind == ObjectFolderKind.FUNCTIONS
+                || kind == ObjectFolderKind.PROCEDURES
+                || kind == ObjectFolderKind.PACKAGES;
+    }
+
+    private static metaObjectImpl getMetaObjectService(ObjectFolderKind kind) {
+        return switch (kind) {
+            case TABLES -> tableService;
+            case VIEWS -> viewService;
+            case INDEXES -> indexService;
+            case SEQUENCES -> sequenceService;
+            case SYNONYMS -> synonymService;
+            case TRIGGERS -> triggerService;
+            case FUNCTIONS -> functionService;
+            case PROCEDURES -> procedureService;
+            case PACKAGES -> packageService;
+            default -> null;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void appendObjectFolderChildren(TreeItem<TreeData> treeItem, ObjectFolderKind kind, ObjectList objectList) {
+        switch (kind) {
+            case TABLES -> {
+                List<Table> tables = objectList.getItems();
+                for (Table tab : tables) {
+                    treeItem.getChildren().add(createLeafTreeItem(tab));
+                }
+            }
+            case VIEWS -> {
+                List<View> views = objectList.getItems();
+                for (View view : views) {
+                    treeItem.getChildren().add(createLeafTreeItem(view));
+                }
+            }
+            case INDEXES -> {
+                List<Index> indexes = objectList.getItems();
+                for (Index index : indexes) {
+                    treeItem.getChildren().add(createLeafTreeItem(index));
+                }
+            }
+            case SEQUENCES -> {
+                List<Sequence> sequences = objectList.getItems();
+                for (Sequence sequence : sequences) {
+                    treeItem.getChildren().add(createLeafTreeItem(sequence));
+                }
+            }
+            case SYNONYMS -> {
+                List<Synonym> synonyms = objectList.getItems();
+                for (Synonym synonym : synonyms) {
+                    treeItem.getChildren().add(createLeafTreeItem(synonym));
+                }
+            }
+            case TRIGGERS -> {
+                List<Trigger> triggers = objectList.getItems();
+                for (Trigger trigger : triggers) {
+                    treeItem.getChildren().add(createLeafTreeItem(trigger));
+                }
+            }
+            case FUNCTIONS -> {
+                List<Function> functions = objectList.getItems();
+                for (Function function : functions) {
+                    treeItem.getChildren().add(createLeafTreeItem(function));
+                }
+            }
+            case PROCEDURES -> {
+                List<Procedure> procedures = objectList.getItems();
+                for (Procedure procedure : procedures) {
+                    treeItem.getChildren().add(createLeafTreeItem(procedure));
+                }
+            }
+            case PACKAGES -> {
+                List<DBPackage> packages = objectList.getItems();
+                for (DBPackage pkg : packages) {
+                    treeItem.getChildren().add(createTreeItem(pkg));
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
     private static void bindFolderName(TreeData treeData, String key, String defaultText) {
         treeData.nameProperty().unbind();
         treeData.nameProperty().bind(Bindings.createStringBinding(
@@ -2414,6 +2259,8 @@ public class MetadataTreeviewUtil {
     }
 
 }
+
+
 
 
 

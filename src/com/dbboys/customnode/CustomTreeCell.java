@@ -1,4 +1,4 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
@@ -607,10 +607,62 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                     return null;
                 }
                 Object parentValue = treeItem.getParent() == null ? null : treeItem.getParent().getValue();
-                ddlPopupStageDdlSql = MetadataTreeviewUtil.metadataService.withMetaSession(
-                        treeItem,
-                        conn -> MetadataTreeviewUtil.metadataService.getDDL(conn, treeItem.getValue(), parentValue)
-                );
+                Connect connectParam=MetadataTreeviewUtil.getMetaConnect(treeItem);
+                Database database= MetadataTreeviewUtil.getCurrentDatabase(treeItem);
+                if(item instanceof Index){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.indexService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof View){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.viewService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof Trigger){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.triggerService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof Sequence){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.sequenceService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof Synonym){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.synonymService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof Function){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.functionService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof Procedure){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.procedureService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof DBPackage  ){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.packageService.getDDL(
+                            connectParam,
+                            database,
+                            item.getName()
+                    );
+                }else if(item instanceof PackageFunction|| item instanceof PackageProcedure){
+                    ddlPopupStageDdlSql = MetadataTreeviewUtil.packageService.getChildrenDDL(
+                    ((DBPackage)getTreeItem().getParent().getValue()).getDDL(),item.getName()
+                    );
+                }
+
                 return null;
             }
         };
@@ -785,6 +837,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         lockIcon.setFill(INACTIVE_COLOR);
     }
 }
+
 
 
 

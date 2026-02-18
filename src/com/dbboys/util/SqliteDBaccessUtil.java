@@ -1,11 +1,11 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.vo.ConnectFolder;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.TreeData;
 import com.dbboys.vo.UpdateResult;
-import com.dbboys.service.MetadataService;
+import com.dbboys.service.ConnectionService;
 
 import java.nio.file.Paths;
 import java.sql.*;
@@ -195,7 +195,7 @@ public  class SqliteDBaccessUtil {
         String result = "";
         PreparedStatement psmt = null;
         try {
-            new MetadataService().setConnectInfo(connect);
+            new ConnectionService().setConnectInfo(connect);
             psmt=conn.prepareStatement("insert into t_connect(c_parentid,c_name,c_dbtype,c_driver,c_ip,c_port,c_database,c_readonly,c_username,c_password,c_props,c_info,c_drivermd5,c_dbversion) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             psmt.setObject(1, connect.getParentId());
             psmt.setObject(2, connect.getName());
@@ -622,3 +622,4 @@ public  class SqliteDBaccessUtil {
 
 
 }
+

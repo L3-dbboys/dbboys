@@ -2,7 +2,7 @@ package com.dbboys.ctrl;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
-import com.dbboys.db.DbConnectionFactory;
+import com.dbboys.service.ConnectionService;
 import com.dbboys.i18n.I18n;
 import com.dbboys.service.SqlexeService;
 import com.dbboys.util.*;
@@ -155,7 +155,7 @@ public class SqlTabController {
     private Label sqlExecuteTimeInfo;
     private CustomInfoStackPane explain_result_stackpane;
     private Boolean isSqlRefresh = false;
-    private final DbConnectionFactory dbConnectionFactory = new DbConnectionFactory();
+    private final ConnectionService connectionService = new ConnectionService();
     private final SqlexeService sqlexeService = new SqlexeService();
     private final Connect defaultConnect = new Connect();
     private final Database defaultDatabase = new Database();
@@ -367,8 +367,8 @@ public class SqlTabController {
                             });
                             Connection conn = null;
                             try {
-                                conn = dbConnectionFactory.getConnection(newVal);
-                                dbConnectionFactory.changeCommitMode(conn, sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex());
+                                conn = connectionService.getConnection(newVal);
+                                connectionService.changeCommitMode(conn, sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex());
                         
                             } catch (Exception e) {
                                 GlobalErrorHandlerUtil.handle(e);
@@ -1820,6 +1820,7 @@ public class SqlTabController {
 
 
 }
+
 
 
 

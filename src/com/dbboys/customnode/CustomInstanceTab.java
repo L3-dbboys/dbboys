@@ -1,11 +1,11 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.service.AdminService;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
-import com.dbboys.service.MetadataService;
+import com.dbboys.service.ConnectionService;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.HealthCheck;
@@ -50,7 +50,7 @@ import java.util.regex.Pattern;
 public class CustomInstanceTab extends CustomTab {
     private static final Logger log = LogManager.getLogger(CustomInstanceTab.class);
     private final AdminService adminService = new AdminService();
-    private final MetadataService metadataService = new MetadataService();
+    private final ConnectionService connectionService = new ConnectionService();
     private Connect connect;
     // 为每个需要懒加载的 Tab 定义「已加载」标记
     private boolean infoTabLoaded = false;
@@ -1126,7 +1126,7 @@ public class CustomInstanceTab extends CustomTab {
     private void updateGroupInstanceInfo() {
         if(!connect.getPropByName("GBASEDBTSERVER").isEmpty()){
             try{
-            String primaryInstance=metadataService.setConnectInfo(connect);
+            String primaryInstance=connectionService.setConnectInfo(connect);
             String regex = "^" + primaryInstance + "\\s+.*\\s+g=" + connect.getPropByName("GBASEDBTSERVER") + "\\s*$";
             Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
             String sqlhostsContent = Files.readString(Paths.get("extlib/GBASE 8S/sqlhosts"));
@@ -1980,5 +1980,6 @@ public class CustomInstanceTab extends CustomTab {
         return errorPane;
     }
 }
+
 
 

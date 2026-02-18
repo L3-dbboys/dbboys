@@ -25,6 +25,29 @@ public class SqlParserUtil {
             "^\\s*/";
     private static final String DROP_DATABASE = "(?i)(?:drop\\s+)+database\\s+(\\w+)";
     private static final String CREATE_DATABASE = "(?i)(?:create\\s+)?database\\s+(?<dbname>(\\w+))";
+    private static final String PACKAGE_BODY_PATTERN = "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package)\\s+body\\s+([a-zA-Z_][a-zA-Z0-9_$.]*)\\s+(AS|IS)";
+    private static final String PACKAGE_MEMBER_PATTERN =
+            "(?i)\\bfunction\\s+(?<FUNC>[a-zA-Z0-9_$.]+)\\s*(\\([\\s\\S]*?\\))?\\s+return\\s+([a-zA-Z0-9_$.]+)\\s*(PIPELINED\\s+|DETERMINISTIC\\s+|RESULT_CACHE\\s+)?(AS|IS|;)"
+            + "|"
+            + "(?i)\\bprocedure\\s+(?<PROC>[a-zA-Z0-9_$.]+)\\s*(\\([\\s\\S]*?\\))?\\s*(AS|IS|;)";
+
+    public static class PackageMember {
+        private final String name;
+        private final String type;
+
+        public PackageMember(String name, String type) {
+            this.name = name;
+            this.type = type;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getType() {
+            return type;
+        }
+    }
 
     public static class Segment {
         private final String text;
@@ -417,6 +440,105 @@ public class SqlParserUtil {
             }
         }
         return result;
+    }
+
+    public static List<PackageMember> parsePackageMembers(String packageDdl) {
+        List<PackageMember> members = new ArrayList<>();
+        if (packageDdl == null || packageDdl.isEmpty()) {
+            return members;
+        }
+
+        Pattern bodyPattern = Pattern.compile(
+                "(?<STRING>" + STRING_PATTERN_TEXT + ")"
+                        + "|(?<DOUBLESTRING>" + DOUBLE_STRING_PATTERN_TEXT + ")"
+                        + "|(?<COMMENT>" + COMMENT_PATTERN_TEXT + ")"
+                        + "|(?<BODY>" + PACKAGE_BODY_PATTERN + ")"
+        );
+        Matcher bodyMatcher = bodyPattern.matcher(packageDdl);
+        String bodySql = "";
+        while (bodyMatcher.find()) {
+            if (bodyMatcher.group("BODY") != null) {
+                bodySql = packageDdl.substring(bodyMatcher.start("BODY"));
+            }
+        }
+        if (bodySql.isEmpty()) {
+            bodySql = packageDdl;
+        }
+
+        Pattern memberPattern = Pattern.compile(
+                STRING_PATTERN_TEXT
+                        + "|" + DOUBLE_STRING_PATTERN_TEXT
+                        + "|" + COMMENT_PATTERN_TEXT
+                        + "|" + PACKAGE_MEMBER_PATTERN
+        );
+        Matcher memberMatcher = memberPattern.matcher(bodySql);
+        while (memberMatcher.find()) {
+            if (memberMatcher.group("FUNC") != null) {
+                members.add(new PackageMember(memberMatcher.group("FUNC"), "FUNC"));
+            }
+            if (memberMatcher.group("PROC") != null) {
+                members.add(new PackageMember(memberMatcher.group("PROC"), "PROC"));
+            }
+        }
+
+        return members;
+    }
+
+    public static String printPackageFunction(String packagesql, String function) {
+        if (packagesql == null || packagesql.isBlank() || function == null || function.isBlank()) {
+            return "";
+        }
+
+        String functionString = "";
+        String stringPattern = "'([^'\\\\]*(\\\\.[^'\\\\]*)*)'" + "|" + "'[\\s\\S]*";
+        String doubleStringPattern = "\"[^\"]*\"" + "|" + "\"[\\s\\S]*";
+        String commentPattern = "--[^\\n]*" + "|" + "/\\*[\\s\\S]*?\\*/" + "|" + "/\\*[\\s\\S]*" + "|" + "\\{[\\s\\S]*?\\}";
+        String bodyPattern = "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?package\\s+body\\b[\\s\\S]*?\\b(AS|IS)\\b";
+
+        String normalizedName = function.trim().replace("\"", "");
+        String escapedName = Pattern.quote(normalizedName);
+        String namePattern = "\\\"?" + escapedName + "\\\"?";
+        String functionPattern =
+                "(?is)\\bfunction\\s+" + namePattern +
+                        "\\s*(\\([\\s\\S]*?\\))?\\s+return\\s+([a-zA-Z0-9_$.\\\"]+)" +
+                        "\\s*(PIPELINED\\s+|DETERMINISTIC\\s+|RESULT_CACHE\\s+)?(AS|IS)\\b" +
+                        "[\\s\\S]*?\\bend\\s*(" + namePattern + ")?\\s*;"
+                        + "|"
+                        + "(?is)\\bprocedure\\s+" + namePattern +
+                        "\\s*(\\([\\s\\S]*?\\))?\\s*(AS|IS)\\b" +
+                        "[\\s\\S]*?\\bend\\s*(" + namePattern + ")?\\s*;";
+
+        Pattern pattern = Pattern.compile(
+                "(?<STRING>" + stringPattern + ")"
+                        + "|(?<DOUBLESTRING>" + doubleStringPattern + ")"
+                        + "|(?<COMMENT>" + commentPattern + ")"
+                        + "|(?<BODY>" + bodyPattern + ")"
+        );
+        Matcher matcher = pattern.matcher(packagesql);
+        String bodySql = "";
+        while (matcher.find()) {
+            if (matcher.group("BODY") != null) {
+                bodySql = packagesql.substring(matcher.start("BODY"));
+            }
+        }
+        if (bodySql.isEmpty()) {
+            bodySql = packagesql;
+        }
+
+        pattern = Pattern.compile(
+                "(?<STRING>" + stringPattern + ")"
+                        + "|(?<DOUBLESTRING>" + doubleStringPattern + ")"
+                        + "|(?<COMMENT>" + commentPattern + ")"
+                        + "|(?<FUNC>" + functionPattern + ")"
+        );
+        matcher = pattern.matcher(bodySql);
+        while (matcher.find()) {
+            if (matcher.group("FUNC") != null) {
+                functionString = matcher.group("FUNC");
+                break;
+            }
+        }
+        return functionString;
     }
 
     public static String formatSql(String sql) {

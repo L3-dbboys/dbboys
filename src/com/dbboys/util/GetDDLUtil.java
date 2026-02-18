@@ -2206,46 +2206,4 @@ public class GetDDLUtil {
         return packageString;
     }
 
-    public static String printPackageFunction (String packagesql,String function)  {
-        String functionString="";
-        String STRING_PATTERN = "'([^'\\\\]*(\\\\.[^'\\\\]*)*)'"+"|" + "'[\\s\\S]*";
-        String DOUBLE_STRING_PATTERN = "\"[^\"]*\""+"|" + "\"[\\s\\S]*";
-        String FANYINHAO_STRING_PATTERN = "`[^`]*`"+"|" + "`[\\s\\S]*";
-        String COMMENT_PATTERN = "--[^\n]*" + "|"+"/\\*[\\s\\S]*?\\*/"+"|"+"/\\*[\\s\\S]*" +"|"+"\\{[\\s\\S]*?\\}";//正常，未堆栈溢出
-        String BODY_PATTERN="(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package)\\s+body\\s+([a-zA-Z_][a-zA-Z0-9_$.]*)\\s+(AS|IS)";
-        String FUNCTION_PATTERN="(?i)\\s*function\\s+"+function+"\\s*?\\([\\s\\S]*?\\)\\s+return\\s+([a-zA-Z0-9_$.]*)\\s+(PIPELINED\\s+|DETERMINISTIC\\s+|RESULT_CACHE\\s+)?(AS|IS)[\\s\\S]*?end\\s+"+function+"\\s*?;"+"|"+
-                "(?i)\\s*procedure\\s"+function+"\\s*?\\([\\s\\S]*?\\)\\s+(AS|IS)[\\s\\S]*?end\\s+"+function+"\\s*;"
-                ;
-
-        Pattern pattern=Pattern.compile(
-                STRING_PATTERN
-                        + "|" + DOUBLE_STRING_PATTERN
-                        + "|" + COMMENT_PATTERN
-                        + "|(?<BODY>" + BODY_PATTERN + ")"
-        );
-        Matcher matcher = pattern.matcher(packagesql);
-        String bodySql="";
-        while (matcher.find()) {
-            if(matcher.group("BODY")!=null){
-                bodySql=packagesql.substring(matcher.start("BODY"));
-            }
-        }
-
-        pattern=Pattern.compile(
-                STRING_PATTERN
-                        + "|" + DOUBLE_STRING_PATTERN
-                        + "|" + COMMENT_PATTERN
-                        + "|(?<FUNC>" + FUNCTION_PATTERN+")" //捕获
-        );
-        matcher = pattern.matcher(bodySql);
-
-
-        while (matcher.find()) {
-            if(matcher.group("FUNC")!=null){
-                functionString=matcher.group("FUNC");
-            }
-        }
-        return functionString;
-    }
-
 }
