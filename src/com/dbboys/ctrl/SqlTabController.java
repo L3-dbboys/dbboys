@@ -1,8 +1,9 @@
-﻿package com.dbboys.ctrl;
+package com.dbboys.ctrl;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
 import com.dbboys.db.DbConnectionFactory;
+import com.dbboys.i18n.I18n;
 import com.dbboys.service.SqlexeService;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
@@ -30,6 +31,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
@@ -43,9 +45,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 
 public class SqlTabController {
     private static final Logger log = LogManager.getLogger(SqlTabController.class);
+    private static final String COMMIT_AUTO = "AUTO";
+    private static final String COMMIT_MANUAL = "MANUAL";
     @FXML
     public Button sqlRunButton;
     @FXML
@@ -72,6 +78,7 @@ public class SqlTabController {
             return null;
         }
     };
+    private Thread sqlTaskThread;
     public ObservableList<Database> databaseChoiceBoxList = FXCollections.observableArrayList();
     public CustomSearchReplaceVbox searchReplaceBox = new CustomSearchReplaceVbox(null);
     public VBox resultSetVBox = new VBox();
@@ -104,6 +111,10 @@ public class SqlTabController {
     @FXML
     private StackPane sqlConnectChoiceBoxIconStackPane;
     @FXML
+    private StackPane sqlDbIconPane;
+    @FXML
+    private StackPane sqlUserIconPane;
+    @FXML
     private CustomLabelTextField sqlUserTextField;
     @FXML
     private ChoiceBox<String> sqlSqlModeChoiceBox;
@@ -128,12 +139,16 @@ public class SqlTabController {
     @FXML
     private TabPane resultsetTabPane;
     @FXML
+    private Tab resultsetSummaryTab;
+    @FXML
     private CustomResultsetTableView resultsetTotalTableView;
     @FXML
     private StackPane resultsetStackPane;
     //执行过程中提示面板
     @FXML
     private StackPane sqlExecuteProcessStackPane;
+    @FXML
+    private Label sqlExecuteLoadingLabel;
     @FXML
     private Label sqlExecuteTaskInfo;
     @FXML
@@ -146,6 +161,7 @@ public class SqlTabController {
     private final Database defaultDatabase = new Database();
     private List sqlParamList = new ArrayList();
     private String sqlExecutionResult = "";
+    private boolean sqlExecutionSuccess = false;
     //执行sql所需相关变量
     private String sqlText = "";
     private final Tooltip commitButtonTooltip = new Tooltip();
@@ -260,7 +276,7 @@ public class SqlTabController {
                 }
             }
         }
-        closeResultSet();
+        //closeResultSet();
     }
 
 
@@ -278,6 +294,8 @@ public class SqlTabController {
     public void initialize() throws IOException {
 
         setupTransactionTooltips();
+        initI18nBindings();
+        setupSqlTabIcons();
         setupSearchReplacePanel();
         setupResultSetView();
         setupSplitPaneBehavior();
@@ -317,19 +335,17 @@ public class SqlTabController {
                     }
                     if (newVal == defaultConnect) {
                         sqlConnect.setConn(null);
-                        sqlConnectIconPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
+                        sqlConnectIconPath.setContent(IconPaths.CONNECTION_LINK);
                         sqlConnectChoiceBoxDbIcon.setGraphic(sqlConnectIconPath);
                         sqlConnectIconPath.setScaleX(0.6);
                         sqlConnectIconPath.setScaleY(0.6);
                         sqlConnectChoiceBoxDbIcon.setVisible(true);
                         sqlConnectChoiceBoxLoadingIcon.setVisible(false);
                         //sqlConnectChoiceBox_icon.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
-                        suppressDbChange = true;
                         try {
                             sqlDbChoiceBox.getItems().clear();
                             sqlDbChoiceBox.setValue(defaultDatabase);
                         } finally {
-                            suppressDbChange = false;
                         }
                         sqlUserTextField.setText("N/A");
                         sqlSqlModeChoiceBox.setVisible(false);
@@ -352,17 +368,10 @@ public class SqlTabController {
                             Connection conn = null;
                             try {
                                 conn = dbConnectionFactory.getConnection(newVal);
-                                dbConnectionFactory.changeCommitMode(conn, sqlCommitModeChoiceBox.getValue().toString());
-                            } catch (SQLException e) {
-                                log.error(e.getMessage(),e);
-                                Platform.runLater(() -> {
-                                    AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
-                                });
+                                dbConnectionFactory.changeCommitMode(conn, sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex());
+                        
                             } catch (Exception e) {
-                                log.error(e.getMessage(),e);
-                                Platform.runLater(() -> {
-                                    AlterUtil.CustomAlert("错误", e.getMessage());
-                                });
+                                GlobalErrorHandlerUtil.handle(e);
                             }
                             if (conn != null) {
                                 if (sqlConnect.getConn() != null)
@@ -370,39 +379,44 @@ public class SqlTabController {
                                         closeResultSet();
                                         sqlConnect.getConn().close();
                                     } catch (SQLException e) {
-                                        log.error(e.getMessage(), e);
+                                        GlobalErrorHandlerUtil.handle(e);
                                     }
                                 sqlConnect = newVal;
                                 sqlConnect.setConn(conn);
                                 //默认结果集面板中的连接同步更改，保证结果集中相关需要连接的操作正常
                                 currentResultSetTabController.sqlConnect = sqlConnect;
+
+                                //如果连接成功，刷新数据库元数据树，展开当前连接节点
                                 for (TreeItem<TreeData> ti : Main.mainController.databaseMetaTreeView.getRoot().getChildren()) {
                                     for (TreeItem<TreeData> t : ti.getChildren()) {
                                         Connect connect = (Connect) t.getValue();
                                         if (t.getValue().getName().equals(sqlConnect.getName())) {
-                                            if (connect.getConn() == null) {
-                                                t.setExpanded(false);
-                                                t.setExpanded(true);
-                                            } else {
-                                                ResultSet rs = null;
-                                                try {
-                                                    rs = connect.getConn().createStatement().executeQuery("select first 1 tabid from systables");
-                                                } catch (SQLException e) {
-                                                    log.error(e.getMessage(),e);
-                                                    //如果报错，表示该连接已断开，自动重连
-                                                    connect.setConn(null);
+                                            try {
+                                                if (connect.getConn() == null||connect.getConn().isClosed()) {
                                                     t.setExpanded(false);
                                                     t.setExpanded(true);
-                                                } finally {
-                                                    if (rs != null) {
-                                                        try {
-                                                            rs.close();
-                                                        } catch (SQLException e) {
-                                                            log.error(e.getMessage(),e);
-                                                            rs = null;
+                                                } else {
+                                                    ResultSet rs = null;
+                                                    try {
+                                                        rs = connect.getConn().createStatement().executeQuery("select first 1 tabid from systables");
+                                                    } catch (SQLException e) {
+                                                        //如果报错，表示该连接已断开，自动重连
+                                                        connect.setConn(null);
+                                                        t.setExpanded(false);
+                                                        t.setExpanded(true);
+                                                    } finally {
+                                                        if (rs != null) {
+                                                            try {
+                                                                rs.close();
+                                                            } catch (SQLException e) {
+                                                                rs = null;
+                                                            }
                                                         }
                                                     }
                                                 }
+                                            } catch (SQLException e) {
+                                                // TODO Auto-generated catch block
+                                                GlobalErrorHandlerUtil.handle(e);
                                             }
 
                                         }
@@ -412,12 +426,12 @@ public class SqlTabController {
                                 //更换数据库类型图标
                                 Platform.runLater(() -> {
                                     if (sqlConnect.getDbtype().equals("GBASE 8S")) {
-                                        sqlConnectIconPath.setContent("M194.66509,348.01735h-.00287a5.08422,5.08422,0,0,0-5.06208-5.01688H168.04l.02117,8.74355,17.86467.0072v5.689H159.89729c-.01728,0-.03124.0036-.05527.0036a3.14023,3.14023,0,0,1-3.13816-3.13668v-.00713h-.014V340.521h.014v-.009a3.14519,3.14519,0,0,1,3.13816-3.13844c.038,0,.07967.01323.1184.01323h29.59451l5.089-8.79625s-36.00025-.00433-36.08815,0a11.3304,11.3304,0,0,0-10.73466,11.31421c0,.21932.00647.42674.02227.63812V354.1787c-.00581.206-.02227.407-.02227.62085a11.34988,11.34988,0,0,0,11.353,11.348c.23616,0,1.21231-.0086,1.5066-.0086l28.93911.0036v-.00433a5.08677,5.08677,0,0,0,5.04239-5.07539V361.05h.00287Z");
+                                        sqlConnectIconPath.setContent(IconPaths.GBASE_LOGO);
                                         sqlConnectChoiceBoxDbIcon.setGraphic(new Group(sqlConnectIconPath));
                                         sqlConnectIconPath.setScaleX(0.2);
                                         sqlConnectIconPath.setScaleY(0.2);
                                     } else {
-                                        sqlConnectIconPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
+                                        sqlConnectIconPath.setContent(IconPaths.CONNECTION_LINK);
                                         sqlConnectChoiceBoxDbIcon.setGraphic(new Group(sqlConnectIconPath));
                                         sqlConnectIconPath.setScaleX(0.6);
                                         sqlConnectIconPath.setScaleY(0.6);
@@ -438,7 +452,6 @@ public class SqlTabController {
                                 List db_names = sqlexeService.getDatabases(sqlConnect);
                                 databaseChoiceBoxList = FXCollections.observableArrayList(db_names);
                                 Platform.runLater(() -> {
-                                    suppressDbChange = true;
                                     try {
                                         sqlDbChoiceBox.setValue(defaultDatabase); //设置一个默认值，避免连接不同但库名相同不触发激活数据库
                                         sqlDbChoiceBox.setItems(databaseChoiceBoxList);
@@ -451,7 +464,6 @@ public class SqlTabController {
                                             i++;
                                         }
                                     } finally {
-                                        suppressDbChange = false;
                                     }
                                     sqlUserTextField.setText(sqlConnect.getUsername());
                                     sqlConnectChoiceBoxDbIcon.setVisible(true);
@@ -471,16 +483,18 @@ public class SqlTabController {
 
         //数据库变更响应事件
         sqlDbChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            log.info("oldvalue is:"+oldValue);
+            log.info("newValue is:"+newValue);
             //如果变更值和当前值一样，表示上次切换失败，无需处理
+            if(suppressDbChange) {
+                return;
+            }
             if (newValue == null) {
                 return;
             }
             if (oldValue != null) {
             }
-            if(newValue.getName().equals(sqlConnect.getDatabase())) {
-                updateSqlModeChoicebox(sqlexeService.getSqlMode(sqlConnect.getConn()));
-                return;
-            }
+
 
             if ( !newValue.equals(oldValue) && !newValue.equals(defaultDatabase)) {
                 String result = "success";
@@ -489,10 +503,15 @@ public class SqlTabController {
                     result = sqlexeService.activeDatabase(sqlConnect, newValue, this);
                 }
                 if (result == null) { //如果是空值，切换失败，设置为原值
-                    Platform.runLater(() -> sqlDbChoiceBox.setValue(oldValue));
+                    
+                    Platform.runLater(() -> {
+                        suppressDbChange=true;
+                        sqlDbChoiceBox.setValue(oldValue);
+                        suppressDbChange=false;
+                });
                 } else if (result.equals("success")) {
                     updateSqlModeChoicebox(sqlexeService.getSqlMode(sqlConnect.getConn()));
-                    if(sqlCommitModeChoiceBox.getSelectionModel().getSelectedItem().equals("手动提交")){
+                    if(sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex()==1){
                         try {
                             sqlConnect.getConn().setAutoCommit(false);
                         } catch (SQLException e) {
@@ -525,7 +544,7 @@ public class SqlTabController {
             }
             if (sqlConnect.getConn() != null) {
                 try {
-                    sqlConnect.getConn().setAutoCommit(newValue.equals("自动提交"));
+                    sqlConnect.getConn().setAutoCommit(sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex()==0);
                 } catch (SQLException e) {
                     log.error(e.getMessage(),e);
                     if (e.getErrorCode() == -79716 || e.getErrorCode() == -79730) {
@@ -614,7 +633,7 @@ public class SqlTabController {
         final Double[] secondsElapsed = {0.0};
         Timeline taskTimeline = new Timeline(new KeyFrame(Duration.seconds(0.1), event1 -> {
             secondsElapsed[0] += 0.1;
-            sqlExecuteTimeInfo.setText("耗时 " + Math.round(secondsElapsed[0] * 10.0) / 10.0 + " 秒");
+            sqlExecuteTimeInfo.setText(formatExecuteTime(secondsElapsed[0]));
         }));
         taskTimeline.setCycleCount(Timeline.INDEFINITE);
 
@@ -624,20 +643,20 @@ public class SqlTabController {
             @Override
             public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
                 if (newValue) {
-                    sqlExecuteTaskInfo.setText(" 正在执行...");
+                    sqlExecuteTaskInfo.setText(I18n.t("sql.exec.running"));
                     secondsElapsed[0] = 0.0;
-                    sqlExecuteTimeInfo.setText("耗时 " + Math.round(secondsElapsed[0] * 10.0) / 10.0 + " 秒");
+                    sqlExecuteTimeInfo.setText(formatExecuteTime(secondsElapsed[0]));
                     taskTimeline.playFromStart();
                 } else {
                     taskTimeline.stop();
                     secondsElapsed[0] = 0.0;
-                    sqlExecuteTimeInfo.setText("耗时 " + Math.round(secondsElapsed[0] * 10.0) / 10.0 + " 秒");
+                    sqlExecuteTimeInfo.setText(formatExecuteTime(secondsElapsed[0]));
                 }
             }
         });
 
         //sqlEditCodeArea初始化以后才能赋值给searchReplaceBox，否则sqlEditCodeArea是null
-        searchReplaceBox.codeArea = sqlEditCodeArea;
+        searchReplaceBox.setCodeArea(sqlEditCodeArea);
 
 
     }
@@ -649,13 +668,159 @@ public class SqlTabController {
         transactionRollbackButton.setTooltip(commitButtonTooltip);
     }
 
+    private void setupSqlTabIcons() {
+        sqlExecuteLoadingLabel.setGraphic(IconFactory.imageView(IconPaths.LOADING_GIF, 12, 12, true));
+        sqlRunButton.setGraphic(IconFactory.group(IconPaths.SQL_RUN, 0.7, Color.valueOf("#074675")));
+        sqlExplainButton.setGraphic(IconFactory.group(IconPaths.SQL_EXPLAIN, 0.7, Color.valueOf("#074675")));
+        sqlStopButton.setGraphic(IconFactory.group(IconPaths.SQL_STOP, 0.75, Color.valueOf("#9f453c")));
+        sqlRecordButton.setGraphic(IconFactory.group(IconPaths.SQL_HISTORY, 0.8, Color.valueOf("#074675")));
+        sqlReadOnlyLabel.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, Color.valueOf("#9f453c")));
+
+        if (sqlDbIconPane != null) {
+            sqlDbIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, Color.valueOf("#888")));
+        }
+        if (sqlUserIconPane != null) {
+            sqlUserIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_USER, 0.55, Color.valueOf("#888")));
+        }
+    }
+
+    private void initI18nBindings() {
+        bindTooltip(sqlRunButton, "sql.tooltip.run");
+        bindTooltip(sqlExplainButton, "sql.tooltip.explain");
+        bindTooltip(sqlStopButton, "sql.tooltip.stop");
+        bindTooltip(sqlRecordButton, "sql.tooltip.history");
+
+        bindText(transactionCommitButton, "sql.transaction.commit");
+        bindText(transactionRollbackButton, "sql.transaction.rollback");
+        bindText(sqlReadOnlyLabel, "sql.label.readonly");
+        bindTabText(resultsetSummaryTab, "sql.tab.result");
+
+        setupConnectChoiceBoxI18n();
+        setupChoiceBoxConverter(sqlDbChoiceBox);
+        sqlCommitModeChoiceBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(Object object) {
+                if (COMMIT_MANUAL.equals(object)) {
+                    return I18n.t("sql.commit.manual");
+                }
+                if (COMMIT_AUTO.equals(object)) {
+                    return I18n.t("sql.commit.auto");
+                }
+                return object == null ? "" : object.toString();
+            }
+
+            @Override
+            public Object fromString(String string) {
+                return string;
+            }
+        });
+        refreshCommitModeItems();
+
+        sqlExecuteTimeInfo.setText(formatExecuteTime(0));
+
+        I18n.localeProperty().addListener((obs, oldVal, newVal) -> {
+            defaultConnect.setName(I18n.t("sql.connect.select_prompt"));
+            defaultDatabase.setName(I18n.t("common.na"));
+            // Ensure button text refresh when default items are selected
+            refreshConnectChoiceBoxItems();
+            refreshDefaultConnectDisplay();
+            refreshDbChoiceBoxDisplay();
+            sqlExecuteTimeInfo.setText(formatExecuteTime(0));
+            refreshCommitModeItems();
+            sqlCommitModeChoiceBox.setValue(sqlCommitModeChoiceBox.getValue());
+        });
+    }
+
+    private void setupConnectChoiceBoxI18n() {
+        setupChoiceBoxConverter(sqlConnectChoiceBox);
+        refreshConnectChoiceBoxItems();
+    }
+
+    private <T extends TreeData> void setupChoiceBoxConverter(ChoiceBox<T> choiceBox) {
+        choiceBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(T object) {
+                return object == null ? "" : object.getName();
+            }
+
+            @Override
+            public T fromString(String string) {
+                return null;
+            }
+        });
+    }
+
+    private void refreshConnectChoiceBoxItems() {
+        if (sqlConnectChoiceBox.getItems() == null || sqlConnectChoiceBox.getItems().isEmpty()) {
+            return;
+        }
+        suppressConnectChange = true;
+        int selectedIndex = sqlConnectChoiceBox.getSelectionModel().getSelectedIndex();
+        Connect selectedValue = sqlConnectChoiceBox.getValue();
+        List<Connect> snapshot = new ArrayList<>(sqlConnectChoiceBox.getItems());
+        sqlConnectChoiceBox.getItems().setAll(snapshot);
+        if (selectedIndex >= 0 && selectedIndex < sqlConnectChoiceBox.getItems().size()) {
+            sqlConnectChoiceBox.getSelectionModel().select(selectedIndex);
+        } else {
+            if (selectedValue != null && sqlConnectChoiceBox.getItems().contains(selectedValue)) {
+                sqlConnectChoiceBox.getSelectionModel().select(selectedValue);
+            } else if (selectedValue != null) {
+                sqlConnectChoiceBox.setValue(selectedValue);
+            } else {
+                sqlConnectChoiceBox.setValue(defaultConnect);
+            }
+        }
+        suppressConnectChange = false;
+    }
+
+    private void refreshDefaultConnectDisplay() {
+        if (sqlConnectChoiceBox.getValue() != defaultConnect) {
+            return;
+        }
+        suppressConnectChange = true;
+        sqlConnectChoiceBox.setValue(null);
+        sqlConnectChoiceBox.setValue(defaultConnect);
+        suppressConnectChange = false;
+    }
+
+
+    private void refreshDbChoiceBoxDisplay() {
+        if (sqlDbChoiceBox.getValue() == null) {
+            return;
+        }
+        suppressDbChange = true;
+        Database selected = sqlDbChoiceBox.getValue();
+        sqlDbChoiceBox.getSelectionModel().clearSelection();
+        sqlDbChoiceBox.setValue(selected);
+        suppressDbChange = false;
+    }
+
+    private void refreshCommitModeItems() {
+        Object selected = sqlCommitModeChoiceBox.getValue();
+        sqlCommitModeChoiceBox.getItems().clear();
+        sqlCommitModeChoiceBox.getItems().add(COMMIT_AUTO);
+        sqlCommitModeChoiceBox.getItems().add(COMMIT_MANUAL);
+        if (selected == null) {
+            selected = COMMIT_AUTO;
+        }
+        if (!sqlCommitModeChoiceBox.getItems().contains(selected)) {
+            selected = COMMIT_AUTO;
+        }
+        sqlCommitModeChoiceBox.setValue(selected);
+    }
+
+    private boolean isDefaultConnectSelected() {
+        return sqlConnectChoiceBox.getValue() == defaultConnect;
+    }
+
     private void setupSearchReplacePanel() {
         searchReplaceBox.setMaxWidth(300);
         searchReplaceBox.setMaxHeight(26);
         StackPane.setAlignment(searchReplaceBox, Pos.TOP_RIGHT);
         StackPane.setMargin(searchReplaceBox, new Insets(2, 17, 0, 0));
         sqlEditStackPane.getChildren().add(searchReplaceBox);
-        sqlEditCodeArea.searchReplaceBox = searchReplaceBox;
+        sqlEditCodeArea.setOnShowFindPanel(searchReplaceBox::showFindPanel);
+        sqlEditCodeArea.setOnShowReplacePanel(searchReplaceBox::showReplacePanel);
     }
 
     private void setupResultSetView() throws IOException {
@@ -723,32 +888,88 @@ public class SqlTabController {
         sqlConnectChoiceBoxLoadingIcon.setVisible(false);
         sqlConnectChoiceBoxIconStackPane.getChildren().addAll(sqlConnectChoiceBoxDbIcon, sqlConnectChoiceBoxLoadingIcon);
 
-        sqlConnectIconPath = new SVGPath();
-        sqlConnectIconPath.setContent("M21.2812 3.3281 Q22.2656 4.3125 22.6094 5.6562 Q22.9688 6.9844 22.6094 8.3281 Q22.2656 9.6562 21.2812 10.6406 L19.4531 12.4688 Q18.4688 13.4531 17.125 13.7812 Q15.7969 14.1094 14.4844 13.7812 L19.4531 8.8125 Q20.2031 8.0625 20.2031 6.9844 Q20.2031 5.9062 19.4531 5.1562 Q18.7031 4.4062 17.625 4.4062 Q16.5469 4.4062 15.7969 5.1562 L10.8281 10.125 Q10.5 8.8125 10.8281 7.4844 Q11.1562 6.1406 12.1406 5.1562 L13.9688 3.3281 Q14.9531 2.3438 16.2812 2 Q17.625 1.6406 18.9531 2 Q20.2969 2.3438 21.2812 3.3281 ZM10.3125 16.125 L16.7344 9.7031 Q17.1094 9.3281 17.1094 8.7969 Q17.1094 8.25 16.7031 7.875 Q16.3125 7.5 15.7656 7.5312 Q15.2344 7.5469 14.8594 7.875 L8.4844 14.2969 Q8.1094 14.6719 8.1094 15.2188 Q8.1094 15.75 8.4844 16.125 Q8.8594 16.5 9.3906 16.4844 Q9.9375 16.4531 10.3125 16.125 ZM9.375 18.8438 L14.3438 13.875 Q14.7188 15.1875 14.3906 16.5312 Q14.0625 17.8594 13.0781 18.8438 L11.25 20.6719 Q10.2188 21.7031 8.9062 22.0312 Q7.5938 22.3594 6.25 22.0312 Q4.9219 21.7031 3.9062 20.7031 Q2.9062 19.6875 2.5469 18.3594 Q2.2031 17.0156 2.5469 15.6875 Q2.9062 14.3438 3.8906 13.3594 L5.7656 11.5312 Q6.75 10.5469 8.0625 10.2188 Q9.375 9.8906 10.7344 10.2188 L5.7656 15.1875 Q4.9688 15.9375 4.9688 17.0156 Q4.9688 18.0938 5.7344 18.875 Q6.5156 19.6406 7.5625 19.6406 Q8.625 19.6406 9.375 18.8438 Z");
+        sqlConnectIconPath = IconFactory.create(IconPaths.CONNECTION_LINK, 0.6, 0.6, Color.valueOf("#888"));
         sqlConnectChoiceBoxDbIcon.setGraphic(new Group(sqlConnectIconPath));
-        sqlConnectIconPath.setScaleX(0.6);
-        sqlConnectIconPath.setScaleY(0.6);
 
-        ImageView loadingIcon = new ImageView(new Image("file:images/loading.gif"));
-        loadingIcon.setScaleX(0.7);
-        loadingIcon.setScaleY(0.7);
+        ImageView loadingIcon = IconFactory.loadingImageView(0.7);
         sqlConnectChoiceBoxLoadingIcon.setGraphic(loadingIcon);
-        Tooltip tooltip = new Tooltip("正在连接数据库");
+        Tooltip tooltip = new Tooltip();
+        tooltip.textProperty().bind(I18n.bind("sql.tooltip.connecting"));
         tooltip.setShowDelay(Duration.millis(100));
         sqlConnectChoiceBoxLoadingIcon.setTooltip(tooltip);
 
         sqlConnectIconPath.setFill(Paint.valueOf("#888"));
     }
 
+    private void bindText(Labeled labeled, String key) {
+        if (labeled != null) {
+            labeled.textProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindTabText(Tab tab, String key) {
+        if (tab != null) {
+            tab.textProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindColumnText(TableColumn<?, ?> column, String key) {
+        if (column != null) {
+            column.textProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindTooltip(Control control, String key) {
+        if (control == null) {
+            return;
+        }
+        Tooltip tooltip = control.getTooltip();
+        if (tooltip == null) {
+            tooltip = new Tooltip();
+            control.setTooltip(tooltip);
+        }
+        tooltip.textProperty().bind(I18n.bind(key));
+    }
+
+    private String formatExecuteTime(double seconds) {
+        String value = String.valueOf(Math.round(seconds * 10.0) / 10.0);
+        return String.format(I18n.t("sql.exec.time"), value);
+    }
+
+    private String formatElapsedSeconds(long millis) {
+        String value = String.format("%.3f", millis / 1000.0);
+        return String.format(I18n.t("sql.exec.elapsed"), value);
+    }
+
+    private String buildExecutionMark() {
+        String mark = getCommitModeLabel();
+        if (sqlSqlModeChoiceBox.isVisible()) {
+            mark += I18n.t("sql.mark.sep") + sqlSqlModeChoiceBox.getValue();
+        }
+        if (!sqlParamList.isEmpty()) {
+            mark += I18n.t("sql.mark.params") + sqlParamList;
+        }
+        return mark;
+    }
+
+    private String getCommitModeLabel() {
+        Object value = sqlCommitModeChoiceBox.getValue();
+        if (COMMIT_MANUAL.equals(value)) {
+            return I18n.t("sql.commit.manual");
+        }
+        return I18n.t("sql.commit.auto");
+    }
+
     private void setupDefaultConnectionState() {
-        defaultConnect.setName("请选择数据库连接");
-        defaultDatabase.setName("N/A");
+        defaultConnect.setName(I18n.t("sql.connect.select_prompt"));
+        defaultDatabase.setName(I18n.t("common.na"));
         sqlConnectChoiceBox.setValue(defaultConnect);
         sqlDbChoiceBox.setValue(defaultDatabase);
-        sqlUserTextField.setText("N/A");
+        sqlUserTextField.setText(I18n.t("common.na"));
         sqlCommitModeChoiceBox.getSelectionModel().selectFirst();
 
-        sqlEditCodeArea.sqlRunButton = sqlRunButton;
+        sqlEditCodeArea.setOnExecuteRequest(() -> sqlRunButton.fire());
+        sqlEditCodeArea.setExecuteDisabledSupplier(sqlRunButton::isDisable);
         sqlConnect = defaultConnect;
     }
 
@@ -763,6 +984,9 @@ public class SqlTabController {
         }
         ObservableList<Connect> dbtypelist = FXCollections.observableArrayList(connect_list);
         sqlConnectChoiceBox.setItems(dbtypelist);
+        if (sqlConnectChoiceBox.getValue() == null) {
+            sqlConnectChoiceBox.setValue(defaultConnect);
+        }
     }
 
     private void bindHeaderControls() {
@@ -801,56 +1025,64 @@ public class SqlTabController {
         TableColumn<ObservableList<String>, Object> databasecol;
         TableColumn<ObservableList<String>, Object> markcol;
 
-        resultcol = new TableColumn<ObservableList<String>, Object>("执行结果");
+        resultcol = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(resultcol, "sql.table.result");
         resultcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         resultcol.setCellValueFactory(new PropertyValueFactory<>("result"));
         resultcol.setPrefWidth(120);
         resultcol.setReorderable(false);
         resultcol.setSortable(false);
 
-        begin = new TableColumn<ObservableList<String>, Object>("开始时间");
+        begin = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(begin, "sql.table.start_time");
         begin.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         begin.setCellValueFactory(new PropertyValueFactory<>("startTime"));
         begin.setPrefWidth(190);
         begin.setReorderable(false);
         begin.setSortable(false);
 
-        stop = new TableColumn<ObservableList<String>, Object>("结束时间");
+        stop = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(stop, "sql.table.end_time");
         stop.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         stop.setCellValueFactory(new PropertyValueFactory<>("endTime"));
         stop.setPrefWidth(190);
         stop.setReorderable(false);
         stop.setSortable(false);
 
-        drution = new TableColumn<ObservableList<String>, Object>("执行耗时");
+        drution = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(drution, "sql.table.elapsed");
         drution.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         drution.setCellValueFactory(new PropertyValueFactory<>("elapsedTime"));
         drution.setPrefWidth(100);
         drution.setReorderable(false);
         drution.setSortable(false);
 
-        databasecol = new TableColumn<ObservableList<String>, Object>("库/模式");
+        databasecol = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(databasecol, "sql.table.database");
         databasecol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         databasecol.setCellValueFactory(new PropertyValueFactory<>("database"));
         databasecol.setPrefWidth(100);
         databasecol.setReorderable(false);
         databasecol.setSortable(false);
 
-        markcol = new TableColumn<ObservableList<String>, Object>("备注");
+        markcol = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(markcol, "sql.table.note");
         markcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         markcol.setCellValueFactory(new PropertyValueFactory<>("mark"));
         markcol.setPrefWidth(120);
         markcol.setReorderable(false);
         markcol.setSortable(false);
 
-        affect = new TableColumn<ObservableList<String>, Object>("更新行数");
+        affect = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(affect, "sql.table.affected");
         affect.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         affect.setCellValueFactory(new PropertyValueFactory<>("affectedRows"));
         affect.setPrefWidth(100);
         affect.setReorderable(false);
         affect.setSortable(false);
 
-        sqlcol = new TableColumn<ObservableList<String>, Object>("执行语句");
+        sqlcol = new TableColumn<ObservableList<String>, Object>();
+        bindColumnText(sqlcol, "sql.table.sql");
         sqlcol.setCellFactory(col -> new CustomResultsetTableCell<ObservableList<String>, Object>());
         sqlcol.setCellValueFactory(new PropertyValueFactory<>("updateSql"));
         sqlcol.setPrefWidth(300);
@@ -860,12 +1092,12 @@ public class SqlTabController {
         resultsetTotalTableView.getColumns().addAll(resultcol, databasecol, sqlcol, affect, drution, begin, stop, markcol);
         updateResults = FXCollections.observableArrayList();
         UpdateResult updateResult = new UpdateResult();
-        updateResult.setResult("执行结果，此处显示执行成功或执行失败");
-        updateResult.setDatabase("库名");
-        updateResult.setUpdateSql("执行的SQL语句");
-        updateResult.setStartTime("SQL开始执行的时间");
-        updateResult.setEndTime("SQL完成执行的时间");
-        updateResult.setElapsedTime("执行耗时");
+        updateResult.setResult(I18n.t("sql.table.sample.result"));
+        updateResult.setDatabase(I18n.t("sql.table.sample.database"));
+        updateResult.setUpdateSql(I18n.t("sql.table.sample.sql"));
+        updateResult.setStartTime(I18n.t("sql.table.sample.start_time"));
+        updateResult.setEndTime(I18n.t("sql.table.sample.end_time"));
+        updateResult.setElapsedTime(I18n.t("sql.table.sample.elapsed"));
         updateResult.setAffectedRows(0);
         resultsetTotalTableView.setItems(updateResults);
     }
@@ -874,12 +1106,12 @@ public class SqlTabController {
         sqlStopButton.setOnAction(event -> cancelCurrentExecution());
 
         sqlRunButton.setOnAction(event -> {
-            if (sqlConnectChoiceBox.getValue().getName().equals("请选择数据库连接")) {
-                NotificationUtil.showNotification(Main.mainController.noticePane, "请选择数据库连接！");
+            if (isDefaultConnectSelected()) {
+                NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("sql.notice.select_connection"));
             } else {
                 sqlText = resolveSqlText(true);
                 if (sqlText.isEmpty()) {
-                    NotificationUtil.showNotification(Main.mainController.noticePane, "请输入需要执行的SQL语句！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("sql.notice.enter_sql"));
                 } else {
                     if (sqlTask != null && sqlTask.isRunning()) {
                         cancelCurrentExecution();
@@ -898,12 +1130,12 @@ public class SqlTabController {
         });
 
         sqlExplainButton.setOnAction(event -> {
-            if (sqlConnectChoiceBox.getValue().getName().equals("请选择数据库连接")) {
-                NotificationUtil.showNotification(Main.mainController.noticePane, "请选择数据库连接！");
+            if (isDefaultConnectSelected()) {
+                NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("sql.notice.select_connection"));
             } else {
                 sqlText = resolveSqlText(false);
                 if (sqlText.isEmpty()) {
-                    NotificationUtil.showNotification(Main.mainController.noticePane, "请输入需要查看执行计划的SQL语句！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("sql.notice.enter_explain_sql"));
                 } else {
                     if (sqlTask != null && sqlTask.isRunning()) {
                         cancelCurrentExecution();
@@ -927,7 +1159,7 @@ public class SqlTabController {
         Platform.runLater(() -> {
             sqlTransactionText.set("");
             //transactionBox.setVisible(false);
-            if (AlterUtil.CustomAlertConfirm("错误", "数据库已断开连接，是否需要重新连接？")) {
+            if (AlterUtil.CustomAlertConfirm(I18n.t("common.error"), I18n.t("sql.confirm.reconnect"))) {
                 //嵌套Platform保证前一步完成后执行下一步，避免渲染延迟导致前后顺序错误
                 Platform.runLater(() -> {
                     sqlConnectChoiceBox.setValue(defaultConnect);
@@ -935,7 +1167,7 @@ public class SqlTabController {
                         sqlConnectChoiceBox.setValue(sqlConnect);
                         Platform.runLater(() -> {
                             if (MetadataTreeviewUtil.metadataService.testConn(sqlConnect)) {
-                                NotificationUtil.showNotification(Main.mainController.noticePane, "重连数据库成功！");
+                                NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("sql.notice.reconnect_success"));
                                 //    data_manager_sqlRunButton.fire();
                             }
                         });
@@ -989,7 +1221,7 @@ public class SqlTabController {
             }
         } catch (SQLException e) {
             log.error(e.getMessage(), e);
-            AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+            AlterUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
         }
     }
 
@@ -1010,8 +1242,9 @@ public class SqlTabController {
             @Override
             protected Void call() throws Exception {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                sqlExecutionResult = "执行成功";
-                updateMessage("Executing... ");
+                sqlExecutionSuccess = false;
+                sqlExecutionResult = "";
+                updateMessage(I18n.t("sql.exec.running"));
 
                 Sql sql = new Sql();
                 sqlStatementCount = 0;
@@ -1063,6 +1296,8 @@ public class SqlTabController {
 
                                     activeResultSetController = currentResultSetTabController;
                                     sqlUsedTime = currentResultSetTabController.executeSelect(sqlExe, sqlTask, true, sqlTransactionText, sqlCommitModeChoiceBox);
+                                    sqlExecutionSuccess = true;
+                                    sqlExecutionResult = I18n.t("sql.exec.success");
                                     setResultsetVisible(true);
                                     if(isCancelled()){
                                         setResultsetVisible(false);
@@ -1074,6 +1309,7 @@ public class SqlTabController {
                                     //关闭sqlStatement，避免下次执行报213错误，如绑定变量点击了取消场景
                                     log.error(e.getMessage(), e);
                                     setResultsetVisible(false);
+                                    sqlExecutionSuccess = false;
                                     sqlExecutionResult = "[" + e.getErrorCode() + "]" + e.getMessage();
                                     if (e.getErrorCode() == -254) {  //如果没有设置绑定变量参数，需要关闭sqlStatement，否则下次执行会报213
                                         try {
@@ -1090,7 +1326,7 @@ public class SqlTabController {
                                         if (e.getErrorCode() == -79730 || e.getErrorCode() == -79716) {
                                             connectionDisconnected();
                                         } else {
-                                            AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+                                            AlterUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
                                         }
                                     });
                                     
@@ -1102,7 +1338,8 @@ public class SqlTabController {
                                 }
                                 sqlEndTime = System.currentTimeMillis();
                                 if (isCancelled() ) {
-                                    sqlExecutionResult = "取消执行";
+                                    sqlExecutionSuccess = false;
+                                    sqlExecutionResult = I18n.t("sql.exec.cancelled");
                                 }
                                 //sqlUsedTime = sqlEndTime - sqlStartTime;
                                 sqlTotalTime += sqlUsedTime;
@@ -1111,9 +1348,9 @@ public class SqlTabController {
                                 updateResult.setUpdateSql(sqlExe.trim());
                                 updateResult.setStartTime(sdf.format(sqlStartTime));
                                 updateResult.setEndTime(sdf.format(sqlEndTime));
-                                updateResult.setElapsedTime(String.format("%.3f", sqlUsedTime / 1000.0) + " sec");
+                                updateResult.setElapsedTime(formatElapsedSeconds(sqlUsedTime));
                                 updateResult.setAffectedRows(0);
-                                updateResult.setMark(sqlCommitModeChoiceBox.getValue().toString() + (!sqlSqlModeChoiceBox.isVisible() ? "" : "，" + sqlSqlModeChoiceBox.getValue()) + (sqlParamList.isEmpty() ? "" : "，参数" + sqlParamList));
+                                updateResult.setMark(buildExecutionMark());
                                 addUpdateResult(updateResult, true);
                                 if (isCancelled()) {
                                     return null;
@@ -1125,7 +1362,7 @@ public class SqlTabController {
                             else if (sqlConnect.getReadonly()) {
                             
                                 Platform.runLater(() -> {
-                                    AlterUtil.CustomAlert("错误", "当前连接只读，只允许执行单条SELECT语句！");
+                                    AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.error.readonly_select_only"));
                                 });
                             }
                             //如果以上都不是，那就是单条更新或多条语句
@@ -1136,7 +1373,8 @@ public class SqlTabController {
                                 sqlStartTime = System.currentTimeMillis();
                                 sqlUsedTime = 0;
                                 sqlAffect = 0;
-                                sqlExecutionResult = "执行成功";
+                                sqlExecutionSuccess = true;
+                                sqlExecutionResult = I18n.t("sql.exec.success");
                                 updateResult.setDatabase(sqlConnect.getDatabase());
                                 //开始执行update
                                 if (sql.getSqlType().equals("SELECT") || sql.getSqlType().equals("CALL")) {
@@ -1152,6 +1390,7 @@ public class SqlTabController {
                                     } catch (SQLException e) {
                                         
                                         log.error(e.getMessage(), e);
+                                        sqlExecutionSuccess = false;
                                         sqlExecutionResult = "[" + e.getErrorCode() + "]" + e.getMessage();
                                         
                                     } finally {
@@ -1162,11 +1401,12 @@ public class SqlTabController {
                                     sqlEndTime = System.currentTimeMillis();
                                     CountDownLatch latch = new CountDownLatch(1);
                                     if(isCancelled()){
-                                        sqlExecutionResult="取消执行";
+                                        sqlExecutionSuccess = false;
+                                        sqlExecutionResult = I18n.t("sql.exec.cancelled");
                                     }
-                                    if (sqlExecutionResult.equals("执行成功") && ((sql.getSqlType().equals("SELECT") || customResultsetTab.resultSetTabController.callHasResultSet))) {
+                                    if (sqlExecutionSuccess && ((sql.getSqlType().equals("SELECT") || customResultsetTab.resultSetTabController.callHasResultSet))) {
                                         Platform.runLater(() -> {
-                                            String baseTitle = "结果集";
+                                            String baseTitle = I18n.t("sql.tab.resultset_prefix");
                                             String tabName;
                                             int nextNumber = 1;
                                             // 查找可用的Tab名称
@@ -1179,7 +1419,7 @@ public class SqlTabController {
                                                 }
                                                 nextNumber++;
                                             }
-                                            sqlExecutionResult += ("，" + newResultsetTabName);
+                                            sqlExecutionResult += (I18n.t("sql.mark.sep") + newResultsetTabName);
                                             customResultsetTab.setText(newResultsetTabName);
                                             resultsetTabPane.getTabs().add(customResultsetTab);
                                             latch.countDown();
@@ -1220,7 +1460,8 @@ public class SqlTabController {
                                             //System.out.println(sql_param_string);
                                         }
                                         sqlAffect = sqlStatement.executeUpdate();
-                                        sqlExecutionResult = "执行成功";
+                                        sqlExecutionSuccess = true;
+                                        sqlExecutionResult = I18n.t("sql.exec.success");
                                         
                                     } catch (SQLException e) {
                                         
@@ -1237,12 +1478,13 @@ public class SqlTabController {
                                                     } catch (SQLException ex) {
                                                         ex.printStackTrace();
                                                     }
-                                                    AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+                                                    AlterUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
                                                 } else {
-                                                    AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+                                                    AlterUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
                                                 }
                                             });
                                         }
+                                        sqlExecutionSuccess = false;
                                         sqlExecutionResult = "[" + e.getErrorCode() + "]" + e.getMessage();
                                         
                                     }
@@ -1255,17 +1497,18 @@ public class SqlTabController {
                                     sqlUsedTime = sqlEndTime - sqlStartTime;
                                 }
                                 if (isCancelled()) {
-                                    sqlExecutionResult = "取消执行";
+                                    sqlExecutionSuccess = false;
+                                    sqlExecutionResult = I18n.t("sql.exec.cancelled");
                                 }
                                 sqlTotalTime += sqlUsedTime;
                                 updateResult.setResult(sqlExecutionResult);
                                 updateResult.setConnectId(sqlConnect.getId());
                                 updateResult.setStartTime(sdf.format(sqlStartTime));
                                 updateResult.setEndTime(sdf.format(sqlEndTime));
-                                updateResult.setElapsedTime(String.format("%.3f", sqlUsedTime / 1000.0) + " sec");
+                                updateResult.setElapsedTime(formatElapsedSeconds(sqlUsedTime));
                                 updateResult.setAffectedRows(sqlAffect);
                                 updateResult.setUpdateSql(sqlExe.trim());
-                                updateResult.setMark(sqlCommitModeChoiceBox.getValue().toString() + (!sqlSqlModeChoiceBox.isVisible() ? "" : "，" + sqlSqlModeChoiceBox.getValue()) + (sqlParamList.isEmpty() ? "" : "，参数" + sqlParamList));
+                                updateResult.setMark(buildExecutionMark());
                               
 
                                 //updateResults.add(updateResult);
@@ -1287,7 +1530,7 @@ public class SqlTabController {
                        
                             }
 
-                            if (sqlExecutionResult.startsWith("执行成功")) {
+                            if (sqlExecutionSuccess) {
                                 //执行记录保存
                                 if (!sql.getSqlType().equals("SELECT")) {
                                     SqliteDBaccessUtil.saveSqlHistory(updateResult);
@@ -1440,7 +1683,7 @@ public class SqlTabController {
 
         if (!SqlParserUtil.isSingleStatement(sqlText)) {
                     Platform.runLater(() -> {
-                        AlterUtil.CustomAlert("错误", "只允许单条SQL查看执行计划，请选择单条SQL语句！");
+                        AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.single_only"));
                     });
 
                 } else {
@@ -1458,13 +1701,13 @@ public class SqlTabController {
                             try {
                                     if (rs.getString(1) != null) {
                                         if (rs.getString(1).equals("Error 0")) {
-                                            AlterUtil.CustomAlert("错误", "DDL或语法错误SQL不支持查看执行计划！请检查SQL类型或SQL语法是否存在错误！");
+                                            AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported"));
                                         } else {
                                             showExplainText(rs.getString(1));
                                             rs.close();
                                         }
                                     } else {
-                                        AlterUtil.CustomAlert("错误", "DDL或语法错误SQL不支持查看执行计划！请检查SQL类型或SQL语法是否存在错误！");
+                                        AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported"));
                                     }
                             } catch (SQLException e) {
                                 throw new RuntimeException(e);
@@ -1478,7 +1721,7 @@ public class SqlTabController {
                             connectionDisconnected();
                         } else {
                             Platform.runLater(() -> {
-                                AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+                                AlterUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
                             });
                             log.error(e.getMessage(), e);
                         }
@@ -1524,7 +1767,7 @@ public class SqlTabController {
                         connectionDisconnected();
                     } else {
                         Platform.runLater(() -> {
-                            AlterUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());
+                            AlterUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
                         });
                         log.error(e.getMessage(), e);
                     }
@@ -1577,6 +1820,7 @@ public class SqlTabController {
 
 
 }
+
 
 
 

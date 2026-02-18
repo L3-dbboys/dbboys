@@ -1,4 +1,4 @@
-﻿package com.dbboys.vo;
+package com.dbboys.vo;
 
 import javafx.beans.property.*;
 

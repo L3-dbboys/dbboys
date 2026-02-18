@@ -1,10 +1,13 @@
-﻿package com.dbboys.ctrl;
+package com.dbboys.ctrl;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomLabelTextField;
 import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.customnode.CustomUserTextField;
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.UpdateResult;
@@ -23,6 +26,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
@@ -54,6 +58,28 @@ public class ResultSetTabController {
     public Label resultSetEditableEnabledLabel;
     @FXML
     public Label resultSetEditableDisabledLabel;
+    @FXML
+    public Label resultSetLabelLeftBracket;
+    @FXML
+    public Label resultSetLabelRightBracket;
+    @FXML
+    public Label resultSetLabelPerTimePrefix;
+    @FXML
+    public Label resultSetLabelBetweenNext;
+    @FXML
+    public Label resultSetLabelBetweenAll;
+    @FXML
+    public Label resultSetLabelFetchedPrefix;
+    @FXML
+    public Label resultSetLabelFetchedSuffix;
+    @FXML
+    public Label resultSetLabelTotalPrefix;
+    @FXML
+    public Label resultSetLabelTotalSuffix;
+    @FXML
+    public Label resultSetLabelTimeSuffix;
+    @FXML
+    public Label resultSetLabelEnd;
     @FXML
     public CustomUserTextField resultSetPerTimeTextField;
     @FXML
@@ -111,6 +137,8 @@ public class ResultSetTabController {
     }
 
     public void initialize() {
+        initI18nBindings();
+        setupIcons();
         bindUiState();
         initExecuteProcessLabel();
         setupLastSql();
@@ -128,6 +156,68 @@ public class ResultSetTabController {
         resultSetCountButton.disableProperty().bind(sqlExecuteProcessStackPane.visibleProperty());
     }
 
+    private void initI18nBindings() {
+        bindTooltip(lastSqlCopyButton, "resultset.tooltip.copy_sql");
+        bindTooltip(lastSqlRefreshButton, "resultset.tooltip.refresh_sql");
+        bindTooltip(resultSetEditableEnabledLabel, "resultset.tooltip.editable_enabled");
+        bindTooltip(resultSetEditableDisabledLabel, "resultset.tooltip.editable_disabled");
+        bindTooltip(resultSetNextPageButton, "resultset.tooltip.next_page");
+        bindTooltip(resultSetAllRowsButton, "resultset.tooltip.all_rows");
+        bindTooltip(resultSetCountButton, "resultset.tooltip.count_rows");
+        bindTooltip(resultSetExportButton, "resultset.tooltip.export_loaded");
+
+        bindText(resultSetLabelLeftBracket, "resultset.label.left_bracket");
+        bindText(resultSetLabelRightBracket, "resultset.label.right_bracket");
+        bindText(resultSetLabelPerTimePrefix, "resultset.label.per_time_prefix");
+        bindText(resultSetLabelBetweenNext, "resultset.label.between_next");
+        bindText(resultSetLabelBetweenAll, "resultset.label.between_all");
+        bindText(resultSetLabelFetchedPrefix, "resultset.label.fetched_prefix");
+        bindText(resultSetLabelFetchedSuffix, "resultset.label.fetched_suffix");
+        bindText(resultSetLabelTotalPrefix, "resultset.label.total_prefix");
+        bindText(resultSetLabelTotalSuffix, "resultset.label.total_suffix");
+        bindText(resultSetLabelTimeSuffix, "resultset.label.time_suffix");
+        bindText(resultSetLabelEnd, "resultset.label.end");
+
+        ensureLastSqlTooltip();
+        if (lastSqlTextField.getText() == null || lastSqlTextField.getText().isBlank()) {
+            lastSqlTextField.setText(I18n.t("resultset.sample.sql"));
+        }
+        if (lastSqlTextField.getTooltip().getText() == null || lastSqlTextField.getTooltip().getText().isBlank()) {
+            lastSqlTextField.getTooltip().setText(I18n.t("resultset.sample.sql"));
+        }
+    }
+
+    private void setupIcons() {
+        lastSqlCopyButton.setGraphic(IconFactory.group(IconPaths.COPY, 0.6, Color.valueOf("#074675")));
+        lastSqlRefreshButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.6, Color.valueOf("#074675")));
+        resultSetEditableEnabledLabel.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6, Color.valueOf("#074675")));
+        resultSetEditableDisabledLabel.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE_DISABLED, 0.45, Color.valueOf("#9f453c")));
+        resultSetNextPageButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_NEXT_PAGE, 0.6, Color.valueOf("#074675")));
+        resultSetAllRowsButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_ALL_ROWS, 0.5, Color.valueOf("#074675")));
+        resultSetCountButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_COUNT, 0.5, Color.valueOf("#074675")));
+        resultSetExportButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.5, Color.valueOf("#074675")));
+    }
+
+    private void bindText(Labeled labeled, String key) {
+        labeled.textProperty().bind(I18n.bind(key));
+    }
+
+    private void bindTooltip(Control control, String key) {
+        Tooltip tooltip = new Tooltip();
+        tooltip.textProperty().bind(I18n.bind(key));
+        tooltip.setShowDelay(Duration.millis(100));
+        control.setTooltip(tooltip);
+    }
+
+    private void ensureLastSqlTooltip() {
+        Tooltip tooltip = lastSqlTextField.getTooltip();
+        if (tooltip == null) {
+            tooltip = new Tooltip();
+            lastSqlTextField.setTooltip(tooltip);
+        }
+        tooltip.setShowDelay(Duration.millis(100));
+    }
+
     private void initExecuteProcessLabel() {
         sqlExecuteProcessLabel = (Label) ((HBox) sqlExecuteProcessStackPane.getChildren().get(0)).getChildren().get(1);
     }
@@ -139,14 +229,16 @@ public class ResultSetTabController {
             ClipboardContent content = new ClipboardContent();
             content.putString(lastSqlTextField.getTooltip().getText());
             clipboard.setContent(content);
-            NotificationUtil.showNotification(Main.mainController.noticePane, "已复制！");
+            NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("resultset.notice.copied", "已复制！"));
         });
         lastSqlRefreshButton.setOnAction(event -> {
         });
     }
 
     private void setupTableView() {
-        Label tableviewEmptyLabel = new Label("");
+        Label tableviewEmptyLabel = new Label();
+        tableviewEmptyLabel.textProperty().bind(I18n.bind("resultset.placeholder.empty"));
+        resultSetTableView.getStyleClass().add("resultset-table-view");
         resultSetTableView.setPlaceholder(tableviewEmptyLabel);
         resultSetTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         resultSetTableView.getSelectionModel().setCellSelectionEnabled(true);
@@ -161,7 +253,7 @@ public class ResultSetTabController {
     }
 
     private void setupPerTimeField() {
-        resultSetPerTimeTextField.setText(ConfigManagerUtil.getProperty("RESULT_FETCH_PER_TIME"));
+        resultSetPerTimeTextField.setText(ConfigManagerUtil.getProperty("RESULT_FETCH_PER_TIME", "200"));
         resultSetPerTimeTextField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue.matches("\\d*")) {
                 resultSetPerTimeTextField.setText(newValue.replaceAll("[^\\d]", ""));
@@ -184,15 +276,24 @@ public class ResultSetTabController {
         });
         resultSetExportButton.setOnAction(event -> {
             if (resultSetTableView.getItems().size() == 0) {
-                AlterUtil.CustomAlert("错误", "当前结果集为空，无数据需要导出！");
+                AlterUtil.CustomAlert(
+                        I18n.t("common.error", "错误"),
+                        I18n.t("resultset.export.empty", "当前结果集为空，无数据需要导出！")
+                );
                 return;
             }
-            if (!AlterUtil.CustomAlertConfirm("结果集导出", "导出程序只导出已加载到结果集表格的数据，确定要执行导出吗?")) {
+            if (!AlterUtil.CustomAlertConfirm(
+                    I18n.t("resultset.export.title", "结果集导出"),
+                    I18n.t("resultset.export.confirm", "导出程序只导出已加载到结果集表格的数据，确定要执行导出吗?")
+            )) {
                 return;
             }
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("结果集导出");
-            String defaultName = "结果集导出_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss")) + ".xlsx";
+            fileChooser.setTitle(I18n.t("resultset.export.title", "结果集导出"));
+            String defaultName = I18n.t("resultset.export.filename_prefix", "结果集导出")
+                    + "_"
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+                    + ".xlsx";
             fileChooser.setInitialFileName(defaultName);
             File file = fileChooser.showSaveDialog(Main.scene.getWindow());
 
@@ -248,7 +349,7 @@ public class ResultSetTabController {
     public Task<Void> createGetResultSetCountTask() {
         //sql_is_count=true;
         sqlExecuteProcessStackPane.setVisible(true);
-        setFetchStatus(" 正在获取结果集总数...");
+        setFetchStatus(" " + I18n.t("sql.result.fetching_total"));
         String sqlCount = "select count(*) from (" + lastSqlTextField.getTooltip().getText().replaceFirst(";\\s*$", "") + ")";
         sqlTask = new Task<>() {
             @Override
@@ -329,14 +430,14 @@ public class ResultSetTabController {
         sqlStartTime = System.currentTimeMillis();
         int perpage = getPerPageLimit();
         if (showFetching) {
-            setFetchStatus(" 正在获取结果集...");
+            setFetchStatus(" " + I18n.t("sql.result.fetching"));
         }
 
         List<ObservableList<String>> fetchedRows = fetchRows(
                 sqlResultSet,
                 perpage,
                 sqlTask, columnCount,
-                showFetching ? fetched -> setFetchStatus(" 已获取结果集[ " + fetched + " ]行，") : null
+                showFetching ? fetched -> setFetchStatus(formatFetchedRows(fetched)) : null
         );
         sqlResultSetList.addAll(fetchedRows);
         sqlFetchedRows += fetchedRows.size();
@@ -388,7 +489,7 @@ public class ResultSetTabController {
             sqlStartTime = System.currentTimeMillis();
         int perpage = getPerPageLimit();
         if (showFetching) {
-            setFetchStatus(" 正在获取结果集...");
+            setFetchStatus(" " + I18n.t("sql.result.fetching"));
         }
 
             List<ObservableList<String>> fetchedRows = fetchRows(
@@ -396,7 +497,7 @@ public class ResultSetTabController {
                     perpage,
                     sqlTask,
                     columnCount,
-                    showFetching ? fetched -> setFetchStatus(" 已获取结果集[ " + fetched + " ]行，") : null
+                    showFetching ? fetched -> setFetchStatus(formatFetchedRows(fetched)) : null
             );
             sqlResultSetList.addAll(fetchedRows);
             sqlFetchedRows += fetchedRows.size();
@@ -504,7 +605,7 @@ public class ResultSetTabController {
                 sqlCstmt = null;
             }
         }
-        closeResultSet();
+
     }
 
     private static List<ObservableList<String>> fetchRows(ResultSet resultSet,
@@ -530,6 +631,11 @@ public class ResultSetTabController {
             }
         }
         return rows;
+    }
+
+    private String formatFetchedRows(int fetched) {
+        String template = I18n.t("sql.result.fetched_rows");
+        return template.replace("{0}", String.valueOf(fetched));
     }
 
     private int getPerPageLimit() {
@@ -767,7 +873,7 @@ public class ResultSetTabController {
                 try {
                     int columnCount = sqlResultSet.getMetaData().getColumnCount();
                     sqlResultSetList.clear();
-                    setFetchStatus(" 正在获取结果集...");
+                    setFetchStatus(" " + I18n.t("sql.result.fetching"));
                     sqlFetchStartTime = System.currentTimeMillis();
                     int perPage = fetchAll ? Integer.MAX_VALUE : getPerPageLimit();
                     List<ObservableList<String>> fetchedRows = fetchRows(
@@ -775,7 +881,7 @@ public class ResultSetTabController {
                             perPage,
                             this,
                             columnCount,
-                            fetched -> setFetchStatus(" 已获取结果集[ " + fetched + " ]行，")
+                            fetched -> setFetchStatus(formatFetchedRows(fetched))
                     );
                     sqlResultSetList.addAll(fetchedRows);
                     sqlFetchedRows += fetchedRows.size();

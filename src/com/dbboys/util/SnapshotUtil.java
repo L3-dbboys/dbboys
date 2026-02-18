@@ -1,7 +1,7 @@
 ﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
-import com.dbboys.customnode.CustomSpaceChart;
+import com.dbboys.i18n.I18n;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
@@ -19,151 +19,128 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collections;
 
 public class SnapshotUtil {
     private static final Logger log = LogManager.getLogger(SnapshotUtil.class);
+    private static final double SNAPSHOT_SCALE = 2.0;
+    private static final double TABLE_HEADER_HEIGHT = 21.0;
+    private static final double TABLE_FIXED_CELL_SIZE = 21.0;
+    private static final String TEMP_FILE_PREFIX = "dbboys_screenshot_";
+    private static final String TEMP_FILE_SUFFIX = ".png";
 
-    //设置实例信息显示样式
+    private SnapshotUtil() {
+    }
 
-    public static void copyToClipboard(WritableImage image, StackPane noticPane) {
+    public static void copyToClipboard(WritableImage image, StackPane noticePane) {
         try {
-            // 1. 创建临时文件
-            File tempFile = new File(System.getProperty("java.io.tmpdir"), "dbboys_screenshot.png");
+            File tempFile = Files.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX).toFile();
             tempFile.deleteOnExit();
 
-            // 2. 写入文件
             BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
             ImageIO.write(bufferedImage, "png", tempFile);
 
-            //快速释放内存，这一步很重要，避免内存大量占用
-            image=null;
-            bufferedImage = null;
-            System.gc();
-
-            // 3. 把文件放入剪切板（支持文件粘贴）
             Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-            Transferable transferable = new Transferable() {
-                @Override
-                public DataFlavor[] getTransferDataFlavors() {
-                    return new DataFlavor[] { DataFlavor.javaFileListFlavor };
-                }
-
-                @Override
-                public boolean isDataFlavorSupported(DataFlavor flavor) {
-                    return DataFlavor.javaFileListFlavor.equals(flavor);
-                }
-
-                @Override
-                public Object getTransferData(DataFlavor flavor)
-                        throws UnsupportedFlavorException, IOException {
-                    if (DataFlavor.javaFileListFlavor.equals(flavor)) {
-                        // 兼容 Java 8
-                        return Collections.singletonList(tempFile);
-                    }
-                    throw new UnsupportedFlavorException(flavor);
-                }
-            };
-
-            clipboard.setContents(transferable, null);
+            clipboard.setContents(new FileListTransferable(tempFile), null);
 
             NotificationUtil.showNotification(
-                    noticPane,
-                    "截图已保存到临时文件并复制到剪切板"
+                    noticePane,
+                    I18n.t("snapshot.notice.copied", "截图已保存到临时文件并复制到剪切板")
             );
-
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Failed to write snapshot image.", e);
             NotificationUtil.showNotification(
                     Main.mainController.noticePane,
-                    "截图写入临时文件失败：" + e.getMessage()
+                    I18n.t("snapshot.error.write_failed", "截图写入临时文件失败：%s").formatted(e.getMessage())
             );
         }
     }
 
-
-
-
-    public static void snapshotRoot(){
-        double scale = 2.0; // 比如 2 倍分辨率
-        WritableImage image = new WritableImage(
-                (int)(Main.scene.getRoot().getBoundsInParent().getWidth() * scale),
-                (int)(Main.scene.getRoot().getBoundsInParent().getHeight() * scale)
-        );
-        SnapshotParameters params = new SnapshotParameters();
-        params.setTransform(Transform.scale(scale, scale));
-        Main.scene.getRoot().snapshot(params,image);
-        //WritableImage image = snapshot_root_button.getScene().getRoot().snapshot(null,null);
-        copyToClipboard(image,Main.mainController.noticePane);
-
+    public static void snapshotRoot() {
+        snapshotSceneRoot();
     }
 
-    public static void snapshotNode(Node node){
-        double scale = 2.0; // 比如 2 倍分辨率
+    public static void snapshotSceneRoot() {
         WritableImage image = new WritableImage(
-                (int)(node.getBoundsInParent().getWidth() * scale),
-                (int)(node.getBoundsInParent().getHeight() * scale)
+                (int) (Main.scene.getRoot().getBoundsInParent().getWidth() * SNAPSHOT_SCALE),
+                (int) (Main.scene.getRoot().getBoundsInParent().getHeight() * SNAPSHOT_SCALE)
         );
         SnapshotParameters params = new SnapshotParameters();
-        params.setTransform(Transform.scale(scale, scale));
-        node.snapshot(params,image);
-        //WritableImage image = snapshot_root_button.getScene().getRoot().snapshot(null,null);
-        copyToClipboard(image,Main.mainController.noticePane);
-
+        params.setTransform(Transform.scale(SNAPSHOT_SCALE, SNAPSHOT_SCALE));
+        Main.scene.getRoot().snapshot(params, image);
+        copyToClipboard(image, Main.mainController.noticePane);
     }
 
-
-
+    public static void snapshotNode(Node node) {
+        WritableImage image = new WritableImage(
+                (int) (node.getBoundsInParent().getWidth() * SNAPSHOT_SCALE),
+                (int) (node.getBoundsInParent().getHeight() * SNAPSHOT_SCALE)
+        );
+        SnapshotParameters params = new SnapshotParameters();
+        params.setTransform(Transform.scale(SNAPSHOT_SCALE, SNAPSHOT_SCALE));
+        node.snapshot(params, image);
+        copyToClipboard(image, Main.mainController.noticePane);
+    }
 
     public static void snapshotTableView(TableView<?> tableView) {
-
-        // 1. 关闭虚拟化
-        tableView.setFixedCellSize(21); // 必须设置
+        tableView.setFixedCellSize(TABLE_FIXED_CELL_SIZE);
         int rowCount = tableView.getItems().size();
 
-
         double originalPrefHeight = tableView.getPrefHeight();
-        double originalMinHeight  = tableView.getMinHeight();
-        double originalMaxHeight  = tableView.getMaxHeight();
+        double originalMinHeight = tableView.getMinHeight();
+        double originalMaxHeight = tableView.getMaxHeight();
 
-        double headerHeight = 21; // 表头高度（经验值）
-        double newHeight = headerHeight + rowCount * tableView.getFixedCellSize();
+        double newHeight = TABLE_HEADER_HEIGHT + rowCount * tableView.getFixedCellSize();
 
-        tableView.setPrefHeight(newHeight);
-        tableView.setMinHeight(newHeight);
-        tableView.setMaxHeight(newHeight);
+        try {
+            tableView.setPrefHeight(newHeight);
+            tableView.setMinHeight(newHeight);
+            tableView.setMaxHeight(newHeight);
+            tableView.applyCss();
+            tableView.layout();
 
-        // 2. 强制 layout（非常关键）
-        tableView.applyCss();
-        tableView.layout();
+            WritableImage image = new WritableImage(
+                    (int) (tableView.getWidth() * SNAPSHOT_SCALE),
+                    (int) (newHeight * SNAPSHOT_SCALE)
+            );
 
-        // 3. 高清截图
-        double scale = 2.0;
-        WritableImage image = new WritableImage(
-                (int) (tableView.getWidth() * scale),
-                (int) (newHeight * scale)
-        );
-
-        SnapshotParameters params = new SnapshotParameters();
-        params.setTransform(Transform.scale(scale, scale));
-
-        tableView.snapshot(params, image);
-
-
-        copyToClipboard(image,Main.mainController.noticePane);
-
-        // 4. 恢复原状态
-        tableView.setPrefHeight(originalPrefHeight);
-        tableView.setMinHeight(originalMinHeight);
-        tableView.setMaxHeight(originalMaxHeight);
+            SnapshotParameters params = new SnapshotParameters();
+            params.setTransform(Transform.scale(SNAPSHOT_SCALE, SNAPSHOT_SCALE));
+            tableView.snapshot(params, image);
+            copyToClipboard(image, Main.mainController.noticePane);
+        } finally {
+            tableView.setPrefHeight(originalPrefHeight);
+            tableView.setMinHeight(originalMinHeight);
+            tableView.setMaxHeight(originalMaxHeight);
+        }
     }
 
+    private static final class FileListTransferable implements Transferable {
+        private final File file;
 
+        private FileListTransferable(File file) {
+            this.file = file;
+        }
 
+        @Override
+        public DataFlavor[] getTransferDataFlavors() {
+            return new DataFlavor[]{DataFlavor.javaFileListFlavor};
+        }
 
+        @Override
+        public boolean isDataFlavorSupported(DataFlavor flavor) {
+            return DataFlavor.javaFileListFlavor.equals(flavor);
+        }
+
+        @Override
+        public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
+            if (DataFlavor.javaFileListFlavor.equals(flavor)) {
+                return Collections.singletonList(file);
+            }
+            throw new UnsupportedFlavorException(flavor);
+        }
+    }
 }
-

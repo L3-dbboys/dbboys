@@ -1,7 +1,8 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.SqlTabController;
+import com.dbboys.i18n.I18n;
 import com.dbboys.util.AlterUtil;
 import com.dbboys.util.TabpaneUtil;
 import javafx.fxml.FXMLLoader;
@@ -21,27 +22,29 @@ import java.nio.file.Paths;
 public class CustomSqlTab extends CustomTab{
     //sql编辑框以上控件
     public SqlTabController sqlTabController;
+
     public CustomSqlTab(String title) {
         super(title);
-        setTooltip(new Tooltip(sql_file_path.equals("")?"新建脚本未保存到磁盘":sql_file_path));
+        refreshTooltip();
 
         //加载图形界面
-        VBox contentVbox=new VBox();
+        VBox contentVBox = new VBox();
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/SqlTab.fxml"));
         try {
-            contentVbox= loader.load();
+            contentVBox = loader.load();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        setContent(contentVbox);
+        setContent(contentVBox);
 
         //获取控制器实例
-        sqlTabController=loader.getController();
-        sqlTabController.sqlEditCodeArea.sql_save_button=sql_save_button;
-        //sql_save_button.disableProperty().bind(sqlTabController.sqlEditCodeArea.sql_save_button.disableProperty());
+        sqlTabController = loader.getController();
+        sqlTabController.sqlEditCodeArea.setOnSaveRequest(this::requestSave);
+        sqlTabController.sqlEditCodeArea.setOnContentDirty(this::markDirty);
+        sqlTabController.sqlEditCodeArea.setSaveDisabledSupplier(() -> !isDirty());
 
-        //设置标题提示
-        setTooltip(new Tooltip(sql_file_path.equals("")?"新建脚本未保存到磁盘":sql_file_path));
+        I18n.localeProperty().addListener((obs, oldLocale, newLocale) -> refreshTooltip());
+
         //增加最大化时SQL编辑分隔栏到最底下，addEventHandler不会覆盖父类事件响应，而是累加
         getTitleLabel().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
@@ -52,40 +55,6 @@ public class CustomSqlTab extends CustomTab{
                 }
             }
         });
-
-        //保存按钮事件
-        sql_save_button.setOnAction(event->{
-                    String content=sqlTabController.sqlEditCodeArea.getText();
-                    if(sql_file_path.equals("")){
-                        FileChooser fileChooser = new FileChooser();
-                        fileChooser.setTitle("保存文件");
-                        fileChooser.setInitialFileName(getTitle().replaceAll("\\*",""));
-                        File file = fileChooser.showSaveDialog(Main.scene.getWindow());
-                        if (file != null) { //用户选择了确认
-                            try (FileWriter writer = new FileWriter(file)) {
-                                writer.write(content);
-                                setTitle(file.getName());
-                                sql_file_path=file.getAbsolutePath();
-                                sql_save_button.setDisable(true);
-                                setTooltip(new Tooltip(sql_file_path));
-                            } catch (IOException e) {
-                                AlterUtil.CustomAlert("错误",e.getMessage());
-                            }
-
-                        }
-                    }else{
-                        try {
-                            Files.writeString(Paths.get(sql_file_path), content);
-                            setTitle(getTitle().replaceAll("\\*",""));
-                            sql_save_button.setDisable(true);
-                        } catch (IOException e) {
-                            AlterUtil.CustomAlert("错误",e.getMessage());
-                        }
-                    }
-
-                });
-
-
 
         //关闭窗口事件响应
 
@@ -98,8 +67,11 @@ public class CustomSqlTab extends CustomTab{
                     }
                 });
             }
-            if(getTitle().startsWith("*")){
-                if(AlterUtil.CustomAlertConfirm("关闭文件","文件【"+getTitle().replaceAll("\\*","")+"】未保存，确定要关闭吗？")){
+            if(isDirty()){
+                if (AlterUtil.CustomAlertConfirm(
+                        I18n.t("sql.tab.close_title", "关闭文件"),
+                        String.format(I18n.t("sql.tab.close_confirm", "文件【%s】未保存，确定要关闭吗？"), getBaseTitle())
+                )) {
                     sqlTabController.closeConn();
                 }else{
                     event1.consume(); // 取消关闭
@@ -115,16 +87,53 @@ public class CustomSqlTab extends CustomTab{
     //打开sql文件
     public void openSqlFile() {
         try {
-            sqlTabController.sqlEditCodeArea.replaceText(Files.readString(Path.of(sql_file_path)));
-            getTitle().replaceAll("\\*","");
-            sql_save_button.setDisable(true);
-            setTooltip(new Tooltip(sql_file_path));
+            sqlTabController.sqlEditCodeArea.replaceText(Files.readString(Path.of(filePath)));
+            markSaved();
+            refreshTooltip();
         } catch (IOException e) {
             e.printStackTrace();
-            AlterUtil.CustomAlert("错误",e.getMessage());
+            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
         }
     }
 
+    @Override
+    public void requestSave() {
+        String content = sqlTabController.sqlEditCodeArea.getText();
+        if (filePath.isEmpty()) {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle(I18n.t("sql.tab.save_dialog_title", "保存文件"));
+            fileChooser.setInitialFileName(getBaseTitle());
+            File file = fileChooser.showSaveDialog(Main.scene.getWindow());
+            if (file != null) { //用户选择了确认
+                try (FileWriter writer = new FileWriter(file)) {
+                    writer.write(content);
+                    setTitle(file.getName());
+                    filePath = file.getAbsolutePath();
+                    markSaved();
+                    refreshTooltip();
+                } catch (IOException e) {
+                    AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
+                }
+            }
+        }else{
+            try {
+                Files.writeString(Paths.get(filePath), content);
+                markSaved();
+            } catch (IOException e) {
+                AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
+            }
+        }
+    }
+
+    private void refreshTooltip() {
+        setTooltip(new Tooltip(filePath.isEmpty()
+                ? I18n.t("sql.tab.unsaved_path_tip", "新建脚本未保存到磁盘")
+                : filePath));
+    }
+
+    private String getBaseTitle() {
+        return getTitle().replace("*", "");
+    }
 
 }
 

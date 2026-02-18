@@ -1,27 +1,25 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
-import com.dbboys.util.AlterUtil;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
+import com.dbboys.util.MenuItemUtil;
 import com.dbboys.util.TabpaneUtil;
 import javafx.application.Platform;
-import javafx.event.Event;
-import javafx.scene.Group;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
 
 public class CustomTab extends Tab {
-    private Label titleLabel = new Label();
-    private HBox header = new HBox(titleLabel);
-    public String sql_file_path="";
-    public Button sql_save_button;
+    private static final String DIRTY_PREFIX = "*";
+    private final Label titleLabel = new Label();
+    private final HBox header = new HBox(titleLabel);
+    public String filePath="";
+    private boolean dirty = false;
 
     public CustomTab(String title) {
-        sql_save_button=new Button("");
-        sql_save_button.setDisable(true);
         //如果有面板，去掉双击响应事件
         Main.mainController.sqlTabPane.setOnMouseClicked(null);
         //super(title);
@@ -66,23 +64,14 @@ public class CustomTab extends Tab {
 
         ContextMenu tabMenu = new ContextMenu();
         titleLabel.setContextMenu(tabMenu);
-        SVGPath closeItemIcon = new SVGPath();
-        closeItemIcon.setScaleX(0.6);
-        closeItemIcon.setScaleY(0.6);
-        closeItemIcon.setContent("M20 3 L4.0156 3 Q3.1719 3 2.5781 3.5938 Q2 4.1719 2 4.9844 L2 19 Q2 19.8281 2.5781 20.4219 Q3.1719 21 4.0156 21 L20 21 Q20.8438 21 21.4219 20.4219 Q22.0156 19.8281 22.0156 19 L22.0156 4.9844 Q22.0156 4.1719 21.4219 3.5938 Q20.8438 3 20 3 ZM4.0156 19 L4.0156 7 L20 7 L20 19 L4.0156 19 L4.0156 19 ZM15.7031 10.7031 L14.2969 9.2969 L12 11.5781 L9.7031 9.2969 L8.2969 10.7031 L10.5938 13 L8.2969 15.2969 L9.7031 16.7031 L12 14.4062 L14.2969 16.7031 L15.7031 15.2969 L13.4062 13 L15.7031 10.7031 Z");
-        closeItemIcon.setFill(Color.valueOf("#9f453c"));
-        MenuItem closeAllItem = new  MenuItem("关闭所有页面 ( Close All Tabs) ");
-        closeAllItem.setGraphic(new Group(closeItemIcon));
-
-
-
-        SVGPath closeOthersItemIcon = new SVGPath();
-        closeOthersItemIcon.setScaleX(0.6);
-        closeOthersItemIcon.setScaleY(0.6);
-        closeOthersItemIcon.setContent("M20 3 L4.0156 3 Q3.1719 3 2.5781 3.5938 Q2 4.1719 2 4.9844 L2 19 Q2 19.8281 2.5781 20.4219 Q3.1719 21 4.0156 21 L20 21 Q20.8438 21 21.4219 20.4219 Q22.0156 19.8281 22.0156 19 L22.0156 4.9844 Q22.0156 4.1719 21.4219 3.5938 Q20.8438 3 20 3 ZM4.0156 19 L4.0156 7 L20 7 L20 19 L4.0156 19 L4.0156 19 ZM15.7031 10.7031 L14.2969 9.2969 L12 11.5781 L9.7031 9.2969 L8.2969 10.7031 L10.5938 13 L8.2969 15.2969 L9.7031 16.7031 L12 14.4062 L14.2969 16.7031 L15.7031 15.2969 L13.4062 13 L15.7031 10.7031 Z");
-        closeOthersItemIcon.setFill(Color.valueOf("#9f453c"));
-        MenuItem closeOthersItem = new  MenuItem("关闭其他页面 ( Close Other Tabs ) ");
-        closeOthersItem.setGraphic(new Group(closeOthersItemIcon));
+        CustomShortcutMenuItem closeAllItem = MenuItemUtil.createMenuItemI18n(
+                "customtab.menu.close_all",
+                IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.5, 0.5, Color.web("#e81123"))
+        );
+        CustomShortcutMenuItem closeOthersItem = MenuItemUtil.createMenuItemI18n(
+                "customtab.menu.close_others",
+                IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.5, 0.5, Color.web("#e81123"))
+        );
 
         tabMenu.getItems().addAll(closeOthersItem,closeAllItem);
 
@@ -94,16 +83,6 @@ public class CustomTab extends Tab {
 
         closeOthersItem.setOnAction(event -> {
             TabpaneUtil.closeOtherTabs(this);
-        });
-
-
-        //根据保存按钮的情况，标题是否显示*提示未保存
-        sql_save_button.disableProperty().addListener((obs, oldVal, newVal) -> {
-            if(newVal){
-                setTitle(getTitle().replaceAll("\\*",""));
-            }else{
-                setTitle("*"+getTitle());
-            }
         });
 
 
@@ -124,12 +103,38 @@ public class CustomTab extends Tab {
         return titleLabel.getText();
     }
     public void setTitle(String title){
-        titleLabel.setText(title);
-        setText(title);
+        String baseTitle = title == null ? "" : title.replace(DIRTY_PREFIX, "");
+        String displayTitle = dirty ? DIRTY_PREFIX + baseTitle : baseTitle;
+        titleLabel.setText(displayTitle);
+        setText(displayTitle);
         //setGraphic(header);
     }
     public Label getTitleLabel(){
         return titleLabel;
+    }
+
+    public boolean isDirty() {
+        return dirty;
+    }
+
+    public void markDirty() {
+        setDirty(true);
+    }
+
+    public void markSaved() {
+        setDirty(false);
+    }
+
+    protected void setDirty(boolean dirty) {
+        if (this.dirty == dirty) {
+            return;
+        }
+        this.dirty = dirty;
+        setTitle(getTitle());
+    }
+
+    public void requestSave() {
+        // Override in subclasses that support save.
     }
 
 

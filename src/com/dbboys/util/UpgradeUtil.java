@@ -1,7 +1,7 @@
-﻿package com.dbboys.util;
+package com.dbboys.util;
 
 import com.dbboys.app.Main;
-import com.dbboys.ctrl.MainController;
+import com.dbboys.i18n.I18n;
 import com.dbboys.vo.Version;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -9,7 +9,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -22,89 +24,119 @@ import java.util.List;
 
 public class UpgradeUtil {
     private static final Logger log = LogManager.getLogger(UpgradeUtil.class);
+    private static final String WINDOWS_VERSION_URL = "https://www.dbboys.com/dl/dbboys/windows/version.json";
+    private static final String LINUX_AMD64_VERSION_URL = "https://www.dbboys.com/dl/dbboys/linux/amd64/version.txt";
+    private static final String LINUX_AARCH64_VERSION_URL = "https://www.dbboys.com/dl/dbboys/linux/aarch64/version.txt";
+
+    private UpgradeUtil() {
+    }
 
     //初始化数据库，响应恢复出厂设置
     public static void initDB() {
-        log.info("恢复出厂设置");
-        if (AlterUtil.CustomAlertConfirm("恢复出厂设置","恢复出厂设置将删除所有数据及配置信息并重启软件，数据库知识不受影响，确定要恢复出厂设置吗？")) {
+        initDatabaseToFactorySettings();
+    }
+
+    public static void initDatabaseToFactorySettings() {
+        log.info("Restore to factory settings.");
+        if (AlterUtil.CustomAlertConfirm(
+                I18n.t("upgrade.confirm.reset.title", "恢复出厂设置"),
+                I18n.t("upgrade.confirm.reset.content", "恢复出厂设置将删除所有数据及配置信息并重启软件，数据库知识不受影响，确定要恢复出厂设置吗？")
+        )) {
             //线程后台处理，避免前台界面卡顿
-            Task task = new Task<>() {
+            Task<Void> task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
-                    initCfg();
+                    initDefaultConfig();
                     return null;
                 }
             };
             task.setOnSucceeded(event -> {
                 //AlterUtil.CustomAlert("恢复出场设置","恢复出厂设置完成，程序即将关闭，关闭后请手动启动！");
-                restartExe();
+                restartExecutable();
                 //Platform.exit();
             });
             new Thread(task).start();
         }
     }
-    public static void checkVersion()  {
-        String VERSION_CHECK_URL = "https://www.dbboys.com/dl/dbboys/windows/version.json";
-        String VERSION_DOWNLOAD_URL = "https://www.dbboys.com/dl/dbboys/windows/latest.zip"; // 最新版本下载地址
+
+    public static void checkVersion() {
+        checkLatestVersion();
+    }
+
+    public static void checkLatestVersion() {
+        String versionCheckUrl = WINDOWS_VERSION_URL;
+        String versionDownloadUrl = "";
         String osName = System.getProperty("os.name");
         String cpuArch = System.getProperty("os.arch");
-        if(!osName.contains("Windows")){
-            if(cpuArch.contains("amd64")){
-                VERSION_CHECK_URL = "https://www.dbboys.com/dl/dbboys/linux/amd64/version.txt";
-            }else{
-                VERSION_CHECK_URL = "https://www.dbboys.com/dl/dbboys/linux/aarch64/version.txt";
+        if (!osName.contains("Windows")) {
+            if (cpuArch.contains("amd64")) {
+                versionCheckUrl = LINUX_AMD64_VERSION_URL;
+            } else {
+                versionCheckUrl = LINUX_AARCH64_VERSION_URL;
             }
         }
-        try{
+        try {
             //获取版本信息
-            URL url = new URL(VERSION_CHECK_URL);
+            URL url = new URL(versionCheckUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(2000);
             conn.setReadTimeout(2000);
 
-            InputStream in = conn.getInputStream();
-            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            String json;
+            try (InputStream in = conn.getInputStream()) {
+                json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
             JSONObject jsonObject = new JSONObject(json);
-            Version lastVersion=new Version(jsonObject);
+            Version lastVersion = new Version(jsonObject);
             Path softDir = Path.of(System.getProperty("user.dir"));
 
             //获取upgrade.bat
-
-            DirectoryStream<Path> stream = Files.newDirectoryStream(softDir, "dbboys.upgrade.*.zip");
-
-            Iterator<Path> it = stream.iterator();
-            if (it.hasNext()) {
-                Path file = it.next();
-                if (AlterUtil.CustomAlertConfirm("版本更新", "升级包\"" + file.toAbsolutePath() + "\"已完成下载，确定要升级软件吗？")) {
-                    log.info("开始升级版本："+new File(file.toUri()).getName());
-                    launchBatUpdater(softDir.resolve("app").resolve("upgrade.bat"),softDir);
-                    return;
-                }else{
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(softDir, "dbboys.upgrade.*.zip")) {
+                Iterator<Path> it = stream.iterator();
+                if (it.hasNext()) {
+                    Path file = it.next();
+                    if (AlterUtil.CustomAlertConfirm(
+                            I18n.t("upgrade.confirm.version.title", "版本更新"),
+                            I18n.t("upgrade.confirm.downloaded_package", "升级包\"%s\"已完成下载，确定要升级软件吗？").formatted(file.toAbsolutePath())
+                    )) {
+                        log.info("Start upgrade package: {}", new File(file.toUri()).getName());
+                        runWindowsUpdaterScript(softDir.resolve("app").resolve("upgrade.bat"), softDir);
+                    }
                     return;
                 }
             }
 
-            if(lastVersion.getBuild()> Main.VERSION.getBuild()){
-                VERSION_DOWNLOAD_URL=lastVersion.getUrl();
-                if(AlterUtil.CustomAlertConfirm("版本更新","检查到新版本\""+lastVersion.getVersion()+"\"，确定要升级软件吗？")){
-                    String defaultName=DownloadManagerUtil.getRealFileNameFromRedirect(VERSION_DOWNLOAD_URL);
+            if (lastVersion.getBuild() > Main.VERSION.getBuild()) {
+                versionDownloadUrl = lastVersion.getUrl();
+                if (AlterUtil.CustomAlertConfirm(
+                        I18n.t("upgrade.confirm.version.title", "版本更新"),
+                        I18n.t("upgrade.confirm.new_version_found", "检查到新版本\"%s\"，确定要升级软件吗？").formatted(lastVersion.getVersion())
+                )) {
+                    String defaultName = DownloadManagerUtil.getRealFileNameFromRedirect(versionDownloadUrl);
                     File saveFile = new File(softDir.toString(), defaultName);  // 自动拼接路径
                     //下载完后会自动检查文件名，如果是升级包自动升级
-                    DownloadManagerUtil.addDownload(VERSION_DOWNLOAD_URL,saveFile,true,null);
+                    DownloadManagerUtil.addDownload(versionDownloadUrl, saveFile, true, null);
                 }
-            }else{
+            } else {
 
-                NotificationUtil.showNotification(Main.mainController.noticePane,"当前已是最新版本，无需更新！");
+                NotificationUtil.showNotification(
+                        Main.mainController.noticePane,
+                        I18n.t("upgrade.notice.already_latest", "当前已是最新版本，无需更新！")
+                );
             }
 
         } catch (Exception e) {
-            AlterUtil.CustomAlert("错误",e.getMessage());
+            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
             log.error(e.getMessage(), e);
         }
 
     }
 
     public static void launchBatUpdater(Path batFile, Path appDir) throws IOException {
+        runWindowsUpdaterScript(batFile, appDir);
+    }
+
+    public static void runWindowsUpdaterScript(Path batFile, Path appDir) throws IOException {
         List<String> cmd = new ArrayList<>();
         cmd.add("cmd.exe");
         cmd.add("/c"); // 执行完毕后关闭 cmd
@@ -120,7 +152,7 @@ public class UpgradeUtil {
         System.exit(0);
     }
 
-    private static void restartExe() {
+    private static void restartExecutable() {
         try {
             // 获取当前运行程序所在目录
             String currentDir = new File(System.getProperty("user.dir")).getAbsolutePath();
@@ -132,7 +164,10 @@ public class UpgradeUtil {
             File exeFile = new File(currentDir, exeName);
 
             if (!exeFile.exists()) {
-                AlterUtil.CustomAlert("重启错误","未找到可执行文件！");
+                AlterUtil.CustomAlert(
+                        I18n.t("upgrade.error.restart.title", "重启错误"),
+                        I18n.t("upgrade.error.executable_missing", "未找到可执行文件！")
+                );
                 return;
             }
 
@@ -144,21 +179,24 @@ public class UpgradeUtil {
             System.exit(0);
 
         } catch (Exception e) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            String stackTrace = sw.toString();
-            e.printStackTrace();
-            AlterUtil.CustomAlert("重启错误","重启失败！");
+            log.error("Restart executable failed.", e);
+            AlterUtil.CustomAlert(
+                    I18n.t("upgrade.error.restart.title", "重启错误"),
+                    I18n.t("upgrade.error.restart_failed", "重启失败！")
+            );
         }
     }
 
-    public static void initCfg(){
+    public static void initCfg() {
+        initDefaultConfig();
+    }
+
+    public static void initDefaultConfig() {
         SqliteDBaccessUtil.initDB();
-        ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB","数据库连接");
-        ConfigManagerUtil.setProperty("RESULT_FETCH_PER_TIME","200");
-        ConfigManagerUtil.setProperty("SPLIT_DRIVER_MAIN","0.2");
-        ConfigManagerUtil.setProperty("SPLIT_DRIVER_SQL","0.6");
+        ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB", "0");
+        ConfigManagerUtil.setProperty("RESULT_FETCH_PER_TIME", "200");
+        ConfigManagerUtil.setProperty("SPLIT_DRIVER_MAIN", "0.2");
+        ConfigManagerUtil.setProperty("SPLIT_DRIVER_SQL", "0.6");
+        ConfigManagerUtil.setProperty("UI_LANG", "zh-CN");
     }
 }
-

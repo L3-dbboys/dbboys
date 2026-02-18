@@ -1,0 +1,5 @@
+*.java text working-tree-encoding=UTF-8
+*.fxml text working-tree-encoding=UTF-8
+*.properties text working-tree-encoding=UTF-8
+*.css text working-tree-encoding=UTF-8
+*.xml text working-tree-encoding=UTF-8

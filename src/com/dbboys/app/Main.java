@@ -1,5 +1,6 @@
-﻿package com.dbboys.app;
+package com.dbboys.app;
 
+import com.dbboys.i18n.I18n;
 import com.dbboys.util.ConfigManagerUtil;
 import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.ctrl.MainController;
@@ -25,6 +26,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Locale;
 
 public class Main extends Application {
     private static final Logger log = LogManager.getLogger(Main.class);
@@ -58,6 +60,12 @@ public class Main extends Application {
         try {
             Thread.currentThread().setUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
 
+            //语言设置
+            String uiLang = ConfigManagerUtil.getProperty("UI_LANG");
+            if (uiLang != null && !uiLang.isBlank()) {
+                I18n.setLocale(Locale.forLanguageTag(uiLang));
+            }
+
             // 创建加载窗口
             Stage loadingStage = new Stage(StageStyle.UNDECORATED);
             Label loadLabel = new Label("DBboys Loading...");
@@ -78,8 +86,8 @@ public class Main extends Application {
             new Thread(() -> {
 
                 //从配置文件读取分隔符位置，配置文件保存的是最后一次拖动的位置
-                split1Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_MAIN"));
-                split2Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_SQL"));
+                split1Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_MAIN", "0.2"));
+                split2Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_SQL", "0.6"));
 
                 //加载主界面
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/Main.fxml"));
@@ -177,4 +185,7 @@ public class Main extends Application {
         launch(args);
     }
 }
+
+
+
 

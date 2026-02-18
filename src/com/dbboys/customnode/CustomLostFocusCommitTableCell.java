@@ -55,9 +55,4 @@ public class CustomLostFocusCommitTableCell<S,T> extends CustomTableCell<S, T> {
         }
     }
 
-    // 为了访问父类的私有textField，需要在父类中添加getter方法（关键！）
-    // 注意：这一步需要修改CustomTableCell类，添加textField的getter
-    private CustomUserTextField getTextField() {
-        return super.textField; // 直接访问父类的textField（需父类允许访问，见下方说明）
-    }
 }

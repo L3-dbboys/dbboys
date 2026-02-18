@@ -1,7 +1,8 @@
-﻿package com.dbboys.ctrl;
+package com.dbboys.ctrl;
 
 import com.dbboys.app.*;
 import com.dbboys.customnode.*;
+import com.dbboys.i18n.I18n;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
@@ -24,6 +25,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.util.Iterator;
+import java.util.Objects;
+import java.util.Locale;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 
 
 public class MainController {
@@ -60,9 +65,51 @@ public class MainController {
     @FXML
     public CustomTreeviewTab markdownTab;
     @FXML
+    private Menu menuFile;
+    @FXML
+    private CustomShortcutMenuItem menuFileAddFolder;
+    @FXML
+    private CustomShortcutMenuItem menuFileNewConnection;
+    @FXML
+    private CustomShortcutMenuItem menuFileDisconnectAll;
+    @FXML
+    private CustomShortcutMenuItem menuFileOpenSql;
+    @FXML
+    private Menu menuConfig;
+    @FXML
+    private CustomShortcutMenuItem menuConfigCheckEnv;
+    @FXML
+    private MenuItem menuConfigInstallGbase;
+    @FXML
+    private CustomShortcutMenuItem menuConfigUninstallGbase;
+    @FXML
+    private Menu menuSettings;
+    @FXML
+    private Menu menuSettingsLanguage;
+    @FXML
+    private CustomShortcutMenuItem menuSettingsLanguageZh;
+    @FXML
+    private CustomShortcutMenuItem menuSettingsLanguageEn;
+    @FXML
+    private CustomShortcutMenuItem menuSettingsLanguageZhTw;
+    @FXML
+    private CustomShortcutMenuItem menuSettingsReset;
+    @FXML
+    private Menu menuHelp;
+    @FXML
+    private CustomShortcutMenuItem menuHelpAbout;
+    @FXML
+    private CustomShortcutMenuItem menuHelpCommunity;
+    @FXML
+    private CustomShortcutMenuItem menuHelpCheckUpdate;
+    @FXML
+    private Label appLogoLabel;
+    @FXML
     public CustomUserTextField connectSearchTextField;
     @FXML
     public CustomUserTextField markdownSearchTextField;
+    @FXML
+    public Button create_connect;
     @FXML
     public Button connectSearchButton;
     @FXML
@@ -72,7 +119,7 @@ public class MainController {
     @FXML
     public VBox markdownTreeViewVBox;
     @FXML
-    public MenuItem newSqlFileMenuItem;
+    public CustomShortcutMenuItem newSqlFileMenuItem;
     @FXML
     public SplitPane mainSplitPane;
     @FXML
@@ -88,9 +135,11 @@ public class MainController {
     @FXML
     public Button statusBackSqlListButton;
     @FXML
-    public ProgressIndicator statusBackSqlProgress;
+    public ImageView statusBackSqlProgress;
     @FXML
     public Button snapshotRootButton;
+    @FXML
+    private Label doubleClickNewSqlLabel;
     @FXML
     public StackPane rebuildMarkdownIndexButton_stackpane;
     @FXML
@@ -114,6 +163,8 @@ public class MainController {
 
     public void initialize() {
         Main.loadProgressBar.setProgress(0.2);
+        initI18nBindings();
+        setupMainIcons();
         initDownloadVisibility();
         initSidebarTabs();
         initSidebarSearch();
@@ -139,6 +190,35 @@ public class MainController {
         //downloadStackPane.managedProperty().bind(downloadStackPane.visibleProperty());
     }
 
+    private void setupMainIcons() {
+        menuFileAddFolder.setShortcutText("CTRL+A");
+        appLogoLabel.setGraphic(IconFactory.imageView(IconPaths.MAIN_LOGO, 18, 18, false));
+        menuFileAddFolder.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_ADD_FOLDER, 0.65, Color.valueOf("#074675")));
+        menuFileNewConnection.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_CONNECTION, 0.65, Color.valueOf("#074675")));
+        menuFileDisconnectAll.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_DISCONNECT_ALL, 0.6, Color.valueOf("#074675")));
+        newSqlFileMenuItem.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_SQL, 0.55, Color.valueOf("#074675")));
+        menuFileOpenSql.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_OPEN_SQL, 0.62, Color.valueOf("#074675")));
+        menuConfigCheckEnv.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_CHECK_ENV, 0.5, Color.valueOf("#074675")));
+        menuConfigInstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#074675")));
+        menuConfigUninstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#9f453c")));
+        menuSettingsReset.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HOME, 0.5, Color.valueOf("#074675")));
+        menuHelpAbout.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HELP, 0.6, Color.valueOf("#074675")));
+        menuHelpCommunity.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_COMMUNITY, 0.5, Color.valueOf("#074675")));
+        menuHelpCheckUpdate.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HOME, 0.5, Color.valueOf("#074675")));
+
+        create_connect.setGraphic(IconFactory.group(IconPaths.MAIN_ADD_CONNECT, 0.65, Color.valueOf("#074675")));
+        connectSearchButton.setGraphic(IconFactory.group(IconPaths.MAIN_SEARCH, 0.65, Color.valueOf("#074675")));
+        rebuildMarkdownIndexButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.65, Color.valueOf("#074675")));
+        markdownSearchButton.setGraphic(IconFactory.group(IconPaths.MAIN_SEARCH, 0.65, Color.valueOf("#074675")));
+        statusBackSqlStopButton.setGraphic(IconFactory.group(IconPaths.SQL_STOP, 0.5, Color.valueOf("#9f453c")));
+        statusBackSqlListButton.setGraphic(IconFactory.group(IconPaths.MAIN_STATUS_LIST, 0.45, Color.valueOf("#074675")));
+        statusBackSqlProgress.setImage(new Image(IconPaths.LOADING_GIF));
+        statusBackSqlProgress.setFitWidth(10);
+        statusBackSqlProgress.setFitHeight(10);
+        statusBackSqlProgress.setPreserveRatio(true);
+        snapshotRootButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35, Color.valueOf("#074675")));
+    }
+
     private void initSqlTabInteractions() {
         //拖动表或视图响应
         sqlTabPane.setOnDragOver(event -> {
@@ -159,7 +239,7 @@ public class MainController {
                     if(db.getString().endsWith(".md")){
                         TabpaneUtil.addCustomMarkdownTab(new File(db.getString()),false);
                     }else{
-                        NotificationUtil.showNotification(Main.mainController.noticePane,"不支持Markdown以外的文件格式编辑！");
+                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("main.notice.unsupported_markdown_file"));
                     }
                 }
 
@@ -189,12 +269,8 @@ public class MainController {
     }
 
     private void initSidebarTabs() {
-        //左侧连接面板
-        connectTab.setTitle(connectTab.getText());
-        //connectTab.titleToggle.setSelected(true);
-
-        //知识库面板
-        markdownTab.setTitle(markdownTab.getText());
+        //左侧连接面板与知识库面板
+        // 标题文本与提示由国际化绑定管理
 
         markdownTab.titleToggle.setOnContextMenuRequested(event -> {
             if(markdownTab.titleToggle.isSelected()){
@@ -202,16 +278,27 @@ public class MainController {
                 MarkdownUtil.contextMenu.show(markdownTab.titleToggle, event.getScreenX(), event.getScreenY());
             }
         });
-        markdownTab.titleToggle.setTooltip(new Tooltip("数据库知识库"));
+        // tooltip is bound in initI18nBindings
         markdownTab.titleToggleIcon.setContent("M21.0469 4.4844 Q21.5938 4.4844 22.0312 4.9219 Q22.4844 5.3594 22.4844 6 L22.4844 18 Q22.4844 18.6406 22.0312 19.0781 Q21.5938 19.5156 21.0469 19.5156 L3.0469 19.5156 Q2.4062 19.5156 1.9531 19.0781 Q1.5156 18.6406 1.5156 18 L1.5156 6 Q1.5156 5.3594 1.9531 4.9219 Q2.4062 4.4844 2.9531 4.4844 L21.0469 4.4844 ZM3.0469 2.9531 Q1.7656 2.9531 0.875 3.8438 Q0 4.7188 0 6 L0 18 Q0 19.2812 0.875 20.1719 Q1.7656 21.0469 2.9531 21.0469 L21.0469 21.0469 Q22.2344 20.9531 23.1094 20.125 Q24 19.2812 24 18 L24 6 Q24 4.7188 23.1094 3.8438 Q22.2344 2.9531 20.9531 2.9531 L3.0469 2.9531 ZM13.6875 12.2344 Q13.9219 12 14.2344 12 Q14.5625 12 14.7969 12.2344 L17.2812 14.7188 L19.6875 12.2344 Q19.9219 12 20.2344 12 Q20.5625 12 20.7969 12.2031 Q21.0469 12.4062 21.0469 12.7344 Q21.0469 13.0469 20.7969 13.2812 L17.7656 16.3125 Q17.5938 16.4844 17.2656 16.4844 Q16.9531 16.4844 16.7188 16.3125 L13.6875 13.2812 Q13.5156 13.0469 13.5156 12.7344 Q13.5156 12.4062 13.6875 12.2344 ZM17.2812 7.5156 Q17.5938 7.5156 17.7969 7.7188 Q18 7.9219 18 8.2344 L18 14.2344 Q18 14.5625 17.7969 14.8125 Q17.5938 15.0469 17.2656 15.0469 Q16.9531 15.0469 16.7188 14.8125 Q16.4844 14.5625 16.4844 14.2344 L16.4844 8.2344 Q16.4844 7.9219 16.7188 7.7188 Q16.9531 7.5156 17.2812 7.5156 ZM5.3594 16.4844 L5.3594 10.4844 L5.4375 10.4844 L7.5938 15.3594 L8.7188 15.3594 L10.875 10.4844 L10.9531 10.4844 L10.9531 16.4844 L12.5625 16.4844 L12.5625 7.5156 L10.7188 7.5156 L8.1562 13.3594 L8.1562 13.3594 L5.5938 7.5156 L3.7656 7.5156 L3.7656 16.4844 L5.3594 16.4844 Z");
 
-        //左侧tabpane默认选中上次关闭前tab
-        for(Tab tab:treeviewTabPane.getTabs()){
-            if(((CustomTreeviewTab)tab).getTitle().equals(ConfigManagerUtil.getProperty("DEFAULT_LISTVIEW_TAB"))){
-                treeviewTabPane.getSelectionModel().select(tab);
-                ((CustomTreeviewTab)tab).titleToggle.setSelected(true);
-                break;
+        //左侧tabpane默认选中上次关闭前tab，没有配置则默认第一个tab
+        int defaultIndex = 0;
+        int preferredIndex = defaultIndex;
+        String preferredIndexStr = ConfigManagerUtil.getProperty("DEFAULT_LISTVIEW_TAB", String.valueOf(defaultIndex));
+        if (preferredIndexStr != null) {
+            try {
+                preferredIndex = Integer.parseInt(preferredIndexStr);
+            } catch (NumberFormatException e) {
+                preferredIndex = defaultIndex;
             }
+        }
+        if (!treeviewTabPane.getTabs().isEmpty()) {
+            if (preferredIndex < 0 || preferredIndex >= treeviewTabPane.getTabs().size()) {
+                preferredIndex = defaultIndex;
+            }
+            Tab tab = treeviewTabPane.getTabs().get(preferredIndex);
+            treeviewTabPane.getSelectionModel().select(tab);
+            ((CustomTreeviewTab) tab).titleToggle.setSelected(true);
         }
     }
 
@@ -235,24 +322,22 @@ public class MainController {
         markdownTreeViewVBox.getChildren().add(MarkdownUtil.treeView);
 
         Label rebuild_index_running_icon=new Label();
-        ImageView loading_icon=new ImageView(new Image("file:images/loading.gif"));
-        loading_icon.setScaleX(0.7);
-        loading_icon.setScaleY(0.7);
+        ImageView loading_icon = IconFactory.loadingImageView(0.7);
         rebuild_index_running_icon.setGraphic(loading_icon);
-        Tooltip tooltip=new Tooltip("正在重建索引");
+        Tooltip tooltip=new Tooltip();
+        tooltip.textProperty().bind(I18n.bind("main.tooltip.rebuild_index_running"));
         tooltip.setShowDelay(Duration.millis(100));
         rebuild_index_running_icon.setTooltip(tooltip);
         rebuildMarkdownIndexButton_stackpane.getChildren().add(rebuild_index_running_icon);
         rebuild_index_running_icon.visibleProperty().bind(rebuildMarkdownIndexButton.visibleProperty().not());
 
         Label sreach_running_label=new Label();
-        ImageView sreach_running_icon=new ImageView(new Image("file:images/loading.gif"));
-        sreach_running_icon.setScaleX(0.7);
-        sreach_running_icon.setScaleY(0.7);
+        ImageView sreach_running_icon = IconFactory.loadingImageView(0.7);
         sreach_running_label.setGraphic(sreach_running_icon);
-        Tooltip sreach_running_tooltip=new Tooltip("正在搜索");
+        Tooltip sreach_running_tooltip=new Tooltip();
+        sreach_running_tooltip.textProperty().bind(I18n.bind("main.tooltip.searching"));
         sreach_running_tooltip.setShowDelay(Duration.millis(100));
-        sreach_running_label.setTooltip(tooltip);
+        sreach_running_label.setTooltip(sreach_running_tooltip);
         markdownSearchIconStackPane.getChildren().add(sreach_running_label);
         sreach_running_label.visibleProperty().bind(markdownSearchButton.visibleProperty().not());
 
@@ -291,6 +376,95 @@ public class MainController {
     private void initMenuActions() {
         newSqlFileMenuItem.setOnAction(event -> {
             TabpaneUtil.addCustomSqlTab(null);});
+    }
+
+    private void initI18nBindings() {
+        bindText(menuFile, "main.menu.file");
+        bindText(menuFileAddFolder, "main.menu.file.add_folder");
+        bindText(menuFileNewConnection, "main.menu.file.new_connection");
+        bindText(menuFileDisconnectAll, "main.menu.file.disconnect_all");
+        bindText(newSqlFileMenuItem, "main.menu.file.new_sql");
+        bindText(menuFileOpenSql, "main.menu.file.open_sql");
+
+        bindText(menuConfig, "main.menu.config");
+        bindText(menuConfigCheckEnv, "main.menu.config.check_env");
+        bindText(menuConfigInstallGbase, "main.menu.config.install_gbase");
+        bindText(menuConfigUninstallGbase, "main.menu.config.uninstall_gbase");
+
+        bindText(menuSettings, "main.menu.settings");
+        bindText(menuSettingsLanguage, "main.menu.settings.language");
+        bindText(menuSettingsLanguageZh, "main.menu.settings.language.zh");
+        bindText(menuSettingsLanguageEn, "main.menu.settings.language.en");
+        bindText(menuSettingsLanguageZhTw, "main.menu.settings.language.zh_tw");
+        bindText(menuSettingsReset, "main.menu.settings.reset");
+
+        bindText(menuHelp, "main.menu.help");
+        bindText(menuHelpAbout, "main.menu.help.about");
+        bindText(menuHelpCommunity, "main.menu.help.community");
+        bindText(menuHelpCheckUpdate, "main.menu.help.check_update");
+
+        bindText(doubleClickNewSqlLabel, "main.center.double_click_new_sql");
+        bindText(statusBackSqlCountLabel, "main.status.no_background_tasks");
+
+        if (connectTab != null && connectTab.titleToggle != null) {
+            connectTab.titleToggle.textProperty().bind(I18n.bind("main.sidebar.connections"));
+            bindTooltip(connectTab.titleToggle, "main.sidebar.connections");
+        }
+        if (markdownTab != null && markdownTab.titleToggle != null) {
+            markdownTab.titleToggle.textProperty().bind(I18n.bind("main.sidebar.knowledge"));
+            bindTooltip(markdownTab.titleToggle, "main.tooltip.knowledge_base");
+        }
+        bindTabText(connectTab, "main.sidebar.connections");
+        bindTabText(markdownTab, "main.sidebar.knowledge");
+
+        bindPrompt(connectSearchTextField, "main.prompt.search_objects");
+        bindPrompt(markdownSearchTextField, "main.prompt.search_knowledge");
+
+        bindTooltip(create_connect, "main.tooltip.new_connection");
+        bindTooltip(connectSearchTextField, "main.tooltip.search_objects_hint");
+        bindTooltip(connectSearchButton, "main.tooltip.search_next");
+        bindTooltip(rebuildMarkdownIndexButton, "main.tooltip.rebuild_index");
+        bindTooltip(markdownSearchTextField, "main.tooltip.case_insensitive");
+        bindTooltip(markdownSearchButton, "main.tooltip.start_search");
+        bindTooltip(statusBackSqlStopButton, "main.tooltip.stop_all_tasks");
+        bindTooltip(statusBackSqlListButton, "main.tooltip.view_task_list");
+        bindTooltip(snapshotRootButton, "main.tooltip.snapshot_to_clipboard");
+    }
+
+    private void bindText(Labeled labeled, String key) {
+        if (labeled != null) {
+            labeled.textProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindText(MenuItem item, String key) {
+        if (item != null) {
+            item.textProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindTabText(Tab tab, String key) {
+        if (tab != null) {
+            tab.textProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindPrompt(TextInputControl input, String key) {
+        if (input != null) {
+            input.promptTextProperty().bind(I18n.bind(key));
+        }
+    }
+
+    private void bindTooltip(Control control, String key) {
+        if (control == null) {
+            return;
+        }
+        Tooltip tooltip = control.getTooltip();
+        if (tooltip == null) {
+            tooltip = new Tooltip();
+            control.setTooltip(tooltip);
+        }
+        tooltip.textProperty().bind(I18n.bind(key));
     }
 
     private void initSplitPaneResizeBehavior() {
@@ -489,23 +663,8 @@ public class MainController {
         });
 
         //窗口最大化按钮
-        SVGPath window_minsize_button_icon = new SVGPath();
-        window_minsize_button_icon.setContent("M2.25 11.25 L21.75 11.25 L21.75 12.75 L2.25 12.75 L2.25 11.25 Z");
-        window_minsize_button_icon.setScaleX(0.45);
-        window_minsize_button_icon.setScaleY(0.45);
-        window_minsize_button_icon.setFill(Color.valueOf("#000"));
-        SVGPath window_maxsize_button_max = new SVGPath();
-        window_maxsize_button_max.setContent("M4.5156 4.5 L4.5156 19.5 L19.5156 19.5 L19.5156 4.5 L4.5156 4.5 ZM18 18.0156 L6 18.0156 L6 6.0156 L18 6.0156 L18 18.0156 Z");
-        window_maxsize_button_max.setScaleX(0.55);
-        window_maxsize_button_max.setScaleY(0.55);
-        window_maxsize_button_max.setFill(Color.valueOf("#000"));
-        SVGPath window_maxsize_button_recover = new SVGPath();
-        window_maxsize_button_recover.setContent("M22.9688 0 L5.625 0 Q5.2031 0 4.8906 0.3125 Q4.5938 0.6094 4.5938 1.0312 L4.5938 4.5938 L1.0312 4.5938 Q0.6094 4.5938 0.2969 4.9062 Q0 5.2031 0 5.625 L0 22.9688 Q0 23.3906 0.2969 23.6875 Q0.6094 24 1.0312 24 L18.375 24 Q18.7969 24 19.0938 23.6875 Q19.4062 23.3906 19.4062 22.9688 L19.4062 19.4062 L22.9688 19.4062 Q23.3906 19.4062 23.6875 19.1094 Q24 18.7969 24 18.375 L24 1.0312 Q24 0.6094 23.6875 0.3125 Q23.3906 0 22.9688 0 L22.9688 0 ZM17.5312 22.125 L1.875 22.125 L1.875 6.4688 L17.5312 6.4688 L17.5312 22.125 ZM22.125 17.5312 L19.4062 17.5312 L19.4062 5.625 Q19.4062 5.2031 19.0938 4.9062 Q18.7969 4.5938 18.375 4.5938 L6.4688 4.5938 L6.4688 1.875 L22.125 1.875 L22.125 17.5312 Z");
-        window_maxsize_button_recover.setScaleX(0.4);
-        window_maxsize_button_recover.setScaleY(0.4);
-        window_maxsize_button_recover.setFill(Color.valueOf("#000"));
-        windowMaximizeButton.setGraphic(new Group(window_maxsize_button_recover));
-        windowMinimizeButton.setGraphic(new Group(window_minsize_button_icon));
+        windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4, Color.valueOf("#000")));
+        windowMinimizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MINIMIZE, 0.45, Color.valueOf("#000")));
         windowMinimizeButton.setOnAction(event->{
             Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             primaryStage.setIconified(true);
@@ -515,7 +674,7 @@ public class MainController {
             if (windowMaximized) {
                 // 还原
 
-                windowMaximizeButton.setGraphic(new Group(window_maxsize_button_max));
+                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MAXIMIZE, 0.55, Color.valueOf("#000")));
                 primaryStage.setX(windowMaxPrevX);
                 primaryStage.setY(windowMaxPrevY);
                 primaryStage.setWidth(windowMaxPrevWidth);
@@ -524,7 +683,7 @@ public class MainController {
             } else {
                 // 记录原始位置和大小
 
-                windowMaximizeButton.setGraphic(new Group(window_maxsize_button_recover));
+                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4, Color.valueOf("#000")));
 
                 windowMaxPrevX = primaryStage.getX();
                 windowMaxPrevY = primaryStage.getY();
@@ -548,7 +707,7 @@ public class MainController {
             Boolean sureToclosed=true;
             for (Tab tab : sqlTabPane.getTabs()) {
                 if (tab.getText().startsWith("*")) {
-                    if(!AlterUtil.CustomAlertConfirm("提示","部分打开的SQL文件未保存，确定要关闭软件吗？")){
+                    if(!AlterUtil.CustomAlertConfirm(I18n.t("common.hint"), I18n.t("main.confirm.unsaved_sql_close"))){
                         sureToclosed=false;
                         event.consume();
                     }
@@ -597,7 +756,7 @@ public class MainController {
                 bgsql.cancel();
             }
 
-            NotificationUtil.showNotification(noticePane,"后台任务已全部取消！");
+            NotificationUtil.showNotification(noticePane, I18n.t("main.notice.cancelled_all_tasks"));
 
         });
 
@@ -664,13 +823,14 @@ public class MainController {
 
     public void openSqlFile(){
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("选择SQL文件");
+        fileChooser.setTitle(I18n.t("main.filechooser.select_sql"));
         File selectedFile = fileChooser.showOpenDialog(windowCloseButton.getScene().getWindow());
         if (selectedFile != null) {
             String tabName = selectedFile.getName();
             Boolean isOpened = false;
             for (Tab tab : sqlTabPane.getTabs()) {
-                if (((CustomSqlTab) tab).sql_file_path.equals(selectedFile.getAbsolutePath())) {
+                if (tab instanceof CustomSqlTab customSqlTab
+                        && customSqlTab.filePath.equals(selectedFile.getAbsolutePath())) {
                     isOpened = true;
                     sqlTabPane.getSelectionModel().select(tab);
                     break;
@@ -678,7 +838,7 @@ public class MainController {
             }
             if (!isOpened) {
                 CustomSqlTab newtab = new CustomSqlTab(tabName);
-                newtab.sql_file_path=selectedFile.getAbsolutePath();
+                newtab.filePath=selectedFile.getAbsolutePath();
                 newtab.openSqlFile();
                 sqlTabPane.getTabs().add(newtab);
                 sqlTabPane.getSelectionModel().select(newtab);
@@ -698,8 +858,24 @@ public class MainController {
         RemoteUninstallerUtil.startWizard((Stage) Main.scene.getWindow());
     }
 
+    public void setLanguageZh() {
+        applyLanguage(Locale.SIMPLIFIED_CHINESE, "main.notice.language_switched.zh");
+    }
+
+    public void setLanguageEn() {
+        applyLanguage(Locale.ENGLISH, "main.notice.language_switched.en");
+    }
+
+    public void setLanguageZhHant() {
+        applyLanguage(Locale.TRADITIONAL_CHINESE, "main.notice.language_switched.zh_tw");
+    }
+
+    private void applyLanguage(Locale locale, String noticeKey) {
+        I18n.setLocale(locale);
+        ConfigManagerUtil.setProperty("UI_LANG", locale.toLanguageTag());
+        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t(noticeKey));
+    }
 
 }
-
 
 

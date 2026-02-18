@@ -1,23 +1,32 @@
 package com.dbboys.customnode;
 
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
+import com.dbboys.util.MenuItemUtil;
 import javafx.application.Platform;
-import javafx.event.Event;
 import javafx.scene.Cursor;
 import javafx.scene.control.*;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
-public class CustomTableCell<S,T> extends TableCell<S,T> {
-    CustomUserTextField textField;
+public class CustomTableCell<S, T> extends TableCell<S, T> {
+    private static final String NEWLINE_SYMBOL = "\u21B5";
+    private static final int DOUBLE_CLICK_INTERVAL_MS = 300;
+    private static final String NULL_FALLBACK = "[NULL]";
+
+    private CustomUserTextField textField;
     //结果集拖动鼠标框选
-    private static Integer result_select_row1=0;
-    private static Integer result_select_row2=0;
-    private static Integer result_select_col1=0;
-    private static Integer result_select_col2=0;
-    private static Integer result_select_startRow=0;
-    private static Integer result_select_endRow=0;
-    private static Integer result_select_startCol=0;
-    private static Integer result_select_endCol=0;
+    private static int resultSelectRow1 = 0;
+    private static int resultSelectRow2 = 0;
+    private static int resultSelectCol1 = 0;
+    private static int resultSelectCol2 = 0;
+    private static int resultSelectStartRow = 0;
+    private static int resultSelectEndRow = 0;
+    private static int resultSelectStartCol = 0;
+    private static int resultSelectEndCol = 0;
     private static long lastClickTime = 0;
 
 
@@ -25,7 +34,7 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
     @Override
     public void startEdit() {
         long currentTime = System.currentTimeMillis();
-        if (currentTime - lastClickTime < 300) {
+        if (currentTime - lastClickTime < DOUBLE_CLICK_INTERVAL_MS) {
             // 如果两次点击间隔小于300ms，认为是双击
             super.startEdit();
             if (textField == null) {
@@ -36,7 +45,7 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
             });
             setText(null);
             setGraphic(textField);
-            textField.setText(getItem()==null?"[NULL]":getItem().toString().replaceAll("\n","\u21B5"));
+            textField.setText(formatDisplayValue(getItem()));
             textField.requestFocus();
         }
         lastClickTime = currentTime;
@@ -48,7 +57,7 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
     public void cancelEdit() {
         super.cancelEdit();
 
-        setText(getItem()==null?"[NULL]":getItem().toString().replaceAll("\n","\u21B5"));
+        setText(formatDisplayValue(getItem()));
         setGraphic(null);
     }
 
@@ -59,8 +68,8 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
         setStyle("");
         setTooltip(null);
         if (empty) {
-        } else if(item==null){
-            setText("[NULL]");
+        } else if (item == null) {
+            setText(getNullLabel());
             setStyle("-fx-text-fill: #ddd");
         }else if (isEditing()) {
             if (textField != null) {
@@ -72,7 +81,7 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
         else{
             //text.setText(item.toString()); // 设置带换行符的内容
             //setGraphic(text);
-            setText(item.toString().replaceAll("\n","\u21B5"));
+            setText(item.toString().replace("\n", NEWLINE_SYMBOL));
             //setTooltip(new Tooltip(item.toString().replaceAll("\u21B5","\n")));
             setGraphic(null);
         }
@@ -84,7 +93,7 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
 
     private void createTextField() {
         textField = new CustomUserTextField();
-        textField.setText(getItem()==null?"[NULL]":getItem().toString());
+        textField.setText(formatDisplayValue(getItem()));
         textField.setStyle("-fx-background-color: #2871a8;-fx-border-width: 0;-fx-padding: 0;-fx-text-fill: white");
         textField.setOnAction(event -> {
             commitEdit((T) textField.getText());
@@ -106,26 +115,36 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
     }
 
     public CustomTableCell() {
+        ContextMenu contextMenu = new ContextMenu();
+        CustomShortcutMenuItem copyItem = MenuItemUtil.createMenuItemI18n(
+                "customtablecell.menu.copy",
+                "Ctrl+C",
+                IconFactory.group(IconPaths.COPY, 0.7)
+        );
+        copyItem.setOnAction(event -> copyCellValue());
+        contextMenu.getItems().add(copyItem);
+        setContextMenu(contextMenu);
+        contextMenu.setOnShowing(event -> copyItem.setDisable(isEmpty()));
+
         setOnDragDetected(event -> {
             startFullDrag(); // 不执行任何拖动任务
             getScene().setCursor(Cursor.CROSSHAIR);
-            result_select_row1=getIndex();
-            result_select_col1=getTableView().getColumns().indexOf(getTableColumn());
+            resultSelectRow1 = getIndex();
+            resultSelectCol1 = getTableView().getColumns().indexOf(getTableColumn());
             event.consume();
         });
 
         setOnMouseDragEntered(event -> {
-            result_select_row2=getIndex();
-            result_select_col2=getTableView().getColumns().indexOf(getTableColumn());
-            result_select_startRow=Math.min(result_select_row1,result_select_row2);
-            result_select_startCol=Math.min(result_select_col1,result_select_col2);
-            result_select_endRow=Math.max(result_select_row1,result_select_row2);
-            result_select_endCol=Math.max(result_select_col1,result_select_col2);
+            resultSelectRow2 = getIndex();
+            resultSelectCol2 = getTableView().getColumns().indexOf(getTableColumn());
+            resultSelectStartRow = Math.min(resultSelectRow1, resultSelectRow2);
+            resultSelectStartCol = Math.min(resultSelectCol1, resultSelectCol2);
+            resultSelectEndRow = Math.max(resultSelectRow1, resultSelectRow2);
+            resultSelectEndCol = Math.max(resultSelectCol1, resultSelectCol2);
             getTableView().getSelectionModel().clearSelection();
-            for(int i=result_select_startRow;i<=result_select_endRow;i++)
-            {
-                for(int j=result_select_startCol;j<=result_select_endCol;j++){
-                    getTableView().getSelectionModel().select(i,getTableView().getColumns().get(j));
+            for (int i = resultSelectStartRow; i <= resultSelectEndRow; i++) {
+                for (int j = resultSelectStartCol; j <= resultSelectEndCol; j++) {
+                    getTableView().getSelectionModel().select(i, getTableView().getColumns().get(j));
                 }
             }
         });
@@ -149,4 +168,25 @@ public class CustomTableCell<S,T> extends TableCell<S,T> {
 
     }
 
+    private void copyCellValue() {
+        T item = getItem();
+        if (isEmpty()) {
+            return;
+        }
+        ClipboardContent content = new ClipboardContent();
+        content.putString(item == null ? getNullLabel() : item.toString());
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    private String getNullLabel() {
+        return I18n.t("customtablecell.null", NULL_FALLBACK);
+    }
+
+    private String formatDisplayValue(T item) {
+        return item == null ? getNullLabel() : item.toString().replace("\n", NEWLINE_SYMBOL);
+    }
+
+    protected CustomUserTextField getTextField() {
+        return textField;
+    }
 }

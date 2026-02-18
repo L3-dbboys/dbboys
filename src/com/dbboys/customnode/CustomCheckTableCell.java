@@ -1,11 +1,11 @@
 package com.dbboys.customnode;
 
-import javafx.scene.paint.Color;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
-import javafx.scene.Group;
+import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
+import javafx.application.Platform;
+import javafx.scene.paint.Color;
+import javafx.scene.Group;
 
 //巡检结论一列自定义格式
 public class CustomCheckTableCell<S,T> extends CustomTableCell<S,T> {
@@ -15,7 +15,6 @@ public class CustomCheckTableCell<S,T> extends CustomTableCell<S,T> {
     private static final String LABEL_OK = "正常";
     private static final String LABEL_WARN = "关注";
     private static final String LABEL_ERROR = "异常";
-    private static final ResourceBundle I18N = loadBundle();
 
     private final Group groupOk;
     private final Group groupWarn;
@@ -25,26 +24,11 @@ public class CustomCheckTableCell<S,T> extends CustomTableCell<S,T> {
         groupOk = IconFactory.group(IconPaths.CHECK_OK, 0.65, Color.valueOf("#074675"));
         groupWarn = IconFactory.group(IconPaths.CHECK_WARN, 0.5, Color.valueOf("#ffbf00"));
         groupError = IconFactory.group(IconPaths.CHECK_ERROR, 0.05, Color.valueOf("#cf2311"));
-    }
-
-    private static ResourceBundle loadBundle() {
-        try {
-            return ResourceBundle.getBundle("com.dbboys.i18n.messages");
-        } catch (MissingResourceException e) {
-            return null;
-        }
-    }
-
-    private static String i18n(String key, String fallback) {
-        if (I18N == null) {
-            return fallback;
-        }
-        try {
-            String value = I18N.getString(key);
-            return value == null || value.isEmpty() ? fallback : value;
-        } catch (MissingResourceException e) {
-            return fallback;
-        }
+        I18n.localeProperty().addListener((obs, oldLocale, newLocale) -> {
+            if (!isEmpty() && getItem() != null) {
+                Platform.runLater(() -> applyStatusView(String.valueOf(getItem())));
+            }
+        });
     }
 
 
@@ -56,17 +40,19 @@ public class CustomCheckTableCell<S,T> extends CustomTableCell<S,T> {
             setGraphic(null);
             return;
         }
+        applyStatusView(String.valueOf(item));
+    }
 
-        String value = String.valueOf(item);
+    private void applyStatusView(String value) {
         if (STATUS_OK.equals(value)) {
             setGraphic(groupOk);
-            setText(i18n("check.status.ok", LABEL_OK));
+            setText(I18n.t("check.status.ok", LABEL_OK));
         } else if (STATUS_WARN.equals(value)) {
             setGraphic(groupWarn);
-            setText(i18n("check.status.warn", LABEL_WARN));
+            setText(I18n.t("check.status.warn", LABEL_WARN));
         } else {
             setGraphic(groupError);
-            setText(i18n("check.status.error", LABEL_ERROR));
+            setText(I18n.t("check.status.error", LABEL_ERROR));
         }
     }
 

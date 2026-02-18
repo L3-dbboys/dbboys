@@ -1,118 +1,167 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
-import com.dbboys.util.NotificationUtil;
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.util.SnapshotUtil;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
-import javafx.scene.Group;
-import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
 import javafx.scene.transform.Transform;
 import javafx.util.Duration;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.GenericStyledArea;
-import org.fxmisc.richtext.StyledTextArea;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 public class CustomInfoStackPane extends StackPane {
-    public GenericStyledArea codeArea;
-    public VirtualizedScrollPane codearea_scollpane;
-    public Button codearea_snap_button=new Button();
-    public StackPane notice_pane=new StackPane();
-    private  Integer totalHeight=0;
-    public Boolean showNoticeInMain=true;
+    private static final Logger log = LogManager.getLogger(CustomInfoStackPane.class);
+    private static final double SNAPSHOT_SCALE = 2.0;
+    private static final double SNAPSHOT_BUTTON_ICON_SCALE = 0.35;
+    private static final int NOTICE_MAX_WIDTH = 360;
+    private static final int NOTICE_MAX_HEIGHT = 25;
+    private static final int SNAPSHOT_BUTTON_MARGIN_TOP = 0;
+    private static final int SNAPSHOT_BUTTON_MARGIN_RIGHT = 15;
+    private static final int SNAPSHOT_BUTTON_MARGIN_BOTTOM = 20;
+    private static final int SNAPSHOT_BUTTON_MARGIN_LEFT = 20;
+    private static final int SCROLL_STEP_PX = 10;
+    private static final int SCROLL_STEP_SLEEP_MS = 10;
+    private static final int SCROLL_SETTLE_DELAY_MS = 150;
+    private static final int PAGE_CAPTURE_DELAY_MS = 150;
+
+    public final GenericStyledArea codeArea;
+    public final VirtualizedScrollPane codeAreaScrollPane;
+    public final Button codeAreaSnapshotButton = new Button();
+    public final StackPane noticePane = new StackPane();
+    private volatile boolean snapshotInProgress = false;
+    private volatile boolean disposed = false;
+    private final ExecutorService snapshotExecutor = Executors.newSingleThreadExecutor(
+            new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "info-stackpane-snapshot");
+                    t.setDaemon(true);
+                    return t;
+                }
+            }
+    );
+    public boolean showNoticeInMain = true;
+
+    @Deprecated public final VirtualizedScrollPane codearea_scollpane;
+    @Deprecated public final Button codearea_snap_button;
+    @Deprecated public final StackPane notice_pane;
 
     public CustomInfoStackPane(GenericStyledArea styledTextArea) {
         super();
-        codeArea=styledTextArea;
+        codeArea = styledTextArea;
         codeArea.setWrapText(true);
-        codearea_scollpane = new VirtualizedScrollPane(codeArea);
-        getChildren().add(codearea_scollpane);
+        codeAreaScrollPane = new VirtualizedScrollPane(codeArea);
+        codearea_scollpane = codeAreaScrollPane;
+        codearea_snap_button = codeAreaSnapshotButton;
+        notice_pane = noticePane;
+        getChildren().add(codeAreaScrollPane);
 
-        notice_pane.setStyle("-fx-background-color: none;-fx-alignment: center");
-        notice_pane.setMaxWidth(360);
-        notice_pane.setMaxHeight(25);
-        notice_pane.setVisible(false);
-        SVGPath codearea_snap_button_icon = new SVGPath();
-        codearea_snap_button_icon.setContent("M10.125 10.9922 Q11.2656 9.8516 12.8594 9.8516 Q14.4531 9.8516 15.5781 10.9922 Q16.7188 12.1172 16.7188 13.7109 Q16.7188 15.3047 15.5781 16.4453 Q14.4531 17.5703 12.8594 17.5703 Q11.2656 17.5703 10.125 16.4453 Q9 15.3047 9 13.7109 Q9 12.1172 10.125 10.9922 ZM22.2812 4.2891 Q23.7031 4.2891 24.7031 5.2891 Q25.7188 6.2891 25.7188 7.7109 L25.7188 19.7109 Q25.7188 21.1328 24.7031 22.1328 Q23.7031 23.1484 22.2812 23.1484 L3.4219 23.1484 Q2.0156 23.1484 1 22.1328 Q0 21.1328 0 19.7109 L0 7.7109 Q0 6.2891 1 5.2891 Q2.0156 4.2891 3.4219 4.2891 L6.4219 4.2891 L7.1094 2.4609 Q7.3594 1.8047 8.0312 1.3359 Q8.7188 0.8516 9.4219 0.8516 L16.2812 0.8516 Q17 0.8516 17.6719 1.3359 Q18.3438 1.8047 18.6094 2.4609 L19.2812 4.2891 L22.2812 4.2891 ZM8.6094 17.9609 Q10.375 19.7109 12.8438 19.7109 Q15.3281 19.7109 17.0938 17.9609 Q18.8594 16.1953 18.8594 13.7266 Q18.8594 11.2422 17.0938 9.4766 Q15.3281 7.7109 12.8438 7.7109 Q10.375 7.7109 8.6094 9.4766 Q6.8594 11.2422 6.8594 13.7266 Q6.8594 16.1953 8.6094 17.9609 Z");
-        codearea_snap_button_icon.setScaleX(0.35);
-        codearea_snap_button_icon.setScaleY(0.35);
-        codearea_snap_button_icon.setFill(Color.valueOf("#074675"));
-        codearea_snap_button.setGraphic(new Group(codearea_snap_button_icon));
-        codearea_snap_button.setFocusTraversable(false);
-        codearea_snap_button.getStyleClass().add("codearea-camera-button");
-        getChildren().add(codearea_snap_button);
-        setAlignment(codearea_snap_button, Pos.TOP_RIGHT);
-        getChildren().add(notice_pane);
-        setAlignment(notice_pane, Pos.CENTER);
-        setMargin(codearea_snap_button, new javafx.geometry.Insets(0, 15, 20, 20));
-        codearea_snap_button.setOnAction(e -> {
+        noticePane.setStyle("-fx-background-color: none;-fx-alignment: center");
+        noticePane.setMaxWidth(NOTICE_MAX_WIDTH);
+        noticePane.setMaxHeight(NOTICE_MAX_HEIGHT);
+        noticePane.setVisible(false);
 
+        codeAreaSnapshotButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, SNAPSHOT_BUTTON_ICON_SCALE));
+        codeAreaSnapshotButton.setFocusTraversable(false);
+        codeAreaSnapshotButton.getStyleClass().add("codearea-camera-button");
+        Tooltip snapshotTooltip = new Tooltip();
+        snapshotTooltip.textProperty().bind(I18n.bind("main.tooltip.snapshot_to_clipboard"));
+        codeAreaSnapshotButton.setTooltip(snapshotTooltip);
 
-            new Thread(createSnapshotInfoCodeAreaTask()).start();
-
-            /*
-            captureFullCodeArea(codeArea, 2.0, image -> {
-                try {
-                    Clipboard clipboard = Clipboard.getSystemClipboard();
-                    ClipboardContent content = new ClipboardContent();
-                    content.putImage(image);
-                    clipboard.setContent(content);
-                    NotificationUtil.showNotification(notice_pane, "截图成功复制到剪切板！");
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            });
-
-             */
-        });
+        getChildren().add(codeAreaSnapshotButton);
+        setAlignment(codeAreaSnapshotButton, Pos.TOP_RIGHT);
+        getChildren().add(noticePane);
+        setAlignment(noticePane, Pos.CENTER);
+        setMargin(codeAreaSnapshotButton, new javafx.geometry.Insets(
+                SNAPSHOT_BUTTON_MARGIN_TOP,
+                SNAPSHOT_BUTTON_MARGIN_RIGHT,
+                SNAPSHOT_BUTTON_MARGIN_BOTTOM,
+                SNAPSHOT_BUTTON_MARGIN_LEFT
+        ));
+        codeAreaSnapshotButton.setOnAction(e -> startSnapshot());
 
     }
 
-    public Task createSnapshotInfoCodeAreaTask(){
-        totalHeight= (int) codeArea.getTotalHeightEstimate();
-        int viewportHeight = (int)codeArea.getHeight();
-        Task scrollTask=new Task() {
+    private void startSnapshot() {
+        if (disposed) {
+            return;
+        }
+        if (snapshotInProgress) {
+            return;
+        }
+        snapshotInProgress = true;
+        codeAreaSnapshotButton.setDisable(true);
+        Task<Void> snapshotTask = createSnapshotTask();
+        snapshotTask.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, event -> {
+            Throwable ex = snapshotTask.getException();
+            if (ex != null) {
+                log.error("Failed to create info snapshot.", ex);
+            }
+            finishSnapshot();
+        });
+        snapshotTask.addEventHandler(WorkerStateEvent.WORKER_STATE_CANCELLED, event -> finishSnapshot());
+        try {
+            snapshotExecutor.execute(snapshotTask);
+        } catch (RuntimeException ex) {
+            log.error("Unable to schedule info snapshot task.", ex);
+            finishSnapshot();
+        }
+    }
+
+    private void finishSnapshot() {
+        snapshotInProgress = false;
+        codeAreaSnapshotButton.setDisable(false);
+    }
+
+    public Task<Void> createSnapshotTask() {
+        final int estimatedTotalHeight = (int) codeArea.getTotalHeightEstimate();
+        Task<Void> scrollTask = new Task<>() {
             @Override
-            protected Object call() throws Exception {
-                for(int y=0;y<totalHeight;y+=10) {
+            protected Void call() throws Exception {
+                if (estimatedTotalHeight <= 0) {
+                    return null;
+                }
+                for(int y = 0; y < estimatedTotalHeight; y += SCROLL_STEP_PX) {
                     int finalY = y;
                     Platform.runLater(() -> {
                         codeArea.scrollYToPixel(finalY);
                     });
-                    Thread.sleep(10);
+                    Thread.sleep(SCROLL_STEP_SLEEP_MS);
                 }
 
                 Platform.runLater(() -> {
                     codeArea.scrollYToPixel(Double.MAX_VALUE);
                 });
-                Thread.sleep(150);
+                Thread.sleep(SCROLL_SETTLE_DELAY_MS);
                 Platform.runLater(() -> {
                     codeArea.scrollYToPixel(Double.MAX_VALUE);
                 });
-                Thread.sleep(150);
+                Thread.sleep(SCROLL_SETTLE_DELAY_MS);
                 Platform.runLater(() -> {  //似乎这一步是关键，需要执行才能正确获取高度
                     codeArea.scrollYToPixel(0);
                 });
-                Thread.sleep(150);
-
+                Thread.sleep(SCROLL_SETTLE_DELAY_MS);
 
                 return null;
             }
@@ -120,7 +169,11 @@ public class CustomInfoStackPane extends StackPane {
         };
 
         scrollTask.setOnSucceeded(event -> {
-            captureFullCodeArea(codeArea, 2.0, image -> {
+            captureFullCodeArea(codeArea, SNAPSHOT_SCALE, image -> {
+                if (image == null) {
+                    finishSnapshot();
+                    return;
+                }
                 /*复制到剪切板，会占用很大内存，改为复制到文件
                 try {
                     Clipboard clipboard = Clipboard.getSystemClipboard();
@@ -136,86 +189,114 @@ public class CustomInfoStackPane extends StackPane {
                     ex.printStackTrace();
                 }
 
-                 */
-                SnapshotUtil.copyToClipboard(image,showNoticeInMain?Main.mainController.noticePane:notice_pane);
+                */
+                SnapshotUtil.copyToClipboard(image, showNoticeInMain ? Main.mainController.noticePane : noticePane);
+                finishSnapshot();
             });
         });
         return scrollTask;
 
     }
 
+    @Deprecated
+    public Task<Void> createSnapshotInfoCodeAreaTask() {
+        return createSnapshotTask();
+    }
+
     private void captureFullCodeArea(GenericStyledArea codeArea, double scale, java.util.function.Consumer<WritableImage> callback) {
         Platform.runLater(() -> {
-            totalHeight =(int) codeArea.getTotalHeightEstimate();
+            int totalContentHeight = (int) codeArea.getTotalHeightEstimate();
+            if (totalContentHeight <= 0 || codeArea.getHeight() <= 0) {
+                callback.accept(null);
+                return;
+            }
             double viewportHeight = codeArea.getHeight();
-            int pages = (int) Math.ceil(totalHeight / viewportHeight);
+            int pages = (int) Math.ceil(totalContentHeight / viewportHeight);
 
             List<WritableImage> images = new ArrayList<>();
-            capturePages(codeArea, 0, pages, scale, images, callback);
+            capturePages(codeArea, pages, totalContentHeight, scale, images, callback);
         });
     }
 
     private void capturePages(GenericStyledArea codeArea,
-                              int page, int totalPages, double scale,
+                              int totalPages, int totalContentHeight, double scale,
                               List<WritableImage> images,
                               java.util.function.Consumer<WritableImage> onFinish) {
 
-        if (page >= totalPages) {
-            WritableImage finalImage = mergeImagesUseBottomOfLast(images,(int)(totalHeight*scale));
-            onFinish.accept(finalImage);
-            return;
-        }
-
-        double y = page * codeArea.getHeight();
-        codeArea.scrollYToPixel(y);
-
-        PauseTransition delay = new PauseTransition(Duration.millis(150));
+        final int[] page = {0};
+        final boolean[] readyToSnapshot = {false};
+        PauseTransition delay = new PauseTransition(Duration.millis(PAGE_CAPTURE_DELAY_MS));
         delay.setOnFinished(e -> {
+            if (page[0] >= totalPages) {
+                WritableImage finalImage = mergeImagesUsingBottomOfLast(images, (int) (totalContentHeight * scale));
+                onFinish.accept(finalImage);
+                return;
+            }
+
+            if (!readyToSnapshot[0]) {
+                double y = page[0] * codeArea.getHeight();
+                codeArea.scrollYToPixel(y);
+                readyToSnapshot[0] = true;
+                delay.playFromStart();
+                return;
+            }
+
             SnapshotParameters params = new SnapshotParameters();
             params.setTransform(Transform.scale(scale, scale));
-
-            WritableImage image = codeArea.snapshot(params, null);
-            images.add(image);
-
-            capturePages(codeArea, page + 1, totalPages, scale, images, onFinish);
+            images.add(codeArea.snapshot(params, null));
+            page[0]++;
+            readyToSnapshot[0] = false;
+            delay.playFromStart();
         });
         delay.play();
     }
 
-    WritableImage mergeImagesUseBottomOfLast(List<WritableImage> images, int totalContentHeight) {
+    WritableImage mergeImagesUsingBottomOfLast(List<WritableImage> images, int totalContentHeight) {
         if (images == null || images.isEmpty()) return null;
 
         int width = (int) images.get(0).getWidth();
-        int accumulatedHeight = 0;
+        int mergedHeight = 0;
+        int imageCount = images.size();
 
-        List<WritableImage> adjustedImages = new ArrayList<>();
-
-        for (int i = 0; i < images.size(); i++) {
+        for (int i = 0; i < imageCount; i++) {
             WritableImage img = images.get(i);
             int height = (int) img.getHeight();
 
-            // 如果是最后一张，只保留底部剩余的部分
-            if (i == images.size() - 1&&i>0) {
-                int remaining = totalContentHeight - accumulatedHeight;
+            // 最后一张只保留底部剩余部分，避免重叠
+            if (i == imageCount - 1 && i > 0) {
+                int remaining = totalContentHeight - mergedHeight;
                 height = Math.min(height, remaining);
-                img = cropBottom(img, height);  // ✅ 使用底部！
             }
-
-            adjustedImages.add(img);
-            accumulatedHeight += img.getHeight();
+            mergedHeight += Math.max(height, 0);
         }
 
-        // 合并所有图像
-        WritableImage result = new WritableImage(width, accumulatedHeight);
+        WritableImage result = new WritableImage(width, mergedHeight);
         PixelWriter writer = result.getPixelWriter();
 
         int yOffset = 0;
-        for (WritableImage img : adjustedImages) {
-            writer.setPixels(0, yOffset, (int) img.getWidth(), (int) img.getHeight(), img.getPixelReader(), 0, 0);
-            yOffset += img.getHeight();
+        for (int i = 0; i < imageCount; i++) {
+            WritableImage img = images.get(i);
+            int copyHeight = (int) img.getHeight();
+            if (i == imageCount - 1 && i > 0) {
+                int remaining = totalContentHeight - yOffset;
+                copyHeight = Math.min(copyHeight, Math.max(remaining, 0));
+                if (copyHeight < (int) img.getHeight()) {
+                    img = cropBottom(img, copyHeight);
+                }
+            }
+            if (copyHeight <= 0) {
+                continue;
+            }
+            writer.setPixels(0, yOffset, (int) img.getWidth(), copyHeight, img.getPixelReader(), 0, 0);
+            yOffset += copyHeight;
         }
 
         return result;
+    }
+
+    @Deprecated
+    WritableImage mergeImagesUseBottomOfLast(List<WritableImage> images, int totalContentHeight) {
+        return mergeImagesUsingBottomOfLast(images, totalContentHeight);
     }
 
 
@@ -233,6 +314,13 @@ public class CustomInfoStackPane extends StackPane {
                 0, srcHeight - cropHeight      // 从原图底部开始复制
         );
         return cropped;
+    }
+
+    public void dispose() {
+        disposed = true;
+        snapshotInProgress = false;
+        codeAreaSnapshotButton.setDisable(true);
+        snapshotExecutor.shutdownNow();
     }
 
 }

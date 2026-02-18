@@ -1,8 +1,12 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.util.AlterUtil;
 import com.dbboys.util.DownloadManagerUtil;
+import com.dbboys.util.MenuItemUtil;
 import com.dbboys.util.NotificationUtil;
 import com.dbboys.util.TabpaneUtil;
 import javafx.application.Platform;
@@ -10,13 +14,9 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
-import javafx.scene.effect.DropShadow;
-import javafx.scene.effect.InnerShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
@@ -26,33 +26,32 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.FileChooser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.fxmisc.richtext.CharacterHit;
 import org.fxmisc.richtext.GenericStyledArea;
-import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.SegmentOps;
 import org.fxmisc.richtext.model.StyledSegment;
 import org.fxmisc.richtext.model.TextOps;
 import org.reactfx.util.Either;
 
-import javax.imageio.ImageIO;
 import javax.swing.filechooser.FileSystemView;
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -60,16 +59,45 @@ import java.util.regex.Pattern;
 
 public class CustomGenericStyledArea extends GenericStyledArea {
     private static final Logger log = LogManager.getLogger(CustomGenericStyledArea.class);
+    private static final Pattern IMG_PATTERN = Pattern.compile("!\\[.*?]\\((.*?)\\)");
+    private static final Pattern LINK_PATTERN = Pattern.compile("\\[(.*?)\\]\\((.*?)\\)");
+    private static final Pattern INLINE_CODE_PATTERN = Pattern.compile("`(.*?)`");
+    private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*([^*]+)\\*\\*");
+    private static final Pattern TABLE_LINE_PATTERN = Pattern.compile("^\\|.*\\|$");
+    private static final Pattern TABLE_SEPARATOR_PATTERN = Pattern.compile("^\\s*\\|(\\s*-+\\s*\\|)+\\s*$");
+    private static final Pattern COMBINED_PATTERN = Pattern.compile("(\\[.*?]\\(.*?\\)|\\*\\*[^*]+\\*\\*)");
+    private static final Pattern HEADING_PATTERN = Pattern.compile("^#{1,6} .*$");
+    private static final Set<String> DOC_TYPES = Set.of(
+            "zip", "rar", "7z", "exe", "pdf", "doc", "docx", "xls", "xlsx",
+            "png", "jpg", "jpeg", "gif", "bmp", "mp3", "mp4", "avi",
+            "mkv", "txt", "csv", "json", "xml", "iso", "tar", "gz", "tar.gz",
+            "sh", "chm", "jar", "yml"
+    );
+    private static final ExecutorService LINK_CHECK_EXECUTOR = Executors.newFixedThreadPool(
+            4,
+            new ThreadFactory() {
+                private int index = 1;
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "markdown-link-check-" + index++);
+                    t.setDaemon(true);
+                    return t;
+                }
+            }
+    );
+    private static final String LINK_STYLE = "-fx-fill: #0066cc; -fx-underline: true; -fx-cursor: hand;";
+    private static final String INVALID_LINK_STYLE = "-fx-fill: #f00; -fx-underline: true;-fx-cursor: hand;-fx-strikethrough: true";
+    private static final ConcurrentMap<String, Boolean> LINK_CHECK_CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> LINK_CHECK_IN_FLIGHT = ConcurrentHashMap.newKeySet();
     private int[] headingCounters = new int[6]; // 索引0对应H1，1对应H2，以此类推
-    public CustomSearchReplaceVbox searchReplaceBox;
-    private static List docType=new ArrayList();
-    public  MenuItem codeAreaSearchItem = new javafx.scene.control.MenuItem("查找 ( Search )                               Ctrl+F");
+    private Runnable onSearchRequest = () -> {};
+    public  CustomShortcutMenuItem codeAreaSearchItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.search", "Ctrl+F", IconFactory.group(IconPaths.MAIN_SEARCH, 0.6));
     public  ContextMenu contextMenu = new ContextMenu();
-    public  MenuItem modifyItem = new  MenuItem("编辑 ( Modify )                        Ctrl+Enter");
-    private  MenuItem copyItem = new MenuItem("复制 ( Copy )                                 Ctrl+C");
-    private  MenuItem imageCopyItem = new MenuItem("复制图片 ( Copy Image ) ");
+    public  CustomShortcutMenuItem modifyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.modify", "Ctrl+Enter", IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.65));
+    private  CustomShortcutMenuItem copyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy", "Ctrl+C", IconFactory.group(IconPaths.COPY, 0.7));
+    private  CustomShortcutMenuItem imageCopyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy_image", IconFactory.group(IconPaths.COPY, 0.7));
     public  ContextMenu imageContextMenu = new ContextMenu();
-    private MenuItem imageSaveAsItem = new javafx.scene.control.MenuItem("图片另存为 ( Image Save As )");
+    private CustomShortcutMenuItem imageSaveAsItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.image_save_as", IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.6));
     private File markdownFile;
 
     public static class NodeSegmentOps implements SegmentOps<Node, String> {
@@ -109,23 +137,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         }
     }
 
-    static{
-        docType=List.of(
-                "zip", "rar", "7z", "exe", "pdf", "doc", "docx", "xls", "xlsx",
-                "png", "jpg", "jpeg", "gif", "bmp", "mp3", "mp4", "avi",
-                "mkv", "txt", "csv", "json", "xml", "iso", "tar", "gz","iso","tar","tar.gz"
-                ,"sh","chm","jar","yml"
-        );
-
-
-
-
-
-
-
-
-    }
-
     public CustomGenericStyledArea(File markdownFile){
         this.markdownFile=markdownFile;
 
@@ -147,9 +158,9 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 // 应用内联样式
                 if (seg.getStyle() != null && !seg.getStyle().isEmpty()) {
                     if (seg.getStyle().contains("link")) {
-                        String urlInit = seg.getStyle().split("link:")[1].split(";")[0];
+                        String urlInit = extractLinkUrl(seg.getStyle());
                         String tmpUrl=urlInit;
-                        if(!urlInit.toLowerCase().startsWith("http")){
+                        if(!isHttpUrl(urlInit)){
                             try {
                                 Path path = getAbsPath(markdownFile, urlInit);
                                 tmpUrl=path.toString();
@@ -158,125 +169,66 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                             }
                         }
                         String url=tmpUrl;
-                        String ext = url.substring(url.lastIndexOf('.') + 1).toLowerCase();
-                        t.setStyle( "-fx-fill: #0066cc; -fx-underline: true; -fx-cursor: hand;");
+                        boolean isHttpLink = isHttpUrl(url);
+                        String ext = getFileExtension(url);
+                        t.setStyle(LINK_STYLE);
 
 
-                        if(url.toLowerCase().startsWith("http")) {
-                            new Thread(() -> {
+                        applyLinkValidation(t, url, isHttpLink);
+
+                        CustomShortcutMenuItem saveAsItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.save_as", IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.6));
+                        CustomShortcutMenuItem copyLinkItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy_link", IconFactory.group(IconPaths.COPY, 0.7));
+                        ContextMenu linkContextMenu = new ContextMenu();
+                        linkContextMenu.getItems().addAll(saveAsItem,copyLinkItem);
+                        copyLinkItem.setOnAction(ev -> {
+                            Clipboard clipboard = Clipboard.getSystemClipboard();
+                            ClipboardContent content = new ClipboardContent();
+                            content.putString(url);
+                            clipboard.setContent(content);
+                            NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.link_copied"));
+                        });
+                        if(DOC_TYPES.contains(ext)||ext.equals("md")){
+                            saveAsItem.setOnAction(ev -> {
+                                FileChooser fileChooser = new FileChooser();
+                                fileChooser.setTitle(I18n.t("genericstyled.filechooser.save_link_content"));
+                                String defaultName;
                                 try {
-                                    //如果开了vpn网络又不通，可能需要等10秒左右才会变红，其他场景很快会标红
-                                    //log.info(DownloadManagerUtil.encodeUrl(url));
-                                    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                                    conn.setRequestMethod("HEAD");
-                                    conn.setInstanceFollowRedirects(true);
-                                    conn.setConnectTimeout(2000);
-                                    conn.setReadTimeout(2000);
-
-                                    int code = conn.getResponseCode();
-                                    if( code >= 200 && code < 400) {
-
-                                    }else{
-                                        Platform.runLater(()->{
-                                            t.setStyle("-fx-fill: #f00; -fx-underline: true;-fx-cursor: hand;-fx-strikethrough: true");
-                                        });
-                                    }
+                                    defaultName = resolveDownloadFileName(url, isHttpLink);
                                 } catch (Exception ex) {
                                     log.error(ex.getMessage(),ex);
-                                    Platform.runLater(()-> {
-                                        t.setStyle("-fx-fill: #f00; -fx-underline: true;-fx-cursor: hand;-fx-strikethrough: true");
-                                    });
-
+                                    AlterUtil.CustomAlert(I18n.t("genericstyled.alert.download_error"), ex.getMessage());
+                                    return;
                                 }
-                            }).start();
+                                fileChooser.setInitialFileName(defaultName);
+                                File file = fileChooser.showSaveDialog(Main.scene.getWindow());
 
-                        }else if (!new File(url).exists()) {
-                            t.setStyle("-fx-fill: #f00; -fx-underline: true;-fx-cursor: hand;-fx-strikethrough: true");
+                                if (file != null) {
+                                    if(file.exists()){
+                                        file.delete();
+                                    }
+                                    DownloadManagerUtil.addDownload(url, file, true,null);
+                                }
+                            });
+
+                        } else {
+                            saveAsItem.setDisable(true);
                         }
-
                         t.setOnContextMenuRequested(event -> {
-                            MenuItem saveAsItem = new javafx.scene.control.MenuItem("另存为 ( Save As )");
-                            MenuItem copyLinkItem = new MenuItem("复制链接 ( Copy Link )");
-                            SVGPath saveAsItemIcon = new SVGPath();
-                            saveAsItemIcon.setScaleX(0.6);
-                            saveAsItemIcon.setScaleY(0.6);
-                            saveAsItemIcon.setContent("M20.3438 6.0938 Q21 6.75 21 7.6875 L21 20.25 Q21 21.1875 20.3438 21.8438 Q19.6875 22.5 18.75 22.5 L2.25 22.5 Q1.3125 22.5 0.6562 21.8438 Q0 21.1875 0 20.25 L0 3.75 Q0 2.8125 0.6562 2.1562 Q1.3125 1.5 2.25 1.5 L14.8125 1.5 Q15.75 1.5 16.4062 2.1562 L20.3438 6.0938 ZM8.3594 18.6406 Q9.2344 19.5 10.5 19.5 Q11.7656 19.5 12.625 18.6406 Q13.5 17.7656 13.5 16.5 Q13.5 15.2344 12.625 14.375 Q11.7656 13.5 10.5 13.5 Q9.2344 13.5 8.3594 14.375 Q7.5 15.2344 7.5 16.5 Q7.5 17.7656 8.3594 18.6406 ZM15 5.2031 Q15 5.0156 14.8125 4.8281 L14.6719 4.6875 Q14.4844 4.5 14.2969 4.5 L3.5625 4.5 Q3 4.5 3 5.0625 L3 9.9375 Q3 10.5 3.5625 10.5 L14.4375 10.5 Q15 10.5 15 9.9375 L15 5.2031 Z");
-                            saveAsItemIcon.setFill(Color.valueOf("#074675"));
-                            saveAsItem.setGraphic(new Group(saveAsItemIcon));
-
-                            SVGPath copyLinkItemIcon = new SVGPath();
-                            copyLinkItemIcon.setScaleX(0.7);
-                            copyLinkItemIcon.setScaleY(0.7);
-                            copyLinkItemIcon.setContent("M5.5156 4.6094 L5.5156 6.7656 L5.5156 17.2344 Q5.5156 18.625 6.4531 19.5625 Q7.3906 20.5 8.7344 20.5 L17.375 20.5 Q17.1406 21.1719 16.5312 21.5781 Q15.9375 21.9844 15.2656 21.9844 L8.7344 21.9844 Q7.8281 21.9844 6.9375 21.625 Q6.0469 21.2656 5.375 20.625 Q4.7031 19.9688 4.3438 19.0781 Q3.9844 18.1875 3.9844 17.2344 L3.9844 6.7656 Q3.9844 6 4.4062 5.4219 Q4.8438 4.8438 5.5156 4.6094 ZM17.7656 2.0156 Q18.6719 2.0156 19.3438 2.6719 Q20.0156 3.3125 20.0156 4.2656 L20.0156 17.2344 Q20.0156 18.1875 19.3438 18.8438 Q18.6719 19.4844 17.7656 19.4844 L8.7344 19.4844 Q7.8281 19.4844 7.1562 18.8438 Q6.4844 18.1875 6.4844 17.2344 L6.4844 4.2656 Q6.4844 3.3125 7.1562 2.6719 Q7.8281 2.0156 8.7344 2.0156 L17.7656 2.0156 ZM17.7656 3.5 L8.7344 3.5 Q8.4531 3.5 8.2344 3.7188 Q8.0156 3.9375 8.0156 4.2656 L8.0156 17.2344 Q8.0156 17.5625 8.2344 17.7812 Q8.4531 18 8.7344 18 L17.7656 18 Q18.0469 18 18.2656 17.7812 Q18.4844 17.5625 18.4844 17.2344 L18.4844 4.2656 Q18.4844 3.9375 18.2656 3.7188 Q18.0469 3.5 17.7656 3.5 Z");
-                            copyLinkItemIcon.setFill(Color.valueOf("#074675"));
-                            copyLinkItem.setGraphic(new Group(copyLinkItemIcon));
-                            if(docType.contains(ext)||ext.equals("md")){
-                                saveAsItem.setOnAction(null);
-                                saveAsItem.setOnAction(ev -> {
-                                    FileChooser fileChooser = new FileChooser();
-                                    fileChooser.setTitle("保存链接内容");
-                                    String defaultName = "downloaded.file";
-                                    if(url.toLowerCase().startsWith("http")){
-                                        try {
-                                            //URI uri = new URI(url);
-                                            //String path = uri.getPath();
-                                            //defaultName = Paths.get(path).getFileName().toString();
-                                            defaultName=DownloadManagerUtil.getRealFileNameFromRedirect(url);
-                                            if (defaultName.isEmpty()) defaultName = "downloaded.file";
-                                        } catch (Exception ex) {
-                                            log.error(ex.getMessage(),ex);
-                                            AlterUtil.CustomAlert("下载错误", ex.getMessage());
-                                            return;
-                                        }
-                                    }else{
-                                        defaultName = url.substring(url.lastIndexOf('/') + 1);
-                                    }
-                                    fileChooser.setInitialFileName(defaultName);
-                                    File file = fileChooser.showSaveDialog(Main.scene.getWindow());
-
-                                    if (file != null) {
-                                        if(file.exists()){
-                                            file.delete();
-                                        }
-                                        DownloadManagerUtil.addDownload(url, file, true,null);
-                                    }
-                                });
-
-                                copyLinkItem.setOnAction(ev -> {
-                                    Clipboard clipboard = Clipboard.getSystemClipboard();
-                                    ClipboardContent content = new ClipboardContent();
-                                    content.putString(url);
-                                    clipboard.setContent(content);
-                                    NotificationUtil.showNotification(Main.mainController.noticePane, "链接已复制！");
-                                });
-                            }
-                            ContextMenu linkContextMenu = new ContextMenu();
-                            linkContextMenu.getItems().addAll(saveAsItem,copyLinkItem);
                             linkContextMenu.show(t, event.getScreenX(), event.getScreenY());
                             event.consume();
                         });
                         t.setOnMouseClicked(event -> {
                             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1) {
                                 // 常见文件扩展名集合
-                                if (docType.contains(ext)) {
+                                if (DOC_TYPES.contains(ext)) {
                                     File desktopDir = FileSystemView.getFileSystemView().getHomeDirectory();
-                                    String defaultName = "downloaded.file";
-                                    if (url.toLowerCase().startsWith("http")) {
-                                        //URI uri = null;
-                                        try {
-                                           // uri = new URI(url);
-                                            defaultName=DownloadManagerUtil.getRealFileNameFromRedirect(url);
-
-                                        } catch (Exception ex) {
-                                            log.error(ex.getMessage(),ex);
-                                            AlterUtil.CustomAlert("下载错误", ex.getMessage());
-                                            return;
-                                            //throw new RuntimeException(ex);
-                                        }
-                                        //String path = uri.getPath();
-                                        //defaultName = Paths.get(path).getFileName().toString();
-                                    } else {
-                                        defaultName = url.substring(url.lastIndexOf('/') + 1);
+                                    String defaultName;
+                                    try {
+                                        defaultName = resolveDownloadFileName(url, isHttpLink);
+                                    } catch (Exception ex) {
+                                        log.error(ex.getMessage(),ex);
+                                        AlterUtil.CustomAlert(I18n.t("genericstyled.alert.download_error"), ex.getMessage());
+                                        return;
                                     }
 
                                     File saveFile = new File(desktopDir, defaultName);  // 自动拼接路径
@@ -284,11 +236,11 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                     //这里增加判断是避免弹出通知 “文件将下载到桌面”后又报错！
                                     File saveFileTemp = new File(desktopDir, defaultName + ".download");
                                     if (saveFile.exists()) {
-                                        AlterUtil.CustomAlert("错误", "桌面已存在同名文件！");
+                                        AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("genericstyled.error.desktop_file_exists"));
                                     } else if (saveFileTemp.exists()) {
-                                        AlterUtil.CustomAlert("错误", "该文件正在下载，请勿重复下载！");
+                                        AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("genericstyled.error.file_downloading"));
                                     } else {
-                                        NotificationUtil.showNotification(Main.mainController.noticePane, "文件将下载到桌面！");
+                                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.download_to_desktop"));
                                         DownloadManagerUtil.addDownload(url, saveFile, true, null);
                                     }
 
@@ -321,13 +273,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
                     } else if (seg.getStyle().contains("code-block")) {
                         ContextMenu textAreaContextMenu = new ContextMenu();
-                        MenuItem textAreaCopyItem = new MenuItem("复制 ( Copy )                                 Ctrl+C");
-                        SVGPath textAreaCopyItemIcon = new SVGPath();
-                        textAreaCopyItemIcon.setScaleX(0.7);
-                        textAreaCopyItemIcon.setScaleY(0.7);
-                        textAreaCopyItemIcon.setContent("M5.5156 4.6094 L5.5156 6.7656 L5.5156 17.2344 Q5.5156 18.625 6.4531 19.5625 Q7.3906 20.5 8.7344 20.5 L17.375 20.5 Q17.1406 21.1719 16.5312 21.5781 Q15.9375 21.9844 15.2656 21.9844 L8.7344 21.9844 Q7.8281 21.9844 6.9375 21.625 Q6.0469 21.2656 5.375 20.625 Q4.7031 19.9688 4.3438 19.0781 Q3.9844 18.1875 3.9844 17.2344 L3.9844 6.7656 Q3.9844 6 4.4062 5.4219 Q4.8438 4.8438 5.5156 4.6094 ZM17.7656 2.0156 Q18.6719 2.0156 19.3438 2.6719 Q20.0156 3.3125 20.0156 4.2656 L20.0156 17.2344 Q20.0156 18.1875 19.3438 18.8438 Q18.6719 19.4844 17.7656 19.4844 L8.7344 19.4844 Q7.8281 19.4844 7.1562 18.8438 Q6.4844 18.1875 6.4844 17.2344 L6.4844 4.2656 Q6.4844 3.3125 7.1562 2.6719 Q7.8281 2.0156 8.7344 2.0156 L17.7656 2.0156 ZM17.7656 3.5 L8.7344 3.5 Q8.4531 3.5 8.2344 3.7188 Q8.0156 3.9375 8.0156 4.2656 L8.0156 17.2344 Q8.0156 17.5625 8.2344 17.7812 Q8.4531 18 8.7344 18 L17.7656 18 Q18.0469 18 18.2656 17.7812 Q18.4844 17.5625 18.4844 17.2344 L18.4844 4.2656 Q18.4844 3.9375 18.2656 3.7188 Q18.0469 3.5 17.7656 3.5 Z");
-                        textAreaCopyItemIcon.setFill(Color.valueOf("#074675"));
-                        textAreaCopyItem.setGraphic(new Group(textAreaCopyItemIcon));
+                        CustomShortcutMenuItem textAreaCopyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy", "Ctrl+C", IconFactory.group(IconPaths.COPY, 0.7));
                         textAreaContextMenu.getItems().addAll(textAreaCopyItem);
                         if (e.getLeft().trim().isEmpty()) {
                             return new Text(""); // appendtext("\n")会继承上一个style，空段落不生成 TextArea，解决最后一个如果是```出现一个空白text
@@ -369,7 +315,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                 ClipboardContent content = new ClipboardContent();
                                 content.putString(textArea.getText());
                                 clipboard.setContent(content);
-                                NotificationUtil.showNotification(Main.mainController.noticePane, "代码块已复制！");
+                                NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.code_block_copied"));
                             }
                         });
 
@@ -381,13 +327,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                     }else if (seg.getStyle() != null) {
                         if (seg.getStyle().contains("title")) {
                             ContextMenu contextMenu = new ContextMenu();
-                            MenuItem copyItem = new MenuItem("复制 ( Copy )");
-                            SVGPath copyItemIcon = new SVGPath();
-                            copyItemIcon.setScaleX(0.7);
-                            copyItemIcon.setScaleY(0.7);
-                            copyItemIcon.setContent("M5.5156 4.6094 L5.5156 6.7656 L5.5156 17.2344 Q5.5156 18.625 6.4531 19.5625 Q7.3906 20.5 8.7344 20.5 L17.375 20.5 Q17.1406 21.1719 16.5312 21.5781 Q15.9375 21.9844 15.2656 21.9844 L8.7344 21.9844 Q7.8281 21.9844 6.9375 21.625 Q6.0469 21.2656 5.375 20.625 Q4.7031 19.9688 4.3438 19.0781 Q3.9844 18.1875 3.9844 17.2344 L3.9844 6.7656 Q3.9844 6 4.4062 5.4219 Q4.8438 4.8438 5.5156 4.6094 ZM17.7656 2.0156 Q18.6719 2.0156 19.3438 2.6719 Q20.0156 3.3125 20.0156 4.2656 L20.0156 17.2344 Q20.0156 18.1875 19.3438 18.8438 Q18.6719 19.4844 17.7656 19.4844 L8.7344 19.4844 Q7.8281 19.4844 7.1562 18.8438 Q6.4844 18.1875 6.4844 17.2344 L6.4844 4.2656 Q6.4844 3.3125 7.1562 2.6719 Q7.8281 2.0156 8.7344 2.0156 L17.7656 2.0156 ZM17.7656 3.5 L8.7344 3.5 Q8.4531 3.5 8.2344 3.7188 Q8.0156 3.9375 8.0156 4.2656 L8.0156 17.2344 Q8.0156 17.5625 8.2344 17.7812 Q8.4531 18 8.7344 18 L17.7656 18 Q18.0469 18 18.2656 17.7812 Q18.4844 17.5625 18.4844 17.2344 L18.4844 4.2656 Q18.4844 3.9375 18.2656 3.7188 Q18.0469 3.5 17.7656 3.5 Z");
-                            copyItemIcon.setFill(Color.valueOf("#074675"));
-                            copyItem.setGraphic(new Group(copyItemIcon));
+                            CustomShortcutMenuItem copyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy_simple", IconFactory.group(IconPaths.COPY, 0.7));
                             contextMenu.getItems().addAll(copyItem);
                             CustomUserTextField customUserTextField = new CustomUserTextField();
                             // textArea.setWrapText(true);
@@ -407,7 +347,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                     ((CustomGenericStyledArea)customUserTextField.getParent().getParent().getParent().getParent().getParent()).deselect();
                                 }
                             });
-                            customUserTextField.setContextMenu(contextMenu);
                             copyItem.setOnAction(event1->{
                                 if(!customUserTextField.getSelectedText().isEmpty()){
                                     customUserTextField.copy();
@@ -416,7 +355,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                     ClipboardContent content = new ClipboardContent();
                                     content.putString(customUserTextField.getText());
                                     clipboard.setContent(content);
-                                    NotificationUtil.showNotification(Main.mainController.noticePane, "标题已复制！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.title_copied"));
                                 }
                             });
 
@@ -444,8 +383,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 }
                 return t;
             } else {
-                javafx.scene.Node n = e.getRight();
-                // 节点也可以有样式
                 return e.getRight();
             }
         };
@@ -454,7 +391,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 "",
                 segmentOps,
                 nodeFactory);
-
         //setParagraphGraphicFactory(LineNumberFactory.get(this));
         getStyleClass().add("CustomGenericStyledArea");
         setEditable(false);
@@ -465,47 +401,9 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 modifyItem.fire();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.F){
-                codeAreaSearchItem.fire();
-                searchReplaceBox.findField.requestFocus();
+                onSearchRequest.run();
             }
         });
-        SVGPath codeAreaSearchItemIcon = new SVGPath();
-        codeAreaSearchItemIcon.setScaleX(0.6);
-        codeAreaSearchItemIcon.setScaleY(0.6);
-        codeAreaSearchItemIcon.setContent("M9.8438 1.7184 Q12.0469 1.7184 13.9219 2.7965 Q15.7969 3.8746 16.8906 5.7496 Q18 7.609 18 9.8278 Q18 12.4684 16.4688 14.6246 L21.8906 20.0934 Q22.2656 20.4371 22.2812 20.9684 Q22.3125 21.484 21.9531 21.8746 Q21.5938 22.2496 21.0938 22.2809 Q20.5938 22.2965 20.2031 21.9684 L14.6406 16.4528 Q12.4844 17.984 9.8438 17.984 Q7.625 17.984 5.75 16.8903 Q3.8906 15.7809 2.8125 13.9059 Q1.7344 12.0309 1.7344 9.8278 Q1.7344 7.609 2.8125 5.7496 Q3.8906 3.8746 5.75 2.7965 Q7.625 1.7184 9.8438 1.7184 ZM9.8438 4.2496 Q8.3594 4.2496 7.0625 4.9996 Q5.7656 5.7496 5.0156 7.0465 Q4.2656 8.3434 4.2656 9.8278 Q4.2656 11.3121 5.0156 12.609 Q5.7656 13.9059 7.0625 14.6559 Q8.3594 15.3903 9.8594 15.3903 Q11.375 15.3903 12.6406 14.6559 Q13.9219 13.9059 14.6562 12.6403 Q15.4062 11.359 15.4062 9.859 Q15.4062 8.3434 14.6562 7.0778 Q13.9219 5.7965 12.6406 5.0309 Q11.375 4.2496 9.8438 4.2496 Z");
-        codeAreaSearchItemIcon.setFill(Color.valueOf("#074675"));
-
-
-
-        SVGPath modifyItemIcon = new SVGPath();
-        modifyItemIcon.setScaleX(0.65);
-        modifyItemIcon.setScaleY(0.65);
-        modifyItemIcon.setContent("M20.625 19.5938 L3.375 19.5938 Q3.0781 19.5938 2.8438 19.8125 Q2.625 20.0312 2.625 20.3438 L2.625 21.1875 Q2.625 21.25 2.6875 21.3125 Q2.75 21.375 2.8125 21.375 L21.1875 21.375 Q21.2656 21.375 21.3125 21.3125 Q21.375 21.25 21.375 21.1875 L21.375 20.3438 Q21.375 20.0312 21.1562 19.8125 Q20.9375 19.5938 20.625 19.5938 ZM6.0469 17.625 Q6.0781 17.625 6.1094 17.625 Q6.1406 17.625 6.1875 17.625 L10.125 16.9219 Q10.1562 16.9219 10.1875 16.9062 Q10.2188 16.875 10.25 16.8438 L20.1875 6.9062 Q20.2031 6.8906 20.2188 6.8438 Q20.25 6.7969 20.25 6.75 Q20.25 6.7031 20.2188 6.6719 Q20.2031 6.625 20.1875 6.5781 L20.1875 6.5781 L16.2969 2.6875 Q16.25 2.6406 16.2031 2.6406 Q16.1719 2.625 16.125 2.625 Q16.0781 2.625 16.0312 2.6406 Q15.9844 2.6406 15.9688 2.6875 L6.0312 12.625 Q6 12.6562 5.9688 12.6875 Q5.9531 12.7188 5.9531 12.75 L5.25 16.6875 Q5.25 16.7344 5.25 16.7656 Q5.25 16.7969 5.25 16.8281 Q5.25 16.9844 5.3125 17.1406 Q5.375 17.2969 5.4844 17.3906 L5.4844 17.3906 Q5.6094 17.5 5.75 17.5625 Q5.8906 17.625 6.0469 17.625 L6.0469 17.625 Z");
-        modifyItemIcon.setFill(Color.valueOf("#074675"));
-        modifyItem.setGraphic(new Group(modifyItemIcon));
-
-        SVGPath copyItemIcon = new SVGPath();
-        copyItemIcon.setScaleX(0.7);
-        copyItemIcon.setScaleY(0.7);
-        copyItemIcon.setContent("M5.5156 4.6094 L5.5156 6.7656 L5.5156 17.2344 Q5.5156 18.625 6.4531 19.5625 Q7.3906 20.5 8.7344 20.5 L17.375 20.5 Q17.1406 21.1719 16.5312 21.5781 Q15.9375 21.9844 15.2656 21.9844 L8.7344 21.9844 Q7.8281 21.9844 6.9375 21.625 Q6.0469 21.2656 5.375 20.625 Q4.7031 19.9688 4.3438 19.0781 Q3.9844 18.1875 3.9844 17.2344 L3.9844 6.7656 Q3.9844 6 4.4062 5.4219 Q4.8438 4.8438 5.5156 4.6094 ZM17.7656 2.0156 Q18.6719 2.0156 19.3438 2.6719 Q20.0156 3.3125 20.0156 4.2656 L20.0156 17.2344 Q20.0156 18.1875 19.3438 18.8438 Q18.6719 19.4844 17.7656 19.4844 L8.7344 19.4844 Q7.8281 19.4844 7.1562 18.8438 Q6.4844 18.1875 6.4844 17.2344 L6.4844 4.2656 Q6.4844 3.3125 7.1562 2.6719 Q7.8281 2.0156 8.7344 2.0156 L17.7656 2.0156 ZM17.7656 3.5 L8.7344 3.5 Q8.4531 3.5 8.2344 3.7188 Q8.0156 3.9375 8.0156 4.2656 L8.0156 17.2344 Q8.0156 17.5625 8.2344 17.7812 Q8.4531 18 8.7344 18 L17.7656 18 Q18.0469 18 18.2656 17.7812 Q18.4844 17.5625 18.4844 17.2344 L18.4844 4.2656 Q18.4844 3.9375 18.2656 3.7188 Q18.0469 3.5 17.7656 3.5 Z");
-        copyItemIcon.setFill(Color.valueOf("#074675"));
-        copyItem.setGraphic(new Group(copyItemIcon));
-
-        SVGPath imageCopyItemIcon = new SVGPath();
-        imageCopyItemIcon.setScaleX(0.7);
-        imageCopyItemIcon.setScaleY(0.7);
-        imageCopyItemIcon.setContent("M5.5156 4.6094 L5.5156 6.7656 L5.5156 17.2344 Q5.5156 18.625 6.4531 19.5625 Q7.3906 20.5 8.7344 20.5 L17.375 20.5 Q17.1406 21.1719 16.5312 21.5781 Q15.9375 21.9844 15.2656 21.9844 L8.7344 21.9844 Q7.8281 21.9844 6.9375 21.625 Q6.0469 21.2656 5.375 20.625 Q4.7031 19.9688 4.3438 19.0781 Q3.9844 18.1875 3.9844 17.2344 L3.9844 6.7656 Q3.9844 6 4.4062 5.4219 Q4.8438 4.8438 5.5156 4.6094 ZM17.7656 2.0156 Q18.6719 2.0156 19.3438 2.6719 Q20.0156 3.3125 20.0156 4.2656 L20.0156 17.2344 Q20.0156 18.1875 19.3438 18.8438 Q18.6719 19.4844 17.7656 19.4844 L8.7344 19.4844 Q7.8281 19.4844 7.1562 18.8438 Q6.4844 18.1875 6.4844 17.2344 L6.4844 4.2656 Q6.4844 3.3125 7.1562 2.6719 Q7.8281 2.0156 8.7344 2.0156 L17.7656 2.0156 ZM17.7656 3.5 L8.7344 3.5 Q8.4531 3.5 8.2344 3.7188 Q8.0156 3.9375 8.0156 4.2656 L8.0156 17.2344 Q8.0156 17.5625 8.2344 17.7812 Q8.4531 18 8.7344 18 L17.7656 18 Q18.0469 18 18.2656 17.7812 Q18.4844 17.5625 18.4844 17.2344 L18.4844 4.2656 Q18.4844 3.9375 18.2656 3.7188 Q18.0469 3.5 17.7656 3.5 Z");
-        imageCopyItemIcon.setFill(Color.valueOf("#074675"));
-        imageCopyItem.setGraphic(new Group(imageCopyItemIcon));
-
-        SVGPath imageSaveAsItemIcon = new SVGPath();
-        imageSaveAsItemIcon.setScaleX(0.6);
-        imageSaveAsItemIcon.setScaleY(0.6);
-        imageSaveAsItemIcon.setContent("M20.3438 6.0938 Q21 6.75 21 7.6875 L21 20.25 Q21 21.1875 20.3438 21.8438 Q19.6875 22.5 18.75 22.5 L2.25 22.5 Q1.3125 22.5 0.6562 21.8438 Q0 21.1875 0 20.25 L0 3.75 Q0 2.8125 0.6562 2.1562 Q1.3125 1.5 2.25 1.5 L14.8125 1.5 Q15.75 1.5 16.4062 2.1562 L20.3438 6.0938 ZM8.3594 18.6406 Q9.2344 19.5 10.5 19.5 Q11.7656 19.5 12.625 18.6406 Q13.5 17.7656 13.5 16.5 Q13.5 15.2344 12.625 14.375 Q11.7656 13.5 10.5 13.5 Q9.2344 13.5 8.3594 14.375 Q7.5 15.2344 7.5 16.5 Q7.5 17.7656 8.3594 18.6406 ZM15 5.2031 Q15 5.0156 14.8125 4.8281 L14.6719 4.6875 Q14.4844 4.5 14.2969 4.5 L3.5625 4.5 Q3 4.5 3 5.0625 L3 9.9375 Q3 10.5 3.5625 10.5 L14.4375 10.5 Q15 10.5 15 9.9375 L15 5.2031 Z");
-        imageSaveAsItemIcon.setFill(Color.valueOf("#074675"));
-        imageSaveAsItem.setGraphic(new Group(imageSaveAsItemIcon));
-
-        codeAreaSearchItem.setGraphic(new Group(codeAreaSearchItemIcon));
         contextMenu.getItems().addAll(modifyItem,codeAreaSearchItem,copyItem);
         imageContextMenu.getItems().addAll(imageSaveAsItem,imageCopyItem);
         //正文内容邮件后，在textarea右键，正文右键菜单不会自动隐藏，加此监听
@@ -529,30 +427,24 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 copyItem.setDisable(false);
             }
         });
-        codeAreaSearchItem.setOnAction(event->{
-            searchReplaceBox.setVisible(true);
-        });
+        codeAreaSearchItem.setOnAction(event -> onSearchRequest.run());
 
+    }
+
+    public void setOnSearchRequest(Runnable onSearchRequest) {
+        this.onSearchRequest = onSearchRequest == null ? () -> {} : onSearchRequest;
     }
 
     public void parseMarkdownWithStyles(String markdown) {
         headingCounters=new int[6];
         String[] lines = markdown.split("\n");
-        Pattern imgPattern = Pattern.compile("!\\[.*?]\\((.*?)\\)");
-        Pattern linkPattern = Pattern.compile("\\[(.*?)\\]\\((.*?)\\)");
-        Pattern inlineCodePattern = Pattern.compile("`(.*?)`");
-        Pattern boldPattern = Pattern.compile("\\*\\*([^*]+)\\*\\*");
-        Pattern tableLinePattern = Pattern.compile("^\\|.*\\|$"); // 表格行（以|开头和结尾）
-        //Pattern tableSeparatorPattern = Pattern.compile("^\\|(\\s*-+\\s*\\|)+$"); // 表头分隔线（|----|----|）
-        Pattern tableSeparatorPattern = Pattern.compile("^\\s*\\|(\\s*-+\\s*\\|)+\\s*$");
-
-
 
         List<List<String>> tableRows = new ArrayList<>(); // 存储表格行数据
         boolean inTable = false; // 是否处于表格解析中
 
         String fileName=markdownFile.getName();
-        String title=fileName.substring(0,fileName.lastIndexOf('.'));
+        int dotIndex = fileName.lastIndexOf('.');
+        String title = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
         //添加标题
         if(title!=null&&!title.isEmpty()){
             append(Either.left(title), "title");
@@ -617,10 +509,10 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             }
 
             //表格
-            if (inTable && tableSeparatorPattern.matcher(line).matches()) {
+            if (inTable && TABLE_SEPARATOR_PATTERN.matcher(line).matches()) {
                 // 识别为表头分隔线，不添加到数据行，仅作为表格结构标识
                 continue;
-            }else if (tableLinePattern.matcher(line).matches()) {
+            }else if (TABLE_LINE_PATTERN.matcher(line).matches()) {
                 // 识别为表格行
                 inTable = true;
                 // 分割单元格（去除首尾|，再按|分割）
@@ -645,7 +537,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             }
 
             // 标题计数器
-            if (line.matches("^#{1,6} .*$")) {
+            if (HEADING_PATTERN.matcher(line).matches()) {
                 int level = 0;
                 // 计算标题级别（#数量，最多6级）
                 while (level < line.length() && line.charAt(level) == '#') {
@@ -692,7 +584,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
             // 处理图片
             if (line.contains("![") && line.contains("](")) {
-                Matcher imgMatcher = imgPattern.matcher(line);
+                Matcher imgMatcher = IMG_PATTERN.matcher(line);
                 if (imgMatcher.find()) {
                     String imgUrl = imgMatcher.group(1);
                     //imgUrl="docs"+imgUrl;
@@ -714,14 +606,14 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                             pane.setOnContextMenuRequested(event -> {
                                 imageSaveAsItem.setOnAction(event1 -> {
                                     FileChooser fileChooser = new FileChooser();
-                                    fileChooser.setTitle("图片另存为");
+                                    fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
 
                                     // 2. 设置默认文件名（与原始文件同名）和格式过滤
                                     String originalFileName = new File(path.toUri()).getName();
                                     fileChooser.setInitialFileName(originalFileName);
                                     fileChooser.getExtensionFilters().addAll(
-                                            new FileChooser.ExtensionFilter("图片文件", "*.png", "*.jpg", "*.jpeg", "*.gif"),
-                                            new FileChooser.ExtensionFilter("所有文件", "*.*")
+                                            new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.image_files"), "*.png", "*.jpg", "*.jpeg", "*.gif"),
+                                            new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
                                     );
 
                                     // 3. 选择保存路径
@@ -738,7 +630,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                                 targetFile.toPath(),
                                                 StandardCopyOption.REPLACE_EXISTING // 覆盖选项
                                         );
-                                        NotificationUtil.showNotification(Main.mainController.noticePane, "图片已保存！");
+                                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.image_saved"));
                                     } catch (IOException e) {
                                         e.printStackTrace();
                                     }
@@ -752,7 +644,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
                                     // 复制到剪贴板
                                     clipboard.setContent(content);
-                                    NotificationUtil.showNotification(Main.mainController.noticePane, "图片已复制到剪切板！");
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.image_copied"));
 
                                 });
                                 imageContextMenu.show(pane, event.getScreenX(), event.getScreenY());
@@ -775,7 +667,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
             // 处理普通文本行（包含链接、行内代码、粗体等）
             if (!line.trim().isEmpty()) {
-                processTextLine(line,  linkPattern, inlineCodePattern, boldPattern);
+                processTextLine(line);
                // append(Either.left("\n"), "");
                 appendText("\n");
             } else {
@@ -807,7 +699,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         }
     }
 
-    private void processTextLine(String line,Pattern linkPattern, Pattern inlineCodePattern, Pattern boldPattern) {
+    private void processTextLine(String line) {
         if(!line.startsWith("\t")){
             line = "\t" + line;
         }
@@ -816,7 +708,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         int lastIndex = 0;
 
         // 查找所有行内代码
-        Matcher codeMatcher = inlineCodePattern.matcher(line);
+        Matcher codeMatcher = INLINE_CODE_PATTERN.matcher(line);
         while (codeMatcher.find()) {
             // 添加代码前的普通文本
             if (codeMatcher.start() > lastIndex) {
@@ -844,17 +736,16 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 append(Either.left(segment.text), segment.style);
             } else {
                 // 普通文本段处理链接和粗体
-                processFormattedText(segment.text,  linkPattern, boldPattern);
+                processFormattedText(segment.text);
             }
         }
     }
 
-    private void processFormattedText(String text, Pattern linkPattern, Pattern boldPattern) {
+    private void processFormattedText(String text) {
 
         int lastIndex = 0;
         // 同时匹配链接和粗体（优先匹配链接，避免冲突）
-        Pattern combinedPattern = Pattern.compile("(\\[.*?]\\(.*?\\)|\\*\\*[^*]+\\*\\*)");
-        Matcher matcher = combinedPattern.matcher(text);
+        Matcher matcher = COMBINED_PATTERN.matcher(text);
 
         while (matcher.find()) {
             if (matcher.start() > lastIndex) {
@@ -865,7 +756,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             String matched = matcher.group();
             if (matched.startsWith("[")) {
                 // 链接处理（不变）
-                Matcher linkMatcher = linkPattern.matcher(matched);
+                Matcher linkMatcher = LINK_PATTERN.matcher(matched);
                 if (linkMatcher.find()) {
                     String linkText = linkMatcher.group(1);
                     String linkUrl = linkMatcher.group(2);
@@ -873,7 +764,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 }
             } else if (matched.startsWith("**")) {
                 // 加粗处理：确保正确提取内容
-                Matcher boldMatcher = boldPattern.matcher(matched);
+                Matcher boldMatcher = BOLD_PATTERN.matcher(matched);
                 if (boldMatcher.find()) {
                     String boldText = boldMatcher.group(1); // 提取** 之间的内容
                     append(Either.left(boldText), "bold"); // 应用bold样式
@@ -922,7 +813,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             url = url.strip();
             url = url.replaceAll("[\\r\\n\\t]", "");
 
-            if(url.toLowerCase().startsWith("http"))
+            if(isHttpUrl(url))
             {
                 URI uri = new URI(url);
                 java.awt.Desktop.getDesktop().browse(uri);
@@ -933,7 +824,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 }else{
                     String finalUrl = url;
                     Platform.runLater(() -> {
-                        AlterUtil.CustomAlert("错误","文件【"+ finalUrl +"】不存在！");
+                        AlterUtil.CustomAlert(I18n.t("common.error"), String.format(I18n.t("genericstyled.error.file_not_found"), finalUrl));
                     });
                 }
 
@@ -1023,6 +914,87 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         return tableView;
     }
 
+    private static String getFileExtension(String url) {
+        int dot = url.lastIndexOf('.');
+        if (dot < 0 || dot == url.length() - 1) {
+            return "";
+        }
+        return url.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private static String extractLinkUrl(String style) {
+        if (style == null || style.isEmpty()) {
+            return "";
+        }
+        int start = style.indexOf("link:");
+        if (start < 0) {
+            return "";
+        }
+        start += "link:".length();
+        int end = style.indexOf(';', start);
+        return end >= 0 ? style.substring(start, end) : style.substring(start);
+    }
+
+    private static boolean isHttpUrl(String url) {
+        return url != null && url.toLowerCase(Locale.ROOT).startsWith("http");
+    }
+
+    private static void applyLinkValidation(Text textNode, String url, boolean isHttpLink) {
+        if (!isHttpLink) {
+            if (!new File(url).exists()) {
+                textNode.setStyle(INVALID_LINK_STYLE);
+            }
+            return;
+        }
+
+        Boolean cached = LINK_CHECK_CACHE.get(url);
+        if (cached != null) {
+            if (!cached) {
+                textNode.setStyle(INVALID_LINK_STYLE);
+            }
+            return;
+        }
+
+        if (!LINK_CHECK_IN_FLIGHT.add(url)) {
+            return;
+        }
+
+        LINK_CHECK_EXECUTOR.submit(() -> {
+            boolean valid = false;
+            try {
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("HEAD");
+                conn.setInstanceFollowRedirects(true);
+                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(2000);
+                int code = conn.getResponseCode();
+                valid = (code >= 200 && code < 400);
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            } finally {
+                LINK_CHECK_CACHE.put(url, valid);
+                LINK_CHECK_IN_FLIGHT.remove(url);
+            }
+
+            if (!valid) {
+                Platform.runLater(() -> textNode.setStyle(INVALID_LINK_STYLE));
+            }
+        });
+    }
+
+    private static String resolveDownloadFileName(String url, boolean isHttpLink) throws Exception {
+        if (isHttpLink) {
+            String name = DownloadManagerUtil.getRealFileNameFromRedirect(url);
+            return (name == null || name.isEmpty()) ? "downloaded.file" : name;
+        }
+
+        int slash = Math.max(url.lastIndexOf('/'), url.lastIndexOf('\\'));
+        if (slash >= 0 && slash < url.length() - 1) {
+            return url.substring(slash + 1);
+        }
+        return "downloaded.file";
+    }
+
     private static Path getAbsPath(File file,String url){
         Path appDir = Path.of(System.getProperty("user.dir"));
         Path baseFile = Path.of(file.getPath());
@@ -1031,11 +1003,13 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 .getParent()      // 以“文件所在目录”为基准
                 .resolve(relative)
                 .normalize();
-        Path path = absolutePath.subpath(
-                appDir.getNameCount(),
-                absolutePath.getNameCount()
-        );
-        return path;
+        if (absolutePath.startsWith(appDir) && absolutePath.getNameCount() > appDir.getNameCount()) {
+            return absolutePath.subpath(
+                    appDir.getNameCount(),
+                    absolutePath.getNameCount()
+            );
+        }
+        return absolutePath;
     }
 
 

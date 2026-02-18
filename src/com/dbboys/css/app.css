@@ -841,6 +841,10 @@
 .table-view .placeholder .label {
     -fx-text-fill: #ccc;
 }
+/* 结果集表格空内容时显示占位文案 */
+.table-view.resultset-table-view .placeholder {
+    -fx-opacity: 1;
+}
 
 /* SpreadsheetView样式 - 与TableView保持一致 */
 .spreadsheet-view {
@@ -963,78 +967,61 @@
 }
 
 /*标题栏高度*/
-#treeviewTabPane .tab {
+#treeviewTabPane .tab,#treeviewTabpane .tab:selected {
     -fx-pref-height: 35px;
     -fx-min-height: 35px;
     -fx-max-height: 35px;
+    -fx-pref-width: 35px;
+    -fx-min-width: 35px;
+    -fx-max-width: 35px;
     -fx-background-radius:0px;
     -fx-border-radius: 0px;
-    -fx-padding: 20;
     -fx-background-color:none;
 }
 
-/* 设置选中的标签 */
-#treeviewTabpane .tab:selected {
-    -fx-pref-height: 35px;
-    -fx-min-height: 35px;
-    -fx-max-height: 35px;
-    -fx-background-radius:0px;
-    -fx-border-radius: 0px;
-    -fx-padding: 20;
-    -fx-background-color:none;
-}
 
 
 /* 基础样式 */
+/* ToggleButton: 稳重商务风 */
 .toggle-button {
-    -fx-pref-height: 30px;
-    -fx-min-height: 30px;
-    -fx-max-height: 30px;
-    -fx-pref-width: 30px;
-    -fx-min-width: 30px;
-    -fx-max-width: 30px;
-    -fx-background-color:none;
-    -fx-background-insets:3px;
-    -fx-background-radius:3px;
-    -fx-border-insets:3px;
-    -fx-border-radius: 3px;
-    -fx-border-width:1;
-    -fx-border-color:#ccc;
-    -fx-padding:5;
-}
-.toggle-button:selected {
-    -fx-pref-height: 30px;
-    -fx-min-height: 30px;
-    -fx-max-height: 30px;
-    -fx-pref-width: 30px;
-    -fx-min-width: 30px;
-    -fx-max-width: 30px;
-    -fx-background-color:none;
-    -fx-background-insets:3px;
-    -fx-background-radius:3px;
-    -fx-border-insets:3px;
-    -fx-border-radius: 3px;
-    -fx-border-width:1;
-    -fx-border-color:#074675;
-    -fx-padding:5;
+    -fx-pref-height: 35px;
+    -fx-min-height: 35px;
+    -fx-max-height: 35px;
+    -fx-pref-width: 35px;
+    -fx-min-width: 35px;
+    -fx-max-width: 35px;
+    -fx-content-display: graphic-only;
+
+    
+    -fx-background-color: #f7f8fa;
+    -fx-background-insets: 3px;
+    -fx-background-radius: 4px;
+
+    -fx-border-color: #b8c1cc;
+    -fx-border-width: 0.5px;
+    -fx-border-radius: 4px;
+    -fx-border-insets: 3px;
+
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 2, 0, 0, 1);
 }
 
 .toggle-button:hover {
-    -fx-pref-height: 30px;
-    -fx-min-height: 30px;
-    -fx-max-height: 30px;
-    -fx-pref-width: 30px;
-    -fx-min-width: 30px;
-    -fx-max-width: 30px;
-    -fx-background-color:none;
-    -fx-background-insets:3px;
-    -fx-background-radius:3px;
-    -fx-border-insets:3px;
-    -fx-border-radius: 3px;
-    -fx-border-width:1;
-    -fx-border-color:#074675;
-    -fx-padding:5;
+    -fx-background-color: #eef2f6;
+    -fx-border-color: #6f8498;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 3, 0, 0, 1);
 }
+
+.toggle-button:selected {
+    -fx-background-color: #e6edf4;
+    -fx-border-color: #274b68;
+    -fx-effect: dropshadow(gaussian, rgba(39, 75, 104, 0.12), 3, 0, 0, 1);
+}
+
+.toggle-button:focused {
+    -fx-border-color: #274b68;
+}
+
+
 
 
 #resultsetTabPane .tab-label {
@@ -1214,4 +1201,23 @@
     -fx-border-color: none;
     -fx-border-radius: 0;
     -fx-padding: 0;
+}
+
+
+/* 语言设置的箭头靠右 */
+#menuSettingsLanguage .label {
+    -fx-pref-width: 190;   
+        -fx-font-size: 11px;
+
+}
+
+#menuSettingsLanguage {
+    -fx-padding:3 3 3 25;
+}
+
+/*自定义menu css，主要是限制高度*/
+.custom-menu-item{
+    -fx-font-family: "System Regular";
+    -fx-font-size: 11px;
+    -fx-padding: 3;
 }

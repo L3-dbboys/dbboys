@@ -1,26 +1,25 @@
-﻿package com.dbboys.util;
+package com.dbboys.util;
 
 import com.dbboys.app.Main;
-import com.dbboys.customnode.CustomInstanceTab;
+import com.dbboys.customnode.CustomUserTextField;
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
+import javafx.scene.layout.VBox;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.poi.hssf.usermodel.HSSFCellStyle;
-import org.apache.poi.hssf.usermodel.HSSFFont;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -31,9 +30,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,15 +43,15 @@ class DownloadTaskWrapper {
     private static final Logger log = LogManager.getLogger(DownloadTaskWrapper.class);
 
     private Task<Void> task;
-    private Object param;
-    private  String url;
+    private final Object source;
+    private String downloadUrl;
     private final File file;
     private final File tempFile; // 临时文件
-    private  TableView tableView;
-    private  ResultSetMetaData metaData;
+    private TableView tableView;
+    private ResultSetMetaData metaData;
 
 
-    private final HBox rootPane; // StackPane 的子节点
+    private final Node rootPane; // StackPane 的子节点
     private final ProgressBar progressBar;
     private final Label nameLabel;
     private final Label progressLabel;
@@ -64,38 +66,60 @@ class DownloadTaskWrapper {
     private long totalBytes = 0;
 
     private final boolean autoCloseOnComplete;
+    private final StackPane hostStackPane;
+    private final boolean installerMode;
+    private final CustomUserTextField installerRemotePathField;
+    private final CustomUserTextField installerInstallFilePathField;
 
-    public DownloadTaskWrapper(Object param, File file, boolean autoCloseOnComplete,ResultSetMetaData metaData) {
-
-        this.param=param;
+    public DownloadTaskWrapper(
+            Object source,
+            File file,
+            boolean autoCloseOnComplete,
+            ResultSetMetaData metaData,
+            StackPane hostStackPane,
+            boolean installerMode,
+            CustomUserTextField installerRemotePathField,
+            CustomUserTextField installerInstallFilePathField
+    ) {
+        this.source = source;
         this.file = file;
-        this.metaData=metaData;
+        this.metaData = metaData;
         this.tempFile = new File(file.getAbsolutePath() + ".download"); // 临时文件
         this.autoCloseOnComplete = autoCloseOnComplete;
+        this.hostStackPane = hostStackPane;
+        this.installerMode = installerMode;
+        this.installerRemotePathField = installerRemotePathField;
+        this.installerInstallFilePathField = installerInstallFilePathField;
 
         progressBar = new ProgressBar(0);
         progressBar.setPrefWidth(100);
-        nameLabel = new Label("正在下载：" + file.getName());
+        nameLabel = new Label();
         nameLabel.setTranslateY(-0.5);
         progressLabel = new Label("0%");
         progressLabel.setMinWidth(20);
         progressLabel.setTranslateY(-0.5);
-        speedLabel = new Label("等待开始...");
+        speedLabel = new Label();
         speedLabel.setTranslateY(-0.5);
         nameLabel.getStyleClass().add("download");
         progressLabel.getStyleClass().add("download");
         speedLabel.getStyleClass().add("download");
 
         pauseButton = new Button("");
-        pauseButton.setTooltip(new Tooltip("暂停下载"));
+        Tooltip pauseTooltip = new Tooltip();
+        pauseTooltip.textProperty().bind(I18n.bind("download.tooltip.pause", "暂停下载"));
+        pauseButton.setTooltip(pauseTooltip);
         resumeButton = new Button("");
-        resumeButton.setTooltip(new Tooltip("恢复下载"));
+        Tooltip resumeTooltip = new Tooltip();
+        resumeTooltip.textProperty().bind(I18n.bind("download.tooltip.resume", "恢复下载"));
+        resumeButton.setTooltip(resumeTooltip);
         stopButton = new Button("");
-        stopButton.setTooltip(new Tooltip("取消下载并删除未完成文件"));
-        StackPane pauseStackPane=new StackPane();
-        pauseStackPane.getChildren().addAll(pauseButton,resumeButton);
+        Tooltip stopTooltip = new Tooltip();
+        stopTooltip.textProperty().bind(I18n.bind("download.tooltip.cancel", "取消下载并删除未完成文件"));
+        stopButton.setTooltip(stopTooltip);
+        StackPane pauseStackPane = new StackPane();
+        pauseStackPane.getChildren().addAll(pauseButton, resumeButton);
 
-        HBox buttonBox = new HBox(5,pauseStackPane, stopButton);
+        HBox buttonBox = new HBox(5, pauseStackPane, stopButton);
         //rootPane.setStyle("-fx-padding: 10; -fx-background-color: #f8f8f8;");
 
         pauseButton.setOnAction(e -> {
@@ -108,48 +132,58 @@ class DownloadTaskWrapper {
             resumeDownload();
         });
 
-        SVGPath resumeButtonIcon = new SVGPath();
-        resumeButtonIcon.setContent("M17.3594 13.0469 L7.8438 18.5625 Q7.2031 18.9531 6.5938 18.5938 Q6 18.2344 6 17.5156 L6 6.4844 Q6 5.7656 6.5938 5.4062 Q7.2031 5.0469 7.8438 5.4375 L17.3594 10.9531 Q18 11.2812 18 12 Q18 12.7188 17.3594 13.0469 Z");
-        resumeButtonIcon.setScaleX(0.5);
-        resumeButtonIcon.setScaleY(0.5);
-        resumeButtonIcon.setFill(Color.valueOf("#074675"));
-        resumeButton.setGraphic(new Group(resumeButtonIcon));
+        resumeButton.setGraphic(IconFactory.group(IconPaths.DOWNLOAD_RESUME, 0.5));
         resumeButton.getStyleClass().add("little-custom-button");
         resumeButton.setFocusTraversable(false);
 
-        SVGPath pauseButtonIcon = new SVGPath();
-        pauseButtonIcon.setContent("M8 7.0078 L11 7.0078 L11 16.9922 L8 16.9922 L8 7.0078 ZM13.0156 7.0078 L16.0156 7.0078 L16.0156 16.9922 L13.0156 16.9922 L13.0156 7.0078 Z");
-        pauseButtonIcon.setScaleX(0.6);
-        pauseButtonIcon.setScaleY(0.6);
-        pauseButtonIcon.setFill(Color.valueOf("#074675"));
-        pauseButton.setGraphic(new Group(pauseButtonIcon));
+        pauseButton.setGraphic(IconFactory.group(IconPaths.DOWNLOAD_PAUSE, 0.6));
         pauseButton.getStyleClass().add("little-custom-button");
         pauseButton.setFocusTraversable(false);
 
-        SVGPath stopButtonIcon = new SVGPath();
-        stopButtonIcon.setContent("M19.2031 6.0078 L19.2031 17.7734 Q19.2031 18.3516 18.7812 18.7734 Q18.3594 19.1953 17.7656 19.1953 L6 19.1953 Q5.5156 19.1953 5.1562 18.8516 Q4.8125 18.4922 4.8125 18.0078 L4.8125 6.2422 Q4.8125 5.6484 5.2344 5.2266 Q5.6562 4.8047 6.2344 4.8047 L18 4.8047 Q18.5 4.8047 18.8438 5.1641 Q19.2031 5.5078 19.2031 6.0078 L19.2031 6.0078 Z");
-        stopButtonIcon.setScaleX(0.5);
-        stopButtonIcon.setScaleY(0.5);
-        stopButtonIcon.setFill(Color.valueOf("#9f453c"));
-        stopButton.setGraphic(new Group(stopButtonIcon));
+        stopButton.setGraphic(IconFactory.group(IconPaths.SQL_STOP, 0.5, IconFactory.dangerColor()));
         stopButton.getStyleClass().add("little-custom-button");
         stopButton.setFocusTraversable(false);
         stopButton.setOnAction(e -> cancelDownload());
-        if(param instanceof String) {
-            this.url = (String)param;
-            rootPane = new HBox(6, nameLabel,   speedLabel,progressBar,progressLabel, buttonBox);
+        if (source instanceof String) {
+            this.downloadUrl = (String) source;
+            if (installerMode) {
+                HBox topLine = new HBox(6, progressBar, progressLabel, buttonBox);
+                topLine.setAlignment(Pos.CENTER_LEFT);
+                HBox textLine = new HBox(6, nameLabel, speedLabel);
+                textLine.setAlignment(Pos.CENTER_LEFT);
+                rootPane = new VBox(2, topLine, textLine);
+            } else {
+                HBox line = new HBox(6, nameLabel, speedLabel, progressBar, progressLabel, buttonBox);
+                line.setAlignment(Pos.CENTER_RIGHT);
+                rootPane = line;
+            }
+            nameLabel.textProperty().bind(Bindings.createStringBinding(
+                    () -> (pauseButton.isVisible()
+                            ? I18n.t("download.label.downloading_prefix", "正在下载：")
+                            : I18n.t("download.label.paused_prefix", "已暂停下载：")) + file.getName(),
+                    I18n.localeProperty(),
+                    pauseButton.visibleProperty()
+            ));
+            speedLabel.textProperty().bind(I18n.bind("download.label.waiting", "等待开始..."));
 
-        }else{
-            this.tableView=(TableView)param;
-            rootPane = new HBox(6, nameLabel,progressBar,progressLabel, stopButton);
-            nameLabel .setText("正在导出：" + file.getName());
+        } else {
+            this.tableView = (TableView) source;
+            HBox line = new HBox(6, nameLabel, progressBar, progressLabel, stopButton);
+            line.setAlignment(Pos.CENTER_RIGHT);
+            rootPane = line;
+            nameLabel.textProperty().bind(Bindings.createStringBinding(
+                    () -> I18n.t("download.label.exporting_prefix", "正在导出：") + file.getName(),
+                    I18n.localeProperty()
+            ));
 
         }
-        rootPane.setAlignment(Pos.CENTER_RIGHT);
+        if (installerMode) {
+            StackPane.setAlignment(rootPane, Pos.CENTER_LEFT);
+        }
 
     }
 
-    public HBox getRootPane() {
+    public Node getRootPane() {
         return rootPane;
     }
 
@@ -161,7 +195,7 @@ class DownloadTaskWrapper {
         if (task != null && task.isRunning()) return;
 
         cancelled = false;
-        if(this.param instanceof String) {
+        if (source instanceof String) {
             task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
@@ -170,18 +204,18 @@ class DownloadTaskWrapper {
                     RandomAccessFile out = null;
                     try {
                         long start = downloadedBytes;
-                        if (url.toLowerCase().startsWith("http")) {
-                            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                        if (downloadUrl.toLowerCase().startsWith("http")) {
+                            HttpURLConnection conn = (HttpURLConnection) new URL(downloadUrl).openConnection();
                             conn.setRequestProperty("User-Agent", "JavaFX Downloader");
                             if (isResume && start > 0) conn.setRequestProperty("Range", "bytes=" + start + "-");
                             conn.connect();
 
                             int code = conn.getResponseCode();
-                            if (code != 200 && code != 206) throw new IOException("连接失败: HTTP " + code);
+                            if (code != 200 && code != 206) throw new IOException(I18n.t("download.error.connection_failed", "连接失败: HTTP ") + code);
                             if (totalBytes == 0) totalBytes = conn.getContentLengthLong() + start;
                             in = conn.getInputStream();
                         } else {
-                            Path src = Paths.get(url);
+                            Path src = Paths.get(downloadUrl);
                             if (totalBytes == 0) totalBytes = Files.size(src);
                             in = Files.newInputStream(src);
                             if (start > 0) in.skip(start);
@@ -218,7 +252,7 @@ class DownloadTaskWrapper {
                                         String.format("%.2f KB/s", smoothedSpeed / 1024);
 
                                 updateMessage(String.format(
-                                        "已下载: %.2f / %.2f MB  速度: %s",
+                                        I18n.t("download.message.progress", "已下载: %.2f / %.2f MB  速度: %s"),
                                         downloadedBytes / 1024.0 / 1024.0,
                                         totalBytes / 1024.0 / 1024.0,
                                         speedText
@@ -236,25 +270,37 @@ class DownloadTaskWrapper {
                         if (in != null) in.close();
                         if (out != null) out.close();
                         if (cancelled) {
-                            updateMessage("下载已停止并删除文件");
+                            updateMessage(I18n.t("download.message.stopped_deleted", "下载已停止并删除文件"));
                         } else if (paused) {
-                            updateMessage("已暂停");
+                            updateMessage(I18n.t("download.message.paused", "已暂停"));
                         } else {
-                            updateMessage("下载完成");
+                            updateMessage(I18n.t("download.message.completed", "下载完成"));
                             updateProgress(1, 1);
+                            boolean moved = true;
+                            if (tempFile.exists()) {
+                                moved = moveTempToTargetWithRetry();
+                                if (!moved) {
+                                    updateMessage(I18n.t("download.message.rename_failed", "下载完成，但重命名失败"));
+                                }
+                            }
+                            boolean finalMoved = moved;
                             Platform.runLater(() -> {
-                                if (tempFile.exists()) {
-                                    boolean renamed = tempFile.renameTo(file);
-                                    if (!renamed) {
-                                        updateMessage("下载完成，但重命名失败");
-                                        return;
-                                    }
+                                if (!finalMoved) {
+                                    AlterUtil.CustomAlert(
+                                            I18n.t("download.error.title", "下载失败"),
+                                            I18n.t("download.message.rename_failed", "下载完成，但重命名失败")
+                                    );
+                                    return;
                                 }
                                 if (autoCloseOnComplete) stackPaneRemoveSelf();
                                 if(file.getName().contains("dbboys.upgrade.")){
                                     Main.mainController.checkVersion();
                                 }else{
-                                    NotificationUtil.showNotification(Main.mainController.noticePane, "下载已完成！");
+                                    if (installerMode && installerInstallFilePathField != null && installerRemotePathField != null) {
+                                        installerInstallFilePathField.setText(file.getAbsolutePath());
+                                        installerRemotePathField.setText("/tmp/" + file.getName());
+                                    }
+                                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.completed", "下载已完成！"));
                                 }
                                 //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                             });
@@ -268,11 +314,12 @@ class DownloadTaskWrapper {
                 stackPaneRemoveSelf();
                 Platform.runLater(() ->
                 {
-                    AlterUtil.CustomAlert("下载失败", task.getException().getMessage());
+                    AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), task.getException().getMessage());
                 });
             });
 
             progressBar.progressProperty().bind(task.progressProperty());
+            speedLabel.textProperty().unbind();
             speedLabel.textProperty().bind(task.messageProperty());
             progressLabel.textProperty().bind(task.progressProperty().multiply(100).asString("%.0f%%"));
         }else{
@@ -292,7 +339,7 @@ class DownloadTaskWrapper {
             protected Void call() throws Exception {
                 updateProgress(0,1);
                 Workbook workbook = new SXSSFWorkbook(10000);
-                Sheet sheet = workbook.createSheet("数据");
+                Sheet sheet = workbook.createSheet(I18n.t("download.export.sheet_name", "数据"));
 
                 ObservableList<TableColumn<T, ?>> columns = tableView.getColumns();
                 ObservableList<T> items = tableView.getItems();
@@ -339,7 +386,7 @@ class DownloadTaskWrapper {
                     updateProgress(1,1);
                     Platform.runLater(() -> {
 
-                        NotificationUtil.showNotification(Main.mainController.noticePane, "导出已完成！");
+                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_completed", "导出已完成！"));
                         //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                         if (autoCloseOnComplete) stackPaneRemoveSelf();
                     });
@@ -350,10 +397,48 @@ class DownloadTaskWrapper {
         };
     }
 
+    private boolean moveTempToTargetWithRetry() {
+        Path sourcePath = tempFile.toPath();
+        Path targetPath = file.toPath();
+        int maxRetries = 6;
+        long waitMillis = 120;
+
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                Path parent = targetPath.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
+                try {
+                    Files.move(sourcePath, targetPath, StandardCopyOption.ATOMIC_MOVE);
+                } catch (IOException atomicMoveError) {
+                    Files.move(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                return true;
+            } catch (IOException e) {
+                if (!tempFile.exists() && file.exists()) {
+                    return true;
+                }
+                if (i == maxRetries - 1) {
+                    log.warn("Failed to finalize download file after retries. temp={}, target={}", sourcePath, targetPath, e);
+                    return false;
+                }
+                try {
+                    Thread.sleep(waitMillis);
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+                waitMillis = Math.min(waitMillis * 2, 1000);
+            }
+        }
+        return false;
+    }
+
 
     private void stackPaneRemoveSelf() {
         //从list里移除当前对象，避免取消后有空白轮询显示
-        DownloadManagerUtil.removeDownload(this);
+        DownloadManagerUtil.removeDownload(this, hostStackPane);
         Platform.runLater(() -> {
             StackPane parent = (StackPane) rootPane.getParent();
             if (parent != null) parent.getChildren().remove(rootPane);
@@ -363,14 +448,12 @@ class DownloadTaskWrapper {
     public void pauseDownload() {
         if (!paused) {
             paused = true;
-            Platform.runLater(() -> nameLabel.setText(nameLabel.getText().replace("正在下载","已暂停下载")));
         }
     }
 
     public void resumeDownload() {
         if (paused) {
             paused = false;
-            Platform.runLater(() -> nameLabel.setText(nameLabel.getText().replace("已暂停下载","正在下载")));
             startNewTask(true);
         }
     }
@@ -401,14 +484,15 @@ class DownloadTaskWrapper {
             final boolean success = deleted;
             Platform.runLater(() -> {
                 stackPaneRemoveSelf();
-                if(param instanceof String) {
+                if(source instanceof String) {
                     NotificationUtil.showNotification(
                             Main.mainController.noticePane,
                             // success ? "文件【" + file.getName() + "】下载已取消！" :
-                            success ? "下载已取消！" :"文件【" + file.getName() + "】删除失败，可能被占用！"
+                            success ? I18n.t("download.notice.cancelled", "下载已取消！")
+                                    : I18n.t("download.notice.delete_failed", "文件【%s】删除失败，可能被占用！").formatted(file.getName())
                     );
                 }else{
-                    NotificationUtil.showNotification(Main.mainController.noticePane,"导出已取消！");
+                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_cancelled", "导出已取消！"));
                 }
             });
         }).start();
@@ -422,17 +506,22 @@ class DownloadTaskWrapper {
 public class DownloadManagerUtil {
     private static final Logger log = LogManager.getLogger(DownloadManagerUtil.class);
 
-    public static StackPane stackPane; // 替代 TabPane
-    private static List<DownloadTaskWrapper> downloads = new ArrayList<>();
-    private static int currentIndex = 0;
+    public static StackPane downloadStackPane; // 默认下载容器
+    private static final Map<StackPane, DownloadQueue> queueByStackPane = new HashMap<>();
+
+    private static final class DownloadQueue {
+        private final List<DownloadTaskWrapper> tasks = new ArrayList<>();
+        private int currentIndex = 0;
+    }
+
     static {
-        stackPane= Main.mainController.downloadStackPane;
+        downloadStackPane = Main.mainController.downloadStackPane;
         // 自动轮播
         Thread switcher = new Thread(() -> {
             try {
                 while (true) {
                     Thread.sleep(3000); // 每3秒切换
-                    Platform.runLater(DownloadManagerUtil::showNext);
+                    Platform.runLater(DownloadManagerUtil::showNextForAllQueues);
                 }
             } catch (InterruptedException ignored) {}
         });
@@ -442,9 +531,72 @@ public class DownloadManagerUtil {
 
 
     /** 添加下载任务 */
-    public static void addDownload(Object url, File file, boolean autoCloseOnComplete, ResultSetMetaData metaData) {
+    public static void addDownload(Object source, File file, boolean autoCloseOnComplete, ResultSetMetaData metaData) {
+        addDownloadInternal(
+                source,
+                file,
+                autoCloseOnComplete,
+                metaData,
+                downloadStackPane,
+                false,
+                null,
+                null,
+                I18n.t("download.error.file_exists", "文件\"%s\"已存在，无需重复下载！"),
+                I18n.t("download.error.file_downloading", "该文件已在下载，无需重复下载！"),
+                false
+        );
+    }
+
+    public static void addInstallDownload(
+            Object source,
+            File file,
+            boolean autoCloseOnComplete,
+            ResultSetMetaData metaData,
+            StackPane hostStackPane,
+            CustomUserTextField remotePathField,
+            CustomUserTextField installFilePathField
+    ) {
+        addDownloadInternal(
+                source,
+                file,
+                autoCloseOnComplete,
+                metaData,
+                hostStackPane,
+                true,
+                remotePathField,
+                installFilePathField,
+                I18n.t("install.download.error.file_exists", "该文件在桌面已存在，无需重复下载！"),
+                I18n.t("install.download.error.file_downloading", "该文件已在下载，已自动填充路径，无需重复下载！"),
+                true
+        );
+    }
+
+    private static void addDownloadInternal(
+            Object source,
+            File file,
+            boolean autoCloseOnComplete,
+            ResultSetMetaData metaData,
+            StackPane hostStackPane,
+            boolean installerMode,
+            CustomUserTextField remotePathField,
+            CustomUserTextField installFilePathField,
+            String fileExistsMessage,
+            String downloadingMessage,
+            boolean fillInstallerPathWhenDuplicate
+    ) {
+        if (hostStackPane == null) {
+            AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), I18n.t("download.error.host_missing", "下载容器未初始化"));
+            return;
+        }
         if(file.exists()){
-            AlterUtil.CustomAlert("下载错误","文件\""+file.getAbsolutePath()+"\"已存在，无需重复下载！");
+            if (fillInstallerPathWhenDuplicate && installFilePathField != null && remotePathField != null) {
+                installFilePathField.setText(file.getAbsolutePath());
+                remotePathField.setText("/tmp/" + file.getName());
+            }
+            AlterUtil.CustomAlert(
+                    I18n.t("download.error.title", "下载失败"),
+                    fileExistsMessage.formatted(file.getAbsolutePath())
+            );
 
             return;
         }
@@ -452,17 +604,30 @@ public class DownloadManagerUtil {
         File tempFile=new File(file.getAbsolutePath()+".download");
         if(tempFile.exists()){
             Platform.runLater(() -> {
-               AlterUtil.CustomAlert("下载错误","该文件已在下载，无需重复下载！");
+               AlterUtil.CustomAlert(
+                       I18n.t("download.error.title", "下载失败"),
+                       downloadingMessage
+               );
             });
             return;
         }
-        DownloadTaskWrapper wrapper = new DownloadTaskWrapper(url, file, autoCloseOnComplete,metaData);
-        downloads.add(wrapper);
+        DownloadQueue queue = getOrCreateQueue(hostStackPane);
+        DownloadTaskWrapper wrapper = new DownloadTaskWrapper(
+                source,
+                file,
+                autoCloseOnComplete,
+                metaData,
+                hostStackPane,
+                installerMode,
+                remotePathField,
+                installFilePathField
+        );
+        queue.tasks.add(wrapper);
 
         Platform.runLater(() -> {
-            stackPane.getChildren().add(wrapper.getRootPane());
+            hostStackPane.getChildren().add(wrapper.getRootPane());
             wrapper.getRootPane().setVisible(false); // 默认隐藏
-            if (downloads.size() == 1) {
+            if (queue.tasks.size() == 1) {
                 wrapper.getRootPane().setVisible(true); // 第一个显示
             }
         });
@@ -470,48 +635,63 @@ public class DownloadManagerUtil {
         wrapper.start(); // 启动下载
     }
 
+    private static DownloadQueue getOrCreateQueue(StackPane hostStackPane) {
+        return queueByStackPane.computeIfAbsent(hostStackPane, key -> new DownloadQueue());
+    }
+
     /** 显示下一个任务 */
-    private static void showNext() {
-        if (downloads.isEmpty()) return;
+    private static void showNextForAllQueues() {
+        for (Map.Entry<StackPane, DownloadQueue> entry : queueByStackPane.entrySet()) {
+            showNext(entry.getValue());
+        }
+    }
+
+    private static void showNext(DownloadQueue queue) {
+        if (queue.tasks.isEmpty()) return;
 
         // 隐藏当前显示
-        if (currentIndex < downloads.size()) {
-            downloads.get(currentIndex).getRootPane().setVisible(false);
+        if (queue.currentIndex < queue.tasks.size()) {
+            queue.tasks.get(queue.currentIndex).getRootPane().setVisible(false);
         }
 
-        currentIndex = (currentIndex + 1) % downloads.size();
+        queue.currentIndex = (queue.currentIndex + 1) % queue.tasks.size();
 
         // 显示下一个
-        downloads.get(currentIndex).getRootPane().setVisible(true);
+        queue.tasks.get(queue.currentIndex).getRootPane().setVisible(true);
     }
 
     /** 停止所有任务 */
     public void stopAll() {
-        downloads.forEach(DownloadTaskWrapper::cancelDownload);
+        queueByStackPane.values().forEach(queue -> queue.tasks.forEach(DownloadTaskWrapper::cancelDownload));
     }
 
     /** 清除所有任务 */
     public void clearAll() {
         stopAll();
-        Platform.runLater(stackPane.getChildren()::clear);
-        downloads.clear();
-        currentIndex = 0;
+        Platform.runLater(() -> queueByStackPane.keySet().forEach(pane -> pane.getChildren().clear()));
+        queueByStackPane.clear();
     }
 
-    public static void removeDownload(DownloadTaskWrapper wrapper) {
-        int index = downloads.indexOf(wrapper);
+    public static void removeDownload(DownloadTaskWrapper wrapper, StackPane hostStackPane) {
+        DownloadQueue queue = queueByStackPane.get(hostStackPane);
+        if (queue == null) {
+            return;
+        }
+        int index = queue.tasks.indexOf(wrapper);
         if (index == -1) return;
 
-        downloads.remove(wrapper);
+        queue.tasks.remove(wrapper);
 
         // 修正 currentIndex，避免越界
-        if (currentIndex >= downloads.size()) {
-            currentIndex = 0;
+        if (queue.currentIndex >= queue.tasks.size()) {
+            queue.currentIndex = 0;
         }
 
         // 如果移除的是当前显示的任务，需要显示下一个
-        if (!downloads.isEmpty()) {
-            downloads.get(currentIndex).getRootPane().setVisible(true);
+        if (!queue.tasks.isEmpty()) {
+            queue.tasks.get(queue.currentIndex).getRootPane().setVisible(true);
+        } else {
+            queueByStackPane.remove(hostStackPane);
         }
     }
 

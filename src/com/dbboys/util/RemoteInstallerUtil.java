@@ -2,51 +2,54 @@ package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.vo.Connect;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import com.jcraft.jsch.*;
-import net.sf.jsqlparser.statement.alter.Alter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.fxmisc.richtext.InlineCssTextArea;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import javax.swing.filechooser.FileSystemView;
 import java.io.*;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class RemoteInstallerUtil {
     private static final Logger log = LogManager.getLogger(RemoteInstallerUtil.class);
+    private static final int TOTAL_STEPS = 5;
+    private static final double DIALOG_WIDTH = 600;
+    private static final double DIALOG_HEIGHT = 400;
+    private static final JSch JSCH = new JSch();
+    private static final DoubleProperty progress = new SimpleDoubleProperty(0);
+    private static final IntegerProperty currentStep = new SimpleIntegerProperty(1);
+    private static final String BROWSE_ICON_PATH = "M9.8438 1.7184 Q12.0469 1.7184 13.9219 2.7965 Q15.7969 3.8746 16.8906 5.7496 Q18 7.609 18 9.8278 Q18 12.4684 16.4688 14.6246 L21.8906 20.0934 Q22.2656 20.4371 22.2812 20.9684 Q22.3125 21.484 21.9531 21.8746 Q21.5938 22.2496 21.0938 22.2809 Q20.5938 22.2965 20.2031 21.9684 L14.6406 16.4528 Q12.4844 17.984 9.8438 17.984 Q7.625 17.984 5.75 16.8903 Q3.8906 15.7809 2.8125 13.9059 Q1.7344 12.0309 1.7344 9.8278 Q1.7344 7.609 2.8125 5.7496 Q3.8906 3.8746 5.75 2.7965 Q7.625 1.7184 9.8438 1.7184 ZM9.8438 4.2496 Q8.3594 4.2496 7.0625 4.9996 Q5.7656 5.7496 5.0156 7.0465 Q4.2656 8.3434 4.2656 9.8278 Q4.2656 11.3121 5.0156 12.609 Q5.7656 13.9059 7.0625 14.6559 Q8.3594 15.3903 9.8594 15.3903 Q11.375 15.3903 12.6406 14.6559 Q13.9219 13.9059 14.6562 12.6403 Q15.4062 11.359 15.4062 9.859 Q15.4062 8.3434 14.6562 7.0778 Q13.9219 5.7965 12.6406 5.0309 Q11.375 4.2496 9.8438 4.2496 Z";
+    private static final String DOWNLOAD_ICON_PATH = "M19.0156 9 L15 9 L15 3 L9 3 L9 9 L5 9 L12 16.9844 L19.0156 9 ZM4.0156 19 L20 19 L20 21 L4.0156 21 L4.0156 19 Z";
 
     // 存储用户输入信息
     private static String hostname;
@@ -67,14 +70,7 @@ public class RemoteInstallerUtil {
     private static String fileSystemInfo;
 
 
-    // SSH相关对象
-    private static JSch jsch = new JSch();
     private static Session session;
-
-    // 进度属性
-    private static final DoubleProperty progress = new SimpleDoubleProperty(0);
-    private static final long DIALOG_WIDTH = 600;
-    private static final long DIALOG_HEIGHT = 400;
 
     //安装面板
     private static CustomInstallStepHbox customInstallStepHbox1;
@@ -94,7 +90,6 @@ public class RemoteInstallerUtil {
 
 
     // 步骤管理
-    private static int currentStep = 1;
     private static StackPane contentStack; // 用于切换步骤内容
     private static Dialog<ButtonType> mainDialog; // 主对话框
 
@@ -109,18 +104,85 @@ public class RemoteInstallerUtil {
     private static CustomUserTextField installFilePathField;
     private static CustomInlineCssTextArea systemInfoArea;
     private static CustomInlineCssTextArea databaseInfoArea;
-    private static HBox backgroupHbox;
+    private static HBox backgroundHBox;
     private static Button stopButton;
     private static Label runningLabel;
     private static ToggleGroup uploadToggleGroup = new ToggleGroup();
-    private static RadioButton notUploadedRadioButton = new RadioButton("我没有上传数据库安装包");
-    private static RadioButton uploadedRadioButton = new RadioButton("我已经上传了数据库安装包");
+    private static RadioButton notUploadedRadioButton = new RadioButton();
+    private static RadioButton uploadedRadioButton = new RadioButton();
+    // Legacy list kept for compatibility with existing step logic; source of truth is installConfigItems.
     private static List<ObservableList<String>> configList = FXCollections.observableArrayList();
+    private static final ObservableList<InstallConfigItem> installConfigItems = FXCollections.observableArrayList();
+    private static final Map<ConfigKey, InstallConfigItem> installConfigMap = new EnumMap<>(ConfigKey.class);
+    private static InstallPhase installPhase = InstallPhase.IDLE;
+
+    private static final class InstallConfigItem {
+        private final String id;
+        private String name;
+        private String value;
+        private String description;
+
+        private InstallConfigItem(String id, String name, String value, String description) {
+            this.id = id;
+            this.name = name;
+            this.value = value;
+            this.description = description;
+        }
+
+        private InstallConfigItem(InstallConfigItem other) {
+            this(other.id, other.name, other.value, other.description);
+        }
+    }
+
+    private enum ConfigKey {
+        GBASEDBT_PASSWORD("gbasedbt_password"),
+        GBASEDBTDIR("gbasedbtdir"),
+        GBASEDBTSERVER("gbasedbtserver"),
+        DB_LOCALE("db_locale"),
+        GL_USEGLU("gl_useglu"),
+        DATA_FILE_PATH("data_file_path"),
+        ROOTSIZE("rootsize"),
+        LISTEN_IP("listen_ip"),
+        LISTEN_PORT("listen_port"),
+        PHYSFILE("physfile"),
+        LOGSIZE("logsize"),
+        LOGFILES("logfiles"),
+        TEMPDBS("tempdbs"),
+        SBSPACE_SIZE("sbspace_size"),
+        DATA_SPACE_SIZE("data_space_size"),
+        DEFAULT_DB_NAME("default_db_name"),
+        LOCKS("locks"),
+        DS_TOTAL_MEMORY("ds_total_memory"),
+        DS_NONPDQ_QUERY_MEM("ds_nonpdq"),
+        SHMVIRTSIZE("shmvirtsize"),
+        SHMADD("shmadd"),
+        VPCLASS("vpclass"),
+        BUFFERPOOL_2K("bufferpool_2k"),
+        BUFFERPOOL_16K("bufferpool_16k"),
+        BACKUP_PATH("backup_path");
+
+        private final String id;
+
+        ConfigKey(String id) {
+            this.id = id;
+        }
+    }
+
+    private enum InstallPhase {
+        IDLE,
+        UNINSTALL_OLD,
+        PRECHECK,
+        CREATE_USER,
+        INSTALL_SOFTWARE,
+        INIT_INSTANCE,
+        TUNE_CONFIG,
+        COMPLETE
+    }
 
     // 入口方法：启动向导
     public static void startWizard(Stage parent) {
         initMainDialog(parent);
-        currentStep=1;
+        currentStep.set(1);
         updateWizardState();
         mainDialog.showAndWait();
     }
@@ -128,7 +190,12 @@ public class RemoteInstallerUtil {
     // 初始化主对话框
     private static void initMainDialog(Stage parent) {
         mainDialog = new Dialog<>();
-        mainDialog.setTitle("远程安装向导 - 步骤 1/5");
+        mainDialog.titleProperty().bind(Bindings.createStringBinding(
+                () -> I18n.t("remote.install.title.format", "远程安装向导 - 步骤 %d/%d")
+                        .formatted(currentStep.get(), TOTAL_STEPS),
+                I18n.localeProperty(),
+                currentStep
+        ));
         mainDialog.setWidth(DIALOG_WIDTH);
         mainDialog.setHeight(DIALOG_HEIGHT);
         mainDialog.initOwner(parent);
@@ -143,20 +210,22 @@ public class RemoteInstallerUtil {
         Button nextBtn = (Button) mainDialog.getDialogPane().lookupButton(ButtonType.NEXT);
         Button finishBtn = (Button) mainDialog.getDialogPane().lookupButton(ButtonType.FINISH);
         Button cancelBtn = (Button) mainDialog.getDialogPane().lookupButton(ButtonType.CANCEL);
+        previousBtn.textProperty().bind(I18n.bind("common.previous", "上一步"));
+        nextBtn.textProperty().bind(I18n.bind("common.next", "下一步"));
+        finishBtn.textProperty().bind(I18n.bind("common.finish", "完成"));
+        cancelBtn.textProperty().bind(I18n.bind("common.cancel", "取消"));
 
 
 
         // 加载指示器
-        ImageView imageView = new ImageView(new Image("file:images/loading.gif"));
+        ImageView imageView = IconFactory.imageView(IconPaths.LOADING_GIF, 12, 12, true);
         imageView.setFitWidth(12);
         imageView.setFitHeight(12);
         stopButton = new Button("");
-        SVGPath stopButtonIcon = new SVGPath();
-        stopButtonIcon.setScaleX(0.7);
-        stopButtonIcon.setScaleY(0.7);
-        stopButtonIcon.setContent("M19.2031 6.0078 L19.2031 17.7734 Q19.2031 18.3516 18.7812 18.7734 Q18.3594 19.1953 17.7656 19.1953 L6 19.1953 Q5.5156 19.1953 5.1562 18.8516 Q4.8125 18.4922 4.8125 18.0078 L4.8125 6.2422 Q4.8125 5.6484 5.2344 5.2266 Q5.6562 4.8047 6.2344 4.8047 L18 4.8047 Q18.5 4.8047 18.8438 5.1641 Q19.2031 5.5078 19.2031 6.0078 L19.2031 6.0078 Z");
-        stopButtonIcon.setFill(Color.valueOf("#9f453c"));
-        stopButton.setGraphic(new Group(stopButtonIcon));
+        stopButton.setGraphic(IconFactory.group(IconPaths.SQL_STOP, 0.7, IconFactory.dangerColor()));
+        Tooltip stopTooltip = new Tooltip();
+        stopTooltip.textProperty().bind(I18n.bind("remote.install.tooltip.stop", "停止当前任务"));
+        stopButton.setTooltip(stopTooltip);
         runningLabel=new Label("");
         HBox imageHBox = new HBox(imageView, runningLabel, stopButton);
         imageHBox.setStyle("-fx-background-color: white;-fx-background-radius: 2;-fx-padding: 0 0 0 5");
@@ -165,16 +234,16 @@ public class RemoteInstallerUtil {
         //imageHBox.setMaxWidth(100);
         stopButton.setFocusTraversable(false);
         stopButton.getStyleClass().add("little-custom-button");
-        backgroupHbox=new HBox(imageHBox);
-        backgroupHbox.setAlignment(Pos.CENTER);
-        backgroupHbox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");
-        backgroupHbox.setVisible(false);
+        backgroundHBox = new HBox(imageHBox);
+        backgroundHBox.setAlignment(Pos.CENTER);
+        backgroundHBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");
+        backgroundHBox.setVisible(false);
 
 
         //绑定属性
-        previousBtn.disableProperty().bind(backgroupHbox.visibleProperty());
-        nextBtn.disableProperty().bind(backgroupHbox.visibleProperty());
-        finishBtn.disableProperty().bind(backgroupHbox.visibleProperty());
+        previousBtn.disableProperty().bind(backgroundHBox.visibleProperty());
+        nextBtn.disableProperty().bind(backgroundHBox.visibleProperty());
+        finishBtn.disableProperty().bind(backgroundHBox.visibleProperty());
 
 
         // 初始化步骤内容
@@ -182,7 +251,7 @@ public class RemoteInstallerUtil {
 
         // 初始化StackPane
         contentStack = new StackPane();
-        contentStack.getChildren().addAll(step1Pane, step2Pane, step3Pane, step4Pane, step5Pane,backgroupHbox);
+        contentStack.getChildren().addAll(step1Pane, step2Pane, step3Pane, step4Pane, step5Pane, backgroundHBox);
 
 
         // 显示初始步骤
@@ -196,8 +265,8 @@ public class RemoteInstallerUtil {
 
         // 按钮事件
         previousBtn.addEventFilter(ActionEvent.ACTION, event -> {
-            if (currentStep > 1) {
-                currentStep--;
+            if (currentStep.get() > 1) {
+                currentStep.set(currentStep.get() - 1);
                 updateWizardState(); // 触发按钮状态更新
             }
             event.consume();
@@ -205,10 +274,10 @@ public class RemoteInstallerUtil {
 
         progress.addListener((obs, old, val) -> {
             int percentage = (int) (val.doubleValue() * 100);
-            runningLabel.setText(" 正在上传安装包... "+percentage + "%");
+            runningLabel.setText(" " + I18n.t("remote.install.status.uploading", "正在上传安装包... %d%%").formatted(percentage));
         });
         nextBtn.addEventFilter(ActionEvent.ACTION, event -> {
-            switch (currentStep){
+            switch (currentStep.get()){
                 case 1:
                     if(hostField.getText().trim().isEmpty()){
                         event.consume();
@@ -225,7 +294,7 @@ public class RemoteInstallerUtil {
                         // username_textfield.setStyle("-fx-border-color: #ff0000;-fx-border-radius: 3");
                         passField.requestFocus();
                     }else {
-                        backgroupHbox.setVisible(true);
+                        backgroundHBox.setVisible(true);
                         hostname = hostField.getText().trim();
                         try {
                             port = Integer.parseInt(portField.getText().trim());
@@ -242,7 +311,7 @@ public class RemoteInstallerUtil {
                                     if (session != null && session.isConnected()) {
                                         session.disconnect();
                                     }
-                                    session = jsch.getSession(username, hostname, port);
+                                    session = JSCH.getSession(username, hostname, port);
                                     session.setPassword(password);
                                     Properties config = new Properties();
                                     config.put("StrictHostKeyChecking", "no");
@@ -250,19 +319,19 @@ public class RemoteInstallerUtil {
                                     session.connect(5000); // 5秒超时
                                     return null;
                                 } catch (JSchException e) {
-                                    throw new Exception("连接失败: " + e.getMessage());
+                                    throw new Exception(I18n.t("remote.install.error.connect_failed", "连接失败: %s").formatted(e.getMessage()));
                                 }
                             }
                         };
 
                         // 任务完成处理
                         runningTask.setOnSucceeded(e -> {
-                            //backgroupHbox.setVisible(false);
-                            runningLabel.setText(" 正在获取系统信息...");
+                            //backgroundHBox.setVisible(false);
+                            runningLabel.setText(" " + I18n.t("remote.install.status.loading_system_info", "正在获取系统信息..."));
                             systemInfoArea.setStyle(0,systemInfoArea.getLength(),"");
                             systemInfoArea.replaceText("");
                             // 自动进入下一步
-                            currentStep ++;
+                            currentStep.set(currentStep.get() + 1);
                             updateWizardState();
 
                             //第二步自动执行，并显示执行结果
@@ -291,26 +360,26 @@ public class RemoteInstallerUtil {
                                             systemInfoArea.replaceText("");
                                             int start = 0;
 
-                                            systemInfoArea.append("服务器型号\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.machine", "服务器型号") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(machineInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             // 省略其他信息的显示代码（与原逻辑相同）
-                                            systemInfoArea.append("操作系统版本\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.os", "操作系统版本") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(osInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append("内核版本\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.kernel", "内核版本") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(kernelInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append("CPU信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.cpu", "CPU信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(cpuInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append("内存信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.memory", "内存信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(memInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append("磁盘信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.disk", "磁盘信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(diskInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append("文件系统信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.filesystem", "文件系统信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(fileSystemInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
 
@@ -321,7 +390,7 @@ public class RemoteInstallerUtil {
                                             systemInfoArea.showParagraphAtTop(0);
                                         });
                                     } catch (Exception e) {
-                                        throw new Exception("获取系统信息失败: " + e.getMessage());
+                                        throw new Exception(I18n.t("remote.install.error.system_info_failed", "获取系统信息失败: %s").formatted(e.getMessage()));
                                         //String errorMsg = "获取系统信息失败: " + e.getMessage();
                                         //Platform.runLater(() -> {
                                         //    systemInfoArea.replaceText(errorMsg + "\n");
@@ -334,20 +403,20 @@ public class RemoteInstallerUtil {
                             };
                             // 任务完成处理
                             systeminfoTask.setOnSucceeded(e1 -> {
-                                backgroupHbox.setVisible(false);
+                                backgroundHBox.setVisible(false);
 
                             });
 
                             systeminfoTask.setOnFailed(e1 -> {
-                                backgroupHbox.setVisible(false);
-                                String error = runningTask.getException().getMessage();
-                                AlterUtil.CustomAlert("错误", error);
+                                backgroundHBox.setVisible(false);
+                                String error = systeminfoTask.getException().getMessage();
+                                AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                             });
 
                             new Thread(systeminfoTask).start();
                             stopButton.setOnAction(event1->{
                                 systeminfoTask.cancel();
-                                backgroupHbox.setVisible(false);
+                                backgroundHBox.setVisible(false);
                             });
                             mainDialog.setOnCloseRequest(event1 -> {
                                 systeminfoTask.cancel();
@@ -365,16 +434,16 @@ public class RemoteInstallerUtil {
                         });
 
                         runningTask.setOnFailed(e -> {
-                            backgroupHbox.setVisible(false);
+                            backgroundHBox.setVisible(false);
                             String error = runningTask.getException().getMessage();
-                            AlterUtil.CustomAlert("错误", error);
+                            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                         });
 
 
                         new Thread(runningTask).start();
                         stopButton.setOnAction(event1->{
                             runningTask.cancel();
-                            backgroupHbox.setVisible(false);
+                            backgroundHBox.setVisible(false);
                         });
 
                         mainDialog.setOnCloseRequest(event1 -> {
@@ -390,20 +459,20 @@ public class RemoteInstallerUtil {
                             }
                         });
                     }
-                    runningLabel.setText(" 正在连接...");
+                    runningLabel.setText(" " + I18n.t("remote.install.status.connecting", "正在连接..."));
                     break;
                 case 2:
-                    currentStep ++;
+                    currentStep.set(currentStep.get() + 1);
                     updateWizardState();
                     break;
                 case 3:
                     if(notUploadedRadioButton.isSelected()) {
                         if(installFilePathField.getText().isEmpty()){
-                            AlterUtil.CustomAlert("错误","需上传的安装包文件路径不能为空！");
+                            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("remote.install.error.local_package_empty", "需上传的安装包文件路径不能为空！"));
                         }else if(!new File(installFilePathField.getText()).exists()){
-                            AlterUtil.CustomAlert("错误","需上传的安装包文件不存在！");
+                            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("remote.install.error.local_package_missing", "需上传的安装包文件不存在！"));
                         }else if(systemInfoArea.getText().contains("x86_64")&&!installFilePathField.getText().contains("x86_64")){
-                            AlterUtil.CustomAlert("错误","需上传的安装包文件与远程服务器CPU不匹配！");
+                            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("remote.install.error.cpu_mismatch_local", "需上传的安装包文件与远程服务器CPU不匹配！"));
                         }else{
                             selectedFile=new File(installFilePathField.getText());
                             remoteFilePath=remotePathField.getText();
@@ -419,8 +488,8 @@ public class RemoteInstallerUtil {
                                         channelSftp.connect();
 
                                         Platform.runLater(() -> {
-                                            runningLabel.setText(" 正在上传安装包...");
-                                            backgroupHbox.setVisible(true);
+                                            runningLabel.setText(" " + I18n.t("remote.install.status.uploading_package", "正在上传安装包..."));
+                                            backgroundHBox.setVisible(true);
                                         });
 
                                         try (FileInputStream fis = new FileInputStream(selectedFile)) {
@@ -430,7 +499,7 @@ public class RemoteInstallerUtil {
                                         }
 
                                     } catch (Exception e) {
-                                        throw new Exception("上传安装包失败: " + e.getMessage());
+                                        throw new Exception(I18n.t("remote.install.error.upload_failed", "上传安装包失败: %s").formatted(e.getMessage()));
                                     } finally {
                                         if (channelSftp != null && channelSftp.isConnected()) {
                                             channelSftp.disconnect();
@@ -442,13 +511,13 @@ public class RemoteInstallerUtil {
                             };
                             runningTask.setOnSucceeded(e->{
                                 try {
-                                    executeCommandWithExitStatus("mv "+remoteFilePath+".upload "+remoteFilePath);
+                                    executeCommandWithExitStatus("mv " + shellQuote(remoteFilePath + ".upload") + " " + shellQuote(remoteFilePath));
                                 } catch (Exception ex) {
                                     throw new RuntimeException(ex);
                                 }
                                 initConfigList();
-                                backgroupHbox.setVisible(false);
-                                currentStep++;
+                                backgroundHBox.setVisible(false);
+                                currentStep.set(currentStep.get() + 1);
                                 updateWizardState();
                             });
                             runningTask.setOnFailed(e -> {
@@ -457,13 +526,13 @@ public class RemoteInstallerUtil {
                                 } catch (Exception ex) {
                                     throw new RuntimeException(ex);
                                 }
-                                backgroupHbox.setVisible(false);
+                                backgroundHBox.setVisible(false);
                                 String error = runningTask.getException().getMessage();
-                                AlterUtil.CustomAlert("错误", error);
+                                AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                             });
                             stopButton.setOnAction(event1->{
                                 runningTask.cancel();
-                                backgroupHbox.setVisible(false);
+                                backgroundHBox.setVisible(false);
                                 try {
                                     executeCommandWithExitStatus("rm -f "+remoteFilePath+".upload");
                                 } catch (Exception ex) {
@@ -486,16 +555,16 @@ public class RemoteInstallerUtil {
 
 
                             try {
-                                if(executeCommandWithExitStatus("test -f "+remoteFilePath) == 0) {
+                                if(remoteFileExists(remoteFilePath)) {
                                     /* 如果存在不执行任何操作
                                     if( AlterUtil.CustomAlertConfirm("文件已存在","安装包在服务器/tmp目录已存在，确定要上传覆盖吗？")){
                                         executeCommandWithExitStatus("cd /tmp");
-                                        executeCommandWithExitStatus("rm -rf "+remoteFilePath);
+                                        executeCommandWithExitStatus("rm -rf " + shellQuote(remoteFilePath));
                                         new Thread(runningTask).start();
                                     }
                                      */
                                     initConfigList();
-                                    currentStep++;
+                                    currentStep.set(currentStep.get() + 1);
                                     updateWizardState();
                                 }else{
                                     new Thread(runningTask).start();
@@ -506,17 +575,17 @@ public class RemoteInstallerUtil {
                         }
                     }else{
                         if(remotePathField.getText().isEmpty()){
-                            AlterUtil.CustomAlert("错误","远程服务器上安装包路径不能为空！");
+                            AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("remote.install.error.remote_path_empty", "远程服务器上安装包路径不能为空！"));
                         }else {
                             remoteFilePath=remotePathField.getText();
                             try {
-                                if(executeCommandWithExitStatus("test -f "+remoteFilePath) != 0) {
-                                    AlterUtil.CustomAlert("错误", "远程服务器上安装包文件不存在！");
+                                if(!remoteFileExists(remoteFilePath)) {
+                                    AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("remote.install.error.remote_package_missing", "远程服务器上安装包文件不存在！"));
                                 }else if(systemInfoArea.getText().contains("x86_64")&&!remoteFilePath.contains("x86_64")){
-                                    AlterUtil.CustomAlert("错误","服务器上的安装包文件与CPU不匹配！");
+                                    AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("remote.install.error.cpu_mismatch_remote", "服务器上的安装包文件与CPU不匹配！"));
                                 }else{
                                     initConfigList();
-                                    currentStep++;
+                                    currentStep.set(currentStep.get() + 1);
                                     updateWizardState();
                                 }
                             } catch (Exception e) {
@@ -530,28 +599,29 @@ public class RemoteInstallerUtil {
                     Task installTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
+                            setInstallPhase(InstallPhase.UNINSTALL_OLD);
                             Platform.runLater(() -> {
                                 customInstallStepHbox1.iconLabel.setVisible(true);
-                                runningLabel.setText(" 正在安装...");
+                                runningLabel.setText(" " + I18n.t("remote.install.status.installing", "正在安装..."));
                             });
                             executeCommandWithExitStatus("ps -ef |grep gbasedbt |grep -v grep |awk '{print \"kill -9 \"$2}' |sh");
                             executeCommandWithExitStatus("find / -user gbasedbt -exec rm -rf {} +");
                             if((executeCommandWithExitStatus("test -f /GBASEDBTTMP/.infxdirs") == 0)){
                                 if(executeCommandWithExitStatus("cat /GBASEDBTTMP/.infxdirs  |awk '{print \"rm -rf \"$1}'|sh")!=0) {
-                                    throw new Exception("删除数据库安装目录失败！");
+                                    throw new Exception(I18n.t("remote.install.error.cleanup_install_dir", "删除数据库安装目录失败！"));
                                 }
                                 if(executeCommandWithExitStatus("rm -rf /GBASEDBTTMP")!=0) {
-                                    throw new Exception("删除目录/GBASEDBTTMP失败！");
+                                    throw new Exception(I18n.t("remote.install.error.cleanup_gbasedbttmp", "删除目录/GBASEDBTTMP失败！"));
                                 }
                             }
                             if((executeCommandWithExitStatus("test -d /opt/gbase") == 0)){
                                 if(executeCommandWithExitStatus("rm -rf /opt/gbase")!=0) {
-                                    throw new Exception("删除数据库安装目录/opt/gbase失败！");
+                                    throw new Exception(I18n.t("remote.install.error.cleanup_opt_gbase", "删除数据库安装目录/opt/gbase失败！"));
                                 }
                             }
                             if((executeCommandWithExitStatus("test -d /etc/gbasedbt") == 0)) {
                                 if(executeCommandWithExitStatus("rm -rf /etc/gbasedbt")!=0) {
-                                    throw new Exception("删除/etc/gbasedbt目录失败！");
+                                    throw new Exception(I18n.t("remote.install.error.cleanup_etc_gbasedbt", "删除/etc/gbasedbt目录失败！"));
                                 }
                             }
                             //麒麟系统可能有下面的错误
@@ -560,33 +630,34 @@ public class RemoteInstallerUtil {
                             }
                             if((executeCommandWithExitStatus("id gbasedbt") == 0)) {
                                 if(executeCommandWithExitStatus("userdel gbasedbt")!=0) {
-                                    throw new Exception("删除用户gbasedbt失败！");
+                                    throw new Exception(I18n.t("remote.install.error.delete_gbasedbt_user", "删除用户gbasedbt失败！"));
                                 }
                             }
                             //卸载完成，开始系统检查
+                            setInstallPhase(InstallPhase.PRECHECK);
                             Platform.runLater(() -> {
                                 customInstallStepHbox1.iconLabel.setVisible(false);
                                 customInstallStepHbox2.iconLabel.setVisible(true);
                             });
 
                             if(executeCommandWithExitStatus("chown root:root /opt&&chmod 755 /opt")!=0) {
-                                throw new Exception("更改/opt为默认权限失败！");
+                                throw new Exception(I18n.t("remote.install.error.reset_opt_perm", "更改/opt为默认权限失败！"));
                             }
 
                             if(Double.parseDouble(executeCommand("df -m /opt |tail -1 |awk '{print $4/1000}'"))<8) {
-                                throw new Exception("空间检查不通过，最小要求/opt可用空间小于8G！");
+                                throw new Exception(I18n.t("remote.install.error.opt_space_low", "空间检查不通过，最小要求/opt可用空间小于8G！"));
                             }
                             if(Double.parseDouble(executeCommand("df -m /tmp |tail -1 |awk '{print $4/1000}'"))<1) {
-                                throw new Exception("空间检查不通过，最小要求/tmp可用空间小于1G！");
+                                throw new Exception(I18n.t("remote.install.error.tmp_space_low", "空间检查不通过，最小要求/tmp可用空间小于1G！"));
                             }
                             if(executeCommandWithExitStatus("stat -c \"%a\" /tmp | grep -q '777'")!=0) {
                                 executeCommandWithExitStatus("chmod 777 /tmp");
                             }
                             if(Double.parseDouble(executeCommand("free -m |sed -n 2p |awk '{print $2/1024}'"))<1) {
-                                throw new Exception("内存检查不通过，最小要求1G！");
+                                throw new Exception(I18n.t("remote.install.error.memory_low", "内存检查不通过，最小要求1G！"));
                             }
                             if((executeCommandWithExitStatus("command -v unzip") != 0)) {
-                                throw new Exception("系统缺失unzip！");
+                                throw new Exception(I18n.t("remote.install.error.unzip_missing", "系统缺失unzip！"));
                             }
                             if((executeCommandWithExitStatus("systemctl stop firewalld.service") != 0)) {
                                 executeCommandWithExitStatus("service iptables stop");
@@ -621,42 +692,45 @@ public class RemoteInstallerUtil {
                             executeCommandWithExitStatus("sysctl -p");
 
                             //系统检查完成，开始创建用户和组
+                            setInstallPhase(InstallPhase.CREATE_USER);
                             Platform.runLater(() -> {
                                 customInstallStepHbox2.iconLabel.setVisible(false);
                                 customInstallStepHbox3.iconLabel.setVisible(true);
                             });
                             System.out.println("change password before");
-                            String password=configList.get(0).get(2);
+                            String password=configValue(ConfigKey.GBASEDBT_PASSWORD);
                             System.out.println("change password after");
                             if((executeCommandWithExitStatus("groupadd gbasedbt&&useradd gbasedbt -d /home/gbasedbt -m -g gbasedbt&&echo \"gbasedbt:"+password+"\" | chpasswd") != 0)) {
-                                throw new Exception("创建gbasedbt用户或组失败！");
+                                throw new Exception(I18n.t("remote.install.error.create_user_group_failed", "创建gbasedbt用户或组失败！"));
                             }
                             System.out.println("change password after1");
 
-                            executeCommandWithExitStatus("cat >>~gbasedbt/.bash_profile << EOF\nexport GBASEDBTDIR="+configList.get(1).get(2)+
-                                    "\nexport GBASEDBTSERVER="+configList.get(2).get(2)+
-                                    "\nexport ONCONFIG=onconfig."+configList.get(2).get(2)+
-                                    "\nexport GBASEDBTSQLHOSTS=\\$GBASEDBTDIR/etc/sqlhosts."+configList.get(2).get(2)+
-                                    "\nexport DB_LOCALE="+configList.get(3).get(2)+
-                                    "\nexport CLIENT_LOCALE="+configList.get(3).get(2)+
-                                    "\nexport GL_USEGLU="+configList.get(4).get(2)+
+                            executeCommandWithExitStatus("cat >>~gbasedbt/.bash_profile << EOF\nexport GBASEDBTDIR="+configValue(ConfigKey.GBASEDBTDIR)+
+                                    "\nexport GBASEDBTSERVER="+configValue(ConfigKey.GBASEDBTSERVER)+
+                                    "\nexport ONCONFIG=onconfig."+configValue(ConfigKey.GBASEDBTSERVER)+
+                                    "\nexport GBASEDBTSQLHOSTS=\\$GBASEDBTDIR/etc/sqlhosts."+configValue(ConfigKey.GBASEDBTSERVER)+
+                                    "\nexport DB_LOCALE="+configValue(ConfigKey.DB_LOCALE)+
+                                    "\nexport CLIENT_LOCALE="+configValue(ConfigKey.DB_LOCALE)+
+                                    "\nexport GL_USEGLU="+configValue(ConfigKey.GL_USEGLU)+
                                     "\nexport PATH=\\$GBASEDBTDIR/bin:/usr/bin:\\${PATH}:.\nEOF"
                             );
 
                             //创建用户和组完成，开始安装
+                            setInstallPhase(InstallPhase.INSTALL_SOFTWARE);
                             Platform.runLater(() -> {
                                 customInstallStepHbox3.iconLabel.setVisible(false);
                                 customInstallStepHbox4.iconLabel.setVisible(true);
                             });
-                            if((executeCommandWithExitStatus("tar -xvf "+remoteFilePath) != 0)) {
-                                throw new Exception("解压安装包【"+remoteFilePath+"】失败！");
+                            if((executeCommandWithExitStatus("tar -xvf " + shellQuote(remoteFilePath)) != 0)) {
+                                throw new Exception(I18n.t("remote.install.error.extract_package_failed", "解压安装包【%s】失败！").formatted(remoteFilePath));
                             }
                             int status=executeCommandWithExitStatus("source ~gbasedbt/.bash_profile && mkdir -p $GBASEDBTDIR && chown gbasedbt:gbasedbt $GBASEDBTDIR && ./ids_install -i silent -DLICENSE_ACCEPTED=TRUE");
                             if(status!= 0) {
-                                throw new Exception("安装数据库到$GBASEDBTDIR失败！");
+                                throw new Exception(I18n.t("remote.install.error.install_to_gbasedbtdir_failed", "安装数据库到$GBASEDBTDIR失败！"));
                             }
 
                             //安装完成，开始配置并初始化
+                            setInstallPhase(InstallPhase.INIT_INSTANCE);
                             Platform.runLater(() -> {
                                 customInstallStepHbox4.iconLabel.setVisible(false);
                                 customInstallStepHbox5.iconLabel.setVisible(true);
@@ -664,27 +738,28 @@ public class RemoteInstallerUtil {
 
                             String cmd=
                                     "source ~gbasedbt/.bash_profile &&" +
-                                            "DATADIR="+configList.get(5).get(2)+"&&"+
+                                            "DATADIR="+configValue(ConfigKey.DATA_FILE_PATH)+"&&"+
                                             "mkdir -p ${DATADIR} &&"+
                                             "chown gbasedbt:gbasedbt ${DATADIR} &&"+
                                             "cp $GBASEDBTDIR/etc/onconfig.std  $GBASEDBTDIR/etc/$ONCONFIG &&"+
                                             "chown gbasedbt:gbasedbt $GBASEDBTDIR/etc/$ONCONFIG &&"+
                                             "sed -i \"s#^ROOTPATH.*#ROOTPATH ${DATADIR}/rootdbschk001#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "sed -i \"s#^ROOTSIZE.*#ROOTSIZE "+configList.get(6).get(2)+"#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                            "sed -i \"s#^ROOTSIZE.*#ROOTSIZE "+configValue(ConfigKey.ROOTSIZE)+"#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
                                             "sed -i \"s#^DBSERVERNAME.*#DBSERVERNAME $GBASEDBTSERVER#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
                                             "sed -i \"s#^TAPEDEV.*#TAPEDEV /dev/null#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
                                             "sed -i \"s#^LTAPEDEV.*#LTAPEDEV /dev/null#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "echo \"$GBASEDBTSERVER onsoctcp "+configList.get(7).get(2)+" "+configList.get(8).get(2)+"\" >> $GBASEDBTSQLHOSTS &&"+
+                                            "echo \"$GBASEDBTSERVER onsoctcp "+configValue(ConfigKey.LISTEN_IP)+" "+configValue(ConfigKey.LISTEN_PORT)+"\" >> $GBASEDBTSQLHOSTS &&"+
                                             "chown gbasedbt:gbasedbt $GBASEDBTSQLHOSTS &&"+
                                             "touch ${DATADIR}/rootdbschk001 &&"+
                                             "chown gbasedbt:gbasedbt ${DATADIR}/rootdbschk001 &&"+
                                             "chmod 660 ${DATADIR}/rootdbschk001 && oninit -ivyw";
                             System.out.println("cmd is:"+cmd);
                             if(executeCommandWithExitStatus(cmd)!=0){
-                                throw new Exception("初始化实例失败！");
+                                throw new Exception(I18n.t("remote.install.error.init_instance_failed", "初始化实例失败！"));
                             }
 
                             //初始化完成，优化配置参数
+                            setInstallPhase(InstallPhase.TUNE_CONFIG);
                             Platform.runLater(() -> {
                                 customInstallStepHbox5.iconLabel.setVisible(false);
                                 customInstallStepHbox6.iconLabel.setVisible(true);
@@ -697,31 +772,31 @@ public class RemoteInstallerUtil {
                                     sed -i "s#^MULTIPROCESSOR.*#MULTIPROCESSOR 1#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^CLEANERS.*#CLEANERS 128#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^LOCKS.*#LOCKS """
-                                    +" "+configList.get(16).get(2)+
+                                    +" "+configValue(ConfigKey.LOCKS)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^DEF_TABLE_LOCKMODE.*#DEF_TABLE_LOCKMODE row#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^DS_TOTAL_MEMORY.*#DS_TOTAL_MEMORY """
-                                    +" "+configList.get(17).get(2)+
+                                    +" "+configValue(ConfigKey.DS_TOTAL_MEMORY)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^DS_NONPDQ_QUERY_MEM.*#DS_NONPDQ_QUERY_MEM """
-                                    +" "+configList.get(18).get(2)+
+                                    +" "+configValue(ConfigKey.DS_NONPDQ_QUERY_MEM)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^SHMVIRTSIZE.*#SHMVIRTSIZE """
-                                    +" "+configList.get(19).get(2)+
+                                    +" "+configValue(ConfigKey.SHMVIRTSIZE)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^SHMADD.*#SHMADD """
-                                    +" "+configList.get(20).get(2)+
+                                    +" "+configValue(ConfigKey.SHMADD)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^STACKSIZE.*#STACKSIZE 2048#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^SBSPACENAME.*#SBSPACENAME sbspace01#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^DBSPACETEMP.*#DBSPACETEMP tempdbs01#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^VPCLASS cpu.*#VPCLASS"""
-                                    +" "+configList.get(21).get(2)+
+                                    +" "+configValue(ConfigKey.VPCLASS)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^TEMPTAB_NOLOG.*#TEMPTAB_NOLOG 1#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
@@ -729,11 +804,11 @@ public class RemoteInstallerUtil {
                                     sed -i "s#^DUMPSHMEM.*#DUMPSHMEM 0#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^USERMAPPING.*#USERMAPPING ADMIN#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     sed -i "s#^BUFFERPOOL size=2k.*#BUFFERPOOL """
-                                    +" "+configList.get(22).get(2)+
+                                    +" "+configValue(ConfigKey.BUFFERPOOL_2K)+
                                     """
                                     #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
                                     echo "BUFFERPOOL """
-                                    +" "+configList.get(23).get(2)+
+                                    +" "+configValue(ConfigKey.BUFFERPOOL_16K)+
                                     """
                                     ">>$GBASEDBTDIR/etc/$ONCONFIG &&\
                                     touch $GBASEDBTDIR/etc/sysadmin/stop &&\
@@ -746,7 +821,7 @@ public class RemoteInstallerUtil {
                                     """;
                             System.out.println("pramsCmd is:"+pramsCmd);
                             if(executeCommandWithExitStatus(pramsCmd)!=0){
-                                throw new Exception("优化配置参数失败！");
+                                throw new Exception(I18n.t("remote.install.error.tune_params_failed", "优化配置参数失败！"));
                             }
 
                             Platform.runLater(() -> {
@@ -756,22 +831,22 @@ public class RemoteInstallerUtil {
                             if(executeCommandWithExitStatus("""
                                     source ~gbasedbt/.bash_profile &&\
                                     DATADIR="""
-                                    +configList.get(5).get(2)+
+                                    +configValue(ConfigKey.DATA_FILE_PATH)+
                                     """ 
                                     &&\
                                     touch ${DATADIR}/plogdbschk001 &&\
                                     chown gbasedbt:gbasedbt ${DATADIR}/plogdbschk001 &&\
                                     chmod 660 ${DATADIR}/plogdbschk001 &&\
                                     onspaces -c -d plogdbs -p ${DATADIR}/plogdbschk001 -o 0 -s """
-                                    +" "+(Integer.parseInt(configList.get(9).get(2))+10000)+
+                                    +" "+(Integer.parseInt(configValue(ConfigKey.PHYSFILE))+10000)+
                                     """
                                      &&\
                                     onparams -p -d plogdbs -s """
-                                    +" "+configList.get(9).get(2)+
+                                    +" "+configValue(ConfigKey.PHYSFILE)+
                                     """
                                      -y
                                     """)!=0){
-                                throw new Exception("优化物理日志失败！");
+                                throw new Exception(I18n.t("remote.install.error.tune_physlog_failed", "优化物理日志失败！"));
                             }
                             Platform.runLater(() -> {
                                 customInstallStepHbox7.iconLabel.setVisible(false);
@@ -780,21 +855,21 @@ public class RemoteInstallerUtil {
                             String logicCmd="""
                                     source ~gbasedbt/.bash_profile &&\
                                     DATADIR="""
-                                    +configList.get(5).get(2)+
+                                    +configValue(ConfigKey.DATA_FILE_PATH)+
                                     """
                                      &&\
                                     touch ${DATADIR}/llogdbschk001 &&\
                                     chown gbasedbt:gbasedbt ${DATADIR}/llogdbschk001 &&\
                                     chmod 660 ${DATADIR}/llogdbschk001 &&\
                                     onspaces -c -d llogdbs -p ${DATADIR}/llogdbschk001 -o 0 -s """
-                                    +" "+(Integer.parseInt(configList.get(10).get(2))*Integer.parseInt(configList.get(11).get(2))+10240)+
+                                    +" "+(Integer.parseInt(configValue(ConfigKey.LOGSIZE))*Integer.parseInt(configValue(ConfigKey.LOGFILES))+10240)+
                                     """
                                      &&\
                                     for i in `seq """
-                                    +" "+Integer.parseInt(configList.get(11).get(2))+
+                                    +" "+Integer.parseInt(configValue(ConfigKey.LOGFILES))+
                                     """
                                     `;do onparams -a -d llogdbs -s """
-                                    +" "+Integer.parseInt(configList.get(10).get(2))+
+                                    +" "+Integer.parseInt(configValue(ConfigKey.LOGSIZE))+
                                     """
                                     ;done &&\
                                     for i in `seq 7`;do onmode -l;done &&\
@@ -803,14 +878,14 @@ public class RemoteInstallerUtil {
                                     """;
                             System.out.println("logiccmd is:"+logicCmd);
                             if(executeCommandWithExitStatus(logicCmd)!=0){
-                                throw new Exception("优化逻辑日志失败！");
+                                throw new Exception(I18n.t("remote.install.error.tune_logical_log_failed", "优化逻辑日志失败！"));
                             }
 
                             Platform.runLater(() -> {
                                 customInstallStepHbox8.iconLabel.setVisible(false);
                                 customInstallStepHbox9.iconLabel.setVisible(true);
                             });
-                            String[] parts = configList.get(12).get(2).split("\\*");
+                            String[] parts = configValue(ConfigKey.TEMPDBS).split("\\*");
                             int tempdbsNum = Integer.parseInt(parts[0]);
                             int tempdbsSize = Integer.parseInt(parts[1]);
                             String onspaceCmd="";
@@ -823,10 +898,10 @@ public class RemoteInstallerUtil {
                                 if(num>1) dbspaceTemp+=(",tempdbs"+String.format("%02d", num));
                             };
                             String tempdbsCmd="source ~gbasedbt/.bash_profile && DATADIR="
-                                    +configList.get(5).get(2)+"&&"+onspaceCmd+ "onmode -wf DBSPACETEMP="+dbspaceTemp;
+                                    +configValue(ConfigKey.DATA_FILE_PATH)+"&&"+onspaceCmd+ "onmode -wf DBSPACETEMP="+dbspaceTemp;
                             System.out.println("tempdbsCmd is:"+tempdbsCmd);
                             if(executeCommandWithExitStatus(tempdbsCmd)!=0){
-                                throw new Exception("优化临时空间失败！");
+                                throw new Exception(I18n.t("remote.install.error.tune_temp_space_failed", "优化临时空间失败！"));
                             }
 
 
@@ -837,18 +912,18 @@ public class RemoteInstallerUtil {
                             if(executeCommandWithExitStatus("""
                                     source ~gbasedbt/.bash_profile &&\
                                     DATADIR="""
-                                    +configList.get(5).get(2)+
+                                    +configValue(ConfigKey.DATA_FILE_PATH)+
                                     """
                                      &&\
                                     touch ${DATADIR}/sbspace01chk001 &&\
                                     chown gbasedbt:gbasedbt ${DATADIR}/sbspace01chk001 &&\
                                     chmod 660 ${DATADIR}/sbspace01chk001 &&\
                                     onspaces -c -S sbspace01 -p ${DATADIR}/sbspace01chk001 -o 0 -s """
-                                    +" "+configList.get(13).get(2)+ " "+
+                                    +" "+configValue(ConfigKey.SBSPACE_SIZE)+ " "+
                                     """
                                      -Df "LOGGING = ON, AVG_LO_SIZE=1"
                                     """)!=0){
-                                throw new Exception("创建智能大对象空间失败！");
+                                throw new Exception(I18n.t("remote.install.error.create_sbspace_failed", "创建智能大对象空间失败！"));
                             }
 
                             Platform.runLater(() -> {
@@ -858,18 +933,18 @@ public class RemoteInstallerUtil {
                             if(executeCommandWithExitStatus("""
                                     source ~gbasedbt/.bash_profile &&\
                                     DATADIR="""
-                                    +configList.get(5).get(2)+
+                                    +configValue(ConfigKey.DATA_FILE_PATH)+
                                     """ 
                                     &&\
                                     touch ${DATADIR}/datadbs01chk001 &&\
                                     chown gbasedbt:gbasedbt ${DATADIR}/datadbs01chk001 &&\
                                     chmod 660 ${DATADIR}/datadbs01chk001 &&\
                                     onspaces -c -d datadbs01 -p ${DATADIR}/datadbs01chk001 -o 0 -s """
-                                    +" "+configList.get(14).get(2)+ " "+
+                                    +" "+configValue(ConfigKey.DATA_SPACE_SIZE)+ " "+
                                     """
                                     -k 16
                                     """)!=0){
-                                throw new Exception("创建用户数据库空间失败！");
+                                throw new Exception(I18n.t("remote.install.error.create_userdbspace_failed", "创建用户数据库空间失败！"));
                             }
 
                             Platform.runLater(() -> {
@@ -879,11 +954,11 @@ public class RemoteInstallerUtil {
                             if(executeCommandWithExitStatus("""
                                     source ~gbasedbt/.bash_profile &&\
                                     echo "create database """
-                                    +" "+configList.get(15).get(2)+ " "+
+                                    +" "+configValue(ConfigKey.DEFAULT_DB_NAME)+ " "+
                                     """
                                     in datadbs01 with log" |dbaccess - -
                                     """)!=0){
-                                throw new Exception("创建默认数据库失败！");
+                                throw new Exception(I18n.t("remote.install.error.create_default_db_failed", "创建默认数据库失败！"));
                             }
                             Platform.runLater(() -> {
                                 customInstallStepHbox12.iconLabel.setVisible(false);
@@ -894,7 +969,7 @@ public class RemoteInstallerUtil {
                                     sed -i '/^su - gbasedbt/d' /etc/rc.local &&\
                                     echo "su - gbasedbt -c \\"oninit\\"" >>/etc/rc.local
                                     """)!=0){
-                                throw new Exception("配置开启自启动失败！");
+                                throw new Exception(I18n.t("remote.install.error.enable_autostart_failed", "配置开启自启动失败！"));
                             }Platform.runLater(() -> {
                                 customInstallStepHbox13.iconLabel.setVisible(false);
                                 customInstallStepHbox14.iconLabel.setVisible(true);
@@ -1571,10 +1646,12 @@ GBASEEOF
 """);
 
 
-                            if(!configList.get(24).get(2).trim().isEmpty()){
-                                String backupCmd="source ~gbasedbt/.bash_profile && mkdir -p "+configList.get(24).get(2)+"&& chown gbasedbt:gbasedbt "+configList.get(24).get(2)+"&& chmod 775 "+configList.get(24).get(2)+
+                            if(!configValue(ConfigKey.BACKUP_PATH).trim().isEmpty()){
+                                String backupPath = configValue(ConfigKey.BACKUP_PATH);
+                                String escapedBackupPath = shellQuote(backupPath);
+                                String backupCmd="source ~gbasedbt/.bash_profile && mkdir -p "+escapedBackupPath+"&& chown gbasedbt:gbasedbt "+escapedBackupPath+"&& chmod 775 "+escapedBackupPath+
                                         "&& onmode -wf TAPEBLK=2048 && onmode -wf LTAPEBLK=2048 && onmode -wf LTAPEDEV="
-                                        +configList.get(24).get(2)+"&& onmode -wf TAPEDEV="+configList.get(24).get(2)+
+                                        +escapedBackupPath+"&& onmode -wf TAPEDEV="+escapedBackupPath+
                                         """
                                         &&\
                                         sed -i "s#^BACKUP_CMD.*#BACKUP_CMD=\\"ontape -a -d\\" #g" $GBASEDBTDIR/etc/log_full.sh &&\
@@ -1587,18 +1664,20 @@ GBASEEOF
                                 //System.out.println(executeCommandWithExitStatus(backupCmd));
 
                                 if(executeCommandWithExitStatus(backupCmd)!=0) {
-                                    throw new Exception("配置备份失败！");
+                                    throw new Exception(I18n.t("remote.install.error.configure_backup_failed", "配置备份失败！"));
                                 }
 
 
                             }Platform.runLater(() -> {
                                 customInstallStepHbox14.iconLabel.setVisible(false);
                             });
+                            setInstallPhase(InstallPhase.COMPLETE);
                             return null;
                         }
                     };
                     installTask.setOnSucceeded(event1 -> {
-                        backgroupHbox.setVisible(false);
+                        setInstallPhase(InstallPhase.IDLE);
+                        backgroundHBox.setVisible(false);
                         customInstallStepHbox1.iconLabel.setVisible(false);
                         customInstallStepHbox2.iconLabel.setVisible(false);
                         customInstallStepHbox3.iconLabel.setVisible(false);
@@ -1613,68 +1692,68 @@ GBASEEOF
                         customInstallStepHbox12.iconLabel.setVisible(false);
                         customInstallStepHbox13.iconLabel.setVisible(false);
                         customInstallStepHbox14.iconLabel.setVisible(false);
-                        currentStep++;
+                        currentStep.set(currentStep.get() + 1);
                         updateWizardState();
 
                         try {
                             databaseInfoArea.replaceText("");
-                            databaseInfoArea.append("数据库版本\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.db_version", "数据库版本") + "\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(new File(remoteFilePath).getName() + "\n\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("数据库实例信息\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                            databaseInfoArea.append("安装路径："+configList.get(1).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("实例名："+configList.get(2).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("监听IP："+configList.get(7).get(2)  + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("端口："+configList.get(8).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("库名：" +configList.get(15).get(2) +"\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("用户名/密码：gbasedbt/"+configList.get(0).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("字符集："+configList.get(3).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("GL_USEGLU："+configList.get(4).get(2) + "\n\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.db_instance_info", "数据库实例信息") + "\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.install_path", "安装路径") + "："+configValue(ConfigKey.GBASEDBTDIR) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.instance_name", "实例名") + "："+configValue(ConfigKey.GBASEDBTSERVER) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.listen_ip", "监听IP") + "："+configValue(ConfigKey.LISTEN_IP)  + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.port", "端口") + "："+configValue(ConfigKey.LISTEN_PORT) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.db_name", "库名") + "：" +configValue(ConfigKey.DEFAULT_DB_NAME) +"\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.user_password", "用户名/密码") + "：gbasedbt/"+configValue(ConfigKey.GBASEDBT_PASSWORD) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.charset", "字符集") + "："+configValue(ConfigKey.DB_LOCALE) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append("GL_USEGLU："+configValue(ConfigKey.GL_USEGLU) + "\n\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("空间配置\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                            databaseInfoArea.append("数据文件路径："+configList.get(5).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("物理日志大小："+configList.get(9).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("逻辑日志大小："+configList.get(10).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("逻辑日志个数："+configList.get(11).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("临时空间配置："+configList.get(12).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("智能大对象空间大小："+configList.get(13).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("用户空间大小："+configList.get(14).get(2) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
-                            databaseInfoArea.append("onstat -d输出：\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.space_config", "空间配置") + "\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.data_path", "数据文件路径") + "："+configValue(ConfigKey.DATA_FILE_PATH) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.physlog_size", "物理日志大小") + "："+configValue(ConfigKey.PHYSFILE) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.log_size", "逻辑日志大小") + "："+configValue(ConfigKey.LOGSIZE) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.log_files", "逻辑日志个数") + "："+configValue(ConfigKey.LOGFILES) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.tempdbs", "临时空间配置") + "："+configValue(ConfigKey.TEMPDBS) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.sbspace", "智能大对象空间大小") + "："+configValue(ConfigKey.SBSPACE_SIZE) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.user_space", "用户空间大小") + "："+configValue(ConfigKey.DATA_SPACE_SIZE) + "\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.onstat_d", "onstat -d输出") + "：\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
                             databaseInfoArea.append(executeCommand("source ~gbasedbt/.bash_profile;onstat -d |sed '1,2d'") + "\n\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("参数配置\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.param_config", "参数配置") + "\n", "-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(executeCommand("source ~gbasedbt/.bash_profile;onstat -g cfg |grep -v '^$' |sed '1,5d'") + "\n\n", "-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                             //databaseInfoArea.insert(databaseInfoArea.getLength(), systemInfoArea.getDocument());
-                            databaseInfoArea.append("服务器型号\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.machine", "服务器型号") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(machineInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                             // 省略其他信息的显示代码（与原逻辑相同）
-                            databaseInfoArea.append("操作系统版本\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.os", "操作系统版本") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(osInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("内核版本\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.kernel", "内核版本") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(kernelInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("CPU信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.cpu", "CPU信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(cpuInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("内存信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.memory", "内存信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(memInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                            databaseInfoArea.append("磁盘信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.disk", "磁盘信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(diskInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                             fileSystemInfo = executeCommand("df -h");
-                            databaseInfoArea.append("文件系统信息\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.info.filesystem", "文件系统信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(fileSystemInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                             String coreParams= executeCommand("ipcs -l");
-                            databaseInfoArea.append("内核参数\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.kernel_params", "内核参数") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(coreParams + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                             String ulimit= executeCommand("su - gbasedbt -c \"ulimit -a\"");
-                            databaseInfoArea.append("gbasedt用户限制\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
+                            databaseInfoArea.append(I18n.t("remote.install.result.gbasedbt_ulimit", "gbasedt用户限制") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                             databaseInfoArea.append(ulimit + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
 
@@ -1690,8 +1769,9 @@ GBASEEOF
 
                     });
                     installTask.setOnFailed(event1 -> {
-                        backgroupHbox.setVisible(false);
-                        backgroupHbox.setVisible(false);
+                        setInstallPhase(InstallPhase.IDLE);
+                        backgroundHBox.setVisible(false);
+                        backgroundHBox.setVisible(false);
                         customInstallStepHbox1.iconLabel.setVisible(false);
                         customInstallStepHbox2.iconLabel.setVisible(false);
                         customInstallStepHbox3.iconLabel.setVisible(false);
@@ -1708,7 +1788,7 @@ GBASEEOF
                         customInstallStepHbox14.iconLabel.setVisible(false);
 
                         String error = installTask.getException().getMessage();
-                        AlterUtil.CustomAlert("错误", error);
+                        AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
 
                     try {
@@ -1716,10 +1796,10 @@ GBASEEOF
                     }catch (Exception e){
                         e.printStackTrace();
                     }
-                    backgroupHbox.setVisible(true);
+                    backgroundHBox.setVisible(true);
                     stopButton.setOnAction(event1->{
                         installTask.cancel();
-                        backgroupHbox.setVisible(false);
+                        backgroundHBox.setVisible(false);
                         customInstallStepHbox1.iconLabel.setVisible(false);
                         customInstallStepHbox2.iconLabel.setVisible(false);
                         customInstallStepHbox3.iconLabel.setVisible(false);
@@ -1766,9 +1846,9 @@ GBASEEOF
             mainDialog.close();
             Main.lastInstallConnect=new Connect();
             Main.lastInstallConnect.setIp(hostField.getText());
-            Main.lastInstallConnect.setPort(configList.get(8).get(2));
+            Main.lastInstallConnect.setPort(configValue(ConfigKey.LISTEN_PORT));
             Main.lastInstallConnect.setUsername("gbasedbt");
-            Main.lastInstallConnect.setPassword(configList.get(0).get(2));
+            Main.lastInstallConnect.setPassword(configValue(ConfigKey.GBASEDBT_PASSWORD));
             Platform.runLater(() -> {
                 Main.mainController.createConnectLeaf();
             });
@@ -1797,37 +1877,33 @@ GBASEEOF
 
         // 输入组件（保存引用）
         hostField = new CustomUserTextField();
-        hostField.setPrefWidth(450);
+        hostField.setPrefWidth(420);
 
         portField = new CustomUserTextField();
         portField.setText("22");
 
         passField = new CustomPasswordField();
 
-        // 图标和标签
-        Label ipLabel = new Label("主机名/IP");
-        SVGPath ipIcon = new SVGPath();
-        ipIcon.setScaleX(0.6);
-        ipIcon.setScaleY(0.6);
-        ipIcon.setContent("M6.776,4.72h1.549v6.827H6.776V4.72z M11.751,4.669c-0.942,0-1.61,0.061-2.087,0.143v6.735h1.53 V9.106c0.143,0.02,0.324,0.031,0.527,0.031c0.911,0,1.691-0.224,2.218-0.721c0.405-0.386,0.628-0.952,0.628-1.621 c0-0.668-0.295-1.234-0.729-1.579C13.382,4.851,12.702,4.669,11.751,4.669z M11.709,7.95c-0.222,0-0.385-0.01-0.516-0.041V5.895 c0.111-0.03,0.324-0.061,0.639-0.061c0.769,0,1.205,0.375,1.205,1.002C13.037,7.535,12.53,7.95,11.709,7.95z M10.117,0 C5.523,0,1.8,3.723,1.8,8.316s8.317,11.918,8.317,11.918s8.317-7.324,8.317-11.917S14.711,0,10.117,0z M10.138,13.373 c-3.05,0-5.522-2.473-5.522-5.524c0-3.05,2.473-5.522,5.522-5.522c3.051,0,5.522,2.473,5.522,5.522 C15.66,10.899,13.188,13.373,10.138,13.373z");
-        ipIcon.setFill(Color.valueOf("#888"));
-        ipLabel.setGraphic(ipIcon);
+        Label ipLabel = new Label();
+        ipLabel.textProperty().bind(I18n.bind("remote.install.field.host", "主机名/IP"));
+        ipLabel.setGraphic(IconFactory.create(IconPaths.CREATE_CONNECT_IP, 0.6, 0.6, Color.valueOf("#888")));
+        ipLabel.setAlignment(Pos.CENTER_LEFT);
+        ipLabel.setContentDisplay(ContentDisplay.LEFT);
+        ipLabel.setGraphicTextGap(6);
 
-        Label portLabel = new Label("端口");
-        SVGPath portIcon = new SVGPath();
-        portIcon.setScaleX(0.7);
-        portIcon.setScaleY(0.7);
-        portIcon.setContent("M1.625 10.4453 Q1.4375 9.7734 1.5781 9.1016 Q1.7344 8.4297 2.1562 7.8984 Q2.5938 7.3672 3.2188 7.0547 Q3.8438 6.7422 4.5156 6.7422 L19.4844 6.7422 Q20.1562 6.7422 20.7812 7.0547 Q21.4062 7.3672 21.8281 7.8984 Q22.2656 8.4297 22.4062 9.1016 Q22.5625 9.7734 22.4219 10.4453 L21.3125 14.9609 Q21.0781 15.9609 20.25 16.6172 Q19.4375 17.2578 18.3906 17.2578 L5.6094 17.2578 Q4.5625 17.2578 3.7344 16.6172 Q2.9219 15.9609 2.6875 14.9609 L1.625 10.4453 ZM7.4844 11.2578 Q7.8281 11.2578 8.0312 11.0391 Q8.25 10.8203 8.25 10.5078 Q8.25 10.1953 8.0312 9.9922 Q7.8281 9.7734 7.5156 9.7734 Q7.2031 9.7734 6.9844 9.9922 Q6.7656 10.1953 6.7656 10.5078 Q6.7656 10.8203 6.9844 11.0391 Q7.2031 11.2578 7.4844 11.2578 ZM9.75 13.5078 Q9.75 13.1797 9.5312 12.9609 Q9.3125 12.7422 9 12.7422 Q8.6875 12.7422 8.4688 12.9609 Q8.25 13.1797 8.25 13.4922 Q8.25 13.8047 8.4688 14.0547 Q8.6875 14.2891 9 14.2578 Q9.3125 14.2266 9.5312 14.0234 Q9.75 13.8047 9.75 13.5078 ZM12 14.2266 Q12.2812 14.2266 12.5156 14.0234 Q12.7656 13.8047 12.7656 13.4922 Q12.7656 13.1797 12.5156 12.9609 Q12.2812 12.7422 12 12.7422 Q11.7188 12.7422 11.4688 12.9609 Q11.2344 13.1797 11.2344 13.4922 Q11.2344 13.8047 11.4688 14.0547 Q11.7188 14.2891 12 14.2891 L12 14.2266 ZM15.75 13.5078 Q15.75 13.1797 15.5312 12.9609 Q15.3125 12.7422 15 12.7422 Q14.6875 12.7422 14.4688 12.9609 Q14.25 13.1797 14.25 13.4922 Q14.25 13.8047 14.4688 14.0547 Q14.6875 14.2891 15 14.2578 Q15.3125 14.2266 15.5312 14.0234 Q15.75 13.8047 15.75 13.5078 ZM10.5156 11.2578 Q10.7969 11.2578 11.0156 11.0391 Q11.2344 10.8203 11.2344 10.5078 Q11.2344 10.1953 11.0156 9.9922 Q10.7969 9.7734 10.4844 9.7734 Q10.1719 9.7734 9.9531 9.9922 Q9.75 10.1953 9.75 10.5078 Q9.75 10.8203 9.9531 11.0391 Q10.1719 11.2578 10.5156 11.2578 ZM14.25 10.4922 Q14.25 10.1953 14.0312 9.9922 Q13.8281 9.7734 13.5156 9.7734 Q13.2031 9.7734 12.9844 9.9922 Q12.7656 10.1953 12.7656 10.5078 Q12.7656 10.8203 12.9844 11.0391 Q13.2031 11.2578 13.5156 11.2578 Q13.8281 11.2578 14.0312 11.0391 Q14.25 10.8203 14.25 10.4922 ZM16.5156 11.2578 Q16.7969 11.2578 17.0156 11.0391 Q17.2344 10.8203 17.2344 10.5078 Q17.2344 10.1953 17.0156 9.9922 Q16.7969 9.7734 16.4844 9.7734 Q16.1719 9.7734 15.9531 9.9922 Q15.75 10.1953 15.75 10.5078 Q15.75 10.8203 15.9531 11.0391 Q16.1719 11.2578 16.5156 11.2578 Z");
-        portIcon.setFill(Color.valueOf("#888"));
-        portLabel.setGraphic(portIcon);
+        Label portLabel = new Label();
+        portLabel.textProperty().bind(I18n.bind("remote.install.field.port", "端口"));
+        portLabel.setGraphic(IconFactory.create(IconPaths.CREATE_CONNECT_PORT, 0.45, 0.45, Color.valueOf("#888")));
+        portLabel.setAlignment(Pos.CENTER_LEFT);
+        portLabel.setContentDisplay(ContentDisplay.LEFT);
+        portLabel.setGraphicTextGap(6);
 
-        Label passwdLabel = new Label("root密码");
-        SVGPath passwdIcon = new SVGPath();
-        passwdIcon.setScaleX(0.5);
-        passwdIcon.setScaleY(0.5);
-        passwdIcon.setContent("M15.75 1.5 Q14.3438 1.5 13.125 2.0312 Q11.8906 2.5469 10.9688 3.4688 Q10.0625 4.375 9.5469 5.625 Q9 6.8438 9 8.25 L9 8.25 Q9 8.25 9 8.25 Q9 8.25 9 8.25 Q9 8.7812 9.0781 9.2812 Q9.1719 9.7656 9.3125 10.2656 L9.2812 10.2188 L1.5 18 L1.5 22.5 L6 22.5 L13.7812 14.7188 Q14.2344 14.8594 14.7344 14.9375 Q15.2344 15 15.7812 15 Q17.1094 15 18.2812 14.5312 Q19.4531 14.0312 20.3594 13.2031 Q21.2656 12.375 21.8281 11.25 Q22.3906 10.125 22.5 8.8281 L22.5 8.8125 Q22.5312 8.6719 22.5312 8.5156 Q22.5312 8.3438 22.5312 8.1719 Q22.5312 7.0938 22.1875 6.1094 Q21.8438 5.1094 21.2656 4.2812 L21.2656 4.3125 Q20.3438 3.0156 18.9062 2.2656 Q17.4688 1.5 15.7969 1.5 Q15.7812 1.5 15.7656 1.5 Q15.75 1.5 15.75 1.5 L15.75 1.5 L15.75 1.5 ZM15.75 13.5 Q15.3594 13.5 14.9688 13.4375 Q14.5781 13.375 14.2031 13.2656 L14.25 13.2656 L13.3906 13 L10.3594 16.0312 L9.3125 15 L8.25 16.0469 L9.2812 17.0781 L8.0938 18.2812 L7.0625 17.25 L6 18.2969 L7.0312 19.3281 L5.375 21 L3 21 L3 18.625 L11 10.6094 L10.7812 9.8906 Q10.6406 9.5312 10.5781 9.125 Q10.5312 8.7188 10.5312 8.2656 Q10.5312 6.75 11.2812 5.5156 Q12.0469 4.2656 13.2969 3.5781 L13.3125 3.5625 Q13.8594 3.2812 14.4688 3.125 Q15.0938 2.9688 15.75 2.9688 Q16.8281 2.9688 17.7656 3.375 Q18.7031 3.7656 19.4062 4.4688 Q20.1094 5.1562 20.5625 6.0625 Q20.9844 7 21 8.0625 L21 8.0625 Q21 8.125 21 8.1875 Q21 8.25 21 8.3125 Q21 9.0938 20.7812 9.7969 Q20.5781 10.5 20.1875 11.0781 L20.1875 11.0625 Q19.4844 12.1562 18.3125 12.8281 Q17.1406 13.5 15.75 13.5 Q15.75 13.5 15.75 13.5 Q15.75 13.5 15.75 13.5 L15.75 13.5 L15.75 13.5 ZM18 7.5 Q18 8.125 17.5625 8.5625 Q17.1406 9 16.5 9 Q15.875 9 15.4375 8.5625 Q15 8.125 15 7.5 Q15 6.8594 15.4375 6.4375 Q15.875 6 16.5 6 Q17.1406 6 17.5625 6.4375 Q18 6.8594 18 7.5 Z");
-        passwdIcon.setFill(Color.valueOf("#888"));
-        passwdLabel.setGraphic(passwdIcon);
+        Label passwdLabel = new Label();
+        passwdLabel.textProperty().bind(I18n.bind("remote.install.field.root_password", "root密码"));
+        passwdLabel.setGraphic(IconFactory.create(IconPaths.CREATE_CONNECT_PASSWORD, 0.5, 0.5, Color.valueOf("#888")));
+        passwdLabel.setAlignment(Pos.CENTER_LEFT);
+        passwdLabel.setContentDisplay(ContentDisplay.LEFT);
+        passwdLabel.setGraphicTextGap(6);
 
 
 
@@ -1838,13 +1914,18 @@ GBASEEOF
         grid.add(portField, 1, 1);
         grid.add(passwdLabel, 0, 2);
         grid.add(passField, 1, 2);
-        Label descbefore=new Label("请填写需要远程安装数据库的服务器信息：");
-
-        Label desc=new Label("说明：");
-        Label desc1=new Label("1、远程安装仅用于Linux或Unix系统远程安装，不适用于Windows系统。");
-        Label desc2=new Label("2、安装前可准备好已下载的安装包，如未准备，可在安装过程中自动下载。");
-        Label desc3=new Label("3、安装前会自动卸载之前已存在的GBase 8s数据库安装，并清理所有相关信息。");
-        Label desc4=new Label("4、远程安装向导支持GBase 8s V8.7、GBase 8s V8.8。");
+        Label descbefore = new Label();
+        descbefore.textProperty().bind(I18n.bind("remote.install.desc.fill_server_info", "请填写需要远程安装数据库的服务器信息："));
+        Label desc = new Label();
+        desc.textProperty().bind(I18n.bind("remote.install.desc.title", "说明："));
+        Label desc1 = new Label();
+        desc1.textProperty().bind(I18n.bind("remote.install.desc.item1", "1、远程安装仅用于Linux或Unix系统远程安装，不适用于Windows系统。"));
+        Label desc2 = new Label();
+        desc2.textProperty().bind(I18n.bind("remote.install.desc.item2", "2、安装前可准备好已下载的安装包，如未准备，可在安装过程中自动下载。"));
+        Label desc3 = new Label();
+        desc3.textProperty().bind(I18n.bind("remote.install.desc.item3", "3、安装前会自动卸载之前已存在的GBase 8s数据库安装，并清理所有相关信息。"));
+        Label desc4 = new Label();
+        desc4.textProperty().bind(I18n.bind("remote.install.desc.item4", "4、远程安装向导支持GBase 8s V8.7、GBase 8s V8.8。"));
         VBox vBox=new VBox(10);
         vBox.setStyle("-fx-padding: 10 0 0 30");
         grid.setStyle("-fx-padding: 10 0 10 0;");
@@ -1879,26 +1960,20 @@ GBASEEOF
         content.setPadding(new Insets(10,20,10,20));
 
         Button browseButton = new Button("");
-        SVGPath browseButtonIcon = new SVGPath();
-        browseButtonIcon.setScaleX(0.6);
-        browseButtonIcon.setScaleY(0.6);
-        browseButtonIcon.setContent("M9.8438 1.7184 Q12.0469 1.7184 13.9219 2.7965 Q15.7969 3.8746 16.8906 5.7496 Q18 7.609 18 9.8278 Q18 12.4684 16.4688 14.6246 L21.8906 20.0934 Q22.2656 20.4371 22.2812 20.9684 Q22.3125 21.484 21.9531 21.8746 Q21.5938 22.2496 21.0938 22.2809 Q20.5938 22.2965 20.2031 21.9684 L14.6406 16.4528 Q12.4844 17.984 9.8438 17.984 Q7.625 17.984 5.75 16.8903 Q3.8906 15.7809 2.8125 13.9059 Q1.7344 12.0309 1.7344 9.8278 Q1.7344 7.609 2.8125 5.7496 Q3.8906 3.8746 5.75 2.7965 Q7.625 1.7184 9.8438 1.7184 ZM9.8438 4.2496 Q8.3594 4.2496 7.0625 4.9996 Q5.7656 5.7496 5.0156 7.0465 Q4.2656 8.3434 4.2656 9.8278 Q4.2656 11.3121 5.0156 12.609 Q5.7656 13.9059 7.0625 14.6559 Q8.3594 15.3903 9.8594 15.3903 Q11.375 15.3903 12.6406 14.6559 Q13.9219 13.9059 14.6562 12.6403 Q15.4062 11.359 15.4062 9.859 Q15.4062 8.3434 14.6562 7.0778 Q13.9219 5.7965 12.6406 5.0309 Q11.375 4.2496 9.8438 4.2496 Z");
-        browseButtonIcon.setFill(Color.valueOf("#074675"));
-        browseButton.setGraphic(new Group(browseButtonIcon));
+        browseButton.setGraphic(IconFactory.group(BROWSE_ICON_PATH, 0.6, 0.6));
         browseButton.getStyleClass().add("little-custom-button");
         browseButton.setFocusTraversable(false);
-        browseButton.setTooltip(new Tooltip("浏览安装包"));
+        Tooltip browseTooltip = new Tooltip();
+        browseTooltip.textProperty().bind(I18n.bind("remote.install.tooltip.browse_package", "浏览安装包"));
+        browseButton.setTooltip(browseTooltip);
 
         Button downloadButton = new Button("");
-        SVGPath downloadButtonIcon = new SVGPath();
-        downloadButtonIcon.setScaleX(0.6);
-        downloadButtonIcon.setScaleY(0.6);
-        downloadButtonIcon.setContent("M19.0156 9 L15 9 L15 3 L9 3 L9 9 L5 9 L12 16.9844 L19.0156 9 ZM4.0156 19 L20 19 L20 21 L4.0156 21 L4.0156 19 Z");
-        downloadButtonIcon.setFill(Color.valueOf("#074675"));
-        downloadButton.setGraphic(new Group(downloadButtonIcon));
+        downloadButton.setGraphic(IconFactory.group(DOWNLOAD_ICON_PATH, 0.6, 0.6));
         downloadButton.getStyleClass().add("little-custom-button");
         downloadButton.setFocusTraversable(false);
-        downloadButton.setTooltip(new Tooltip("下载安装包"));
+        Tooltip downloadTooltip = new Tooltip();
+        downloadTooltip.textProperty().bind(I18n.bind("remote.install.tooltip.download_package", "下载安装包"));
+        downloadButton.setTooltip(downloadTooltip);
 
 
 
@@ -1909,13 +1984,17 @@ GBASEEOF
         installFilePathField.setMinWidth(450);
         installFilePathField.setMaxWidth(450);
         remotePathField.setMaxWidth(450);
-        HBox downloadHBox = new HBox(new Label("选择已下载的安装包，或点击"),downloadButton,new Label("自动下载与CPU型号匹配的最新试用版本，下载到桌面并填充下框。"));
+        Label downloadPrefixLabel = new Label();
+        downloadPrefixLabel.textProperty().bind(I18n.bind("remote.install.step3.download_prefix", "选择已下载的安装包，或点击"));
+        Label downloadSuffixLabel = new Label();
+        downloadSuffixLabel.textProperty().bind(I18n.bind("remote.install.step3.download_suffix", "自动下载与CPU型号匹配的最新试用版本，下载到桌面并填充下框。"));
+        HBox downloadHBox = new HBox(downloadPrefixLabel, downloadButton, downloadSuffixLabel);
         HBox hBox = new HBox(10);
         hBox.getChildren().addAll(installFilePathField,browseButton);
         // 浏览文件事件
         browseButton.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("选择安装包");
+            fileChooser.setTitle(I18n.t("remote.install.step3.select_package", "选择安装包"));
             selectedFile = fileChooser.showOpenDialog(parent);
             if (selectedFile != null) {
                 installFilePathField.setText(selectedFile.getAbsolutePath());
@@ -1942,7 +2021,8 @@ GBASEEOF
             }else if(systemInfoArea.getText().contains("aarch64")) {
                 url="https://www.dbboys.com/dl/gbase8s/server/arm/latest.tar";
             }else{
-                AlterUtil.CustomAlert("错误","未知系统平台，请手动下载数据库安装包！");
+                AlterUtil.CustomAlert(I18n.t("common.error", "错误"),
+                        I18n.t("remote.install.error.unknown_platform", "未知系统平台，请手动下载数据库安装包！"));
                 return;
             }
             try {
@@ -1965,35 +2045,45 @@ GBASEEOF
                 fileName=DownloadManagerUtil.getRealFileNameFromRedirect(url);
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
-                AlterUtil.CustomAlert("下载失败",e.getMessage());
+                AlterUtil.CustomAlert(I18n.t("common.download_failed", "下载失败"), e.getMessage());
                 return;
             }
 
             File saveFile = new File(desktopDir, fileName);
-            InstallAutoDownLoadUtil.remotePathField=remotePathField;
-            InstallAutoDownLoadUtil.installFilePathField=installFilePathField;
-            InstallAutoDownLoadUtil.stackPane=downloadStackPane;
-            //if(systemInfoArea.getText().contains("x86_64"))
-            InstallAutoDownLoadUtil.addDownload(url,saveFile,true,null);
-            //else InstallAutoDownLoadUtil.addDownload("https://www.dbboys.com/dl/gbase8s/server/arm/latest",saveFile,true,null);
+            DownloadManagerUtil.addInstallDownload(
+                    url,
+                    saveFile,
+                    true,
+                    null,
+                    downloadStackPane,
+                    remotePathField,
+                    installFilePathField
+            );
+            //DownloadManagerUtil.addInstallDownload("https://www.dbboys.com/dl/gbase8s/server/arm/latest",saveFile,true,null,downloadStackPane,remotePathField,installFilePathField);
 
         });
         downloadStackPane.setMinHeight(50);
         notUploadedRadioButton.setToggleGroup(uploadToggleGroup);
+        notUploadedRadioButton.textProperty().bind(I18n.bind("remote.install.step3.not_uploaded", "我没有上传数据库安装包"));
         notUploadedRadioButton.setSelected(true);
         downloadButton.disableProperty().bind(notUploadedRadioButton.selectedProperty().not());
         installFilePathField.disableProperty().bind(notUploadedRadioButton.selectedProperty().not());
         browseButton.disableProperty().bind(notUploadedRadioButton.selectedProperty().not());
         uploadedRadioButton.setToggleGroup(uploadToggleGroup);
+        uploadedRadioButton.textProperty().bind(I18n.bind("remote.install.step3.uploaded", "我已经上传了数据库安装包"));
         remotePathField.disableProperty().bind(uploadedRadioButton.selectedProperty().not());
+        Label uploadTitleLabel = new Label();
+        uploadTitleLabel.textProperty().bind(I18n.bind("remote.install.step3.upload_title", "上传安装包到远程服务器："));
+        Label uploadPathLabel = new Label();
+        uploadPathLabel.textProperty().bind(I18n.bind("remote.install.step3.upload_path", "远程服务器上安装包路径，如安装包已上传，请在下框填入安装包绝对路径："));
         content.getChildren().addAll(
-                new Label("上传安装包到远程服务器："),
+                uploadTitleLabel,
                 notUploadedRadioButton,
                 downloadHBox,
                 hBox,
                 downloadStackPane,
                 uploadedRadioButton,
-                new Label("远程服务器上安装包路径，如安装包已上传，请在下框填入安装包绝对路径："),
+                uploadPathLabel,
                 remotePathField
         );
 
@@ -2004,25 +2094,33 @@ GBASEEOF
 
     // 步骤2：系统信息面板
     private static Node createStep4Content(Stage parent) {
-        customInstallStepHbox1=new CustomInstallStepHbox("・卸载现有安装","kill所有gbasedbt用户进程，删除所有安装路径，删除gbasedbt数据文件，删除gbasedbt用户及组。");
-        customInstallStepHbox2=new CustomInstallStepHbox("・检查系统依赖","检查/opt不小于8G，权限755，/tmp不小于1G，内存不小于1G，检查所需unzip等依赖包、关闭防火墙等。");
-        customInstallStepHbox3=new CustomInstallStepHbox("・创建用户组及用户","创建gbasedbt用户组和gbasedbt用户，配置环境变量GBASEDBTDIR、GBASEDBTSERVER等。");
-        customInstallStepHbox4=new CustomInstallStepHbox("・安装数据库软件","安装软件到gbasedbt用户默认环境变量$GBASEDBTDIR指定路径。");
-        customInstallStepHbox5=new CustomInstallStepHbox("・初始化数据库实例","初始化数据库实例，数据文件路径$GBASEDBTDIR/dbs，监听IP 0.0.0.0，端口 9088。");
-        customInstallStepHbox6=new CustomInstallStepHbox("・优化配置参数","优化CPU、内存等关键参数，启用数据库用户，关闭sysadmin，重启数据库实例。");
-        customInstallStepHbox7=new CustomInstallStepHbox("・优化物理日志","创建物理日志空间plogdbs，并将物理日志从rootdbs中移动到plogdbs。");
-        customInstallStepHbox8=new CustomInstallStepHbox("・优化逻辑日志","创建逻辑日志空间llogdbs，并将物理日志从rootdbs中移动到llogdbs。");
-        customInstallStepHbox9=new CustomInstallStepHbox("・优化临时空间","创建临时数据库空间tmpdbs01，避免在rootdbs中执行排序等操作。");
-        customInstallStepHbox10=new CustomInstallStepHbox("・创建大对象空间","创建默认智能大对象空间sbspace01，用于存放blob/clob数据。");
-        customInstallStepHbox11=new CustomInstallStepHbox("・创建用户数据空间","创建用户数据空间datadbs01，存放用户数据。");
-        customInstallStepHbox12=new CustomInstallStepHbox("・创建默认数据库","创建默认用户数据库gbasedb，存储于datadbs01。");
-        customInstallStepHbox13=new CustomInstallStepHbox("・配置开机自启","默认开机自启，自启方式为在/etc/rc.local中添加启动命令。");
-        customInstallStepHbox14=new CustomInstallStepHbox("・配置备份","默认不配置备份及逻辑日志归档，可在自定义设置开启，备份脚本位于$GBASEDBTDIR/scripts。");
+        customInstallStepHbox1=new CustomInstallStepHbox("", "");
+        customInstallStepHbox2=new CustomInstallStepHbox("", "");
+        customInstallStepHbox3=new CustomInstallStepHbox("", "");
+        customInstallStepHbox4=new CustomInstallStepHbox("", "");
+        customInstallStepHbox5=new CustomInstallStepHbox("", "");
+        customInstallStepHbox6=new CustomInstallStepHbox("", "");
+        customInstallStepHbox7=new CustomInstallStepHbox("", "");
+        customInstallStepHbox8=new CustomInstallStepHbox("", "");
+        customInstallStepHbox9=new CustomInstallStepHbox("", "");
+        customInstallStepHbox10=new CustomInstallStepHbox("", "");
+        customInstallStepHbox11=new CustomInstallStepHbox("", "");
+        customInstallStepHbox12=new CustomInstallStepHbox("", "");
+        customInstallStepHbox13=new CustomInstallStepHbox("", "");
+        customInstallStepHbox14=new CustomInstallStepHbox("", "");
+        bindInstallStepTexts();
 
-        HBox titleHBox=new HBox(new Label("点击【下一步】开始安装，如需自定义设置，点击【"));
-        Button envButton=MenuItemUtil.createModifyButton("自定义设置");
+        Label titlePrefixLabel = new Label();
+        titlePrefixLabel.textProperty().bind(I18n.bind("remote.install.step4.title_prefix", "点击【下一步】开始安装，如需自定义设置，点击【"));
+        HBox titleHBox=new HBox(titlePrefixLabel);
+        Button envButton=MenuItemUtil.createModifyButton(I18n.t("remote.install.step4.custom_settings", "自定义设置"));
+        if (envButton.getTooltip() != null) {
+            envButton.getTooltip().textProperty().bind(I18n.bind("remote.install.step4.custom_settings", "自定义设置"));
+        }
         titleHBox.getChildren().add(envButton);
-        titleHBox.getChildren().add(new Label("】编辑"));
+        Label titleSuffixLabel = new Label();
+        titleSuffixLabel.textProperty().bind(I18n.bind("remote.install.step4.title_suffix", "】编辑"));
+        titleHBox.getChildren().add(titleSuffixLabel);
 
         envButton.setOnAction(event -> {
             modifyEnv();
@@ -2056,7 +2154,6 @@ GBASEEOF
 
     // 更新向导状态（标题、显示步骤）
     private static void updateWizardState() {
-        mainDialog.setTitle("远程安装向导 - 步骤 " + currentStep + "/5");
         showCurrentStep();
         updateButtonStates(
                 (Button) mainDialog.getDialogPane().lookupButton(ButtonType.PREVIOUS),
@@ -2068,11 +2165,11 @@ GBASEEOF
 
     // 显示当前步骤的面板
     private static void showCurrentStep() {
-        step1Pane.setVisible(currentStep == 1);
-        step2Pane.setVisible(currentStep == 2);
-        step3Pane.setVisible(currentStep == 3);
-        step4Pane.setVisible(currentStep == 4);
-        step5Pane.setVisible(currentStep == 5);
+        step1Pane.setVisible(currentStep.get() == 1);
+        step2Pane.setVisible(currentStep.get() == 2);
+        step3Pane.setVisible(currentStep.get() == 3);
+        step4Pane.setVisible(currentStep.get() == 4);
+        step5Pane.setVisible(currentStep.get() == 5);
     }
 
     // 更新按钮状态（显示/隐藏及布局占用）
@@ -2080,22 +2177,53 @@ GBASEEOF
 
         // 上一步：当前步骤>1时显示并参与布局，否则隐藏且不占空间
 
-        boolean showPrevious = currentStep > 1 && currentStep < 5;
+        boolean showPrevious = currentStep.get() > 1 && currentStep.get() < 5;
         previous.setVisible(showPrevious);
         previous.setManaged(showPrevious);
 
         // 下一步：当前步骤<5时显示并参与布局，否则隐藏且不占空间
-        boolean showNext = currentStep < 5;
+        boolean showNext = currentStep.get() < 5;
         next.setVisible(showNext);
         next.setManaged(showNext);
         if(!next.isDisable()&&next.isVisible())next.requestFocus();
 
         // 完成：当前步骤=5时显示并参与布局，否则隐藏且不占空间
-        boolean showFinish = currentStep == 5;
+        boolean showFinish = currentStep.get() == 5;
         finish.setVisible(showFinish);
         finish.setManaged(showFinish);
         cancel.setVisible(!showFinish);
         cancel.setManaged(!showFinish);
+    }
+
+    private static void bindInstallStepTexts() {
+        customInstallStepHbox1.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step1.name", "・卸载现有安装"));
+        customInstallStepHbox1.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step1.desc", "kill所有gbasedbt用户进程，删除所有安装路径，删除gbasedbt数据文件，删除gbasedbt用户及组。"));
+        customInstallStepHbox2.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step2.name", "・检查系统依赖"));
+        customInstallStepHbox2.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step2.desc", "检查/opt不小于8G，权限755，/tmp不小于1G，内存不小于1G，检查所需unzip等依赖包、关闭防火墙等。"));
+        customInstallStepHbox3.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step3.name", "・创建用户组及用户"));
+        customInstallStepHbox3.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step3.desc", "创建gbasedbt用户组和gbasedbt用户，配置环境变量GBASEDBTDIR、GBASEDBTSERVER等。"));
+        customInstallStepHbox4.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step4.name", "・安装数据库软件"));
+        customInstallStepHbox4.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step4.desc", "安装软件到gbasedbt用户默认环境变量$GBASEDBTDIR指定路径。"));
+        customInstallStepHbox5.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step5.name", "・初始化数据库实例"));
+        customInstallStepHbox5.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step5.desc", "初始化数据库实例，数据文件路径$GBASEDBTDIR/dbs，监听IP 0.0.0.0，端口 9088。"));
+        customInstallStepHbox6.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step6.name", "・优化配置参数"));
+        customInstallStepHbox6.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step6.desc", "优化CPU、内存等关键参数，启用数据库用户，关闭sysadmin，重启数据库实例。"));
+        customInstallStepHbox7.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step7.name", "・优化物理日志"));
+        customInstallStepHbox7.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step7.desc", "创建物理日志空间plogdbs，并将物理日志从rootdbs中移动到plogdbs。"));
+        customInstallStepHbox8.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step8.name", "・优化逻辑日志"));
+        customInstallStepHbox8.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step8.desc", "创建逻辑日志空间llogdbs，并将物理日志从rootdbs中移动到llogdbs。"));
+        customInstallStepHbox9.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step9.name", "・优化临时空间"));
+        customInstallStepHbox9.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step9.desc", "创建临时数据库空间tmpdbs01，避免在rootdbs中执行排序等操作。"));
+        customInstallStepHbox10.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step10.name", "・创建大对象空间"));
+        customInstallStepHbox10.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step10.desc", "创建默认智能大对象空间sbspace01，用于存放blob/clob数据。"));
+        customInstallStepHbox11.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step11.name", "・创建用户数据空间"));
+        customInstallStepHbox11.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step11.desc", "创建用户数据空间datadbs01，存放用户数据。"));
+        customInstallStepHbox12.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step12.name", "・创建默认数据库"));
+        customInstallStepHbox12.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step12.desc", "创建默认用户数据库gbasedb，存储于datadbs01。"));
+        customInstallStepHbox13.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step13.name", "・配置开机自启"));
+        customInstallStepHbox13.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step13.desc", "默认开机自启，自启方式为在/etc/rc.local中添加启动命令。"));
+        customInstallStepHbox14.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step14.name", "・配置备份"));
+        customInstallStepHbox14.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step14.desc", "默认不配置备份及逻辑日志归档，可在自定义设置开启，备份脚本位于$GBASEDBTDIR/scripts。"));
     }
 
     // 以下为原有工具方法（保持不变）
@@ -2116,43 +2244,6 @@ GBASEEOF
 
         channelExec.disconnect();
         return output.toString().trim();
-    }
-
-    private static boolean testConnection() {
-        try {
-            if (session != null && session.isConnected()) {
-                session.disconnect();
-            }
-
-            session = jsch.getSession(username, hostname, port);
-            session.setPassword(password);
-
-            Properties config = new Properties();
-            config.put("StrictHostKeyChecking", "no");
-            session.setConfig(config);
-
-            session.connect(5000); // 5秒超时
-            return true;
-        } catch (JSchException e) {
-            System.err.println("连接错误: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private static boolean isFileSelectionValid(File file, String remotePath, String command) {
-        return file != null && file.exists()
-                && remotePath != null && !remotePath.trim().isEmpty()
-                && command != null && !command.trim().isEmpty();
-    }
-
-    private static void showErrorDialog(Stage parent, String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.initOwner(parent);
-        centerDialogToParent(alert, parent);
-        alert.showAndWait();
     }
 
     private static class ProgressMonitorInputStream extends FilterInputStream {
@@ -2222,29 +2313,82 @@ GBASEEOF
         return exitStatus == 0;
     }
 
+    private static String shellQuote(String value) {
+        if (value == null) {
+            return "''";
+        }
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private static void rebuildInstallConfigMap() {
+        installConfigMap.clear();
+        for (ConfigKey key : ConfigKey.values()) {
+            InstallConfigItem item = installConfigItems.stream()
+                    .filter(config -> key.id.equals(config.id))
+                    .findFirst()
+                    .orElse(null);
+            if (item != null) {
+                installConfigMap.put(key, item);
+            }
+        }
+    }
+
+    private static String configValue(ConfigKey key) {
+        InstallConfigItem item = installConfigMap.get(key);
+        if (item == null) {
+            throw new IllegalStateException("Missing config key: " + key.id);
+        }
+        return item.value == null ? "" : item.value;
+    }
+
+    private static InstallConfigItem findConfigItem(ObservableList<InstallConfigItem> source, ConfigKey key) {
+        return source.stream().filter(item -> key.id.equals(item.id)).findFirst().orElse(null);
+    }
+
+    private static void updateConfigValue(ObservableList<InstallConfigItem> source, ConfigKey key, String value) {
+        InstallConfigItem item = findConfigItem(source, key);
+        if (item != null) {
+            item.value = value;
+        }
+    }
+
+    private static void setInstallPhase(InstallPhase phase) {
+        installPhase = phase;
+    }
+
+    private static boolean remoteFileExists(String filePath) throws JSchException, InterruptedException {
+        return executeCommandWithExitStatus("test -f " + shellQuote(filePath)) == 0;
+    }
+
+    private static void refreshLegacyConfigListFromItems() {
+        rebuildInstallConfigMap();
+        configList = installConfigItems.stream()
+                .map(item -> FXCollections.observableArrayList(item.id, item.name, item.value, item.description))
+                .collect(Collectors.toList());
+    }
+
     public static void modifyEnv(){
 
-        // 将JSONArray转换为ObservableList
-        List<ObservableList<String>> datalist = FXCollections.observableArrayList();//如果确认，返回更新后的list
-
-        for (ObservableList<String> row : configList) {
-            datalist.add(FXCollections.observableArrayList(row));
-        }
+        ObservableList<InstallConfigItem> datalist = installConfigItems.stream()
+                .map(InstallConfigItem::new)
+                .collect(Collectors.toCollection(FXCollections::observableArrayList));
 
         CustomResultsetTableView tableView = new CustomResultsetTableView();
         tableView.setEditable(true);
         tableView.setSortPolicy((param) -> false);//禁用排序
 
-        TableColumn<ObservableList<String>, Object> nameColumn = new TableColumn<ObservableList<String>, Object>("配置项");
-        nameColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<ObservableList<String>, Object>());
-        nameColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(1)));
+        TableColumn<InstallConfigItem, Object> nameColumn = new TableColumn<>();
+        nameColumn.textProperty().bind(I18n.bind("remote.install.modifyenv.column.name", "配置项"));
+        nameColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<InstallConfigItem, Object>());
+        nameColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().name));
         nameColumn.setReorderable(false); // 禁用拖动
         nameColumn.setEditable(false);
         nameColumn.setReorderable(false);
         nameColumn.setPrefWidth(150);
-        TableColumn<ObservableList<String>, Object> valueColumn = new TableColumn<ObservableList<String>, Object>("值（可修改）");
-        valueColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<ObservableList<String>, Object>());
-        valueColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(2)));
+        TableColumn<InstallConfigItem, Object> valueColumn = new TableColumn<>();
+        valueColumn.textProperty().bind(I18n.bind("remote.install.modifyenv.column.value", "值（可修改）"));
+        valueColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<InstallConfigItem, Object>());
+        valueColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().value));
         valueColumn.setReorderable(false); // 禁用拖动
         valueColumn.setEditable(true);
         valueColumn.setReorderable(false);
@@ -2254,20 +2398,19 @@ GBASEEOF
             Object oldvalue = (Object) event.getOldValue();
 
             // 获取当前行的模型数据（ObservableList<String>）
-            ObservableList<String> rowData = event.getRowValue();
+            InstallConfigItem rowData = event.getRowValue();
 
             // 获取编辑后的新值
             Object newValue = event.getNewValue();
 
             // 更新ObservableList中索引1的位置（与cellValueFactory对应）
-            if (rowData.size() > 2) {  // 确保索引有效
-                // 转换为字符串（根据实际需求调整类型）
-                rowData.set(2,  newValue.toString());
-                if(rowData.get(1).equals("数据文件路径")){
+            if (rowData != null) {
+                rowData.value = newValue == null ? "" : newValue.toString();
+                if ("data_file_path".equals(rowData.id)) {
                     try {
                         Path path = Paths.get((String) newValue);
                         String remoteScript =
-                                "path=\"" + newValue + "\";" +
+                                "path=" + shellQuote(String.valueOf(newValue)) + ";" +
                                         "while [ ! -e \"$path\" ]; do " +
                                         "  path=$(dirname \"$path\"); " +
                                         "  [ \"$path\" = \"/\" ] && break; " +
@@ -2285,7 +2428,7 @@ GBASEEOF
 
                          */
                     } catch (Exception e) {
-                        event.getRowValue().set(2, oldvalue == null ? null : oldvalue.toString());
+                        rowData.value = oldvalue == null ? null : oldvalue.toString();
                         event.getTableView().refresh();
                         e.printStackTrace();
                         throw new RuntimeException(e);
@@ -2309,19 +2452,20 @@ GBASEEOF
                         SBDBSSIZE=10240000;
                         DATADBSSIZE=10240000;
                     }
-                    datalist.get(9).set(2,String.valueOf(PHYSFILE));
-                    datalist.get(11).set(2,String.valueOf(LOGFILES));
-                    datalist.get(12).set(2,TEMPDBS);
-                    datalist.get(13).set(2,String.valueOf(SBDBSSIZE));
-                    datalist.get(14).set(2,String.valueOf(DATADBSSIZE));
+                    updateConfigValue(datalist, ConfigKey.PHYSFILE, String.valueOf(PHYSFILE));
+                    updateConfigValue(datalist, ConfigKey.LOGFILES, String.valueOf(LOGFILES));
+                    updateConfigValue(datalist, ConfigKey.TEMPDBS, TEMPDBS);
+                    updateConfigValue(datalist, ConfigKey.SBSPACE_SIZE, String.valueOf(SBDBSSIZE));
+                    updateConfigValue(datalist, ConfigKey.DATA_SPACE_SIZE, String.valueOf(DATADBSSIZE));
                 }
                 tableView.refresh();
             }
         });
 
-        TableColumn<ObservableList<String>, Object> labelColumn = new TableColumn<ObservableList<String>, Object>("说明");
-        labelColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<ObservableList<String>, Object>());
-        labelColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(3)));
+        TableColumn<InstallConfigItem, Object> labelColumn = new TableColumn<>();
+        labelColumn.textProperty().bind(I18n.bind("remote.install.modifyenv.column.desc", "说明"));
+        labelColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<InstallConfigItem, Object>());
+        labelColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().description));
         labelColumn.setReorderable(false); // 禁用拖动
         labelColumn.setEditable(false);
         labelColumn.setReorderable(false);
@@ -2334,7 +2478,7 @@ GBASEEOF
 
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("自定义配置");
+        alert.titleProperty().bind(I18n.bind("remote.install.modifyenv.title", "自定义配置"));
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
@@ -2347,16 +2491,17 @@ GBASEEOF
         alert.getDialogPane().setContent(hbox);
 
         // 自定义按钮
-        ButtonType buttonTypeOk = new ButtonType("确认", ButtonBar.ButtonData.OK_DONE);
-        ButtonType buttonTypeCancel = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
         Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+        Button cancelButton = (Button) alert.getDialogPane().lookupButton(buttonTypeCancel);
+        button.textProperty().bind(I18n.bind("common.confirm", "确认"));
+        cancelButton.textProperty().bind(I18n.bind("common.cancel", "取消"));
         ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
         if (result == buttonTypeOk) {
-            configList.clear();
-            for (ObservableList<String> row : datalist) {
-                configList.add(FXCollections.observableArrayList(row));
-            }
+            installConfigItems.setAll(datalist.stream().map(InstallConfigItem::new).toList());
+            refreshLegacyConfigListFromItems();
         }
 
     }
@@ -2431,34 +2576,36 @@ GBASEEOF
             SBDBSSIZE=10240000;
             DATADBSSIZE=10240000;
         }
-        configList.clear();
-        configList.add(FXCollections.observableArrayList(null, "gbasedbt用户密码", "8S*P)0Od@.&","保持密码强度，部分系统如强度不够可能导致设置密码失败"));
-        configList.add(FXCollections.observableArrayList(null, "GBASEDBTDIR", "/opt/gbase","数据库软件安装路径，无特殊要求不修改"));
-        configList.add(FXCollections.observableArrayList(null, "GBASEDBTSERVER", "gbase01","数据库实例名，无特殊要求不修改"));
-        configList.add(FXCollections.observableArrayList(null, "DB_LOCALE", "zh_CN.utf8","默认字符集推荐utf8，如要兼容GBK使用zh_CN.gb18030-2000"));
-        configList.add(FXCollections.observableArrayList(null, "GL_USEGLU", "1","是否开启GLU，建议开启，0关闭"));
-        configList.add(FXCollections.observableArrayList(null, "数据文件路径", "$GBASEDBTDIR/dbs","如/data，路径必须存在，修改后相关空间大小根据空间可用量自动重新计算"));
-        configList.add(FXCollections.observableArrayList(null, "ROOTSIZE", "1024000","根空间大小，建议不小于1G，固定值。"));
-        configList.add(FXCollections.observableArrayList(null, "监听IP", "0.0.0.0","默认监听所有IP，如无特殊要求不修改"));
-        configList.add(FXCollections.observableArrayList(null, "监听端口", "9088","默认端口9088，如无特殊要求不修改"));
-        configList.add(FXCollections.observableArrayList(null, "PHYSFILE", String.valueOf(PHYSFILE),"物理日志大小，建议不小于10G，默认根据数据文件路径可用空间自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "LOGSIZE", "102400","单个逻辑日志大小，建议100MB固定值"));
-        configList.add(FXCollections.observableArrayList(null, "LOGFILES", String.valueOf(LOGFILES),"逻辑日志个数，建议不小于100个，默认根据数据文件路径可用空间自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "临时空间配置", TEMPDBS,"数量*大小，如1*10240000，建议不小于10G，默认根据数据文件路径可用空间自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "智能大对象空间大小",String.valueOf(SBDBSSIZE),"建议不小于10G，默认根据数据文件路径可用空间自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "用户数据空间大小", String.valueOf(DATADBSSIZE),"建议不小于10G，默认根据数据文件路径可用空间自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "用户默认数据库名", "gbasedb","默认gbasedb，可自定义修改"));
-        configList.add(FXCollections.observableArrayList(null, "LOCKS", String.valueOf(LOCKS),"建议不小于10000000，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "DS_TOTAL_MEMORY", String.valueOf(DS_TOTAL_MEMORY),"建议不小于4096000，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "DS_NONPDQ_QUERY_MEM", String.valueOf(DS_TOTAL_MEMORY/4),"建议不小于1024000，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "SHMVIRTSIZE", String.valueOf(SHMVIRTSIZE),"建议不小于4096000，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "SHMADD", String.valueOf(SHMVIRTSIZE/4),"建议不小于1024000，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "VPCLASS", "cpu,num="+NUMCPU+",noage","如是numa架构多路服务器，可绑定CPU，默认等于CPU内核数量"));
-        configList.add(FXCollections.observableArrayList(null, "BUFFERPOOL", "size=2k,buffers="+K2BUFFERS+",lrus=32,lru_min_dirty=50,lru_max_dirty=60","建议不小于1G，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "BUFFERPOOL", "size=16k,buffers="+K16BUFFERS+",lrus=128,lru_min_dirty=50,lru_max_dirty=60","建议不超过内存的50%，默认根据内存自动计算"));
-        configList.add(FXCollections.observableArrayList(null, "备份路径", "","填写路径后每天0点执行全量备份到填写的指定路径，逻辑日志自动归档，保留7天。"));
+        installConfigItems.clear();
+        installConfigItems.add(new InstallConfigItem("gbasedbt_password", I18n.t("remote.install.cfg.gbasedbt_password.name", "gbasedbt用户密码"), "8S*P)0Od@.&", I18n.t("remote.install.cfg.gbasedbt_password.desc", "保持密码强度，部分系统如强度不够可能导致设置密码失败")));
+        installConfigItems.add(new InstallConfigItem("gbasedbtdir", "GBASEDBTDIR", "/opt/gbase", I18n.t("remote.install.cfg.gbasedbtdir.desc", "数据库软件安装路径，无特殊要求不修改")));
+        installConfigItems.add(new InstallConfigItem("gbasedbtserver", "GBASEDBTSERVER", "gbase01", I18n.t("remote.install.cfg.gbasedbtserver.desc", "数据库实例名，无特殊要求不修改")));
+        installConfigItems.add(new InstallConfigItem("db_locale", "DB_LOCALE", "zh_CN.utf8", I18n.t("remote.install.cfg.db_locale.desc", "默认字符集推荐utf8，如要兼容GBK使用zh_CN.gb18030-2000")));
+        installConfigItems.add(new InstallConfigItem("gl_useglu", "GL_USEGLU", "1", I18n.t("remote.install.cfg.gl_useglu.desc", "是否开启GLU，建议开启，0关闭")));
+        installConfigItems.add(new InstallConfigItem("data_file_path", I18n.t("remote.install.cfg.data_file_path.name", "数据文件路径"), "$GBASEDBTDIR/dbs", I18n.t("remote.install.cfg.data_file_path.desc", "如/data，路径必须存在，修改后相关空间大小根据空间可用量自动重新计算")));
+        installConfigItems.add(new InstallConfigItem("rootsize", "ROOTSIZE", "1024000", I18n.t("remote.install.cfg.rootsize.desc", "根空间大小，建议不小于1G，固定值。")));
+        installConfigItems.add(new InstallConfigItem("listen_ip", I18n.t("remote.install.cfg.listen_ip.name", "监听IP"), "0.0.0.0", I18n.t("remote.install.cfg.listen_ip.desc", "默认监听所有IP，如无特殊要求不修改")));
+        installConfigItems.add(new InstallConfigItem("listen_port", I18n.t("remote.install.cfg.listen_port.name", "监听端口"), "9088", I18n.t("remote.install.cfg.listen_port.desc", "默认端口9088，如无特殊要求不修改")));
+        installConfigItems.add(new InstallConfigItem("physfile", "PHYSFILE", String.valueOf(PHYSFILE), I18n.t("remote.install.cfg.physfile.desc", "物理日志大小，建议不小于10G，默认根据数据文件路径可用空间自动计算")));
+        installConfigItems.add(new InstallConfigItem("logsize", "LOGSIZE", "102400", I18n.t("remote.install.cfg.logsize.desc", "单个逻辑日志大小，建议100MB固定值")));
+        installConfigItems.add(new InstallConfigItem("logfiles", "LOGFILES", String.valueOf(LOGFILES), I18n.t("remote.install.cfg.logfiles.desc", "逻辑日志个数，建议不小于100个，默认根据数据文件路径可用空间自动计算")));
+        installConfigItems.add(new InstallConfigItem("tempdbs", I18n.t("remote.install.cfg.tempdbs.name", "临时空间配置"), TEMPDBS, I18n.t("remote.install.cfg.tempdbs.desc", "数量*大小，如1*10240000，建议不小于10G，默认根据数据文件路径可用空间自动计算")));
+        installConfigItems.add(new InstallConfigItem("sbspace_size", I18n.t("remote.install.cfg.sbspace_size.name", "智能大对象空间大小"), String.valueOf(SBDBSSIZE), I18n.t("remote.install.cfg.sbspace_size.desc", "建议不小于10G，默认根据数据文件路径可用空间自动计算")));
+        installConfigItems.add(new InstallConfigItem("data_space_size", I18n.t("remote.install.cfg.data_space_size.name", "用户数据空间大小"), String.valueOf(DATADBSSIZE), I18n.t("remote.install.cfg.data_space_size.desc", "建议不小于10G，默认根据数据文件路径可用空间自动计算")));
+        installConfigItems.add(new InstallConfigItem("default_db_name", I18n.t("remote.install.cfg.default_db_name.name", "用户默认数据库名"), "gbasedb", I18n.t("remote.install.cfg.default_db_name.desc", "默认gbasedb，可自定义修改")));
+        installConfigItems.add(new InstallConfigItem("locks", "LOCKS", String.valueOf(LOCKS), I18n.t("remote.install.cfg.locks.desc", "建议不小于10000000，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("ds_total_memory", "DS_TOTAL_MEMORY", String.valueOf(DS_TOTAL_MEMORY), I18n.t("remote.install.cfg.ds_total_memory.desc", "建议不小于4096000，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("ds_nonpdq", "DS_NONPDQ_QUERY_MEM", String.valueOf(DS_TOTAL_MEMORY/4), I18n.t("remote.install.cfg.ds_nonpdq.desc", "建议不小于1024000，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("shmvirtsize", "SHMVIRTSIZE", String.valueOf(SHMVIRTSIZE), I18n.t("remote.install.cfg.shmvirtsize.desc", "建议不小于4096000，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("shmadd", "SHMADD", String.valueOf(SHMVIRTSIZE/4), I18n.t("remote.install.cfg.shmadd.desc", "建议不小于1024000，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("vpclass", "VPCLASS", "cpu,num="+NUMCPU+",noage", I18n.t("remote.install.cfg.vpclass.desc", "如是numa架构多路服务器，可绑定CPU，默认等于CPU内核数量")));
+        installConfigItems.add(new InstallConfigItem("bufferpool_2k", "BUFFERPOOL", "size=2k,buffers="+K2BUFFERS+",lrus=32,lru_min_dirty=50,lru_max_dirty=60", I18n.t("remote.install.cfg.bufferpool_2k.desc", "建议不小于1G，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("bufferpool_16k", "BUFFERPOOL", "size=16k,buffers="+K16BUFFERS+",lrus=128,lru_min_dirty=50,lru_max_dirty=60", I18n.t("remote.install.cfg.bufferpool_16k.desc", "建议不超过内存的50%，默认根据内存自动计算")));
+        installConfigItems.add(new InstallConfigItem("backup_path", I18n.t("remote.install.cfg.backup_path.name", "备份路径"), "", I18n.t("remote.install.cfg.backup_path.desc", "填写路径后每天0点执行全量备份到填写的指定路径，逻辑日志自动归档，保留7天。")));
+        refreshLegacyConfigListFromItems();
     }
 
 
 
 }
+

@@ -26,6 +26,11 @@ public class ConfigManagerUtil {
         return properties.getProperty(key);
     }
 
+    // 获取属性值（带默认值）
+    public static String getProperty(String key, String defaultValue) {
+        return properties.getProperty(key, defaultValue);
+    }
+
     // 修改属性值
     public static void setProperty(String key, String value) {
         properties.setProperty(key, value);

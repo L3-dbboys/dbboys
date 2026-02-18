@@ -1,4 +1,4 @@
-﻿package com.dbboys.ctrl;
+package com.dbboys.ctrl;
 
 
 import com.dbboys.customnode.CustomInfoCodeArea;
@@ -7,6 +7,9 @@ import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.db.DbConnectionFactory;
+import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconFactory;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
 import com.dbboys.app.Main;
 import com.dbboys.vo.ConnectFolder;
@@ -31,7 +34,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
@@ -40,9 +45,6 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.awt.*;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -82,6 +84,16 @@ public class CreateConnectController {
     @FXML
     private Button connectingStopButton;
     @FXML
+    private Button addDriverButton;
+    @FXML
+    private Button deleteDriverButton;
+    @FXML
+    private Button modifyDriverButton;
+    @FXML
+    private Button modifyGroupButton;
+    @FXML
+    private Button switchGroupOrIP;
+    @FXML
     private ButtonType commitButtonType;
     @FXML
     private ButtonType testButtonType;
@@ -89,6 +101,28 @@ public class CreateConnectController {
     private ButtonType cancelButtonType;
     @FXML
     private DialogPane dialogPane;
+    @FXML
+    private Label connectNameLabel;
+    @FXML
+    private Label connectFolderLabel;
+    @FXML
+    private Label dbTypeLabel;
+    @FXML
+    private Label driverLabel;
+    @FXML
+    private Label ipAddressLabel;
+    @FXML
+    private Label portLabel;
+    @FXML
+    private Label groupLabel;
+    @FXML
+    private Label usernameLabel;
+    @FXML
+    private Label passwordLabel;
+    @FXML
+    private Label connectingStatusLabel;
+    @FXML
+    private ImageView connectingLoadingImageView;
     @FXML
     private HBox groupHbox;
     @FXML
@@ -266,7 +300,10 @@ public class CreateConnectController {
                 setConnect(connect);
                 //如果连接信息可正常连接，检查连接名是否已存在
                 if(SqliteDBaccessUtil.checkConnectLeafNameExists(connect)){
-                    AlterUtil.CustomAlert("错误","连接名称\""+connect.getName()+"\"已存在，请输入其他名称。");
+                    AlterUtil.CustomAlert(
+                            I18n.t("common.error"),
+                            String.format(I18n.t("createconnect.error.name_exists"), connect.getName())
+                    );
                     event1.consume();
                 }else {//如果连接名不存在，增加新节点
                     commitConnecting(connect,true);
@@ -343,8 +380,33 @@ public class CreateConnectController {
     }
 
     public void initialize() throws IOException {
+        setupIcons();
+    }
 
+    private void setupIcons() {
+        Color common = Color.valueOf("#888");
+        Color primary = Color.valueOf("#074675");
+        Color danger = Color.valueOf("#9f453c");
 
+        connectNameLabel.setGraphic(IconFactory.group(IconPaths.CONNECTION_LINK, 0.5, common));
+        connectFolderLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_FOLDER, 0.4, common));
+        dbTypeLabel.setGraphic(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, common));
+        driverLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_DRIVER, 0.05, common));
+        ipAddressLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_IP, 0.6, common));
+        portLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PORT, 0.7, common));
+        groupLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_GROUP, 0.55, common));
+        usernameLabel.setGraphic(IconFactory.group(IconPaths.SQL_USER, 0.5, common));
+        passwordLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PASSWORD, 0.5, common));
+        readOnlyCheckBox.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, common));
+
+        addDriverButton.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_ADD_DRIVER, 0.7, primary));
+        deleteDriverButton.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_REMOVE_DRIVER, 0.6, primary));
+        modifyDriverButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6, primary));
+        modifyGroupButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6, primary));
+        switchGroupOrIP.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.7, primary));
+
+        connectingLoadingImageView.setImage(new Image(IconPaths.LOADING_GIF));
+        connectingStopButton.setGraphic(IconFactory.group(IconPaths.SQL_STOP, 0.7, danger));
     }
 
     private void applyTextFormatters() {
@@ -387,7 +449,7 @@ public class CreateConnectController {
         //添加驱动包
         public void addDriverClicked(){
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("选择驱动程序");
+            fileChooser.setTitle(I18n.t("createconnect.filechooser.select_driver"));
             fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("Jar Files", "*.jar")
             );
@@ -397,7 +459,7 @@ public class CreateConnectController {
                 // 处理选中的文件
                 ObservableList<String> items = driverChoiceBox.getItems();
                 if(items.stream().anyMatch(name -> name.equals(selectedFile.getName()))){
-                    AlterUtil.CustomAlert("错误","该驱动包同名文件已存在！");
+                    AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_same_name"));
                 }else{
 
                     Path sourcePath = Paths.get(selectedFile.getAbsolutePath());
@@ -417,7 +479,10 @@ public class CreateConnectController {
                             }
                         }
                         if(md5same){
-                            AlterUtil.CustomAlert("错误","此驱动程序与已有驱动\""+sourceSamename+"\"MD5一致，为重复文件！");
+                            AlterUtil.CustomAlert(
+                                    I18n.t("common.error"),
+                                    String.format(I18n.t("createconnect.error.driver_same_md5"), sourceSamename)
+                            );
                         }
                         else{
                             String newItem=selectedFile.getName();
@@ -435,16 +500,16 @@ public class CreateConnectController {
         //删除当前驱动包
         public void deleteDriverClicked(){
             if(driverChoiceBox.getItems().size()<=1){
-                AlterUtil.CustomAlert("错误","当前仅有一个驱动，不可删除！");
+                AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_last_one"));
             }else{
                 String currItem=(String)driverChoiceBox.getValue();
                 File file = new File("extlib/"+dbTypeChoiceBox.getValue()+"/"+currItem);
                 if(SqliteDBaccessUtil.checkDriverInUse(currItem)){
                     //如果正在使用，提示是否确认要删除
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                    alert.setTitle("删除驱动确认");
+                    alert.setTitle(I18n.t("createconnect.confirm.delete_driver.title"));
                     alert.setHeaderText("");
-                    alert.setContentText("检查到部分连接需要使用此驱动，确认要删除该驱动？");
+                    alert.setContentText(I18n.t("createconnect.confirm.delete_driver.content"));
                     alert.setGraphic(null); //避免显示问号
                     //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
                     alert.getDialogPane().getScene().getStylesheets().add(getClass().getResource("/com/dbboys/css/app.css").toExternalForm());
@@ -452,8 +517,8 @@ public class CreateConnectController {
                     alterstage.getIcons().add(new Image("file:images/logo.png"));
 
                     // 自定义按钮
-                    ButtonType buttonTypeOk = new ButtonType("确认", ButtonBar.ButtonData.OK_DONE);
-                    ButtonType buttonTypeCancel = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+                    ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
+                    ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
                     alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
                     Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
                     //button.setDisable(true);
@@ -464,7 +529,7 @@ public class CreateConnectController {
                             driverChoiceBox.getItems().remove(currItem);
                             driverChoiceBox.getSelectionModel().select(0);
                         }else{
-                            AlterUtil.CustomAlert("错误","无法删除，该驱动文件已被打开，需重启软件后删除！");
+                            AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_delete_failed"));
                         }
                     }
                 }else{
@@ -472,7 +537,7 @@ public class CreateConnectController {
                         driverChoiceBox.getItems().remove(currItem);
                         driverChoiceBox.getSelectionModel().select(0);
                     }else{
-                        AlterUtil.CustomAlert("错误","无法删除，该驱动文件已被打开，需重启软件后删除！");
+                        AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_delete_failed"));
                     }
                 }
 
@@ -502,14 +567,14 @@ public class CreateConnectController {
         tableView.setEditable(true);
         tableView.setSortPolicy((param) -> false);//禁用排序
 
-        TableColumn<ObservableList<String>, Object> nameColumn = new TableColumn<ObservableList<String>, Object>("属性名称");
+        TableColumn<ObservableList<String>, Object> nameColumn = new TableColumn<ObservableList<String>, Object>(I18n.t("createconnect.table.prop_name"));
         nameColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<ObservableList<String>, Object>());
         nameColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(1)));
         nameColumn.setReorderable(false); // 禁用拖动
         nameColumn.setEditable(false);
         nameColumn.setReorderable(false);
         nameColumn.setPrefWidth(220);
-        TableColumn<ObservableList<String>, Object> valueColumn = new TableColumn<ObservableList<String>, Object>("属性值");
+        TableColumn<ObservableList<String>, Object> valueColumn = new TableColumn<ObservableList<String>, Object>(I18n.t("createconnect.table.prop_value"));
         valueColumn.setCellFactory(col -> new CustomLostFocusCommitTableCell<ObservableList<String>, Object>());
         valueColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(2)));
         valueColumn.setReorderable(false); // 禁用拖动
@@ -537,7 +602,7 @@ public class CreateConnectController {
 
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("编辑连接属性");
+        alert.setTitle(I18n.t("createconnect.dialog.edit_props.title"));
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
@@ -551,8 +616,8 @@ public class CreateConnectController {
         alert.getDialogPane().setContent(hbox);
 
         // 自定义按钮
-        ButtonType buttonTypeOk = new ButtonType("确认", ButtonBar.ButtonData.OK_DONE);
-        ButtonType buttonTypeCancel = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
         Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
         ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
@@ -576,7 +641,7 @@ public class CreateConnectController {
     public void modifyGroupProps(){
     
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("编辑组信息");
+        alert.setTitle(I18n.t("createconnect.dialog.edit_group.title"));
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
@@ -610,8 +675,8 @@ public class CreateConnectController {
         alert.getDialogPane().setContent(hbox);
 
         // 自定义按钮
-        ButtonType buttonTypeOk = new ButtonType("确认", ButtonBar.ButtonData.OK_DONE);
-        ButtonType buttonTypeCancel = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
         Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
         ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
@@ -652,7 +717,10 @@ public class CreateConnectController {
                         end=System.currentTimeMillis();
                         Long finalEnd = end;
                         Platform.runLater(()-> {
-                            AlterUtil.CustomAlert("错误", "[" + e1.getErrorCode() + "]" + e1.getMessage()+"用时【"+(finalEnd -start)+"ms】。");
+                            AlterUtil.CustomAlert(
+                                    I18n.t("common.error"),
+                                    String.format(I18n.t("createconnect.error.connect_failed"), e1.getErrorCode(), e1.getMessage(), (finalEnd - start))
+                            );
                             setConnectingVisible(false);
                         });
                         return null;
@@ -727,13 +795,16 @@ public class CreateConnectController {
 
 
                         }else{
-                            AlterUtil.CustomAlert("错误",result);
+                            AlterUtil.CustomAlert(I18n.t("common.error"), result);
                         }
 
                     //如果不是提交连接，那就是点击了测试连接,需要
                     }else{
                         Platform.runLater(()->{
-                            AlterUtil.CustomAlert("通知","测试连接成功，用时【"+(finalEnd -start)+"ms】。");
+                            AlterUtil.CustomAlert(
+                                    I18n.t("common.hint"),
+                                    String.format(I18n.t("createconnect.notice.test_success"), (finalEnd - start))
+                            );
                             setConnectingVisible(false);
                         });
                         try {

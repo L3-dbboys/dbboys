@@ -1,13 +1,14 @@
-﻿package com.dbboys.util;
+package com.dbboys.util;
 
 import com.dbboys.app.Main;
+import com.dbboys.i18n.I18n;
 import javafx.application.Platform;
+import javafx.beans.binding.StringBinding;
 import javafx.collections.FXCollections;
 import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -53,8 +54,12 @@ import java.util.stream.Stream;
  */
 class LuceneIndexer {
 
-    private static Path indexDir= Path.of("索引");
-    private static Analyzer analyzer = null;
+    private final Path indexDir;
+    private final Analyzer analyzer;
+    private static final StringBinding FOLDER_NOT_EXISTS_BINDING =
+            I18n.bind("markdown.search.error.folder_not_exists", "markdownFolder 不存在: %s");
+    private static final StringBinding INDEX_FILE_ERROR_BINDING =
+            I18n.bind("markdown.search.error.index_file", "索引文件出错: %s -> %s");
 
     public LuceneIndexer(Path indexDir) {
         this.indexDir = indexDir;
@@ -69,9 +74,9 @@ class LuceneIndexer {
      * @param progress       可选回调，接收当前处理文件路径（用于 UI 更新），可为 null
      * @throws IOException on IO error
      */
-    public static void buildIndex(Path markdownFolder, boolean overwrite, Consumer<String> progress) throws IOException {
+    public void buildIndex(Path markdownFolder, boolean overwrite, Consumer<String> progress) throws IOException {
         if (markdownFolder == null || !Files.exists(markdownFolder)) {
-            throw new IllegalArgumentException("markdownFolder 不存在: " + markdownFolder);
+            throw new IllegalArgumentException(FOLDER_NOT_EXISTS_BINDING.get().formatted(markdownFolder));
         }
 
         Directory dir = FSDirectory.open(indexDir);
@@ -88,7 +93,7 @@ class LuceneIndexer {
                             if (progress != null) progress.accept(p.toString());
                             indexFile(writer, p);
                         } catch (IOException ex) {
-                            System.err.println("索引文件出错: " + p + " -> " + ex.getMessage());
+                            System.err.println(INDEX_FILE_ERROR_BINDING.get().formatted(p, ex.getMessage()));
                         }
                     });
 
@@ -162,28 +167,28 @@ class LuceneSearcher {
     }
 
     public List<LuceneSearcher.SearchResult> search(String keyword, int limit) throws Exception {
-        Directory dir = FSDirectory.open(indexDir);
-        DirectoryReader reader = DirectoryReader.open(dir);
-        IndexSearcher searcher = new IndexSearcher(reader);
+        try (Directory dir = FSDirectory.open(indexDir);
+             DirectoryReader reader = DirectoryReader.open(dir)) {
+            IndexSearcher searcher = new IndexSearcher(reader);
 
-        String[] fields = {"path", "filename", "content"};
-        Map<String, Float> boosts = Map.of(
-                "path", 1.5f,
-                "filename", 2.0f,
-                "content", 1.0f
-        );
+            String[] fields = {"path", "filename", "content"};
+            Map<String, Float> boosts = Map.of(
+                    "path", 1.5f,
+                    "filename", 2.0f,
+                    "content", 1.0f
+            );
 
-        MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer, boosts);
-        Query query = parser.parse(keyword);
+            MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer, boosts);
+            Query query = parser.parse(keyword);
 
-        TopDocs topDocs = searcher.search(query, limit);
-        List<LuceneSearcher.SearchResult> results = new ArrayList<>();
+            TopDocs topDocs = searcher.search(query, limit);
+            List<LuceneSearcher.SearchResult> results = new ArrayList<>();
 
-        for (ScoreDoc sd : topDocs.scoreDocs) {
-            Document doc = searcher.storedFields().document(sd.doc);
-            String path = doc.get("path");
-            String content = doc.get("content");
-            if (content == null) content = "";
+            for (ScoreDoc sd : topDocs.scoreDocs) {
+                Document doc = searcher.storedFields().document(sd.doc);
+                String path = doc.get("path");
+                String content = doc.get("content");
+                if (content == null) content = "";
 
             // --------- 1) 分词提取搜索 token（和你原来的一样） ----------
             List<String> tokens = new ArrayList<>();
@@ -264,10 +269,11 @@ class LuceneSearcher {
             // 如果你想返回带 <mark> 的 snippet，可以在此用正则替换 token 为 <mark>xxx</mark>
             // 但注意：你现在的 UI 用 TextFlow 对 snippet 做高亮，这里返回原文更灵活。
 
-            results.add(new LuceneSearcher.SearchResult(path, sd.score, snippet));
-        }
+                results.add(new LuceneSearcher.SearchResult(path, sd.score, snippet));
+            }
 
-        return results;
+            return results;
+        }
     }
 
     public static class SearchResult {
@@ -287,14 +293,17 @@ class LuceneSearcher {
 
 
 public class MarkdownSearchUtil {
-    private static Popup search_result_popup = new Popup();
-    private static Path indexDir = Paths.get("index");
-    private static Path markdownFolder;
-    public static String keywordField;
-    private static ListView<LuceneSearcher.SearchResult> resultList = new ListView<>();
+    private static final Popup searchResultPopup = new Popup();
+    private static final Path indexDir = Paths.get("index");
+    private static final ListView<LuceneSearcher.SearchResult> resultList = new ListView<>();
+    private static final Label resultPlaceholderLabel = new Label();
+    private static final StringBinding errorTitleBinding = I18n.bind("common.error", "错误");
+    private static final StringBinding noMatchBinding = I18n.bind("markdown.search.notice.no_match", "搜索没有匹配项！");
+    private static final StringBinding rebuildDoneBinding = I18n.bind("markdown.search.notice.rebuild_done", "索引重建完成！");
+    private static final StringBinding buildFailedBinding = I18n.bind("markdown.search.error.build_failed", "索引建立失败：%s");
+    private static final StringBinding warmUpKeywordBinding = I18n.bind("markdown.search.warmup.keyword", "安装配置");
+    private static String keywordField;
     private static boolean popupListenersAdded = false;
-
-    private TextArea previewArea;
 
     static {
         resultList.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
@@ -309,14 +318,14 @@ public class MarkdownSearchUtil {
                     setText(null);
                     setGraphic(null);
                 } else {
-                    TextFlow flow = buildHighlightedText(item, keywordField.trim());
+                    TextFlow flow = buildHighlightedText(item, keywordField == null ? "" : keywordField.trim());
                     setGraphic(flow);
                     setOnMouseClicked(event -> {
                         if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1) {
                             LuceneSearcher.SearchResult clickedItem = getItem();
                             //UtilclickedItem.path
                             TabpaneUtil.addCustomMarkdownTab(new File(clickedItem.path),false);
-                            search_result_popup.hide();
+                            searchResultPopup.hide();
                         }
                     });
                 }
@@ -325,9 +334,11 @@ public class MarkdownSearchUtil {
 
 
         });
-        search_result_popup.getContent().add(resultList);
+        searchResultPopup.getContent().add(resultList);
         resultList.setFocusTraversable(false);
         resultList.setPrefWidth(480);
+        resultPlaceholderLabel.textProperty().bind(I18n.bind("markdown.search.placeholder", "暂无搜索结果"));
+        resultList.setPlaceholder(resultPlaceholderLabel);
     }
 
     private static TextFlow buildHighlightedText(LuceneSearcher.SearchResult item, String keyword) {
@@ -355,7 +366,11 @@ public class MarkdownSearchUtil {
 
         // ====== 高亮路径 ======
         String fullPath = item.path;
-        Pattern pathPattern = Pattern.compile(String.join("|", tokens), Pattern.CASE_INSENSITIVE);
+        String tokenPattern = tokens.stream()
+                .map(Pattern::quote)
+                .reduce((a, b) -> a + "|" + b)
+                .orElse(Pattern.quote(keyword));
+        Pattern pathPattern = Pattern.compile(tokenPattern, Pattern.CASE_INSENSITIVE);
         Matcher pathMatcher = pathPattern.matcher(fullPath);
 
         int last = 0;
@@ -438,7 +453,7 @@ public class MarkdownSearchUtil {
             LuceneIndexer indexer = new LuceneIndexer(indexDir);
             indexer.buildIndex(Paths.get("docs"));
             Platform.runLater(()->{
-            NotificationUtil.showNotification(Main.mainController.noticePane,"索引重建完成！");
+            NotificationUtil.showNotification(Main.mainController.noticePane, rebuildDoneBinding.get());
                 Platform.runLater(()->{
                     Main.mainController.rebuildMarkdownIndexButton.setVisible(true);
                 });
@@ -446,7 +461,8 @@ public class MarkdownSearchUtil {
         } catch (Exception e) {
             Platform.runLater(()-> {
                         Main.mainController.rebuildMarkdownIndexButton.setVisible(true);
-                        AlterUtil.CustomAlert("错误", "索引建立失败：" + e.getMessage());
+                        AlterUtil.CustomAlert(errorTitleBinding.get(),
+                                buildFailedBinding.get().formatted(e.getMessage()));
                     });
             e.printStackTrace();
         }
@@ -465,16 +481,16 @@ public class MarkdownSearchUtil {
                 Stage mainStage = (Stage) Main.scene.getWindow();
                 if (!popupListenersAdded) {
                     mainStage.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
-                        if (search_result_popup.isShowing()) {
+                        if (searchResultPopup.isShowing()) {
                             // 1. 将主窗口内的鼠标坐标转换为屏幕绝对坐标
                             double mouseX = mainStage.getX() + event.getX();
                             double mouseY = mainStage.getY() + event.getY();
 
                             // 2. 获取弹窗的屏幕坐标范围
-                            double popupX = search_result_popup.getX();
-                            double popupY = search_result_popup.getY();
-                            double popupWidth = search_result_popup.getWidth();
-                            double popupHeight = search_result_popup.getHeight();
+                            double popupX = searchResultPopup.getX();
+                            double popupY = searchResultPopup.getY();
+                            double popupWidth = searchResultPopup.getWidth();
+                            double popupHeight = searchResultPopup.getHeight();
 
                             // 3. 判断鼠标是否在弹窗外部
                             boolean isOutside = mouseX < popupX
@@ -483,14 +499,14 @@ public class MarkdownSearchUtil {
                                     || mouseY > popupY + popupHeight;
 
                             if (isOutside) {
-                                search_result_popup.hide();
+                                searchResultPopup.hide();
                             }
                         }
                     });
                     mainStage.focusedProperty().addListener((obs, oldFocused, newFocused) -> {
                         // 主窗口失去焦点（切换到其他程序），隐藏 Popup
-                        if (!newFocused && search_result_popup.isShowing()) {
-                            search_result_popup.hide();
+                        if (!newFocused && searchResultPopup.isShowing()) {
+                            searchResultPopup.hide();
                         }
                     });
                     popupListenersAdded=true;
@@ -500,15 +516,15 @@ public class MarkdownSearchUtil {
                 resultList.setPrefHeight(mainStage.getHeight()-86);
                 resultList.setStyle("-fx-border-color: #888;-fx-border-width: 0.5;-fx-border-radius: 5");
                 //这个设置可以避免出现search_result_popup在第一次搜索“配置”时靠顶显示
-                search_result_popup.setAutoFix(false);
+                searchResultPopup.setAutoFix(false);
                 if(resultList.getItems().size()>0){
                     resultList.scrollTo(0);
-                    search_result_popup.show(mainStage,
+                    searchResultPopup.show(mainStage,
                             mainStage.getX() + 20,
                             mainStage.getY() + 56);
                 }else{
-                    search_result_popup.hide();
-                    NotificationUtil.showNotification(Main.mainController.noticePane, "搜索没有匹配项！");
+                    searchResultPopup.hide();
+                    NotificationUtil.showNotification(Main.mainController.noticePane, noMatchBinding.get());
                 }
 
                 DropShadow shadow = new DropShadow();
@@ -521,7 +537,7 @@ public class MarkdownSearchUtil {
             });
         } catch (Exception e) {
             Platform.runLater(()->{
-                AlterUtil.CustomAlert("错误",e.getMessage());
+                AlterUtil.CustomAlert(errorTitleBinding.get(), e.getMessage());
             });
             e.printStackTrace();
         }
@@ -542,7 +558,7 @@ public class MarkdownSearchUtil {
 
     public static void warmUpIndex() {
         try  {
-            keywordField="安装配置";
+            keywordField=warmUpKeywordBinding.get();
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
             List<LuceneSearcher.SearchResult> results = searcher.search(keywordField, 50);
         } catch (Exception ignored) {}

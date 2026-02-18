@@ -25,5 +25,7 @@
     "files.associations":  {
                                "*.css":  "css",
                                "*.fxcss":  "css"
-                           }
+                           },
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": false
 }
