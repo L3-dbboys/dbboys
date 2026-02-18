@@ -96,25 +96,7 @@ public class MetadataTreeviewUtil {
         userService = new UserService();
     }
 
-    private static void executeBackgroundSql(String sql, String charset) {
-        backSqlService.executeBackgroundSql(sql, charset, MetadataTreeviewUtil::refreshCurrentTreeItem);
-    }
 
-    private static void refreshCurrentTreeItem() {
-        if (Main.mainController == null || Main.mainController.databaseMetaTreeView == null) {
-            return;
-        }
-        TreeItem<TreeData> selected = Main.mainController.databaseMetaTreeView.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-        TreeItem<TreeData> target = selected.isLeaf() ? selected.getParent() : selected;
-        if (target != null) {
-            target.getChildren().clear();
-            target.setExpanded(false);
-            target.setExpanded(true);
-        }
-    }
 
     public static void initDatabaseObjectsTreeview(TreeView<TreeData> treeView){
         TreeItem<TreeData> rootItem = new TreeItem<>();
@@ -318,7 +300,7 @@ public class MetadataTreeviewUtil {
                             .formatted(selectedItem.getValue().getName())
             );
             if(confirm){
-                executeBackgroundSql("alter table "+connect.getName()+" type(raw)",null);
+                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(raw)",null);
             }
         });
 
@@ -332,7 +314,7 @@ public class MetadataTreeviewUtil {
                             .formatted(selectedItem.getValue().getName())
             );
             if(confirm){
-                executeBackgroundSql("alter table "+connect.getName()+" type(standard)",null);
+                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(standard)",null);
             }
         });
 
@@ -346,7 +328,7 @@ public class MetadataTreeviewUtil {
                             .formatted(selectedItem.getValue().getName())
             );
             if(confirm){
-                executeBackgroundSql("truncate table "+connect.getName(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"truncate table "+connect.getName(),null);
             }
         });
 
@@ -362,7 +344,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    executeBackgroundSql("set indexes "+connect.getName()+" disabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" disabled",null);
                 }
             }
             if(connect instanceof Trigger) {//触发器
@@ -372,7 +354,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    executeBackgroundSql("set triggers "+connect.getName()+" disabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" disabled",null);
                 }
             }
         });
@@ -388,7 +370,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    executeBackgroundSql("set indexes "+connect.getName()+" enabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" enabled",null);
                 }
             }
             if(connect instanceof Trigger) {//触发器
@@ -398,7 +380,7 @@ public class MetadataTreeviewUtil {
                                 .formatted(selectedItem.getValue().getName())
                 );
                 if(confirm){
-                    executeBackgroundSql("set triggers "+connect.getName()+" enabled",null);
+                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" enabled",null);
                 }
             }
         });
@@ -549,7 +531,7 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("metadata.error.password_not_match", "两次密码输入不一致！"));
                     event1.consume();
                 } else {
-                    executeBackgroundSql("create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
+                    backSqlService.executeBackgroundSql(selectedItem,"create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
                 }
 
             });
@@ -609,7 +591,7 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("metadata.error.password_not_match", "两次密码输入不一致！"));
                     event1.consume();
                 } else {
-                    executeBackgroundSql("alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
+                    backSqlService.executeBackgroundSql(selectedItem,"alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
                 }
 
             });
@@ -622,22 +604,22 @@ public class MetadataTreeviewUtil {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             TreeData connect = selectedItem.getValue();
             if (connect instanceof Database) {
-                executeBackgroundSql("update statistics", null);
+                backSqlService.executeBackgroundSql(selectedItem,"update statistics", null);
             }
             else if (connect instanceof ObjectFolder) {
                 ObjectFolderKind objectFolderKind = getObjectFolderKind(selectedItem);
                 if(objectFolderKind == ObjectFolderKind.SYSTEM_TABLE_VIEW || objectFolderKind == ObjectFolderKind.TABLES){
-                    executeBackgroundSql("update statistics high for table force", null);
+                    backSqlService.executeBackgroundSql(selectedItem,"update statistics high for table force", null);
                 }
                 else if(objectFolderKind == ObjectFolderKind.PROCEDURES){
-                    executeBackgroundSql("update statistics for procedure", null);
+                    backSqlService.executeBackgroundSql(selectedItem,"update statistics for procedure", null);
                 }
             }
             else if(connect instanceof SysTable||connect instanceof Table){
-                executeBackgroundSql("update statistics for table "+connect.getName(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"update statistics for table "+connect.getName(),null);
             }
             else if(connect instanceof Procedure){
-                executeBackgroundSql("update statistics for procedure "+connect.getName(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"update statistics for procedure "+connect.getName(),null);
             }
         });
 
@@ -809,7 +791,7 @@ public class MetadataTreeviewUtil {
 
             ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
             if (result == buttonTypeOk) {
-                executeBackgroundSql("create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
+                backSqlService.executeBackgroundSql(selectedItem,"create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
 
             }
         });
@@ -1390,21 +1372,21 @@ public class MetadataTreeviewUtil {
                 NotificationUtil.showNotification(Main.mainController.noticePane,
                         I18n.t("metadata.notice.connection_renamed", "连接已重命名为：%s").formatted(selectedItem.getValue().getName()));
             }else if(selectedItem.getValue() instanceof Database){
-                executeBackgroundSql("rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Table){
-                executeBackgroundSql("rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Index){
-                executeBackgroundSql("rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Sequence){
-                executeBackgroundSql("rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Synonym){
-                executeBackgroundSql("rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Trigger){
-                executeBackgroundSql("rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Function){
-                executeBackgroundSql("rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }else if(selectedItem.getValue() instanceof Procedure){
-                executeBackgroundSql("rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+                backSqlService.executeBackgroundSql(selectedItem,"rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
             }
         }
     }
@@ -1458,27 +1440,27 @@ public class MetadataTreeviewUtil {
                         I18n.t("metadata.notice.connection_deleted", "数据库连接\"%s\"已删除！").formatted(selectedItem.getValue().getName()));
             }
         }else if(selectedItem.getValue() instanceof Database){
-            executeBackgroundSql("drop database "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop database "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Table){
-            executeBackgroundSql("drop table "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop table "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof View){
-            executeBackgroundSql("drop view "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop view "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Index){
-            executeBackgroundSql("drop index "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop index "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Sequence){
-            executeBackgroundSql("drop sequece "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop sequece "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Synonym){
-            executeBackgroundSql("drop synonym "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop synonym "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Trigger){
-            executeBackgroundSql("drop trigger "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop trigger "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Function){
-            executeBackgroundSql("drop function "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop function "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof Procedure){
-            executeBackgroundSql("drop procedure "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop procedure "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof DBPackage){
-            executeBackgroundSql("drop package "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop package "+selectedItem.getValue().getName(),null);
         }else if(selectedItem.getValue() instanceof User){
-            executeBackgroundSql("drop user "+selectedItem.getValue().getName(),null);
+            backSqlService.executeBackgroundSql(selectedItem,"drop user "+selectedItem.getValue().getName(),null);
         }
     }
 

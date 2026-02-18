@@ -750,7 +750,7 @@ public class MainController {
         });
 
         statusBackSqlStopButton.setOnAction(event->{
-            Iterator<BackSqlTask> iterator = MetadataTreeviewUtil.backSqlService.backSqlTask.iterator();
+            Iterator<BackSqlTask> iterator = MetadataTreeviewUtil.backSqlService.backSqlTaskList.iterator();
             while (iterator.hasNext()) {
                 BackSqlTask bgsql = iterator.next();
                 bgsql.cancel();

@@ -200,7 +200,7 @@ public class PopupWindowUtil {
         sqlTaskConnNameTableColumn = new TableColumn<>();
         sqlTaskConnNameTableColumn.textProperty().bind(I18n.bind("popup.back_sql.column.connection_name", "连接名称"));
         sqlTaskConnNameTableColumn.setCellFactory(col -> new CustomTableCell<>());
-        sqlTaskConnNameTableColumn.setCellValueFactory(new PropertyValueFactory<>("connName"));
+        sqlTaskConnNameTableColumn.setCellValueFactory(new PropertyValueFactory<>("connectName"));
         sqlTaskConnNameTableColumn.setPrefWidth(300);
         sqlTaskConnNameTableColumn.setReorderable(false);
         sqlTaskConnNameTableColumn.setSortable(false);
