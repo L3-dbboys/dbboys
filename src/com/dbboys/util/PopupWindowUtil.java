@@ -1,11 +1,11 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
-import com.dbboys.vo.BackSqlTask;
+import com.dbboys.vo.BackgroundSqlTask;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -58,19 +58,19 @@ public class PopupWindowUtil {
     private static TableColumn<ObservableList<String>, Object> sqlHistoryDatabaseTableColumn;
 
     //后台sql
-    public static TableView<BackSqlTask> sqlTaskTableView = new TableView<>();
-    @Deprecated public static TableView<BackSqlTask> sql_task_tableview = sqlTaskTableView;
+    public static TableView<BackgroundSqlTask> sqlTaskTableView = new TableView<>();
+    @Deprecated public static TableView<BackgroundSqlTask> sql_task_tableview = sqlTaskTableView;
     private static Stage backSqlPopupStage = new Stage();
     private static StackPane backSqlPopupStageStackPane = new StackPane(sqlTaskTableView);
     private static Scene backSqlPopupStageScene = new Scene(backSqlPopupStageStackPane, 1000, 500);
     private static Image backSqlPopupStageIcon = new Image(IconPaths.MAIN_LOGO);
-    private static TableColumn<BackSqlTask, Object> sqlTaskRowNumTableColumn;
-    private static TableColumn<BackSqlTask, Object> sqlTaskIdTableColumn;
-    private static TableColumn<BackSqlTask, Object> sqlTaskBeginTableColumn;
-    private static TableColumn<BackSqlTask, Object> sqlTaskConnNameTableColumn;
-    private static TableColumn<BackSqlTask, Object> sqlTaskDatabaseTableColumn;
-    private static TableColumn<BackSqlTask, Object> sqlTaskSqlTableColumn;
-    private static TableColumn<BackSqlTask, Object> sqlTaskOperateTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskRowNumTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskIdTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskBeginTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskConnNameTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskDatabaseTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskSqlTableColumn;
+    private static TableColumn<BackgroundSqlTask, Object> sqlTaskOperateTableColumn;
 
     //显示DDL
     private static Stage ddlPopupStage = new Stage();
@@ -161,7 +161,7 @@ public class PopupWindowUtil {
         sqlTaskRowNumTableColumn = new TableColumn<>("");
         sqlTaskRowNumTableColumn.setCellFactory(new Callback<>() {
             @Override
-            public TableCell<BackSqlTask, Object> call(TableColumn<BackSqlTask, Object> param) {
+            public TableCell<BackgroundSqlTask, Object> call(TableColumn<BackgroundSqlTask, Object> param) {
                 return new TableCell<>() {
                     @Override
                     protected void updateItem(Object item, boolean empty) {
@@ -231,7 +231,7 @@ public class PopupWindowUtil {
 
         sqlTaskOperateTableColumn.setCellFactory(new Callback<>() {
             @Override
-            public TableCell<BackSqlTask, Object> call(TableColumn<BackSqlTask, Object> param) {
+            public TableCell<BackgroundSqlTask, Object> call(TableColumn<BackgroundSqlTask, Object> param) {
                 return new TableCell<>() {
                     @Override
                     protected void updateItem(Object item, boolean empty) {
@@ -247,7 +247,7 @@ public class PopupWindowUtil {
                             status_sqlStopButton.setFocusTraversable(false);
                             setGraphic(status_sqlStopButton);
                             status_sqlStopButton.setOnAction(event -> {
-                                BackSqlTask task = (BackSqlTask) getTableRow().getItem();
+                                BackgroundSqlTask task = (BackgroundSqlTask) getTableRow().getItem();
                                 if (task != null) {
                                     task.cancel();
                                     NotificationUtil.showNotification(noticePane, taskCanceledBinding.get());
@@ -473,3 +473,4 @@ public class PopupWindowUtil {
 
 
 }
+

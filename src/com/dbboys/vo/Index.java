@@ -6,54 +6,62 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 public class Index extends TreeData {
-    private StringProperty tabname=new SimpleStringProperty();
-    private StringProperty cols=new SimpleStringProperty();
-    private StringProperty idxtype=new SimpleStringProperty();
+
+    //created by liaosnet
+    private StringProperty indexOwner=new SimpleStringProperty();
+    private StringProperty tableName=new SimpleStringProperty();
+    private StringProperty tableOwner=new SimpleStringProperty();
+    private StringProperty indexType=new SimpleStringProperty();           // 索引类型
+    private StringProperty indexCluster=new SimpleStringProperty();        // 是否cluster类型
+    private StringProperty indexCols=new SimpleStringProperty();           // 索引字段列表
+    //合并结束
+
+    //created by L3
     private StringProperty levels=new SimpleStringProperty();
-    private StringProperty uniqvalues=new SimpleStringProperty();
-    private StringProperty pagesize=new SimpleStringProperty();
-    private StringProperty totalpages=new SimpleStringProperty();
-    private StringProperty totalsize=new SimpleStringProperty();
+    private StringProperty uniqueValues=new SimpleStringProperty();
+    private StringProperty pageSize=new SimpleStringProperty();
+    private StringProperty totalPages=new SimpleStringProperty();
+    private StringProperty totalSize=new SimpleStringProperty();
     private StringProperty database=new SimpleStringProperty();
-    private BooleanProperty isdisabled=new SimpleBooleanProperty();
+    private BooleanProperty isDisabled=new SimpleBooleanProperty();
     public Index() {}
     public Index(String name) {
         super(name);
     }
     public String getTabname() {
-        return tabname.get();
+        return tableName.get();
     }
 
     public StringProperty tabnameProperty() {
-        return tabname;
+        return tableName;
     }
 
     public void setTabname(String tabname) {
-        this.tabname.set(tabname);
+        this.tableName.set(tabname);
     }
 
     public String getCols() {
-        return cols.get();
+        return indexCols.get();
     }
 
     public StringProperty colsProperty() {
-        return cols;
+        return indexCols;
     }
 
     public void setCols(String cols) {
-        this.cols.set(cols);
+        this.indexCols.set(cols);
     }
 
     public String getIdxtype() {
-        return idxtype.get();
+        return indexType.get();
     }
 
     public StringProperty idxtypeProperty() {
-        return idxtype;
+        return indexType;
     }
 
     public void setIdxtype(String idxtype) {
-        this.idxtype.set(idxtype);
+        this.indexType.set(idxtype);
     }
 
     public String getLevels() {
@@ -69,51 +77,51 @@ public class Index extends TreeData {
     }
 
     public String getUniqvalues() {
-        return uniqvalues.get();
+        return uniqueValues.get();
     }
 
     public StringProperty uniqvaluesProperty() {
-        return uniqvalues;
+        return uniqueValues;
     }
 
     public void setUniqvalues(String uniqvalues) {
-        this.uniqvalues.set(uniqvalues);
+        this.uniqueValues.set(uniqvalues);
     }
 
     public String getPagesize() {
-        return pagesize.get();
+        return pageSize.get();
     }
 
     public StringProperty pagesizeProperty() {
-        return pagesize;
+        return pageSize;
     }
 
     public void setPagesize(String pagesize) {
-        this.pagesize.set(pagesize);
+        this.pageSize.set(pagesize);
     }
 
     public String getTotalpages() {
-        return totalpages.get();
+        return totalPages.get();
     }
 
     public StringProperty totalpagesProperty() {
-        return totalpages;
+        return totalPages;
     }
 
     public void setTotalpages(String totalpages) {
-        this.totalpages.set(totalpages);
+        this.totalPages.set(totalpages);
     }
 
     public String getTotalsize() {
-        return totalsize.get();
+        return totalSize.get();
     }
 
     public StringProperty totalsizeProperty() {
-        return totalsize;
+        return totalSize;
     }
 
     public void setTotalsize(String totalsize) {
-        this.totalsize.set(totalsize);
+        this.totalSize.set(totalsize);
     }
 
     public String getDatabase() {
@@ -129,14 +137,92 @@ public class Index extends TreeData {
     }
 
     public boolean getIsdisabled() {
-        return isdisabled.get();
+        return isDisabled.get();
     }
 
     public BooleanProperty isdisabledProperty() {
-        return isdisabled;
+        return isDisabled;
     }
 
     public void setIsdisabled(boolean isdisabled) {
-        this.isdisabled.set(isdisabled);
+        this.isDisabled.set(isdisabled);
     }
+
+
+    public String getIndexOwner() {
+        return indexOwner.get();
+    }
+
+    public StringProperty indexOwnerProperty() {
+        return indexOwner;
+    }
+
+    public void setIndexOwner(String indexOwner) {
+        this.indexOwner.set(indexOwner);
+    }
+
+    public String getTableName() {
+        return tableName.get();
+    }
+
+    public StringProperty tableNameProperty() {
+        return tableName;
+    }
+
+    public void setTableName(String tableName) {
+        this.tableName.set(tableName);
+    }
+
+    public String getTableOwner() {
+        return tableOwner.get();
+    }
+
+    public StringProperty tableOwnerProperty() {
+        return tableOwner;
+    }
+
+    public void setTableOwner(String tableOwner) {
+        this.tableOwner.set(tableOwner);
+    }
+
+    public String getIndexType() {
+        return indexType.get();
+    }
+
+    public StringProperty indexTypeProperty() {
+        return indexType;
+    }
+
+    public void setIndexType(String indexType) {
+        this.indexType.set(indexType);
+    }
+
+    public String getIndexCluster() {
+        return indexCluster.get();
+    }
+
+    public StringProperty indexClusterProperty() {
+        return indexCluster;
+    }
+
+    public void setIndexCluster(String indexCluster) {
+        this.indexCluster.set(indexCluster);
+    }
+
+    public String getIndexCols() {
+        return indexCols.get();
+    }
+
+    public StringProperty indexColsProperty() {
+        return indexCols;
+    }
+
+    public void setIndexCols(String indexCols) {
+        this.indexCols.set(indexCols);
+    }
+
+    public String toString(){
+        return "IndexName: " + this.getName();
+    }
+
 }

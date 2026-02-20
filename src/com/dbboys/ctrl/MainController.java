@@ -1,4 +1,4 @@
-package com.dbboys.ctrl;
+﻿package com.dbboys.ctrl;
 
 import com.dbboys.app.*;
 import com.dbboys.customnode.*;
@@ -750,9 +750,9 @@ public class MainController {
         });
 
         statusBackSqlStopButton.setOnAction(event->{
-            Iterator<BackSqlTask> iterator = MetadataTreeviewUtil.backSqlService.backSqlTaskList.iterator();
+            Iterator<BackgroundSqlTask> iterator = BackgroundSqlUtil.backSqlTaskList.iterator();
             while (iterator.hasNext()) {
-                BackSqlTask bgsql = iterator.next();
+                BackgroundSqlTask bgsql = iterator.next();
                 bgsql.cancel();
             }
 
@@ -877,5 +877,6 @@ public class MainController {
     }
 
 }
+
 
 

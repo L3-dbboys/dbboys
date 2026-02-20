@@ -1,4 +1,4 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
@@ -148,11 +148,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 nodeIcon.setScaleY(0.38);
                 nodeIcon.setFill(PRIMARY_COLOR);
                 bindNameLabel(item);
-                if (isRawOrExternal(sysTable.getTableType())) {
+                if (isRawOrExternal(sysTable.getTableTypeCode())) {
                     warnIcon.setVisible(true);
                 }
                 descripLabel.textProperty().unbind();
-                if ("view".equals(sysTable.getTableType())) {
+                if ("view".equals(sysTable.getTableTypeCode())) {
                     nodeIcon.setContent(IconPaths.TREECELL_VIEW);
                     nodeIcon.setScaleX(0.55);
                     nodeIcon.setScaleY(0.55);
@@ -161,12 +161,12 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                     bindRowsSizeText(descripLabel, sysTable.nrowsProperty(), sysTable.totalsizeProperty());
                 }
                 bindTooltip(
-                        "DATABASE  : " , sysTable.getDbname() , "\n" ,
+                        "DATABASE  : " , sysTable.getTableCatalog() , "\n" ,
                         "TABLENAME : " , sysTable.nameProperty() , "\n" ,
-                        "OWNER     : " , sysTable.ownerProperty() , "\n" ,
+                        "OWNER     : " , sysTable.tableOwnerProperty() , "\n" ,
                         "CREATED   : " , sysTable.createTimeProperty() , "\n" ,
-                        "TYPE      : " , sysTable.tableTypeProperty() , "\n" ,
-                        "LOCKMODE  : " , sysTable.lockModeProperty() , "\n" ,
+                        "TYPE      : " , sysTable.tableTypeCodeProperty() , "\n" ,
+                        "LOCKMODE  : " , sysTable.lockTypeProperty() , "\n" ,
                         "FRAGMENTED: " , sysTable.isfragmentProperty() , "\n" ,
                         "EXTENTS   : " , sysTable.extentsProperty() , "\n" ,
                         "NROWS     : " , sysTable.nrowsProperty() , "\n" ,
@@ -233,7 +233,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                         "MAXVALUE : " , sequence.maxValueProperty() , "\n" ,
                         "INCVALUE : " , sequence.incValueProperty() , "\n" ,
                         "CACHE    : " , sequence.cacheProperty() , "\n" ,
-                        "NEXTCACHE: " , sequence.nextvalProperty() , "\n" ,
+                        "NEXTCACHE: " , sequence.nextValProperty() , "\n" ,
                         "CREATED  : " , sequence.createdProperty()
                 );
             }
@@ -477,16 +477,16 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         bindNameLabel(item);
         warnIcon.visibleProperty().unbind();
         warnIcon.visibleProperty().bind(Bindings.createBooleanBinding(
-                () -> isRawOrExternal(table.getTableType()),
-                table.tableTypeProperty()
+                () -> isRawOrExternal(table.getTableTypeCode()),
+                table.tableTypeCodeProperty()
         ));
         bindRowsSizeText(descripLabel, table.nrowsProperty(), table.totalsizeProperty());
-        bindTooltip("DATABASE  : ", table.getDbname(), "\n",
+        bindTooltip("DATABASE  : ", table.getTableCatalog(), "\n",
                 "TABLENAME : ", table.nameProperty(), "\n",
-                "OWNER     : ", table.ownerProperty(), "\n",
+                "OWNER     : ", table.tableOwnerProperty(), "\n",
                 "CREATED   : ", table.createTimeProperty(), "\n",
-                "TYPE      : ", table.tableTypeProperty(), "\n",
-                "LOCKMODE  : ", table.lockModeProperty(), "\n",
+                "TYPE      : ", table.tableTypeCodeProperty(), "\n",
+                "LOCKMODE  : ", table.lockTypeProperty(), "\n",
                 "FRAGMENTED: ", table.isfragmentProperty(), "\n",
                 "EXTENTS   : ", table.extentsProperty(), "\n",
                 "NROWS     : ", table.nrowsProperty(), "\n",

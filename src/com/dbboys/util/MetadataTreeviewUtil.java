@@ -7,7 +7,6 @@ import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
-import com.dbboys.service.BackSqlService;
 import com.dbboys.service.ConnectionService;
 import com.dbboys.service.DatabaseService;
 import com.dbboys.service.FunctionService;
@@ -20,7 +19,7 @@ import com.dbboys.service.TableService;
 import com.dbboys.service.TriggerService;
 import com.dbboys.service.UserService;
 import com.dbboys.service.ViewService;
-import com.dbboys.impl.metaObjectImpl;
+import com.dbboys.impl.MetaObjectImpl;
 import com.dbboys.vo.*;
 import javafx.beans.binding.Bindings;
 import javafx.application.Platform;
@@ -59,8 +58,8 @@ public class MetadataTreeviewUtil {
 
 
     //public static ExecutorService executorService;
+    public static ConnectionService connectionService;
     public static List<TreeItem<TreeData>> searchResults = new ArrayList<>();
-    public static BackSqlService backSqlService;
     public static ConnectionService metadataService;
     public static DatabaseService databaseService;
     public static IndexService indexService;
@@ -81,7 +80,7 @@ public class MetadataTreeviewUtil {
     public static Thread testConnThread;
     static{
         //executorService = Executors.newSingleThreadExecutor();
-        backSqlService=new BackSqlService();
+        connectionService = new ConnectionService();
         metadataService = new ConnectionService();
         databaseService = new DatabaseService();
         indexService = new IndexService();
@@ -293,42 +292,77 @@ public class MetadataTreeviewUtil {
         //改为裸表
         modifyToRawItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            TreeData connect = selectedItem.getValue();
+            TreeData treeData = selectedItem.getValue();
             Boolean confirm = AlterUtil.CustomAlertConfirm(
                     I18n.t("metadata.alert.modify_to_raw.title", "改为裸表"),
                     I18n.t("metadata.alert.modify_to_raw.content", "确定将表\"%s\"更改为裸表吗？裸表具有更高的性能但不支持事务回滚，不建议在生产环境使用！")
-                            .formatted(selectedItem.getValue().getName())
+                            .formatted(treeData.getName())
             );
             if(confirm){
-                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(raw)",null);
+                Connect connect = buildObjectConnect(selectedItem, false);
+                tableService.modifyTableToRaw(connect, treeData.getName(), () -> 
+                {
+                    ((Table)treeData).setTableTypeCode("raw");
+                    NotificationUtil.showNotification(
+                        Main.mainController.noticePane,
+                        I18n.t("backsql.notice.table_raw", "表\"%s\"已改为裸表！").formatted(treeData.getName())
+                    );
+                }
+            );
             }
         });
 
         //改为标准表
         modifyToStandardItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            TreeData connect = selectedItem.getValue();
+            TreeData treeData = selectedItem.getValue();
             Boolean confirm = AlterUtil.CustomAlertConfirm(
                     I18n.t("metadata.alert.modify_to_standard.title", "改为标准表"),
                     I18n.t("metadata.alert.modify_to_standard.content", "确定将表\"%s\"更改为标准表吗？")
-                            .formatted(selectedItem.getValue().getName())
+                            .formatted(treeData.getName())
             );
             if(confirm){
-                backSqlService.executeBackgroundSql(selectedItem,"alter table "+connect.getName()+" type(standard)",null);
+                Connect connect = buildObjectConnect(selectedItem, false);
+                tableService.modifyTableToStandard(connect, treeData.getName(), () -> 
+                {
+                    ((Table)treeData).setTableTypeCode("standard");
+                    NotificationUtil.showNotification(
+                            Main.mainController.noticePane,
+                            I18n.t("backsql.notice.table_standard", "表\"%s\"已改为标准表！").formatted(treeData.getName())
+                    );
+            }
+            );
             }
         });
 
         //清空表事件
         truncateItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            TreeData connect = selectedItem.getValue();
+            TreeData treeData = selectedItem.getValue();
             Boolean confirm = AlterUtil.CustomAlertConfirm(
                     I18n.t("metadata.alert.truncate.title", "清空表"),
                     I18n.t("metadata.alert.truncate.content", "确定要清空表\"%s\"吗？")
-                            .formatted(selectedItem.getValue().getName())
+                            .formatted(treeData.getName())
             );
             if(confirm){
-                backSqlService.executeBackgroundSql(selectedItem,"truncate table "+connect.getName(),null);
+                Connect connect = buildObjectConnect(selectedItem, false);
+                tableService.truncateTable(connect, treeData.getName(), () -> {
+                    selectedItem.getValue().setRunning(true);
+                    tableService.refreshTableMeta(
+                            MetadataTreeviewUtil.getMetaConnect(selectedItem),
+                            MetadataTreeviewUtil.getCurrentDatabase(selectedItem),
+                            selectedItem.getValue().getName(),
+                            selectedItem::setValue,
+                            () -> selectedItem.getValue().setRunning(false)
+                    );
+
+                    NotificationUtil.showNotification(
+                        Main.mainController.noticePane,
+                        I18n.t("backsql.notice.table_truncated", "表\"%s\"已清空！").formatted(treeData.getName())
+                );
+
+                }
+            );
             }
         });
 
@@ -336,53 +370,13 @@ public class MetadataTreeviewUtil {
         //禁用
         disableItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            TreeData connect = selectedItem.getValue();
-            if(connect instanceof Index) {//索引
-                Boolean confirm = AlterUtil.CustomAlertConfirm(
-                        I18n.t("metadata.alert.disable_index.title", "禁用索引"),
-                        I18n.t("metadata.alert.disable_index.content", "确定要禁用索引\"%s\"吗？索引禁用后启用需要自动重建耗费较长时间！")
-                                .formatted(selectedItem.getValue().getName())
-                );
-                if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" disabled",null);
-                }
-            }
-            if(connect instanceof Trigger) {//触发器
-                Boolean confirm = AlterUtil.CustomAlertConfirm(
-                        I18n.t("metadata.alert.disable_trigger.title", "禁用触发器"),
-                        I18n.t("metadata.alert.disable_trigger.content", "确定要禁用触发器\"%s\"吗？")
-                                .formatted(selectedItem.getValue().getName())
-                );
-                if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" disabled",null);
-                }
-            }
+            toggleObjectEnabled(selectedItem, false);
         });
 
         //启用
         enableItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            TreeData connect = selectedItem.getValue();
-            if(connect instanceof Index) {//索引
-                Boolean confirm = AlterUtil.CustomAlertConfirm(
-                        I18n.t("metadata.alert.enable_index.title", "启用索引"),
-                        I18n.t("metadata.alert.enable_index.content", "确定要启用索引\"%s\"吗？启用索引可能会较长时间锁表！")
-                                .formatted(selectedItem.getValue().getName())
-                );
-                if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set indexes "+connect.getName()+" enabled",null);
-                }
-            }
-            if(connect instanceof Trigger) {//触发器
-                Boolean confirm = AlterUtil.CustomAlertConfirm(
-                        I18n.t("metadata.alert.enable_trigger.title", "启用触发器"),
-                        I18n.t("metadata.alert.enable_trigger.content", "确定要启用触发器\"%s\"吗？")
-                                .formatted(selectedItem.getValue().getName())
-                );
-                if(confirm){
-                    backSqlService.executeBackgroundSql(selectedItem,"set triggers "+connect.getName()+" enabled",null);
-                }
-            }
+            toggleObjectEnabled(selectedItem, true);
         });
 
         sqlHisItem.setOnAction(event->{
@@ -470,7 +464,7 @@ public class MetadataTreeviewUtil {
 
         //右键重命名点击响应
         renameItem.setOnAction(event -> {
-            MetadataTreeviewUtil.renameTreeItem(treeView);
+            renameTreeItem(treeView);
         });
 
         //创建用户
@@ -531,7 +525,20 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("metadata.error.password_not_match", "两次密码输入不一致！"));
                     event1.consume();
                 } else {
-                    backSqlService.executeBackgroundSql(selectedItem,"create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", null);
+                    event1.consume();
+                    Connect connect=buildObjectConnect(selectedItem,true);
+                    userService.executeObjectSql(connect, "create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", 
+                    () -> {
+                        selectedItem.getChildren().clear();
+                        selectedItem.setExpanded(false);
+                        selectedItem.setExpanded(true);
+                        NotificationUtil.showNotification(
+                                Main.mainController.noticePane,
+                                I18n.t("metadata.success.create_user", "用户创建成功！")
+                        );
+                        dialog.close();
+                    }
+                );
                 }
 
             });
@@ -591,7 +598,20 @@ public class MetadataTreeviewUtil {
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("metadata.error.password_not_match", "两次密码输入不一致！"));
                     event1.consume();
                 } else {
-                    backSqlService.executeBackgroundSql(selectedItem,"alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'", null);
+                    event1.consume();
+                    Connect connect=buildObjectConnect(selectedItem,true);
+                    userService.executeObjectSql(
+                            connect,
+                            "alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'",
+                            () -> {
+                                NotificationUtil.showNotification(
+                                        Main.mainController.noticePane,
+                                        I18n.t("backsql.notice.user_password_reset", "用户\"%s\"密码已重置！")
+                                                .formatted(selectedItem.getValue().getName())
+                                );
+                                dialog.close();
+                            }
+                    );
                 }
 
             });
@@ -601,25 +621,44 @@ public class MetadataTreeviewUtil {
         });
 
         updateStatisticsItem.setOnAction(event -> {
-            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            TreeData connect = selectedItem.getValue();
-            if (connect instanceof Database) {
-                backSqlService.executeBackgroundSql(selectedItem,"update statistics", null);
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();            
+            TreeData treeData = selectedItem.getValue();
+            Connect connect = buildObjectConnect(selectedItem, false);
+            boolean confirm = AlterUtil.CustomAlertConfirm(
+                        I18n.t("backsql.confirm.update_statistics.title", "统计更新"),
+                        I18n.t("backsql.confirm.update_statistics.content", "确定要执行统计更新吗？")
+                );
+            if (!confirm) {
+                    return;
+                }
+            if (treeData instanceof Database) {
+                databaseService.updateStatistics(connect, "update statistics", ()->{
+                    NotificationUtil.showNotification(Main.mainController.noticePane,I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                });                
             }
-            else if (connect instanceof ObjectFolder) {
+            else if (treeData instanceof ObjectFolder) {
                 ObjectFolderKind objectFolderKind = getObjectFolderKind(selectedItem);
                 if(objectFolderKind == ObjectFolderKind.SYSTEM_TABLE_VIEW || objectFolderKind == ObjectFolderKind.TABLES){
-                    backSqlService.executeBackgroundSql(selectedItem,"update statistics high for table force", null);
+                    tableService.updateStatistics(connect, "update statistics high for table force", ()->{
+                        NotificationUtil.showNotification(Main.mainController.noticePane,I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                    });    
                 }
                 else if(objectFolderKind == ObjectFolderKind.PROCEDURES){
-                    backSqlService.executeBackgroundSql(selectedItem,"update statistics for procedure", null);
+                    procedureService.updateStatistics(connect, "update statistics for procedure", ()->{
+                        NotificationUtil.showNotification(Main.mainController.noticePane,I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                    });    
                 }
             }
-            else if(connect instanceof SysTable||connect instanceof Table){
-                backSqlService.executeBackgroundSql(selectedItem,"update statistics for table "+connect.getName(),null);
+            else if(treeData instanceof SysTable||treeData instanceof Table){
+                    tableService.updateStatisticsForTable(connect, treeData.getName(), ()->{
+                        NotificationUtil.showNotification(Main.mainController.noticePane,I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                    });
+                    
             }
-            else if(connect instanceof Procedure){
-                backSqlService.executeBackgroundSql(selectedItem,"update statistics for procedure "+connect.getName(),null);
+            else if(treeData instanceof Procedure){
+                    procedureService.updateStatistics(connect,"update statistics for procedure "+ treeData.getName(), ()->{
+                        NotificationUtil.showNotification(Main.mainController.noticePane,I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                    });  
             }
         });
 
@@ -638,7 +677,7 @@ public class MetadataTreeviewUtil {
             //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
             alert.getDialogPane().getScene().getStylesheets().add(MetadataTreeviewUtil.class.getResource("/com/dbboys/css/app.css").toExternalForm());
             Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-            alterstage.getIcons().add(new Image("file:images/logo.png"));
+            alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             HBox hbox = new HBox();
             hbox.getChildren().add(new Label(I18n.t("metadata.dialog.move_connection.target", "请选择移动到  ")));
             hbox.setAlignment(Pos.CENTER_LEFT);
@@ -706,11 +745,20 @@ public class MetadataTreeviewUtil {
             //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
             alert.getDialogPane().getScene().getStylesheets().add(MetadataTreeviewUtil.class.getResource("/com/dbboys/css/app.css").toExternalForm());
             Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-            alterstage.getIcons().add(new Image("file:images/logo.png"));
-            VBox vbox = new VBox();
-            HBox hbox = new HBox();
-            hbox.getChildren().add(new Label(I18n.t("metadata.dialog.create_database.name", "数据库名称 ")));
-            hbox.setAlignment(Pos.CENTER_LEFT);
+            alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
+            GridPane grid = new GridPane();
+            grid.setHgap(10);
+            grid.setVgap(8);
+            grid.setPadding(new Insets(10));
+
+            Label nameLabel = new Label(I18n.t("metadata.dialog.create_database.name", "数据库名称 "));
+            Label charsetLabel = new Label(I18n.t("metadata.dialog.create_database.charset", "选择字符集 "));
+            Label dbspaceLabel = new Label(I18n.t("metadata.dialog.create_database.dbspace", "选存储空间 "));
+
+            nameLabel.setMinWidth(80);
+            charsetLabel.setMinWidth(80);
+            dbspaceLabel.setMinWidth(80);
+
             CustomUserTextField textField = new CustomUserTextField();
             // 定义过滤器，只允许 ASCII 字符输入（禁止中文）
             UnaryOperator<TextFormatter.Change> filter = change -> {
@@ -726,11 +774,6 @@ public class MetadataTreeviewUtil {
             textField.setTextFormatter(textFormatter);
             textField.setTooltip(new Tooltip(I18n.t("metadata.dialog.create_database.name_rule", "不可使用中文或空格或数字开头")));
             textField.setPrefWidth(240);
-            hbox.getChildren().add(textField);
-            hbox.setPrefHeight(30);
-            hbox.setAlignment(Pos.CENTER_LEFT);
-
-            HBox hbox1 = new HBox();
             ChoiceBox<String> comboBox = new ChoiceBox<>();
             comboBox.getItems().addAll(
                     I18n.t("metadata.dialog.create_database.charset.utf8", "ZH_CN.UTF8(推荐)"),
@@ -739,18 +782,11 @@ public class MetadataTreeviewUtil {
             );
             comboBox.setValue(I18n.t("metadata.dialog.create_database.charset.utf8", "ZH_CN.UTF8(推荐)"));
             comboBox.setId("createDatabaseCharset");
-            hbox1.getChildren().add(new Label(I18n.t("metadata.dialog.create_database.charset", "选择字符集 ")));
-            hbox1.getChildren().add(comboBox);
-            hbox1.setPrefHeight(30);
-            hbox1.setAlignment(Pos.CENTER_LEFT);
+            comboBox.setPrefWidth(240);
 
-            HBox hbox2 = new HBox();
             ChoiceBox<String> comboBox1 = new ChoiceBox<>();
             comboBox1.setId("createDatabaseDbspace");
-            hbox2.getChildren().add(new Label(I18n.t("metadata.dialog.create_database.dbspace", "选存储空间 ")));
-            hbox2.getChildren().add(comboBox1);
-            hbox2.setPrefHeight(30);
-            hbox2.setAlignment(Pos.CENTER_LEFT);
+            comboBox1.setPrefWidth(240);
 
             ObservableList<String> list = null;
             try {
@@ -770,8 +806,13 @@ public class MetadataTreeviewUtil {
             comboBox1.setItems(list);
             comboBox1.setValue(list.get(0));
 
-            vbox.getChildren().addAll(hbox,hbox1,hbox2);
-            alert.getDialogPane().setContent(vbox);
+            grid.add(nameLabel, 0, 0);
+            grid.add(textField, 1, 0);
+            grid.add(charsetLabel, 0, 1);
+            grid.add(comboBox, 1, 1);
+            grid.add(dbspaceLabel, 0, 2);
+            grid.add(comboBox1, 1, 2);
+            alert.getDialogPane().setContent(grid);
 
             // 自定义按钮
             ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
@@ -791,7 +832,22 @@ public class MetadataTreeviewUtil {
 
             ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
             if (result == buttonTypeOk) {
-                backSqlService.executeBackgroundSql(selectedItem,"create database "+textField.getText()+" in "+(String)comboBox1.getValue().replaceAll("\\([^()]*\\)","") +" with log",(String)comboBox.getValue().replaceAll("\\([^()]*\\)",""));
+                Connect connect = new Connect((Connect) selectedItem.getParent().getValue());
+                String dbLocale = ((String) comboBox.getValue()).replaceAll("\\([^()]*\\)", "");
+                connect.setDatabase("sysmaster");
+                connect.setProps(connectionService.modifyProps(connect, dbLocale));
+                String sql = "create database " + textField.getText() + " in "
+                        + ((String) comboBox1.getValue()).replaceAll("\\([^()]*\\)", "")
+                        + " with log";
+                databaseService.executeObjectSql(connect, sql, () -> {
+                    NotificationUtil.showNotification(
+                            Main.mainController.noticePane,
+                            I18n.t("backsql.notice.database_created", "数据库[%s]创建成功").formatted(textField.getText())
+                    );
+                    selectedItem.getChildren().clear();
+                    selectedItem.setExpanded(false);
+                    selectedItem.setExpanded(true);
+                });
 
             }
         });
@@ -799,55 +855,34 @@ public class MetadataTreeviewUtil {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             if(selectedItem.isLeaf()){
                 if(selectedItem.getValue() instanceof Table||selectedItem.getValue() instanceof SysTable){
-                    Task TableMetaTask = new Task<>() {
-                        @Override
-                        protected Void call() throws Exception {
-                            Table table = tableService.getTable(MetadataTreeviewUtil.getMetaConnect(selectedItem), MetadataTreeviewUtil.getCurrentDatabase(selectedItem), selectedItem.getValue().getName());
-                            if(table.getName()!=null){
-                                selectedItem.setValue(table);
-                            }
-                            return null;
-                        }
-                    };
-                    TableMetaTask.setOnSucceeded(event1 -> {
-                        selectedItem.getValue().setRunning(false);
-                    });
-                    MetadataTreeviewUtil.getMetaConnect(selectedItem).executeSqlTask(new Thread(TableMetaTask));
                     selectedItem.getValue().setRunning(true);
+                    tableService.refreshTableMeta(
+                            MetadataTreeviewUtil.getMetaConnect(selectedItem),
+                            MetadataTreeviewUtil.getCurrentDatabase(selectedItem),
+                            selectedItem.getValue().getName(),
+                            selectedItem::setValue,
+                            () -> selectedItem.getValue().setRunning(false)
+                    );
                 }
                 else if(selectedItem.getValue() instanceof Index){
-                    Task TableMetaTask = new Task<>() {
-                        @Override
-                        protected Void call() throws Exception {
-                            Index index = indexService.getIndex(MetadataTreeviewUtil.getMetaConnect(selectedItem), MetadataTreeviewUtil.getCurrentDatabase(selectedItem), selectedItem.getValue().getName());
-                            if(index.getName()!=null){
-                                selectedItem.setValue(index);
-                            }
-                            return null;
-                        }
-                    };
-                    TableMetaTask.setOnSucceeded(event1 -> {
-                        selectedItem.getValue().setRunning(false);
-                    });
-                    MetadataTreeviewUtil.getMetaConnect(selectedItem).executeSqlTask(new Thread(TableMetaTask));
                     selectedItem.getValue().setRunning(true);
+                    indexService.refreshIndexMeta(
+                            MetadataTreeviewUtil.getMetaConnect(selectedItem),
+                            MetadataTreeviewUtil.getCurrentDatabase(selectedItem),
+                            selectedItem.getValue().getName(),
+                            selectedItem::setValue,
+                            () -> selectedItem.getValue().setRunning(false)
+                    );
                 }
                 else if(selectedItem.getValue() instanceof Trigger){
-                    Task TableMetaTask = new Task<>() {
-                        @Override
-                        protected Void call() throws Exception {
-                            Trigger trigger = triggerService.getTrigger(MetadataTreeviewUtil.getMetaConnect(selectedItem), MetadataTreeviewUtil.getCurrentDatabase(selectedItem), selectedItem.getValue().getName());
-                            if(trigger.getName()!=null){
-                                selectedItem.setValue(trigger);
-                            }
-                            return null;
-                        }
-                    };
-                    TableMetaTask.setOnSucceeded(event1 -> {
-                        selectedItem.getValue().setRunning(false);
-                    });
-                    MetadataTreeviewUtil.getMetaConnect(selectedItem).executeSqlTask(new Thread(TableMetaTask));
                     selectedItem.getValue().setRunning(true);
+                    triggerService.refreshTriggerMeta(
+                            MetadataTreeviewUtil.getMetaConnect(selectedItem),
+                            MetadataTreeviewUtil.getCurrentDatabase(selectedItem),
+                            selectedItem.getValue().getName(),
+                            selectedItem::setValue,
+                            () -> selectedItem.getValue().setRunning(false)
+                    );
                 }
 
             }else{
@@ -1064,7 +1099,7 @@ public class MetadataTreeviewUtil {
                 }
                 //系统表
                 else if(selectedItem.getValue() instanceof SysTable) {
-                    if(!((SysTable)selectedItem.getValue()).getTableType().equals("view")){
+                    if(!((SysTable)selectedItem.getValue()).getTableTypeCode().equals("view")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         treeview_menu.getItems().add(copyItem);
                         treeview_menu.getItems().add(refreshItem);
@@ -1072,13 +1107,13 @@ public class MetadataTreeviewUtil {
                 }
                 //表
                 else if(selectedItem.getValue() instanceof Table) {
-                    if(!((Table)selectedItem.getValue()).getTableType().equals("external")){
+                    if(!((Table)selectedItem.getValue()).getTableTypeCode().equals("external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         treeview_menu.getItems().add(modifyToRawItem);
                         treeview_menu.getItems().add(modifyToStandardItem);
                         treeview_menu.getItems().add(truncateItem);
                     }
-                    if(((Table)selectedItem.getValue()).getTableType().equals("raw")){
+                    if(((Table)selectedItem.getValue()).getTableTypeCode().equals("raw")){
                         modifyToRawItem.setDisable(true);
                     }else{
                         modifyToStandardItem.setDisable(true);
@@ -1209,7 +1244,7 @@ public class MetadataTreeviewUtil {
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
         alert.getDialogPane().getScene().getStylesheets().add(MetadataTreeviewUtil.class.getResource("/com/dbboys/css/app.css").toExternalForm());
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image("file:images/logo.png"));
+        alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
         hbox.getChildren().add(new Label(I18n.t("metadata.dialog.create_folder.name", "请输入连接分类名称  ")));
         hbox.setAlignment(Pos.CENTER_LEFT);
@@ -1275,33 +1310,14 @@ public class MetadataTreeviewUtil {
     public static void renameTreeItem(TreeView<TreeData> treeView) {
         TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        String title = I18n.t("metadata.dialog.rename.title", "重命名");
-        if(selectedItem.getValue() instanceof ConnectFolder){
-            title = I18n.t("metadata.dialog.rename.folder", "重命名连接分类：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Connect){
-            title = I18n.t("metadata.dialog.rename.connection", "重命名数据库连接：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Database){
-            title = I18n.t("metadata.dialog.rename.database", "重命名数据库：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Table){
-            title = I18n.t("metadata.dialog.rename.table", "重命名表：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Index){
-            title = I18n.t("metadata.dialog.rename.index", "重命名索引：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Sequence){
-            title = I18n.t("metadata.dialog.rename.sequence", "重命名序列：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Trigger){
-            title = I18n.t("metadata.dialog.rename.trigger", "重命名触发器：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Function){
-            title = I18n.t("metadata.dialog.rename.function", "重命名函数：%s").formatted(selectedItem.getValue().getName());
-        }else if(selectedItem.getValue() instanceof Procedure){
-            title = I18n.t("metadata.dialog.rename.procedure", "重命名存储过程：%s").formatted(selectedItem.getValue().getName());
-        }
+        String title = buildRenameTitle(selectedItem.getValue());
         alert.setTitle(title);
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
         alert.getDialogPane().getScene().getStylesheets().add(MetadataTreeviewUtil.class.getResource("/com/dbboys/css/app.css").toExternalForm());
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image("file:images/logo.png"));
+        alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
         hbox.getChildren().add(new Label(I18n.t("metadata.dialog.rename.input", "请输入重命名名称  ")));
         hbox.setAlignment(Pos.CENTER_LEFT);
@@ -1352,17 +1368,18 @@ public class MetadataTreeviewUtil {
 
         ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
         if (result == buttonTypeOk) {
+            String newName = textField.getText();
             TreeData treeData = selectedItem.getValue();
-            if (selectedItem.getValue() instanceof ConnectFolder) {
-                treeData.setName(textField.getText());
+            if (treeData instanceof ConnectFolder) {
+                treeData.setName(newName);
                 if (selectedItem.getParent().getChildren().size() > 1) { //多于1个分类，重新排序
                     reorderTreeview(treeView, selectedItem);
                 }
                 SqliteDBaccessUtil.updateConnectFolder((ConnectFolder) treeData);
                 NotificationUtil.showNotification(Main.mainController.noticePane,
                         I18n.t("metadata.notice.folder_renamed", "分类已重命名为：%s").formatted(selectedItem.getValue().getName()));
-            }else if(selectedItem.getValue() instanceof Connect){
-                selectedItem.getValue().setName(textField.getText());
+            }else if(treeData instanceof Connect){
+                selectedItem.getValue().setName(newName);
                 //connect_list_treeview.refresh();
                 if(selectedItem.getParent().getChildren().size()>1) {//多于1个连接重新排序
                     MetadataTreeviewUtil.reorderTreeview(treeView, selectedItem);
@@ -1371,25 +1388,260 @@ public class MetadataTreeviewUtil {
                 TabpaneUtil.isRefreshConnectList();
                 NotificationUtil.showNotification(Main.mainController.noticePane,
                         I18n.t("metadata.notice.connection_renamed", "连接已重命名为：%s").formatted(selectedItem.getValue().getName()));
-            }else if(selectedItem.getValue() instanceof Database){
-                backSqlService.executeBackgroundSql(selectedItem,"rename database "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Table){
-                backSqlService.executeBackgroundSql(selectedItem,"rename table "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Index){
-                backSqlService.executeBackgroundSql(selectedItem,"rename index "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Sequence){
-                backSqlService.executeBackgroundSql(selectedItem,"rename sequece "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Synonym){
-                backSqlService.executeBackgroundSql(selectedItem,"rename synonym "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Trigger){
-                backSqlService.executeBackgroundSql(selectedItem,"rename trigger "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Function){
-                backSqlService.executeBackgroundSql(selectedItem,"rename function "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
-            }else if(selectedItem.getValue() instanceof Procedure){
-                backSqlService.executeBackgroundSql(selectedItem,"rename procedure "+selectedItem.getValue().getName()+" to "+textField.getText(),null);
+            }else if(treeData instanceof Database){
+                renameDatabaseObject(databaseService, selectedItem, newName, "database",
+                        true);
+            }else if(treeData instanceof Table){
+                renameDatabaseObject(tableService, selectedItem, newName, "table",
+                        false);
+            }else if(treeData instanceof Index){
+                renameDatabaseObject(indexService, selectedItem, newName, "index",
+                        false);
+            }else if(treeData instanceof Sequence){
+                renameDatabaseObject(sequenceService, selectedItem, newName, "sequence",
+                        false);
+            }else if(treeData instanceof View){
+                //不支持重命名
+                renameDatabaseObject(viewService, selectedItem, newName, "view",
+                        false);
+            }else if(treeData instanceof Synonym){
+                //不支持重命名
+                renameDatabaseObject(synonymService, selectedItem, newName, "synonym",
+                        false);
+            }else if(treeData instanceof Trigger){
+                //不支持重命名
+                renameDatabaseObject(triggerService, selectedItem, newName, "trigger",
+                        false);
+            }else if(treeData instanceof Function){
+                //不支持重命名
+                renameDatabaseObject(functionService, selectedItem, newName, "function",
+                        false);
+            }else if(treeData instanceof Procedure){
+                //不支持重命名
+                renameDatabaseObject(procedureService, selectedItem, newName, "procedure",
+                        false);
             }
         }
     }
+
+    private static String buildRenameTitle(TreeData treeData) {
+        if (treeData instanceof ConnectFolder) {
+            return I18n.t("metadata.dialog.rename.folder", "重命名连接分类：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Connect) {
+            return I18n.t("metadata.dialog.rename.connection", "重命名数据库连接：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Database) {
+            return I18n.t("metadata.dialog.rename.database", "重命名数据库：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Table) {
+            return I18n.t("metadata.dialog.rename.table", "重命名表：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Index) {
+            return I18n.t("metadata.dialog.rename.index", "重命名索引：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Sequence) {
+            return I18n.t("metadata.dialog.rename.sequence", "重命名序列：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Trigger) {
+            return I18n.t("metadata.dialog.rename.trigger", "重命名触发器：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Function) {
+            return I18n.t("metadata.dialog.rename.function", "重命名函数：%s").formatted(treeData.getName());
+        }
+        if (treeData instanceof Procedure) {
+            return I18n.t("metadata.dialog.rename.procedure", "重命名存储过程：%s").formatted(treeData.getName());
+        }
+        return I18n.t("metadata.dialog.rename.title", "重命名");
+    }
+
+    private static void renameDatabaseObject(MetaObjectImpl service,
+                                             TreeItem<TreeData> selectedItem,
+                                             String newName,
+                                             String objectType,
+                                             boolean useSysmaster) {
+        String oldName = selectedItem.getValue().getName();
+        String objectDisplayName = getDeleteObjectDisplayName(objectType);
+        String sql = "rename " + objectType + " " + oldName + " to " + newName;
+        Connect connect = buildObjectConnect(selectedItem, useSysmaster);
+        service.renameObject(connect, sql, () -> {
+            selectedItem.getValue().setName(newName);
+            NotificationUtil.showNotification(
+                    Main.mainController.noticePane,
+                    I18n.t("backsql.notice.renamed", "%s\"%s\"已重命名为\"%s\"")
+                            .formatted(objectDisplayName, oldName, newName)
+            );
+        });
+    }
+
+    private static void deleteDatabaseObject(MetaObjectImpl service,
+                                             TreeItem<TreeData> selectedItem,
+                                             String objectType,
+                                             boolean useSysmaster) {
+        String objectDisplayName = getDeleteObjectDisplayName(objectType);
+        String confirmTitleKey = getDeleteConfirmTitleKey(objectType);
+        String confirmContentKey = getDeleteConfirmContentKey(objectType);
+        String objectName = selectedItem.getValue().getName();
+        String confirmContent;
+        if (confirmContentKey != null) {
+            confirmContent = I18n.t(confirmContentKey, "确定要删除\"%s\"吗？")
+                    .formatted(objectName);
+        } else {
+            confirmContent = I18n.t("metadata.alert.delete_object.content", "确定要删除%s\"%s\"吗？")
+                    .formatted(objectDisplayName, objectName);
+        }
+        boolean confirm = AlterUtil.CustomAlertConfirm(
+                I18n.t(confirmTitleKey, "删除对象"),
+                confirmContent
+        );
+        if (!confirm) {
+            return;
+        }
+
+        String sql = "drop " + objectType + " " + selectedItem.getValue().getName();
+        Connect connect = buildObjectConnect(selectedItem, useSysmaster);
+        service.deleteObject(connect, sql, () -> {
+            TreeItem<TreeData> parent = selectedItem.getParent();
+            if (parent != null) {
+                parent.getChildren().remove(selectedItem);
+            }
+            NotificationUtil.showNotification(
+                    Main.mainController.noticePane,
+                    I18n.t("backsql.notice.deleted", "%s\"%s\"已删除！")
+                            .formatted(objectDisplayName, selectedItem.getValue().getName())
+            );
+        });
+    }
+
+    public static Connect buildObjectConnect(TreeItem<TreeData> selectedItem, boolean useSysmaster) {
+        Connect connect = new Connect(getMetaConnect(selectedItem));
+        Database currentDatabase = getCurrentDatabase(selectedItem);
+        connect.setDatabase(useSysmaster ? "sysmaster" : currentDatabase.getName());
+        connect.setProps(connectionService.modifyProps(connect, currentDatabase.getDbLocale()));
+        return connect;
+    }
+
+    private static void toggleObjectEnabled(TreeItem<TreeData> selectedItem, boolean enabled) {
+        TreeData treeData = selectedItem.getValue();
+        Connect connect = buildObjectConnect(selectedItem, false);
+        if (treeData instanceof Index) {
+            toggleIndexEnabled(connect, treeData, enabled);
+            return;
+        }
+        if (treeData instanceof Trigger) {
+            toggleTriggerEnabled(connect, treeData, enabled);
+        }
+    }
+
+    private static void toggleIndexEnabled(Connect connect, TreeData treeData, boolean enabled) {
+        String action = enabled ? "enable" : "disable";
+        boolean confirm = AlterUtil.CustomAlertConfirm(
+                I18n.t("metadata.alert." + action + "_index.title", enabled ? "启用索引" : "禁用索引"),
+                I18n.t("metadata.alert." + action + "_index.content",
+                                enabled ? "确定要启用索引\"%s\"吗？启用索引可能会较长时间锁表！" : "确定要禁用索引\"%s\"吗？索引禁用后启用需要自动重建耗费较长时间！")
+                        .formatted(treeData.getName())
+        );
+        if (!confirm) {
+            return;
+        }
+        String sql = "set indexes " + treeData.getName() + (enabled ? " enabled" : " disabled");
+        Runnable onSucceeded = () -> {
+            ((Index)treeData).setIsdisabled(!enabled);
+
+            NotificationUtil.showNotification(
+                Main.mainController.noticePane,
+                I18n.t(
+                        enabled ? "backsql.notice.index_enabled" : "backsql.notice.index_disabled",
+                        enabled ? "索引\"%s\"已启用！" : "索引\"%s\"已禁用！"
+                ).formatted(treeData.getName())
+            );
+        };
+        if (enabled) {
+            indexService.enableIndex(connect, sql, onSucceeded);
+        } else {
+            indexService.disableIndex(connect, sql, onSucceeded);
+        }
+    }
+
+    private static void toggleTriggerEnabled(Connect connect, TreeData treeData, boolean enabled) {
+        String action = enabled ? "enable" : "disable";
+        boolean confirm = AlterUtil.CustomAlertConfirm(
+                I18n.t("metadata.alert." + action + "_trigger.title", enabled ? "启用触发器" : "禁用触发器"),
+                I18n.t(
+                        "metadata.alert." + action + "_trigger.content",
+                        enabled ? "确定要启用触发器\"%s\"吗？" : "确定要禁用触发器\"%s\"吗？"
+                ).formatted(treeData.getName())
+        );
+        if (!confirm) {
+            return;
+        }
+        String sql = "set triggers " + treeData.getName() + (enabled ? " enabled" : " disabled");
+        Runnable onSucceeded = () -> {
+            ((Trigger)treeData).setIsdisabled(!enabled);
+            NotificationUtil.showNotification(
+                Main.mainController.noticePane,
+                I18n.t(
+                        enabled ? "backsql.notice.trigger_enabled" : "backsql.notice.trigger_disabled",
+                        enabled ? "触发器\"%s\"已启用！" : "触发器\"%s\"已禁用！"
+                ).formatted(treeData.getName())
+            );
+        };
+        if (enabled) {
+            triggerService.enableTrigger(connect, sql, onSucceeded);
+        } else {
+            triggerService.disableTrigger(connect, sql, onSucceeded);
+        }
+    }
+
+    private static String getDeleteObjectDisplayName(String objectType) {
+        return switch (objectType == null ? "" : objectType.toLowerCase()) {
+            case "database" -> I18n.t("backsql.object.database", "数据库");
+            case "table" -> I18n.t("backsql.object.table", "表");
+            case "view" -> I18n.t("backsql.object.view", "视图");
+            case "index", "indexes" -> I18n.t("backsql.object.index", "索引");
+            case "sequence" -> I18n.t("backsql.object.sequence", "序列");
+            case "synonym" -> I18n.t("backsql.object.synonym", "同义词");
+            case "trigger", "triggers" -> I18n.t("backsql.object.trigger", "触发器");
+            case "function" -> I18n.t("backsql.object.function", "函数");
+            case "procedure" -> I18n.t("backsql.object.procedure", "存储过程");
+            case "package" -> I18n.t("backsql.object.package", "包");
+            case "user" -> I18n.t("backsql.object.user", "用户");
+            default -> I18n.t("backsql.object.default", "对象");
+        };
+    }
+
+    private static String getDeleteConfirmTitleKey(String objectType) {
+        return switch (objectType == null ? "" : objectType.toLowerCase()) {
+            case "database" -> "backsql.confirm.delete_database.title";
+            case "table" -> "backsql.confirm.delete_table.title";
+            case "view" -> "backsql.confirm.delete_view.title";
+            case "index", "indexes" -> "backsql.confirm.delete_index.title";
+            case "sequence" -> "backsql.confirm.delete_sequence.title";
+            case "synonym" -> "backsql.confirm.delete_synonym.title";
+            case "trigger", "triggers" -> "backsql.confirm.delete_trigger.title";
+            case "function" -> "backsql.confirm.delete_function.title";
+            case "procedure" -> "backsql.confirm.delete_procedure.title";
+            case "user" -> "backsql.confirm.delete_user.title";
+            default -> "backsql.error.title";
+        };
+    }
+
+    private static String getDeleteConfirmContentKey(String objectType) {
+        return switch (objectType == null ? "" : objectType.toLowerCase()) {
+            case "database" -> "backsql.confirm.delete_database.content";
+            case "table" -> "backsql.confirm.delete_table.content";
+            case "view" -> "backsql.confirm.delete_view.content";
+            case "index", "indexes" -> "backsql.confirm.delete_index.content";
+            case "sequence" -> "backsql.confirm.delete_sequence.content";
+            case "synonym" -> "backsql.confirm.delete_synonym.content";
+            case "trigger", "triggers" -> "backsql.confirm.delete_trigger.content";
+            case "function" -> "backsql.confirm.delete_function.content";
+            case "procedure" -> "backsql.confirm.delete_procedure.content";
+            case "user" -> "backsql.confirm.delete_user.content";
+            default -> null;
+        };
+    }
+
 
     //删除节点
     public static void deleteTreeItem(TreeView<TreeData> treeView) {
@@ -1419,11 +1671,11 @@ public class MetadataTreeviewUtil {
                         I18n.t("metadata.notice.folder_deleted", "数据库连接分类\"%s\"已删除！").formatted(selectedItem.getValue().getName()));
             }
 
-        }else if(selectedItem.getValue() instanceof Connect){
+        }else if(treeData instanceof Connect){
             if (AlterUtil.CustomAlertConfirm(
                     I18n.t("metadata.alert.delete_connection.title", "删除连接"),
                     I18n.t("metadata.alert.delete_connection.content", "确定要删除连接\"%s\"吗？").formatted(selectedItem.getValue().getName()))) {
-                Connect connect = (Connect) selectedItem.getValue();
+                Connect connect = (Connect) treeData;
                 try {
                     if (!selectedItem.getChildren().isEmpty()) {
                         connect.getConn().close();
@@ -1439,28 +1691,28 @@ public class MetadataTreeviewUtil {
                 NotificationUtil.showNotification(Main.mainController.noticePane,
                         I18n.t("metadata.notice.connection_deleted", "数据库连接\"%s\"已删除！").formatted(selectedItem.getValue().getName()));
             }
-        }else if(selectedItem.getValue() instanceof Database){
-            backSqlService.executeBackgroundSql(selectedItem,"drop database "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Table){
-            backSqlService.executeBackgroundSql(selectedItem,"drop table "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof View){
-            backSqlService.executeBackgroundSql(selectedItem,"drop view "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Index){
-            backSqlService.executeBackgroundSql(selectedItem,"drop index "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Sequence){
-            backSqlService.executeBackgroundSql(selectedItem,"drop sequece "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Synonym){
-            backSqlService.executeBackgroundSql(selectedItem,"drop synonym "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Trigger){
-            backSqlService.executeBackgroundSql(selectedItem,"drop trigger "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Function){
-            backSqlService.executeBackgroundSql(selectedItem,"drop function "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof Procedure){
-            backSqlService.executeBackgroundSql(selectedItem,"drop procedure "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof DBPackage){
-            backSqlService.executeBackgroundSql(selectedItem,"drop package "+selectedItem.getValue().getName(),null);
-        }else if(selectedItem.getValue() instanceof User){
-            backSqlService.executeBackgroundSql(selectedItem,"drop user "+selectedItem.getValue().getName(),null);
+        }else if(treeData instanceof Database){
+            deleteDatabaseObject(databaseService, selectedItem, "database", true);
+        }else if(treeData instanceof Table){
+            deleteDatabaseObject(tableService, selectedItem, "table", false);
+        }else if(treeData instanceof View){
+            deleteDatabaseObject(viewService, selectedItem, "view", false);
+        }else if(treeData instanceof Index){
+            deleteDatabaseObject(indexService, selectedItem, "index", false);
+        }else if(treeData instanceof Sequence){
+            deleteDatabaseObject(sequenceService, selectedItem, "sequence", false);
+        }else if(treeData instanceof Synonym){
+            deleteDatabaseObject(synonymService, selectedItem, "synonym", false);
+        }else if(treeData instanceof Trigger){
+            deleteDatabaseObject(triggerService, selectedItem, "trigger", false);
+        }else if(treeData instanceof Function){
+            deleteDatabaseObject(functionService, selectedItem, "function", false);
+        }else if(treeData instanceof Procedure){
+            deleteDatabaseObject(procedureService, selectedItem, "procedure", false);
+        }else if(treeData instanceof DBPackage){
+            deleteDatabaseObject(packageService, selectedItem, "package", false);
+        }else if(treeData instanceof User){
+            deleteDatabaseObject(databaseService, selectedItem, "user", false);
         }
     }
 
@@ -1615,9 +1867,9 @@ public class MetadataTreeviewUtil {
                                     treeItem.getParent().getChildren().remove(treeItem);
                                 });
                             }else {
-                                treeItem.setValue((Database) objectList.getInfo());
                                 //查询到结果后删除loading节点
                                 Platform.runLater(() -> {
+                                    treeItem.setValue((Database) objectList.getInfo());
                                     treeItem.getChildren().clear();
                                     //查询到的结果添加到数据库条目下
                                     ObjectFolder objectFolder = createObjectFolder(ObjectFolderKind.SYSTEM_TABLE_VIEW);
@@ -1685,8 +1937,8 @@ public class MetadataTreeviewUtil {
                             return;
                         }
                         if(objectList.getInfo()!=null&&!objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                             Platform.runLater(() -> {
+                                ((ObjectFolder) treeItem.getValue()).setDescription((String)objectList.getInfo());
                                 treeItem.getChildren().clear();
                                 List<SysTable> systables = objectList.getItems();
                                 for (SysTable tabname : systables) {
@@ -1706,7 +1958,7 @@ public class MetadataTreeviewUtil {
                     new Thread(() -> {
                         ObjectList objectList;
                         ObjectFolderKind kind = getObjectFolderKind(treeItem);
-                        metaObjectImpl service = getMetaObjectService(kind);
+                        MetaObjectImpl service = getMetaObjectService(kind);
                         if (service == null) {
                             return;
                         }
@@ -1721,8 +1973,8 @@ public class MetadataTreeviewUtil {
                             return;
                         }
                         if (objectList.getInfo() != null && !objectList.getItems().isEmpty()) {
-                            ((ObjectFolder) treeItem.getValue()).setDescription((String) objectList.getInfo());
                             Platform.runLater(() -> {
+                                ((ObjectFolder) treeItem.getValue()).setDescription((String) objectList.getInfo());
                                 treeItem.getChildren().clear();
                                 appendObjectFolderChildren(treeItem, kind, objectList);
                             });
@@ -2064,7 +2316,7 @@ public class MetadataTreeviewUtil {
             dialog.setDialogPane(dialogPane);
             dialog.setTitle(I18n.t("createconnect.dialog.title"));
             Stage alterstage = (Stage) dialog.getDialogPane().getScene().getWindow();
-            alterstage.getIcons().add(new Image("file:images/logo.png"));
+            alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             dialogPane.getScene().getStylesheets().add(MetadataTreeviewUtil.class.getResource("/com/dbboys/css/app.css").toExternalForm());
             TextField connectNameTextField = (TextField) loader.getNamespace().get("connectNameTextField");
             dialogPane.getScene().getWindow().setOnShown(event -> {
@@ -2107,7 +2359,7 @@ public class MetadataTreeviewUtil {
                 || kind == ObjectFolderKind.PACKAGES;
     }
 
-    private static metaObjectImpl getMetaObjectService(ObjectFolderKind kind) {
+    private static MetaObjectImpl getMetaObjectService(ObjectFolderKind kind) {
         return switch (kind) {
             case TABLES -> tableService;
             case VIEWS -> viewService;
@@ -2241,6 +2493,7 @@ public class MetadataTreeviewUtil {
     }
 
 }
+
 
 
 

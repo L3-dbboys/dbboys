@@ -6,6 +6,23 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 public class Trigger extends TreeData{
+    //created by liaosnet
+    private StringProperty triggerBody = new SimpleStringProperty();
+
+    public String toString(){
+        return "TriggerName: " + this.getName() + "\n" +
+                "TriggerBoday: " + this.getTriggerBody();
+    }
+
+    public String getTriggerBody() {
+        return triggerBody.get();
+    }
+
+    public void setTriggerBody(String triggerBody) {
+        this.triggerBody.set(triggerBody);
+    }
+
+    //created by L3
     private StringProperty database=new SimpleStringProperty();
     private StringProperty tableName=new SimpleStringProperty();
     private StringProperty triggerType=new SimpleStringProperty();
