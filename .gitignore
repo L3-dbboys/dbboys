@@ -1,6 +1,6 @@
 bin/
 jre-min/
-dbboys/
+/dbboys/
 *.zip
 sources.txt
 logs/
