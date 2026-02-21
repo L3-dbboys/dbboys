@@ -162,6 +162,7 @@ public class MainController {
     //public Connect sqlConnect=new Connect();
 
     public void initialize() {
+        //UpgradeUtil.initDefaultConfig();  //初始化
         Main.loadProgressBar.setProgress(0.2);
         initI18nBindings();
         setupMainIcons();
