@@ -1,4 +1,4 @@
-﻿package com.dbboys.util;
+package com.dbboys.util;
 
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconPaths;

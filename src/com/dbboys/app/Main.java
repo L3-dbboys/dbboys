@@ -32,8 +32,8 @@ public class Main extends Application {
     private static final Logger log = LogManager.getLogger(Main.class);
 
     //版本号
-    private static final String VERSION_NAME = "DBboys V1.0.0beta.20260201";
-    private static final int BUILD_NUMBER = 6;
+    private static final String VERSION_NAME = "DBboys V1.0.0beta.20260221";
+    private static final int BUILD_NUMBER = 7;
     private static final String VERSION_URL = "";
     private static final String CHANGELOG = "";
     public static Version VERSION;

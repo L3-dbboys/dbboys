@@ -1,4 +1,4 @@
-﻿package com.dbboys.util;
+package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
@@ -304,11 +304,6 @@ public class PopupWindowUtil {
         checkOutputPopupStage.show();
     }
 
-    @Deprecated
-    public static void openCmdoutputPopupWindow(String output) {
-        openCmdOutputPopupWindow(output);
-    }
-
     public static void openSqlTaskPopupWindow() {
         backSqlPopupStage.show();
     }
@@ -361,6 +356,7 @@ public class PopupWindowUtil {
         sqlPreviewPane.showNoticeInMain = false;
         sqlPreviewPane.setPrefWidth(920);
         sqlPreviewPane.setPrefHeight(520);
+        sqlContent = SqlParserUtil.formatSql(sqlContent);
         sqlPreviewPane.codeArea.replaceText(sqlContent == null ? "" : sqlContent);
         sqlPreviewPane.codeArea.moveTo(0);
         sqlPreviewPane.codeArea.requestFollowCaret();
@@ -473,4 +469,3 @@ public class PopupWindowUtil {
 
 
 }
-

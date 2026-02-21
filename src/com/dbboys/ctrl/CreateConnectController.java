@@ -393,7 +393,7 @@ public class CreateConnectController {
         dbTypeLabel.setGraphic(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, common));
         driverLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_DRIVER, 0.05, common));
         ipAddressLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_IP, 0.6, common));
-        portLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PORT, 0.7, common));
+        portLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PORT, 0.45, common));
         groupLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_GROUP, 0.55, common));
         usernameLabel.setGraphic(IconFactory.group(IconPaths.SQL_USER, 0.5, common));
         passwordLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PASSWORD, 0.5, common));

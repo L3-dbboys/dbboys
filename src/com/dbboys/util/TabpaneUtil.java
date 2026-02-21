@@ -5,6 +5,7 @@ import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.ConnectFolder;
+import com.dbboys.vo.Table;
 import com.dbboys.vo.TreeData;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -122,14 +123,14 @@ public class TabpaneUtil {
 
 
     public static void addCustomTableInfoTab(TreeItem<TreeData> treeItem) {
-        TreeData connect = treeItem.getValue();
+        TreeData treeData = treeItem.getValue();
         Platform.runLater(() -> {
             String tableKey = TAB_KEY_TABLE
                     + treeItem.getParent().getParent().getParent().getParent().getValue().getName()
                     + "."
                     + treeItem.getParent().getParent().getValue().getName()
                     + "."
-                    + connect.getName();
+                    + treeData.getName();
             Tab existing = findTabByUserData(tableKey);
             if (existing != null) {
                 tabPane.getSelectionModel().select(existing);
@@ -141,6 +142,66 @@ public class TabpaneUtil {
             tabPane.getSelectionModel().select(newtab);
         });
     }
+
+    public static void addCustomCreateTableTab(TreeItem<TreeData> treeItem) {
+        TreeData treeData = treeItem.getValue();
+        String newTableName = nextNewTableName(treeItem);
+        System.out.print("newTableName:"+newTableName);
+
+        Platform.runLater(() -> {
+            String tableKey = TAB_KEY_TABLE
+                    + treeItem.getParent().getParent().getParent().getValue().getName()
+                    + "."
+                    + treeItem.getParent().getValue().getName()
+                    + "."
+                    + newTableName;
+            Tab existing = findTabByUserData(tableKey);
+            if (existing != null) {
+                tabPane.getSelectionModel().select(existing);
+                return;
+            }
+            CustomTableInfoTab newtab = new CustomTableInfoTab(treeItem, newTableName);
+            newtab.setUserData(tableKey);
+            tabPane.getTabs().add(newtab);
+            tabPane.getSelectionModel().select(newtab);
+        });
+    }
+
+    
+
+    
+
+    private static String nextNewTableName(TreeItem<TreeData> tablesFolderItem) {
+        String prefix = "new_table_";
+        int idx = 1;
+        List<String> existingNames = new ArrayList<>();
+        String connectName = "";
+        String databaseName = "";
+        if (tablesFolderItem != null && tablesFolderItem.getParent() != null && tablesFolderItem.getParent().getParent() != null) {
+            databaseName = tablesFolderItem.getParent().getValue().getName();
+            connectName = tablesFolderItem.getParent().getParent().getParent().getValue().getName();
+        }
+        for (TreeItem<TreeData> child : tablesFolderItem.getChildren()) {
+            if (child != null && child.getValue() != null && child.getValue().getName() != null) {
+                existingNames.add(child.getValue().getName().toLowerCase());
+            }
+        }
+        while (true) {
+            String candidate = prefix + idx;
+            String candidateLower = candidate.toLowerCase();
+            boolean existsInTree = existingNames.contains(candidateLower);
+            String tableTabKey = TAB_KEY_TABLE + connectName + "." + databaseName + "." + candidate;
+            System.out.println("tableTabKey:"+tableTabKey);
+            boolean existsInOpenTabs = findTabByUserData(tableTabKey) != null;
+                        System.out.println("existsInOpenTabs:"+existsInOpenTabs);
+
+            if (!existsInTree && !existsInOpenTabs) {
+                return candidate;
+            }
+            idx++;
+        }
+    }
+
 
 
 
@@ -277,4 +338,3 @@ public class TabpaneUtil {
         return null;
     }
 }
-

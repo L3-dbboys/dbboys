@@ -102,6 +102,7 @@ public class MetadataTreeviewUtil {
         rootItem.setExpanded(true);
         treeView.setRoot(rootItem);
         treeView.getSelectionModel().select(rootItem);
+        treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         treeView.setShowRoot(false);
         List<TreeData> connectFolders = SqliteDBaccessUtil.getConnectFolders();
         List<TreeData> connectLeafs = SqliteDBaccessUtil.getConnectLeafs();
@@ -160,14 +161,14 @@ public class MetadataTreeviewUtil {
                 IconFactory.group(IconPaths.METADATA_CREATE_CONNECT_ITEM, 0.6, 0.6));
         CustomShortcutMenuItem connectOpenFileItem = MenuItemUtil.createMenuItemI18n("metadata.menu.new_sql",
                 IconFactory.group(IconPaths.METADATA_CONNECT_OPEN_FILE_ITEM, 0.65, 0.65));
-        databaseOpenFileItem = MenuItemUtil.createMenuItemI18n("metadata.menu.new_sql",
+        databaseOpenFileItem = MenuItemUtil.createMenuItemI18n("metadata.menu.new_sql", "Ctrl+N",
                 IconFactory.group(IconPaths.METADATA_DATABASE_OPEN_FILE_ITEM, 0.6, 0.55));
         //MenuItem disconnectAll = new MenuItem("断开所有连接(Disconnect ALL)",disconnectItemIcon);
         CustomShortcutMenuItem disconnectFolder = MenuItemUtil.createMenuItemI18n("metadata.menu.disconnect_folder",
                 IconFactory.group(IconPaths.METADATA_DISCONNECT_FOLDER, 0.6, 0.6));
-        CustomShortcutMenuItem renameItem = MenuItemUtil.createMenuItemI18n("metadata.menu.rename",
+        CustomShortcutMenuItem renameItem = MenuItemUtil.createMenuItemI18n("metadata.menu.rename", "F2",
                 IconFactory.group(IconPaths.METADATA_RENAME_ITEM, 0.7, 0.7));
-        CustomShortcutMenuItem deleteItem = MenuItemUtil.createMenuItemI18n("metadata.menu.delete",
+        CustomShortcutMenuItem deleteItem = MenuItemUtil.createMenuItemI18n("metadata.menu.delete", "Delete",
                 IconFactory.group(IconPaths.METADATA_DELETE_ITEM, 0.6, 0.6, IconFactory.dangerColor()));
         CustomShortcutMenuItem expandFolderItem = MenuItemUtil.createMenuItemI18n("metadata.menu.expand_default",
                 IconFactory.group(IconPaths.METADATA_EXPAND_FOLDER_ITEM, 0.5, 0.5));
@@ -175,7 +176,7 @@ public class MetadataTreeviewUtil {
                 IconFactory.group(IconPaths.METADATA_FOLD_FOLDER_ITEM, 0.75, 0.75));
         CustomShortcutMenuItem moveItem = MenuItemUtil.createMenuItemI18n("metadata.menu.move_to",
                 IconFactory.group(IconPaths.METADATA_MOVE_ITEM, 0.7, 0.7));
-        refreshItem = MenuItemUtil.createMenuItemI18n("metadata.menu.refresh",
+        refreshItem = MenuItemUtil.createMenuItemI18n("metadata.menu.refresh", "F5",
                 IconFactory.group(IconPaths.METADATA_REFRESH_ITEM, 0.7, 0.7));
         connectInfoItem = MenuItemUtil.createMenuItemI18n("metadata.menu.instance_info",
                 IconFactory.group(IconPaths.METADATA_CONNECT_INFO_ITEM, 0.55, 0.55));
@@ -191,6 +192,8 @@ public class MetadataTreeviewUtil {
                 IconFactory.group(IconPaths.METADATA_MODIFY_CONNECT_ITEM, 0.7, 0.7));
         CustomShortcutMenuItem createDatabaseItem = MenuItemUtil.createMenuItemI18n("metadata.menu.create_database",
                 IconFactory.group(IconPaths.METADATA_CREATE_DATABASE_ITEM, 0.7, 0.7));
+        CustomShortcutMenuItem createTableItem = MenuItemUtil.createMenuItemI18n("metadata.menu.create_table",
+                IconFactory.group(IconPaths.METADATA_CREATE_TABLE_ITEM, 0.6, 0.6));
         CustomShortcutMenuItem setDefaultDatabaseItem = MenuItemUtil.createMenuItemI18n("metadata.menu.set_default_database",
                 IconFactory.group(IconPaths.METADATA_SET_DEFAULT_DATABASE_ITEM, 0.6, 0.6));
         //setDefaultDatabaseItem.disableProperty().bind(trans_not_committed_buttons_hbox.visibleProperty());
@@ -260,9 +263,42 @@ public class MetadataTreeviewUtil {
 
         treeView.setOnKeyPressed((KeyEvent event) -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            if (selectedItem == null || selectedItem.getValue() == null) {
+                return;
+            }
             if (event.getCode() == KeyCode.C && event.isControlDown()) {
-                if(selectedItem.isLeaf()||selectedItem.getValue() instanceof DBPackage ||selectedItem.getValue() instanceof Database)
+                if (canCopyItem(selectedItem)) {
                     copyItem.fire();
+                    event.consume();
+                }
+                return;
+            }
+            if (event.getCode() == KeyCode.N && event.isControlDown()) {
+                if (selectedItem.getValue() instanceof Database) {
+                    databaseOpenFileItem.fire();
+                    event.consume();
+                }
+                return;
+            }
+            if (event.getCode() == KeyCode.F5) {
+                if (canRefreshItem(selectedItem)) {
+                    refreshItem.fire();
+                    event.consume();
+                }
+                return;
+            }
+            if (event.getCode() == KeyCode.F2) {
+                if (canRenameItem(selectedItem)) {
+                    renameItem.fire();
+                    event.consume();
+                }
+                return;
+            }
+            if (event.getCode() == KeyCode.DELETE) {
+                if (canDeleteItem(selectedItem)) {
+                    deleteItem.fire();
+                    event.consume();
+                }
             }
         });
 
@@ -337,6 +373,54 @@ public class MetadataTreeviewUtil {
 
         //清空表事件
         truncateItem.setOnAction(event -> {
+            List<TreeItem<TreeData>> selectedItems = new ArrayList<>(treeView.getSelectionModel().getSelectedItems());
+            if (isMultiTableSelection(selectedItems)) {
+                boolean hasExternalTable = false;
+                for (TreeItem<TreeData> item : selectedItems) {
+                    if ("external".equals(((Table) item.getValue()).getTableTypeCode())) {
+                        hasExternalTable = true;
+                        break;
+                    }
+                }
+                if (hasExternalTable) {
+                    AlterUtil.CustomAlert(
+                            I18n.t("common.error", "错误"),
+                            I18n.t("metadata.alert.truncate.external_not_supported", "选中项中包含外部表，无法批量清空！")
+                    );
+                    return;
+                }
+                boolean confirmBatch = AlterUtil.CustomAlertConfirm(
+                        I18n.t("metadata.alert.truncate.title", "清空表"),
+                        I18n.t("metadata.alert.truncate.batch_content", "确定要清空选中的%d个表吗？")
+                                .formatted(selectedItems.size())
+                );
+                if (!confirmBatch) {
+                    return;
+                }
+                Connect connect = buildObjectConnect(selectedItems.get(0), false);
+                List<String> sqlList = new ArrayList<>();
+                for (TreeItem<TreeData> item : selectedItems) {
+                    sqlList.add("truncate table " + item.getValue().getName());
+                }
+                tableService.executeObjectSqls(connect, sqlList, () -> {
+                    for (TreeItem<TreeData> item : selectedItems) {
+                        item.getValue().setRunning(true);
+                        tableService.refreshTableMeta(
+                                MetadataTreeviewUtil.getMetaConnect(item),
+                                MetadataTreeviewUtil.getCurrentDatabase(item),
+                                item.getValue().getName(),
+                                item::setValue,
+                                () -> item.getValue().setRunning(false)
+                        );
+                    }
+                    NotificationUtil.showNotification(
+                            Main.mainController.noticePane,
+                            I18n.t("backsql.notice.batch_table_truncate_submitted", "已提交%d个表的清空任务！")
+                                    .formatted(selectedItems.size())
+                    );
+                });
+                return;
+            }
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             TreeData treeData = selectedItem.getValue();
             Boolean confirm = AlterUtil.CustomAlertConfirm(
@@ -621,7 +705,29 @@ public class MetadataTreeviewUtil {
         });
 
         updateStatisticsItem.setOnAction(event -> {
-            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();            
+            List<TreeItem<TreeData>> selectedItems = new ArrayList<>(treeView.getSelectionModel().getSelectedItems());
+            if (isMultiTableSelection(selectedItems)) {
+                boolean confirmBatch = AlterUtil.CustomAlertConfirm(
+                        I18n.t("backsql.confirm.update_statistics.title", "统计更新"),
+                        I18n.t("backsql.confirm.update_statistics.batch_content", "确定要对选中的%d个表执行统计更新吗？")
+                                .formatted(selectedItems.size())
+                );
+                if (!confirmBatch) {
+                    return;
+                }
+                Connect connect = buildObjectConnect(selectedItems.get(0), false);
+                List<String> sqlList = new ArrayList<>();
+                for (TreeItem<TreeData> item : selectedItems) {
+                    sqlList.add("update statistics for table " + item.getValue().getName());
+                }
+                tableService.executeObjectSqls(connect, sqlList, () -> NotificationUtil.showNotification(
+                        Main.mainController.noticePane,
+                        I18n.t("backsql.notice.batch_update_statistics_submitted", "%d个表统计更新已完成！")
+                                .formatted(selectedItems.size())
+                ));
+                return;
+            }
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             TreeData treeData = selectedItem.getValue();
             Connect connect = buildObjectConnect(selectedItem, false);
             boolean confirm = AlterUtil.CustomAlertConfirm(
@@ -664,6 +770,72 @@ public class MetadataTreeviewUtil {
 
         //右键删除连接点击响应
         deleteItem.setOnAction(event -> {
+            List<TreeItem<TreeData>> selectedItems = new ArrayList<>(treeView.getSelectionModel().getSelectedItems());
+            if (isMultiTableSelection(selectedItems)) {
+                boolean confirmBatch = AlterUtil.CustomAlertConfirm(
+                        I18n.t("backsql.confirm.delete_table.title", "删除表"),
+                        I18n.t("backsql.confirm.delete_table.batch_content", "确定要删除选中的%d个表吗？")
+                                .formatted(selectedItems.size())
+                );
+                if (!confirmBatch) {
+                    return;
+                }
+                Connect connect = buildObjectConnect(selectedItems.get(0), false);
+                List<String> sqlList = new ArrayList<>();
+                for (TreeItem<TreeData> item : selectedItems) {
+                    sqlList.add("drop table " + item.getValue().getName());
+                }
+                tableService.executeObjectSqls(connect, sqlList, () -> {
+                    for (TreeItem<TreeData> item : selectedItems) {
+                        TreeItem<TreeData> parent = item.getParent();
+                        if (parent != null) {
+                            parent.getChildren().remove(item);
+                        }
+                    }
+                    NotificationUtil.showNotification(
+                            Main.mainController.noticePane,
+                            I18n.t("backsql.notice.batch_table_delete_submitted", "%d个表已删除！")
+                                    .formatted(selectedItems.size())
+                    );
+                });
+                return;
+            }
+            if (isMultiDeleteOnlySelection(selectedItems)) {
+                TreeItem<TreeData> firstItem = selectedItems.get(0);
+                String objectType = getDeleteObjectType(firstItem.getValue());
+                String objectDisplayName = getDeleteObjectDisplayName(objectType);
+                boolean confirmBatch = AlterUtil.CustomAlertConfirm(
+                        I18n.t(getDeleteConfirmTitleKey(objectType), "删除对象"),
+                        I18n.t("metadata.alert.delete_object.batch_content", "确定要删除选中的%d个%s吗？")
+                                .formatted(selectedItems.size(), objectDisplayName)
+                );
+                if (!confirmBatch) {
+                    return;
+                }
+                MetaObjectImpl service = getDeleteService(firstItem.getValue());
+                if (service == null) {
+                    return;
+                }
+                Connect connect = buildObjectConnect(firstItem, false);
+                List<String> sqlList = new ArrayList<>();
+                for (TreeItem<TreeData> item : selectedItems) {
+                    sqlList.add("drop " + objectType + " " + item.getValue().getName());
+                }
+                service.executeObjectSqls(connect, sqlList, () -> {
+                    for (TreeItem<TreeData> item : selectedItems) {
+                        TreeItem<TreeData> parent = item.getParent();
+                        if (parent != null) {
+                            parent.getChildren().remove(item);
+                        }
+                    }
+                    NotificationUtil.showNotification(
+                            Main.mainController.noticePane,
+                            I18n.t("metadata.notice.delete_object_batch_done", "已删除%d个%s！")
+                                    .formatted(selectedItems.size(), objectDisplayName)
+                    );
+                });
+                return;
+            }
             MetadataTreeviewUtil.deleteTreeItem(treeView);
         });
 
@@ -891,6 +1063,11 @@ public class MetadataTreeviewUtil {
                 selectedItem.setExpanded(true);
             }
         });
+
+        createTableItem.setOnAction(event -> {
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            TabpaneUtil.addCustomCreateTableTab(selectedItem);
+        });
         //设置默认数据库
         setDefaultDatabaseItem.setOnAction(event-> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
@@ -912,6 +1089,38 @@ public class MetadataTreeviewUtil {
 
         //右键内容及处理逻辑
         treeView.setOnContextMenuRequested(event -> {
+            ObservableList<TreeItem<TreeData>> selectedItems = treeView.getSelectionModel().getSelectedItems();
+            if (selectedItems == null || selectedItems.isEmpty()) {
+                treeview_menu.hide();
+                return;
+            }
+            if (selectedItems.size() > 1) {
+                TreeItem<TreeData> firstSelected = selectedItems.get(0);
+                TreeItem<TreeData> anchorParent = firstSelected == null ? null : firstSelected.getParent();
+                Class<?> anchorType = firstSelected == null || firstSelected.getValue() == null
+                        ? null
+                        : firstSelected.getValue().getClass();
+                if (anchorType == Database.class || anchorType == ObjectFolder.class) {
+                    treeview_menu.hide();
+                    return;
+                }
+                boolean allDatabaseObjects = true;
+                for (TreeItem<TreeData> item : selectedItems) {
+                    if (item == null
+                            || item.getValue() == null
+                            || !isDatabaseMenuObject(item.getValue())
+                            || item.getParent() != anchorParent
+                            || anchorType == null
+                            || item.getValue().getClass() != anchorType) {
+                        allDatabaseObjects = false;
+                        break;
+                    }
+                }
+                if (!allDatabaseObjects) {
+                    treeview_menu.hide();
+                    return;
+                }
+            }
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             if (selectedItem != null) {
                 treeview_menu.getItems().clear();
@@ -935,6 +1144,41 @@ public class MetadataTreeviewUtil {
                 sqlHisItem.setDisable(false);
                 modifyToRawItem.setDisable(false);
                 modifyToStandardItem.setDisable(false);
+                createTableItem.setDisable(false);
+
+                if (isMultiTableSelection(selectedItems)) {
+                    boolean disableByReadOnlyOrSystem = isReadOnlyConnectionSelection(selectedItems);
+                    boolean disableTruncateByExternal = false;
+                    for (TreeItem<TreeData> item : selectedItems) {
+                        if (isReadOnlyObject(item) || isSystemDatabaseObject(item)) {
+                            disableByReadOnlyOrSystem = true;
+                        }
+                        if ("external".equals(((Table) item.getValue()).getTableTypeCode())) {
+                            disableTruncateByExternal = true;
+                        }
+                    }
+                    updateStatisticsItem.setDisable(disableByReadOnlyOrSystem);
+                    truncateItem.setDisable(disableByReadOnlyOrSystem || disableTruncateByExternal);
+                    deleteItem.setDisable(disableByReadOnlyOrSystem);
+                    treeview_menu.getItems().add(updateStatisticsItem);
+                    treeview_menu.getItems().add(truncateItem);
+                    treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
+                    return;
+                }
+                if (isMultiDeleteOnlySelection(selectedItems)) {
+                    boolean disableDelete = isReadOnlyConnectionSelection(selectedItems);
+                    for (TreeItem<TreeData> item : selectedItems) {
+                        if (!canDeleteItem(item)) {
+                            disableDelete = true;
+                            break;
+                        }
+                    }
+                    deleteItem.setDisable(disableDelete);
+                    treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
+                    return;
+                }
 
                 //如果是只读连接，禁用右键变更
                 if(!(selectedItem.getValue() instanceof ConnectFolder)&&!(selectedItem.getValue() instanceof Connect)) {
@@ -949,6 +1193,7 @@ public class MetadataTreeviewUtil {
                         modifyToRawItem.setDisable(true);
                         modifyToStandardItem.setDisable(true);
                         createDatabaseItem.setDisable(true);
+                        createTableItem.setDisable(true);
                     }
                 }
                 if(selectedItem.getValue() instanceof Connect&&((Connect) selectedItem.getValue()).getReadonly()){
@@ -1090,12 +1335,16 @@ public class MetadataTreeviewUtil {
                 }
                 //对象文件夹
                 else if(selectedItem.getValue() instanceof ObjectFolder) {
-                    treeview_menu.getItems().add(refreshItem);
                     ObjectFolderKind objectFolderKind = getObjectFolderKind(selectedItem);
-                    if (objectFolderKind == ObjectFolderKind.TABLES
-                            || objectFolderKind == ObjectFolderKind.PROCEDURES) {
+                    if (objectFolderKind == ObjectFolderKind.TABLES){
+                        treeview_menu.getItems().add(createTableItem);
+                        treeview_menu.getItems().add(updateStatisticsItem);
+
+                    }else if(objectFolderKind == ObjectFolderKind.PROCEDURES) {
                         treeview_menu.getItems().add(updateStatisticsItem);
                     }
+                    treeview_menu.getItems().add(refreshItem);
+
                 }
                 //系统表
                 else if(selectedItem.getValue() instanceof SysTable) {
@@ -1213,7 +1462,7 @@ public class MetadataTreeviewUtil {
         if(!(treeData instanceof ConnectFolder)){
             treeItem.expandedProperty().addListener((obs, wasExpanded, isNowExpanded) -> {
                 if (isNowExpanded&& treeItem.getChildren().isEmpty()){
-
+                    Main.mainController.databaseMetaTreeView.getSelectionModel().clearSelection();;
                     Main.mainController.databaseMetaTreeView.getSelectionModel().select(treeItem);//避免只点击箭头但连接中断，没有选中的节点不报连接中断错误
                     treeItemAddChildrens(treeItem);
                 };
@@ -1721,6 +1970,7 @@ public class MetadataTreeviewUtil {
         Comparator<TreeItem<TreeData>> treeItemComparator = (o1, o2) -> o1.getValue().getName().compareTo(o2.getValue().getName());
         treeItem.getParent().getChildren().sort(treeItemComparator);
         //排序后当前选择的元素到了最后一个，需重新设置当前选择项
+        treeView.getSelectionModel().clearSelection();
         treeView.getSelectionModel().select(treeItem);
         treeView.scrollTo(treeView.getSelectionModel().getSelectedIndex());
     }
@@ -1972,7 +2222,7 @@ public class MetadataTreeviewUtil {
                             });
                             return;
                         }
-                        if (objectList.getInfo() != null && !objectList.getItems().isEmpty()) {
+                        if (objectList.getInfo() != null ) {
                             Platform.runLater(() -> {
                                 ((ObjectFolder) treeItem.getValue()).setDescription((String) objectList.getInfo());
                                 treeItem.getChildren().clear();
@@ -2211,6 +2461,7 @@ public class MetadataTreeviewUtil {
                 ti.getChildren().add(treeItem);
             }
         }
+        treeView.getSelectionModel().clearSelection();
         treeView.getSelectionModel().select(treeItem);
         reorderTreeview(treeView, treeItem);
     }
@@ -2261,6 +2512,7 @@ public class MetadataTreeviewUtil {
         TreeItem<TreeData> currentItem = searchResults.get(currentIndex);
 
         // 滚动到并选中当前项
+        treeView.getSelectionModel().clearSelection();
         treeView.getSelectionModel().select(currentItem);
         treeView.scrollTo(treeView.getRow(currentItem));
 
@@ -2330,6 +2582,265 @@ public class MetadataTreeviewUtil {
             throw new RuntimeException(e);
         }
 
+    }
+
+    private static boolean canCopyItem(TreeItem<TreeData> selectedItem) {
+        TreeData treeData = selectedItem.getValue();
+        return selectedItem.isLeaf() || treeData instanceof DBPackage || treeData instanceof Database;
+    }
+
+    private static boolean canRefreshItem(TreeItem<TreeData> selectedItem) {
+        TreeData treeData = selectedItem.getValue();
+        if (treeData instanceof DatabaseFolder || treeData instanceof UserFolder || treeData instanceof Database || treeData instanceof ObjectFolder || treeData instanceof Table || treeData instanceof Index || treeData instanceof Trigger || treeData instanceof DBPackage) {
+            return true;
+        }
+        if (treeData instanceof SysTable) {
+            return !"view".equals(((SysTable) treeData).getTableTypeCode());
+        }
+        return false;
+    }
+
+    private static boolean canRenameItem(TreeItem<TreeData> selectedItem) {
+        TreeData treeData = selectedItem.getValue();
+        if (!(treeData instanceof ConnectFolder
+                || treeData instanceof Connect
+                || treeData instanceof Database
+                || treeData instanceof Table
+                || treeData instanceof Index
+                || treeData instanceof Sequence)) {
+            return false;
+        }
+        if (treeData instanceof ConnectFolder) {
+            return selectedItem.getParent() != null && selectedItem.getParent().getChildren().size() > 1;
+        }
+        if (treeData instanceof Connect) {
+            try {
+                Connect connect = (Connect) treeData;
+                return connect.getConn() == null || connect.getConn().isClosed();
+            } catch (SQLException e) {
+                GlobalErrorHandlerUtil.handle(e);
+                return false;
+            }
+        }
+        if (isReadOnlyObject(selectedItem) || isSystemDatabaseObject(selectedItem)) {
+            return false;
+        }
+        if (treeData instanceof Index && !treeData.getName().isEmpty() && treeData.getName().charAt(0) == ' ') {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean canDeleteItem(TreeItem<TreeData> selectedItem) {
+        TreeData treeData = selectedItem.getValue();
+        if (!(treeData instanceof ConnectFolder
+                || treeData instanceof Connect
+                || treeData instanceof Database
+                || treeData instanceof Table
+                || treeData instanceof View
+                || treeData instanceof Index
+                || treeData instanceof Sequence
+                || treeData instanceof Synonym
+                || treeData instanceof Trigger
+                || treeData instanceof Function
+                || treeData instanceof Procedure
+                || treeData instanceof DBPackage
+                || treeData instanceof User)) {
+            return false;
+        }
+        if (treeData instanceof ConnectFolder) {
+            return selectedItem.getParent() != null && selectedItem.getParent().getChildren().size() > 1;
+        }
+        if (treeData instanceof Connect) {
+            try {
+                Connect connect = (Connect) treeData;
+                return connect.getConn() == null || connect.getConn().isClosed();
+            } catch (SQLException e) {
+                GlobalErrorHandlerUtil.handle(e);
+                return false;
+            }
+        }
+        if (isReadOnlyObject(selectedItem) || isSystemDatabaseObject(selectedItem)) {
+            return false;
+        }
+        if (treeData instanceof Index && !treeData.getName().isEmpty() && treeData.getName().charAt(0) == ' ') {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isReadOnlyObject(TreeItem<TreeData> selectedItem) {
+        TreeData treeData = selectedItem.getValue();
+        if (treeData instanceof ConnectFolder || treeData instanceof Connect) {
+            return false;
+        }
+        Connect connect = MetadataTreeviewUtil.getMetaConnect(selectedItem);
+        return connect.getReadonly() != null && connect.getReadonly();
+    }
+
+    private static boolean isSystemDatabaseObject(TreeItem<TreeData> selectedItem) {
+        TreeData treeData = selectedItem.getValue();
+        if (!(treeData instanceof Database
+                || treeData instanceof ObjectFolder
+                || treeData instanceof SysTable
+                || treeData instanceof Table
+                || treeData instanceof View
+                || treeData instanceof Index
+                || treeData instanceof Sequence
+                || treeData instanceof Synonym
+                || treeData instanceof Trigger
+                || treeData instanceof Function
+                || treeData instanceof Procedure
+                || treeData instanceof DBPackage)) {
+            return false;
+        }
+        String database = MetadataTreeviewUtil.getCurrentDatabase(selectedItem).getName();
+        return database.equals("sysmaster")
+                || database.equals("sysuser")
+                || database.equals("sysadmin")
+                || database.equals("sysutils")
+                || database.equals("sysha")
+                || database.equals("syscdr")
+                || database.equals("syscdcv1")
+                || database.equals("gbasedbt")
+                || database.equals("sys");
+    }
+
+    private static boolean isDatabaseMenuObject(TreeData treeData) {
+        return treeData instanceof DatabaseFolder
+                || treeData instanceof UserFolder
+                || treeData instanceof User
+                || treeData instanceof Database
+                || treeData instanceof ObjectFolder
+                || treeData instanceof SysTable
+                || treeData instanceof Table
+                || treeData instanceof View
+                || treeData instanceof Index
+                || treeData instanceof Sequence
+                || treeData instanceof Synonym
+                || treeData instanceof Trigger
+                || treeData instanceof Function
+                || treeData instanceof Procedure
+                || treeData instanceof DBPackage
+                || treeData instanceof PackageFunction
+                || treeData instanceof PackageProcedure;
+    }
+
+    private static boolean isMultiTableSelection(List<TreeItem<TreeData>> selectedItems) {
+        if (selectedItems == null || selectedItems.size() <= 1) {
+            return false;
+        }
+        for (TreeItem<TreeData> item : selectedItems) {
+            if (item == null || !(item.getValue() instanceof Table)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isMultiDeleteOnlySelection(List<TreeItem<TreeData>> selectedItems) {
+        if (selectedItems == null || selectedItems.size() <= 1 || isMultiTableSelection(selectedItems)) {
+            return false;
+        }
+        for (TreeItem<TreeData> item : selectedItems) {
+            if (item == null || item.getValue() == null) {
+                return false;
+            }
+            TreeData value = item.getValue();
+            if (!(value instanceof View
+                    || value instanceof Index
+                    || value instanceof Sequence
+                    || value instanceof Synonym
+                    || value instanceof Trigger
+                    || value instanceof Function
+                    || value instanceof Procedure
+                    || value instanceof DBPackage
+                    || value instanceof User)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isReadOnlyConnectionSelection(List<TreeItem<TreeData>> selectedItems) {
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            return false;
+        }
+        for (TreeItem<TreeData> item : selectedItems) {
+            if (item == null || item.getValue() == null) {
+                continue;
+            }
+            if (item.getValue() instanceof ConnectFolder || item.getValue() instanceof Connect) {
+                continue;
+            }
+            Connect connect = MetadataTreeviewUtil.getMetaConnect(item);
+            if (connect.getReadonly() != null && connect.getReadonly()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static MetaObjectImpl getDeleteService(TreeData treeData) {
+        if (treeData instanceof View) {
+            return viewService;
+        }
+        if (treeData instanceof Index) {
+            return indexService;
+        }
+        if (treeData instanceof Sequence) {
+            return sequenceService;
+        }
+        if (treeData instanceof Synonym) {
+            return synonymService;
+        }
+        if (treeData instanceof Trigger) {
+            return triggerService;
+        }
+        if (treeData instanceof Function) {
+            return functionService;
+        }
+        if (treeData instanceof Procedure) {
+            return procedureService;
+        }
+        if (treeData instanceof DBPackage) {
+            return packageService;
+        }
+        if (treeData instanceof User) {
+            return databaseService;
+        }
+        return null;
+    }
+
+    private static String getDeleteObjectType(TreeData treeData) {
+        if (treeData instanceof View) {
+            return "view";
+        }
+        if (treeData instanceof Index) {
+            return "index";
+        }
+        if (treeData instanceof Sequence) {
+            return "sequence";
+        }
+        if (treeData instanceof Synonym) {
+            return "synonym";
+        }
+        if (treeData instanceof Trigger) {
+            return "trigger";
+        }
+        if (treeData instanceof Function) {
+            return "function";
+        }
+        if (treeData instanceof Procedure) {
+            return "procedure";
+        }
+        if (treeData instanceof DBPackage) {
+            return "package";
+        }
+        if (treeData instanceof User) {
+            return "user";
+        }
+        return "object";
     }
 
     private enum ObjectFolderKind {

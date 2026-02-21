@@ -375,12 +375,17 @@
 }
 
 
-/* 确保表格单元格hover或选中时，ChoiceBox中的文字也变成白色 */
-.table-cell:hover .table-choice-box .label,
-.table-cell:selected .table-choice-box .label {
-    -fx-text-fill: white !important;
-    -fx-background-color: #2871a8;
+/*禁用后下拉箭头黑色*/
+.table-choice-box:disabled {
+    -fx-opacity: 1;
 }
+
+/*禁用后文字黑色*/
+.table-choice-box:disabled > .label {
+    -fx-text-fill: black !important;
+    -fx-opacity: 1;
+}
+
 
 /* 确保表格单元格hover或选中时，下拉框中的文字是黑色 */
 .table-choice-box .context-menu .menu-item .label{
@@ -388,6 +393,15 @@
     -fx-font-size: 8;
     -fx-background-color: none;
 }
+
+/* 确保表格单元格hover或选中时，ChoiceBox中的文字也变成白色 */
+.table-cell:hover .table-choice-box .label,
+.table-cell:selected .table-choice-box .label {
+    -fx-text-fill: white !important;
+    -fx-background-color: #2871a8;
+}
+
+
 
 /* 确保ChoiceBox的箭头颜色也随单元格状态变化 */
 .table-cell:hover .table-choice-box .arrow,

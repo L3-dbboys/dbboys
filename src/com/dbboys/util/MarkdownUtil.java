@@ -1,4 +1,4 @@
-﻿package com.dbboys.util;
+package com.dbboys.util;
 
 import com.dbboys.customnode.*;
 import com.dbboys.ui.IconFactory;

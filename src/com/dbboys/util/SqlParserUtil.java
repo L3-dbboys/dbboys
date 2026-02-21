@@ -17,12 +17,14 @@ public class SqlParserUtil {
             "(?i)\\bcreate\\s+\\bprocedure\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+(?!(as|is)\\b)" + "|" +
             "(?i)\\bcreate\\s+\\bfunction\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+\\bRETURNING\\s+[a-zA-Z_][a-zA-Z0-9_$.]*\\s+(?!(as|is)\\b)" + "|" +
             "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package|procedure)\\s+(body\\s+)?([a-zA-Z_][a-zA-Z0-9_$.]*)\\s*(\\([\\s\\S]*?\\)\\s+)?(AS|IS)" + "|" +
-            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(function)\\s+([a-zA-Z0-9_$.]*)\\s*\\([\\s\\S]*?\\)\\s+return\\s+([a-zA-Z0-9_$.]*)\\s+(AS|IS)";
+            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(function)\\s+([a-zA-Z0-9_$.]*)\\s*(\\([\\s\\S]*?\\)\\s*)?return\\s+([a-zA-Z0-9_$.()]+)\\s+(AS|IS)" + "|" +
+            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?trigger\\s+([a-zA-Z0-9_$.\"]+)\\b";
     private static final String NO_NAME_BLOCK = "(?i)^\\s*\\b(begin)(?!\\s*(;|work))|(?i)^\\s*\\b(DECLARE)(?!\\s*;)";
     private static final String MULTI_LINE_END =
             "(?i)\\bend\\s+(procedure|function)\\s*;?" + "|" +
+            "(?i)\\bend\\s*;\\s*/" + "|" +
             "(?i)\\bend\\b\\s+([a-zA-Z_][a-zA-Z0-9_$.]*)?\\s*/" + "|" +
-            "^\\s*/";
+            "(?m)^\\s*/\\s*$";
     private static final String DROP_DATABASE = "(?i)(?:drop\\s+)+database\\s+(\\w+)";
     private static final String CREATE_DATABASE = "(?i)(?:create\\s+)?database\\s+(?<dbname>(\\w+))";
     private static final String PACKAGE_BODY_PATTERN = "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package)\\s+body\\s+([a-zA-Z_][a-zA-Z0-9_$.]*)\\s+(AS|IS)";

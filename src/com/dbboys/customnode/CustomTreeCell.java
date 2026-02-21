@@ -1,4 +1,4 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
