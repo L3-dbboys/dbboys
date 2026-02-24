@@ -107,9 +107,10 @@ public class CustomSearchReplaceVbox extends VBox {
         caseToggle.setFocusTraversable(false);
         findBox.getChildren().add(caseToggle);
         caseToggle.setFocusTraversable(false);
-        caseToggle.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_CASE_TOGGLE, 1, 0.7));
+        caseToggle.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_CASE_TOGGLE, 0.9, 0.6));
         caseToggle.setTooltip(new Tooltip());
         caseToggle.getTooltip().textProperty().bind(I18n.bind("searchreplace.case.tooltip", "区分大小写"));
+        caseToggle.getStyleClass().add("searchReplaceCaseToggle");
 
         Button findPrevBtn = new Button("");
         findPrevBtn.setFocusTraversable(false);

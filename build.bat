@@ -59,11 +59,9 @@ if exist "jre-min" (
 )
 
 :: 复制其他目录到dbboys
-xcopy /e /h /y /q "data\*" "dbboys\data\"
 xcopy /e /h /y /q "docs\*" "dbboys\docs\"
 xcopy /e /h /y /q "extlib\*" "dbboys\extlib\"
 xcopy /e /h /y /q "images\*" "dbboys\images\"
-xcopy /e /h /y /q "index\*" "dbboys\index\"
 xcopy /e /h /y /q "etc\*" "dbboys\etc\"
 echo 文件夹已复制。
 

@@ -3,6 +3,15 @@
   "configurations": [
     {
       "type": "java",
+      "name": "DefaultMenuItemDemo",
+      "request": "launch",
+      "mainClass": "com.dbboys.demo.DefaultMenuItemDemo",
+      "projectName": "dbboys_d2492530",
+      "vmArgs": "--module-path \"D:\\Programs\\javafx-sdk-25.0.1\\lib\" --add-modules javafx.controls,javafx.fxml"
+
+    },
+    {
+      "type": "java",
       "name": "Main",
       "request": "launch",
       "mainClass": "com.dbboys.app.Main"

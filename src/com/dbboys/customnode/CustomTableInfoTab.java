@@ -939,11 +939,14 @@ public class CustomTableInfoTab extends CustomTab {
      * 删除列功能
      */
     private void deleteSelectedColumn() {
-        // 获取选中的行
-        ObservableList<Integer> selectedIndices = colsTableView.getSelectionModel().getSelectedIndices();
-        
-        if (selectedIndices.isEmpty()) {
-            // 没有选中行，提示用户
+        // 在开启单元格选择模式时，getSelectedIndices 可能包含列索引或超界索引，这里改用 SelectedCells 抽取唯一行号。
+        ObservableList<TablePosition> selectedCells = colsTableView.getSelectionModel().getSelectedCells();
+        java.util.Set<Integer> rowSet = new java.util.HashSet<>();
+        for (TablePosition pos : selectedCells) {
+            rowSet.add(pos.getRow());
+        }
+
+        if (rowSet.isEmpty()) {
             AlterUtil.CustomAlert(
                     I18n.t("tableinfo.delete_column.alert.title", "提示"),
                     I18n.t("tableinfo.delete_column.alert.no_selection", "请先选择要删除的列")
@@ -959,13 +962,30 @@ public class CustomTableInfoTab extends CustomTab {
             );
             return;
         }
-        
-        // 按降序删除，避免索引变化问题
-        List<Integer> indicesToRemove = new ArrayList<>(selectedIndices);
-        java.util.Collections.sort(indicesToRemove, java.util.Collections.reverseOrder());
-        
+
+        // 过滤掉超界索引，避免 IndexOutOfBounds
+        int maxIdx = colsTableView.getItems().size() - 1;
+        List<Integer> indicesToRemove = rowSet.stream()
+                .filter(i -> i >= 0 && i <= maxIdx)
+                .sorted(java.util.Collections.reverseOrder())
+                .toList();
+
+        if (indicesToRemove.isEmpty()) {
+            return;
+        }
+
+        int minRemoved = indicesToRemove.stream().min(Integer::compareTo).orElse(0);
         for (Integer index : indicesToRemove) {
             colsTableView.getItems().remove(index.intValue());
+        }
+
+        // 删除后自动选中靠近被删行的现存行：若删的是最后一行，则选中新的最后一行（原倒数第二）
+        if (!colsTableView.getItems().isEmpty()) {
+            int newSize = colsTableView.getItems().size();
+            int target = Math.min(minRemoved, newSize - 1);
+            colsTableView.getSelectionModel().clearSelection();
+            colsTableView.getSelectionModel().select(target);
+            colsTableView.scrollTo(target);
         }
     }
     

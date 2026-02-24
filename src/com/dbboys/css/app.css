@@ -27,6 +27,8 @@
 /*涉及所有menu,包含下拉*/
 .menu{
 }
+
+
 .text-field:hover{
     -fx-background-color: #f5f5f5;
 }
@@ -629,12 +631,6 @@
 }
 */
 
-/*codearea选中文字背景色,有效*/
-.styled-text-area .selection {
-    /*-fx-fill: #ddd;*/
-    -fx-fill: #ddd;
-}
-
 
 /*sql编辑框字体大小，有自己的默认字体，与系统字体不一样*/
 .code-area{
@@ -646,11 +642,27 @@
     -fx-font-size: 11px;
 }
 
+
+/*codearea选中文字背景色,有效*/
+.styled-text-area .selection {
+    /*-fx-fill: #ddd;*/
+    -fx-fill: #ddd;
+}
+
+
+/* 选中文本白字,无效 */
+.styled-text-area .selected-text {
+    -fx-fill: white;
+}
+
 /*底下这个也有效
 .code-area .main-selection {
     -fx-fill: yellow;
 }
 */
+
+
+
 
 /*
 
@@ -1035,8 +1047,37 @@
     -fx-border-color: #274b68;
 }
 
+.searchReplaceCaseToggle {
+    -fx-pref-height: 15px;
+    -fx-min-height: 15px;
+    -fx-max-height: 15px;
+    -fx-pref-width: 15px;
+    -fx-min-width: 15px;
+    -fx-max-width: 15px;
+        -fx-content-display: graphic-only;
+
+    
+    -fx-background-color: #f2f2f2;
+    -fx-background-insets: 0px;
+    -fx-background-radius: 2px;
+
+    -fx-border-color: #b8c1cc;
+    -fx-border-width: 0.5px;
+    -fx-border-radius: 2px;
+    -fx-border-insets: 0px;
+
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.06), 2, 0, 0, 1);
+}
 
 
+.searchReplaceCaseToggle:hover {
+    -fx-background-color: #eef2f6;
+    -fx-border-color: #6f8498;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 3, 0, 0, 1);
+}
+.searchReplaceCaseToggle:focused {
+    -fx-border-color: #274b68;
+}
 
 #resultsetTabPane .tab-label {
     -fx-content-display: text-only; /* 只显示文字 */
@@ -1235,3 +1276,6 @@
     -fx-font-size: 11px;
     -fx-padding: 3;
 }
+
+
+

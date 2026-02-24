@@ -6,6 +6,7 @@ import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.ctrl.MainController;
 import com.dbboys.customnode.CustomSqlEditCodeArea;
 import com.dbboys.util.TabpaneUtil;
+import com.dbboys.util.UpgradeUtil;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Version;
 import javafx.application.Application;
@@ -26,6 +27,9 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 
 public class Main extends Application {
@@ -84,6 +88,21 @@ public class Main extends Application {
 
             //使用线程后台加载界面
             new Thread(() -> {
+                //初始化数据库和配置文件
+                Path dataDir = Paths.get("data");
+                Path configFile = dataDir.resolve("dbboys.dat");
+                if (Files.notExists(dataDir)) {
+                    try {
+                        Files.createDirectories(dataDir);
+                    } catch (IOException e) {
+                        log.error("创建data目录失败", e);
+                    }
+                    UpgradeUtil.initDefaultConfig();
+                } else if (Files.notExists(configFile)) {
+                    UpgradeUtil.initDefaultConfig();
+                }
+    
+
 
                 //从配置文件读取分隔符位置，配置文件保存的是最后一次拖动的位置
                 split1Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_MAIN", "0.2"));

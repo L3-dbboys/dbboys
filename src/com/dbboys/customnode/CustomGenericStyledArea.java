@@ -965,8 +965,8 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setRequestMethod("HEAD");
                 conn.setInstanceFollowRedirects(true);
-                conn.setConnectTimeout(2000);
-                conn.setReadTimeout(2000);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
                 int code = conn.getResponseCode();
                 valid = (code >= 200 && code < 400);
             } catch (Exception ex) {

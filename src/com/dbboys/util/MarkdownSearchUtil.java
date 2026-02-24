@@ -381,8 +381,8 @@ public class MarkdownSearchUtil {
                 flow.getChildren().add(normal);
             }
             Text match = new Text(fullPath.substring(pathMatcher.start(), pathMatcher.end()));
-            match.setFill(Color.RED);
-            //match.setFill(Paint.valueOf("#d53829"));
+            //match.setFill(Color.RED);
+            match.setFill(Color.valueOf("#d53829"));
             match.setFont(Font.font("System", FontWeight.BOLD, 10));
             flow.getChildren().add(match);
             last = pathMatcher.end();
@@ -417,7 +417,9 @@ public class MarkdownSearchUtil {
                 flow.getChildren().add(normal);
             }
             Text match = new Text(limitedSnippet.substring(snippetMatcher.start(), snippetMatcher.end()));
-            match.setFill(Color.RED);
+            //match.setFill(Color.RED);
+            match.setFill(Color.valueOf("#d53829"));
+
             match.setFont(Font.font("System", FontWeight.NORMAL, 8));
             flow.getChildren().add(match);
             last = snippetMatcher.end();
@@ -433,7 +435,10 @@ public class MarkdownSearchUtil {
     }
 
 
-    public static void buildIndex() {
+    public static void buildIndex(){
+        buildIndex(true);
+    }
+    public static void buildIndex(boolean isNeedNotice) {
         new Thread(() -> {
             Platform.runLater(()->{
                 Main.mainController.rebuildMarkdownIndexButton.setVisible(false);
@@ -453,7 +458,9 @@ public class MarkdownSearchUtil {
             LuceneIndexer indexer = new LuceneIndexer(indexDir);
             indexer.buildIndex(Paths.get("docs"));
             Platform.runLater(()->{
-            NotificationUtil.showNotification(Main.mainController.noticePane, rebuildDoneBinding.get());
+                if(isNeedNotice){
+                    NotificationUtil.showNotification(Main.mainController.noticePane, rebuildDoneBinding.get());
+                }
                 Platform.runLater(()->{
                     Main.mainController.rebuildMarkdownIndexButton.setVisible(true);
                 });

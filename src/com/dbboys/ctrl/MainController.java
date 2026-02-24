@@ -24,6 +24,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Locale;
@@ -164,24 +167,38 @@ public class MainController {
     public void initialize() {
         //UpgradeUtil.initDefaultConfig();  //初始化
         Main.loadProgressBar.setProgress(0.2);
+        initMarkdownIndex(false);
+        Main.loadProgressBar.setProgress(0.4);
         initI18nBindings();
         setupMainIcons();
+        Main.loadProgressBar.setProgress(0.5);
         initDownloadVisibility();
         initSidebarTabs();
         initSidebarSearch();
+        Main.loadProgressBar.setProgress(0.6);
         initMarkdownPanel();
         initSqlTabInteractions();
         initMenuActions();
+        Main.loadProgressBar.setProgress(0.7);
         initSplitPaneResizeBehavior();
         initWindowControls();
         initTreeView();
-        Main.loadProgressBar.setProgress(0.4);
         initStatusBar();
-        Main.loadProgressBar.setProgress(0.6);
+        Main.loadProgressBar.setProgress(0.8);
         initBackgroundTasks();
         Main.loadProgressBar.setProgress(1);
     }
     //初始化界面完成
+
+
+
+
+    private void initMarkdownIndex(boolean isNeedNotice){
+        Path dataDir = Paths.get("index");
+        if (Files.notExists(dataDir)) {
+            MarkdownSearchUtil.buildIndex(isNeedNotice);
+        } 
+    }
 
     private void initDownloadVisibility() {
         //如果没有下载，界面不显示
@@ -192,7 +209,6 @@ public class MainController {
     }
 
     private void setupMainIcons() {
-        menuFileAddFolder.setShortcutText("CTRL+A");
         appLogoLabel.setGraphic(IconFactory.imageView(IconPaths.MAIN_LOGO, 18, 18, false));
         menuFileAddFolder.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_ADD_FOLDER, 0.65, Color.valueOf("#074675")));
         menuFileNewConnection.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_CONNECTION, 0.65, Color.valueOf("#074675")));
@@ -202,7 +218,7 @@ public class MainController {
         menuConfigCheckEnv.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_CHECK_ENV, 0.5, Color.valueOf("#074675")));
         menuConfigInstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#074675")));
         menuConfigUninstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#9f453c")));
-        menuSettingsReset.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HOME, 0.5, Color.valueOf("#074675")));
+        menuSettingsReset.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_RESET, 0.6, Color.valueOf("#074675")));
         menuHelpAbout.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HELP, 0.6, Color.valueOf("#074675")));
         menuHelpCommunity.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_COMMUNITY, 0.5, Color.valueOf("#074675")));
         menuHelpCheckUpdate.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HOME, 0.5, Color.valueOf("#074675")));

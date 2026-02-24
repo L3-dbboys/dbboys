@@ -4,3 +4,6 @@ jre-min/
 *.zip
 sources.txt
 logs/
+data/
+index/
+demo/
