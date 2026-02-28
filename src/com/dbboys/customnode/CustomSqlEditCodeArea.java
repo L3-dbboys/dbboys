@@ -1,7 +1,8 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
+import com.dbboys.customnode.CustomShortcutMenuItem;
 import com.dbboys.util.KeywordsHighlightUtil;
 import com.dbboys.util.MenuItemUtil;
 import com.dbboys.util.SqlParserUtil;
@@ -10,14 +11,29 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.input.*;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
+import org.fxmisc.richtext.model.PlainTextChange;
+import org.fxmisc.richtext.model.TwoDimensional.Bias;
 
+import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CustomSqlEditCodeArea extends CodeArea {
+    private static final int LOCAL_HIGHLIGHT_MAX = 4000;
+    private static final int LOOKBACK_RANGE = 2000; // 上文最多回溯这么多字符尝试局部高亮
+
     private final int[] sqlEditCodeAreaCursorPosition = {0, 0};
     private int styleChangeFlag = 0;
+    private final ExecutorService highlightExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "sql-highlight");
+        t.setDaemon(true);
+        return t;
+    });
+    private final AtomicLong highlightSeq = new AtomicLong(0);
     private Runnable onSaveRequest = () -> {};
     private Runnable onContentDirty = () -> {};
     private Runnable onShowFindPanel = () -> {};
@@ -43,28 +59,13 @@ public class CustomSqlEditCodeArea extends CodeArea {
         CustomShortcutMenuItem codeAreaSaveItem = MenuItemUtil.createMenuItemI18n("sql.editor.menu.save", "Ctrl+S", IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.6));
 
         ContextMenu codeAreaMenu = new ContextMenu();
+        codeAreaMenu.getItems().addAll(
+                codeAreaExecuteItem, codeAreaFormatItem, codeAreaUpperItem, codeAreaLowerItem,
+                codeAreaCommRowItem, codeAreaCommRowsItem, codeAreaSearchItem, codeAreaCopyItem,
+                codeAreaCutItem, codeAreaPasteItem, codeAreaUndoItem, codeAreaRedoItem, codeAreaSaveItem
+        );
 
-        codeAreaMenu.getItems().addAll(codeAreaExecuteItem,codeAreaFormatItem,codeAreaUpperItem,codeAreaLowerItem,codeAreaCommRowItem,codeAreaCommRowsItem,codeAreaSearchItem,codeAreaCopyItem,codeAreaCutItem,codeAreaPasteItem,codeAreaUndoItem,codeAreaRedoItem,codeAreaSaveItem);
-
-        //仅用于对齐显示，暂不知为何不生效，treeview是有效的
-        /*
-        codeAreaExecuteItem.setAccelerator(new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN));
-        codeAreaFormatItem.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.CONTROL_DOWN));
-        codeAreaUpperItem.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.CONTROL_DOWN));
-        codeAreaLowerItem.setAccelerator(new KeyCodeCombination(KeyCode.L, KeyCombination.CONTROL_DOWN));
-        codeAreaCommRowItem.setAccelerator(new KeyCodeCombination(KeyCode.SLASH, KeyCombination.CONTROL_DOWN));
-        codeAreaCommRowsItem.setAccelerator(new KeyCodeCombination(KeyCode.BACK_SLASH, KeyCombination.CONTROL_DOWN));
-        codeAreaSearchItem.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN));
-        codeAreaCopyItem.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN));
-        codeAreaCutItem.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.CONTROL_DOWN));
-        codeAreaPasteItem.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN));
-        codeAreaUndoItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN));
-        codeAreaRedoItem.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.CONTROL_DOWN));
-        codeAreaSaveItem.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN));
-        */
-
-        // ctrl+s保存
-
+        // ctrl快捷键
         setOnKeyPressed(event -> {
             if(event.isControlDown()&&event.getCode() == KeyCode.S){
                 onSaveRequest.run();
@@ -94,36 +95,49 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 onShowReplacePanel.run();
             }
         });
+        // 自动补全/跳过成对引号，避免重复插入（使用 EventFilter，先于默认处理）
+        addEventFilter(KeyEvent.KEY_TYPED, event -> {
+            String ch = event.getCharacter();
+            if (ch == null || ch.length() != 1) {
+                return;
+            }
+            char c = ch.charAt(0);
+            if ((c == '"' || c == '\'' || c == '`') && !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
+                int caret = getCaretPosition();
+                int textLen = getLength();
+                event.consume(); // 阻止默认插入
 
+                // 如果光标右侧已经是同样的引号，则视为“跳过”而非再插入
+                if (caret < textLen && getText(caret, caret + 1).charAt(0) == c) {
+                    moveTo(caret + 1);
+                    return;
+                }
 
+                String selected = getSelectedText();
+                if (selected != null && !selected.isEmpty()) {
+                    replaceSelection(ch + selected + ch);
+                    selectRange(caret + 1 + selected.length(), caret + 1 + selected.length());
+                } else {
+                    insertText(caret, ch + ch); // 总共两个字符
+                    moveTo(caret + 1);
+                }
+            }
+        });
 
         setContextMenu(codeAreaMenu);
-        codeAreaFormatItem.setOnAction(event-> {
-            applyTransform(SqlParserUtil::formatSql);
-        });
-
-        codeAreaUpperItem.setOnAction(event-> {
-            applyTransform(SqlParserUtil::upperSql);
-        });
-
-        codeAreaLowerItem.setOnAction(event-> {
-            applyTransform(SqlParserUtil::lowerSql);
-        });
+        codeAreaFormatItem.setOnAction(event-> applyTransform(SqlParserUtil::formatSql));
+        codeAreaUpperItem.setOnAction(event-> applyTransform(SqlParserUtil::upperSql));
+        codeAreaLowerItem.setOnAction(event-> applyTransform(SqlParserUtil::lowerSql));
 
         codeAreaCommRowItem.setOnAction(event-> {
             int currentLine = getCurrentParagraph();
             String lineText = getParagraph(currentLine).getText();
-
-            // 去掉开头空格判断
             String trimmed = lineText.trim();
             int lineStart = getAbsolutePosition(currentLine, 0);
-
             if (trimmed.startsWith("--")) {
-                // 取消注释
                 int commentIndex = lineText.indexOf("--");
                 deleteText(lineStart + commentIndex, lineStart + commentIndex + 2);
             } else {
-                // 添加注释
                 int firstNonSpace = lineText.indexOf(trimmed);
                 insertText(lineStart + firstNonSpace, "--");
             }
@@ -133,177 +147,53 @@ public class CustomSqlEditCodeArea extends CodeArea {
             int start = getSelection().getStart();
             int end = getSelection().getEnd();
             String selectedText = getSelectedText();
-
             if(selectedText==null ||selectedText.isEmpty()){
-
-            }else{
-                if (selectedText.trim().startsWith("/*") && selectedText.endsWith("*/")) {
-                    // 已被块注释，取消注释
-                    //String uncommented = selectedText.substring(2, selectedText.length() - 2);
-                    String uncommented = selectedText.replaceAll("/\\*|\\*/","");
-                    replaceText(start, end, uncommented);
-                } else {
-                    // 未被注释，添加块注释
-                    String commented = "/*" + selectedText + "*/";
-                    replaceText(start, end, commented);
-                }
+                return;
             }
-
+            if (selectedText.trim().startsWith("/*") && selectedText.endsWith("*/")) {
+                String uncommented = selectedText.replaceAll("/\\*|\\*/","");
+                replaceText(start, end, uncommented);
+            } else {
+                String commented = "/*" + selectedText + "*/";
+                replaceText(start, end, commented);
+            }
         });
 
-        codeAreaSearchItem.setOnAction(event->{
-            onShowFindPanel.run();
-        });
-        // codeAreaExecuteItem 可按需要绑定外部执行按钮可见性
-        codeAreaExecuteItem.setOnAction(event -> {
-            fireExecute();
-        });
+        codeAreaSearchItem.setOnAction(event-> onShowFindPanel.run());
+        codeAreaExecuteItem.setOnAction(event -> fireExecute());
         codeAreaCopyItem.setDisable(true);
-
-        codeAreaCopyItem.setOnAction(event -> {
-            copy();
-        });
-        codeAreaCutItem.setOnAction(event -> {
-            cut();
-        });
-
-        codeAreaPasteItem.setOnAction(event -> {
-            paste();
-        });
-        codeAreaUndoItem.setOnAction(event -> {
-            undo();
-        });
-        codeAreaRedoItem.setOnAction(event -> {
-            redo();
-        });
-
+        codeAreaCopyItem.setOnAction(event -> copy());
+        codeAreaCutItem.setOnAction(event -> cut());
+        codeAreaPasteItem.setOnAction(event -> paste());
+        codeAreaUndoItem.setOnAction(event -> undo());
+        codeAreaRedoItem.setOnAction(event -> redo());
 
         codeAreaMenu.setOnShowing(event -> {
-            if(saveDisabledSupplier.getAsBoolean()){
-                codeAreaSaveItem.setDisable(true);
-            }else{
-                codeAreaSaveItem.setDisable(false);
-            }
-
-            if(getSelectedText().isEmpty()){
-                codeAreaCopyItem.setDisable(true);
-                codeAreaCutItem.setDisable(true);
-                codeAreaCommRowsItem.setDisable(true);
-            }else{
-                codeAreaCopyItem.setDisable(false);
-                codeAreaCutItem.setDisable(false);
-                codeAreaCommRowsItem.setDisable(false);
-            }
-
+            codeAreaSaveItem.setDisable(saveDisabledSupplier.getAsBoolean());
+            boolean hasSelection = !getSelectedText().isEmpty();
+            codeAreaCopyItem.setDisable(!hasSelection);
+            codeAreaCutItem.setDisable(!hasSelection);
+            codeAreaCommRowsItem.setDisable(!hasSelection);
             Clipboard clipboard = Clipboard.getSystemClipboard();
-            if(clipboard.hasString()){
-                codeAreaPasteItem.setDisable(false);
-            }else{
-                codeAreaPasteItem.setDisable(true);
-            }
-
-            if(executeDisabledSupplier.getAsBoolean()){
-                codeAreaExecuteItem.setDisable(true);
-            }else{
-                codeAreaExecuteItem.setDisable(false);
-            }
+            codeAreaPasteItem.setDisable(!clipboard.hasString());
+            codeAreaExecuteItem.setDisable(executeDisabledSupplier.getAsBoolean());
         });
-        //设置行号
+
         setParagraphGraphicFactory(LineNumberFactory.get(this));
-        codeAreaSaveItem.setOnAction(event->{
-            onSaveRequest.run();
-        });
+        codeAreaSaveItem.setOnAction(event-> onSaveRequest.run());
 
+        caretPositionProperty().addListener((obs, oldPos, newPos) -> Platform.runLater(() -> {
+            styleChangeFlag=1;
+            highlightMatchingBracket(this, newPos, sqlEditCodeAreaCursorPosition);
+            styleChangeFlag=0;
+        }));
 
-        // 监听光标位置变化，如果移动到了括号位置，高亮显示一对括号
-        caretPositionProperty().addListener((obs, oldPos, newPos) -> {
-            Platform.runLater(() -> {
-                styleChangeFlag=1; //标记只变更了样式，未变更内容，避免高亮显示括号触发codearea变更监听
-                highlightMatchingBracket(this, newPos,sqlEditCodeAreaCursorPosition);
-                styleChangeFlag=0; //高亮后恢复标记
-            });
-        });
-        //监听输入变化
-        richChanges()
-                //.filter(change ->  !change.isPlainTextIdentity()) // 只处理文本的变化,否则setStyleSpans也会触发事件
-                .filter(change ->  styleChangeFlag==0) // 只处理文本的变化,否则setStyleSpans也会触发事件
+        plainTextChanges()
+                .filter(change -> styleChangeFlag==0)
+                .successionEnds(Duration.ofMillis(20))
                 .subscribe(change -> {
-                    /*
-                    String parseText="";  //需要匹配的字符串，如果输入的开头不是空格或回车，需要往前寻找空格累加，往后同理
-
-                    System.out.println("=============================");
-                    //System.out.println(change);
-                    System.out.println("changed postion: " + change.getPosition());
-                    System.out.println("inserted end: " + change.getInsertionEnd());
-                    System.out.println("removed end: " + change.getRemovalEnd());
-
-                    Integer appendFirstPos=0;
-                    Integer appendEndPos=0;
-                    //如果是插入，按以下流程处理
-
-                    if(change.getInsertionEnd()-change.getPosition()>0){
-                        parseText=codeArea.getText( change.getPosition(),change.getInsertionEnd());
-                        appendFirstPos= change.getPosition();
-                        appendEndPos= change.getInsertionEnd();
-                        //往前拼接到空格或回车或开头为止
-                        if(appendFirstPos>0) {
-                            do
-                             {
-                                parseText = codeArea.getText(appendFirstPos - 1, appendFirstPos) + parseText;
-                                appendFirstPos--;
-                            }while ((!(parseText.charAt(0) == ' ' || parseText.charAt(0) == '\n')) && appendFirstPos > 0);
-                        }
-                        //往后拼接到空格或回车或结尾为止
-                        if(appendEndPos<codeArea.getText().length()){
-                            do
-                            {
-                                parseText=parseText+codeArea.getText( appendEndPos,appendEndPos+1);
-                                appendEndPos++;
-                            }while((!(parseText.charAt(parseText.length()-1)==' '||parseText.charAt(parseText.length()-1)=='\n'))&&appendEndPos<codeArea.getText().length());
-                        }
-
-
-
-                    }
-                    //如果是删除，按以下流程处理
-                    else if (change.getRemovalEnd()-change.getPosition()>0) {
-                        appendFirstPos= change.getPosition();
-                        appendEndPos= change.getPosition();
-                        parseText="";
-                        //如果光标在最开始位置，不往前拼接
-                        if(change.getPosition()!=0){
-                            //往前拼接到空格或回车或开头为止
-                            do
-                            {
-                                parseText=codeArea.getText( appendFirstPos-1,appendFirstPos)+parseText;
-                                appendFirstPos--;
-                            }while((!(parseText.charAt(0)==' '||parseText.charAt(0)=='\n'))&&appendFirstPos>0);
-                        }
-
-                        //往后拼接到空格或回车或结尾为止
-                        if(appendEndPos<codeArea.getText().length()) {
-                            do {
-                                parseText = parseText + codeArea.getText(appendEndPos, appendEndPos + 1);
-                                appendEndPos++;
-                            } while ((!(parseText.charAt(parseText.length() - 1) == ' ' || parseText.charAt(parseText.length() - 1) == '\n')) && appendEndPos < codeArea.getText().length());
-                        }
-
-                    }
-                    */
-                    //为局部设置样式，如每次变更都全局设置样式，如脚本很长会卡
-                    styleChangeFlag=1;  //设置标识，避免setStyleSpans触发richChanges
-                    //如果包含特殊字符，全局更新样式
-                    //System.out.println("parseText is:"+parseText);
-                    //if(parseText.contains("'")||parseText.contains("\"")||parseText.contains("`")||parseText.contains("/*")||parseText.contains("*/")||parseText.contains("--")){
-                    setStyleSpans(0,KeywordsHighlightUtil.applyHighlighting(getText()));
+                    scheduleIncrementalHighlight(change);
                     onContentDirty.run();
-                    //如果不包含特殊字符，局部更新样式
-                    //}else{
-                    //    codeArea.setStyleSpans(appendFirstPos,applyHighlighting(parseText));
-                    //}
-
-                    styleChangeFlag=0;  //执行完后关闭标识
-
                 });
     }
 
@@ -335,41 +225,15 @@ public class CustomSqlEditCodeArea extends CodeArea {
         this.executeDisabledSupplier = executeDisabledSupplier == null ? () -> true : executeDisabledSupplier;
     }
 
-    
-
-    //如果光标位置是括号，匹配的一对括号高亮
     public void highlightMatchingBracket(CodeArea codeArea, int caretPosition,int[] last_pos) {
         String text = codeArea.getText();
-
-        // 清除之前的样式
-        //codeArea.clearStyle(0, text.length());
-
-        // 匹配括号的逻辑
         int matchPos = -1;
-
-        // 1. 如果光标在括号前面，尝试匹配右侧括号
         if (caretPosition < text.length()) {
-            if(last_pos[0]!=0){
-                try {
-                    if((text.charAt(last_pos[0])=='{'&&text.charAt(last_pos[1])=='}')||(text.charAt(last_pos[0])=='}'&&text.charAt(last_pos[1])=='{')){
-                        codeArea.setStyleClass(last_pos[0], last_pos[0] + 1, "comment");
-                        codeArea.setStyleClass(last_pos[1], last_pos[1] + 1, "comment");
-                    }else if((text.charAt(last_pos[0])=='('&&text.charAt(last_pos[1])==')')||(text.charAt(last_pos[0])==')'&&text.charAt(last_pos[1])=='(')){
-                        codeArea.setStyleClass(last_pos[0], last_pos[0] + 1, "paren");
-                        codeArea.setStyleClass(last_pos[1], last_pos[1] + 1, "paren");
-                    }
-                    last_pos[0]=0;
-                    last_pos[1]=0;
-                }catch (Exception e){
-                    last_pos[0]=0;
-                    last_pos[1]=0;
-                }
-            }
+            resetLastBracketStyle(codeArea, text, last_pos);
             char rightChar = text.charAt(caretPosition);
             if ("()[]{}".indexOf(rightChar) != -1) {
                 matchPos = findMatchingBracket(text, caretPosition, rightChar);
                 if (matchPos != -1) {
-                    //括号显示样式
                     codeArea.setStyleClass(caretPosition, caretPosition + 1, "bracket-highlight");
                     codeArea.setStyleClass(matchPos, matchPos + 1, "bracket-highlight");
                     last_pos[0] = caretPosition;
@@ -378,26 +242,8 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 }
             }
         }
-
-        // 2. 如果光标在括号后面，尝试匹配左侧括号
-
         if (caretPosition > 0) {
-            if(last_pos[0]!=0){
-                try {
-                    if((text.charAt(last_pos[0])=='{'&&text.charAt(last_pos[1])=='}')||(text.charAt(last_pos[0])=='}'&&text.charAt(last_pos[1])=='{')){
-                        codeArea.setStyleClass(last_pos[0], last_pos[0] + 1, "comment");
-                        codeArea.setStyleClass(last_pos[1], last_pos[1] + 1, "comment");
-                    }else if((text.charAt(last_pos[0])=='('&&text.charAt(last_pos[1])==')')||(text.charAt(last_pos[0])==')'&&text.charAt(last_pos[1])=='(')){
-                        codeArea.setStyleClass(last_pos[0], last_pos[0] + 1, "paren");
-                        codeArea.setStyleClass(last_pos[1], last_pos[1] + 1, "paren");
-                    }
-                    last_pos[0]=0;
-                    last_pos[1]=0;
-                }catch (Exception e){
-                    last_pos[0]=0;
-                    last_pos[1]=0;
-                }
-            }
+            resetLastBracketStyle(codeArea, text, last_pos);
             char leftChar = text.charAt(caretPosition - 1);
             if ("()[]{}".indexOf(leftChar) != -1) {
                 matchPos = findMatchingBracket(text, caretPosition - 1, leftChar);
@@ -409,8 +255,25 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 }
             }
         }
+    }
 
-
+    private void resetLastBracketStyle(CodeArea codeArea, String text, int[] last_pos) {
+        if(last_pos[0]==0){
+            return;
+        }
+        try {
+            if((text.charAt(last_pos[0])=='{'&&text.charAt(last_pos[1])=='}')||(text.charAt(last_pos[0])=='}'&&text.charAt(last_pos[1])=='{')){
+                codeArea.setStyleClass(last_pos[0], last_pos[0] + 1, "comment");
+                codeArea.setStyleClass(last_pos[1], last_pos[1] + 1, "comment");
+            }else if((text.charAt(last_pos[0])=='('&&text.charAt(last_pos[1])==')')||(text.charAt(last_pos[0])==')'&&text.charAt(last_pos[1])=='(')){
+                codeArea.setStyleClass(last_pos[0], last_pos[0] + 1, "paren");
+                codeArea.setStyleClass(last_pos[1], last_pos[1] + 1, "paren");
+            }
+        }catch (Exception ignored){
+        }finally {
+            last_pos[0]=0;
+            last_pos[1]=0;
+        }
     }
 
     private void fireExecute() {
@@ -430,9 +293,6 @@ public class CustomSqlEditCodeArea extends CodeArea {
         replaceText(start, end, transform.apply(selectedText));
     }
 
-    /**
-     * 查找匹配的括号
-     */
 
     public int findMatchingBracket(String text, int pos, char currentChar) {
         char matchChar;
@@ -470,7 +330,6 @@ public class CustomSqlEditCodeArea extends CodeArea {
         int balance = 0;
         for (int i = pos + direction; i >= 0 && i < text.length(); i += direction) {
             char c = text.charAt(i);
-
             if (c == currentChar) {
                 balance++;
             } else if (c == matchChar) {
@@ -480,9 +339,101 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 balance--;
             }
         }
-
-        return -1; // 未找到匹配的括号
+        return -1; // 未找到匹配括号
     }
 
+    /**
+     * Incremental highlight only the paragraphs around the change; fallback to full when the slice is large.
+     */
+    private void scheduleIncrementalHighlight(PlainTextChange change) {
+        // 删除引号时直接做全量高亮，防止字符串状态错乱
+        if (change.getRemoved() != null && (change.getRemoved().contains("'") || change.getRemoved().contains("\"") || change.getRemoved().contains("`"))) {
+            scheduleHighlighting();
+            return;
+        }
+        int start = Math.max(0, change.getPosition());
+        int changeExtent = Math.max(change.getInserted().length(), change.getRemoved().length());
+        int end = Math.min(getLength(), start + changeExtent);
 
+        int startPara = Math.max(0, offsetToPosition(start, Bias.Backward).getMajor() - 1);
+        int endPara = Math.min(getParagraphs().size() - 1, offsetToPosition(end, Bias.Forward).getMajor() + 1);
+        int regionStart = getAbsolutePosition(startPara, 0);
+        int regionEnd = getAbsolutePosition(endPara, getParagraph(endPara).length());
+        int regionLen = regionEnd - regionStart;
+
+        if (regionLen <= 0) {
+            return;
+        }
+
+        // 尝试在局部范围内回溯，减少因未闭合引号/块注释导致的全量回退。
+        int lookbackStart = Math.max(0, regionStart - LOOKBACK_RANGE);
+        boolean unsafePrefix = hasOpenDelimiterBefore(regionStart, lookbackStart);
+        int effectiveStart = unsafePrefix ? lookbackStart : regionStart;
+        int effectiveLen = regionEnd - effectiveStart;
+
+        if (effectiveLen > LOCAL_HIGHLIGHT_MAX) {
+            scheduleHighlighting();
+            return;
+        }
+
+        long seq = highlightSeq.incrementAndGet();
+        String slice = getText(effectiveStart, regionEnd);
+        highlightExecutor.submit(() -> {
+            var spans = KeywordsHighlightUtil.highlightSql(slice);
+            Platform.runLater(() -> {
+                if (highlightSeq.get() != seq) {
+                    return; // outdated result
+                }
+                styleChangeFlag = 1;
+                setStyleSpans(effectiveStart, spans);
+                styleChangeFlag = 0;
+            });
+        });
+    }
+
+    /**
+     * 判断 regionStart 之前是否有未闭合的字符串/块注释，若有则需要全量重算。
+     */
+    private boolean hasOpenDelimiterBefore(int regionStart, int scanStart) {
+        String prefix = regionStart <= 0 ? "" : getText(scanStart, regionStart);
+        // 简单奇偶计数，针对 SQL 的 '' / "" / ``。若为奇数视为未闭合。
+        if ((countChar(prefix, '\'') & 1) == 1) return true;
+        if ((countChar(prefix, '\"') & 1) == 1) return true;
+        if ((countChar(prefix, '`') & 1) == 1) return true;
+
+        // 块注释未闭合：最后出现的 /* 在最后一个 */ 之后
+        int lastOpen = prefix.lastIndexOf("/*");
+        int lastClose = prefix.lastIndexOf("*/");
+        return lastOpen > lastClose;
+    }
+
+    private int countChar(String text, char ch) {
+        int cnt = 0;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == ch) {
+                // 对 SQL 来说，使用两个相邻引号 '' 作为转义，这里仍然按出现次数计数，奇偶即可。
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+
+    /**
+     * Run syntax highlighting off the FX thread and ignore stale runs.
+     */
+    private void scheduleHighlighting() {
+        long seq = highlightSeq.incrementAndGet();
+        String snapshot = getText();
+        highlightExecutor.submit(() -> {
+            var spans = KeywordsHighlightUtil.highlightSql(snapshot);
+            Platform.runLater(() -> {
+                if (highlightSeq.get() != seq) {
+                    return; // outdated result
+                }
+                styleChangeFlag = 1;
+                setStyleSpans(0, spans);
+                styleChangeFlag = 0;
+            });
+        });
+    }
 }

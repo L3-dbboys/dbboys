@@ -23,6 +23,7 @@ public class CustomShortcutMenuItem extends CustomMenuItem {
     private final Label textLabel = new Label();
     private final Label shortcutLabel = new Label();
 
+    
     public CustomShortcutMenuItem() {
         this("", "");
     }
@@ -43,7 +44,7 @@ public class CustomShortcutMenuItem extends CustomMenuItem {
         iconSlot.setStyle(COMPACT_PADDING);
         HBox.setMargin(iconSlot, new Insets(0, DEFAULT_ICON_TEXT_GAP, 0, DEFAULT_ICON_LEFT_PADDING));
 
-        textLabel.setStyle(COMPACT_PADDING);
+        textLabel.setStyle("-fx-padding: 0;-fx-min-width: 120;");
         shortcutLabel.setStyle(COMPACT_PADDING);
         shortcutLabel.setTranslateX(SHORTCUT_NUDGE_RIGHT);
         Region spacer = new Region();

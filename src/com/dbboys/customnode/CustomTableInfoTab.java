@@ -661,7 +661,7 @@ public class CustomTableInfoTab extends CustomTab {
         }
 
             try {
-                ddl = MetadataTreeviewUtil.tableService.getDDL(connect,database, tableName)
+                ddl = SqlParserUtil.formatSql(MetadataTreeviewUtil.tableService.getDDL(connect,database, tableName));
                 ;
             } catch (Exception e) {
                 // TODO Auto-generated catch block
@@ -675,7 +675,6 @@ public class CustomTableInfoTab extends CustomTab {
 
             //实例信息界面
             CustomInfoStackPane ddlCodeareaStackPane = new CustomInfoStackPane(new CustomInfoCodeArea());
-            log.info("ddl is:"+ddl) ;
 
             //实例信息界面结束
             ddlCodeareaStackPane.codeArea.replaceText(ddl); //如果不用settext，而是appendtext追加，会导致setScrollTop无效

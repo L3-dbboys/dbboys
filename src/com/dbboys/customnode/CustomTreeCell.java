@@ -558,7 +558,9 @@ public class CustomTreeCell extends TreeCell<TreeData> {
 
         setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                startDdlTask(item);
+                MetadataTreeviewUtil.handleDdlAction(getTreeView(), (treeData, ddlText) -> {
+                    PopupWindowUtil.openDDLWindow(ddlText);
+                 });
             }
         });
     }
@@ -597,90 +599,8 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         });
     }
 
-    private void startDdlTask(TreeData item) {
-        ddlTask = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                ddlPopupStageDdlSql = "";
-                TreeItem<TreeData> treeItem = getTreeItem();
-                if (treeItem == null) {
-                    return null;
-                }
-                Object parentValue = treeItem.getParent() == null ? null : treeItem.getParent().getValue();
-                Connect connectParam=MetadataTreeviewUtil.getMetaConnect(treeItem);
-                Database database= MetadataTreeviewUtil.getCurrentDatabase(treeItem);
-                if(item instanceof Index){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.indexService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof View){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.viewService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof Trigger){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.triggerService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof Sequence){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.sequenceService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof Synonym){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.synonymService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof Function){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.functionService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof Procedure){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.procedureService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof DBPackage  ){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.packageService.getDDL(
-                            connectParam,
-                            database,
-                            item.getName()
-                    );
-                }else if(item instanceof PackageFunction|| item instanceof PackageProcedure){
-                    ddlPopupStageDdlSql = MetadataTreeviewUtil.packageService.getChildrenDDL(
-                    ((DBPackage)getTreeItem().getParent().getValue()).getDDL(),item.getName()
-                    );
-                }
 
-                return null;
-            }
-        };
-        ddlTask.setOnSucceeded(event1 -> {
-            if (!ddlPopupStageDdlSql.isEmpty()) {
-                PopupWindowUtil.openDDLWindow(ddlPopupStageDdlSql);
-            }
-            item.setRunning(false);
-        });
-        GlobalErrorHandlerUtil.bindTask(ddlTask, () -> item.setRunning(false));
-        TreeItem<TreeData> treeItem = getTreeItem();
-        if (treeItem == null) {
-            return;
-        }
-        Thread thread = new Thread(ddlTask);
-        MetadataTreeviewUtil.getMetaConnect(treeItem).executeSqlTask(thread);
-        item.setRunning(true);
-    }
+    
 
     private void handleDragMoveAction(TreeData item) {
         if (item instanceof ConnectFolder) {

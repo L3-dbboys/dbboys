@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
@@ -534,15 +534,15 @@ public class RemoteUninstallerUtil {
     }
 
     private static void bindUninstallStepTexts() {
-        customInstallStepHbox1.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step1.name", "・关闭数据库进程"));
+        customInstallStepHbox1.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step1.name", "关闭数据库进程"));
         customInstallStepHbox1.descLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step1.desc", "kill所有owner为gbasedbt用户进程。"));
-        customInstallStepHbox2.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step2.name", "・删除安装目录"));
+        customInstallStepHbox2.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step2.name", "删除安装目录"));
         customInstallStepHbox2.descLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step2.desc", "删除/GBASEDBTTMP/.infxdirs记录的所有目录，删除/GBASEDBTTMP目录，删除/opt/gbase。"));
-        customInstallStepHbox3.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step3.name", "・删除数据文件"));
+        customInstallStepHbox3.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step3.name", "删除数据文件"));
         customInstallStepHbox3.descLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step3.desc", "删除所有owner为gbasedbt用户的文件。"));
-        customInstallStepHbox4.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step4.name", "・删除用户目录"));
+        customInstallStepHbox4.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step4.name", "删除用户目录"));
         customInstallStepHbox4.descLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step4.desc", "如果存在/etc/gbasedbt，删除该目录。"));
-        customInstallStepHbox5.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step5.name", "・删除用户及组"));
+        customInstallStepHbox5.nameLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step5.name", "删除用户及组"));
         customInstallStepHbox5.descLabel.textProperty().bind(I18n.bind("remote.uninstall.step2.step5.desc", "删除gbasedbt用户及gbasedbt组。"));
     }
 

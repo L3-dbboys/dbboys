@@ -107,6 +107,15 @@
     -fx-padding: 0 !important;
 }
 
+/* 勾的大小（关键） */
+.table-check-box .mark {
+    -fx-pref-width: 10px;
+    -fx-pref-height: 10px;
+    -fx-max-width: 10px;
+    -fx-max-height: 10px;
+    -fx-min-width: 10px;
+    -fx-min-height: 10px;
+}
 
 .tree-cell{
     /* treecell的背景色会覆盖tree-view的背景色
@@ -715,13 +724,13 @@
      */
 }
 /*sql界面sql输入框及结果集表格面板css*/
-#sql_splitpane  {
+#sqlSplitPane  {
     -fx-padding: 0;
     -fx-border-width: 0;
     -fx-border-insets: 0;
 }
 /*sql执行界面上下分隔条CSS*/
-#sql_splitpane .split-pane-divider {
+#sqlSplitPane .split-pane-divider {
     -fx-background-color: #eee; /* 更改隔离符颜色 */
     -fx-pref-width: 3;
     -fx-border-width: 0.5 0 0.5 0;
@@ -1260,14 +1269,13 @@
 
 
 /* 语言设置的箭头靠右 */
-#menuSettingsLanguage .label {
-    -fx-pref-width: 190;   
-        -fx-font-size: 11px;
-
+#menuSettingsLanguage .label,.ddlMenu .label {
+    -fx-pref-width: 188;   
+    -fx-font-size: 11px;
 }
 
-#menuSettingsLanguage {
-    -fx-padding:3 3 3 25;
+#menuSettingsLanguage,.ddlMenu {
+    -fx-padding:3 3 3 6;
 }
 
 /*自定义menu css，主要是限制高度*/

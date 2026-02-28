@@ -114,7 +114,6 @@ public class RemoteInstallerUtil {
     private static List<ObservableList<String>> configList = FXCollections.observableArrayList();
     private static final ObservableList<InstallConfigItem> installConfigItems = FXCollections.observableArrayList();
     private static final Map<ConfigKey, InstallConfigItem> installConfigMap = new EnumMap<>(ConfigKey.class);
-    private static InstallPhase installPhase = InstallPhase.IDLE;
 
     private static final class InstallConfigItem {
         private final String id;
@@ -168,16 +167,6 @@ public class RemoteInstallerUtil {
         }
     }
 
-    private enum InstallPhase {
-        IDLE,
-        UNINSTALL_OLD,
-        PRECHECK,
-        CREATE_USER,
-        INSTALL_SOFTWARE,
-        INIT_INSTANCE,
-        TUNE_CONFIG,
-        COMPLETE
-    }
 
     // 入口方法：启动向导
     public static void startWizard(Stage parent) {
@@ -599,382 +588,416 @@ public class RemoteInstallerUtil {
                     Task installTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            setInstallPhase(InstallPhase.UNINSTALL_OLD);
+                            // 任务开始后禁用所有复选框，防止中途修改
                             Platform.runLater(() -> {
-                                customInstallStepHbox1.iconLabel.setVisible(true);
-                                runningLabel.setText(" " + I18n.t("remote.install.status.installing", "正在安装..."));
+                                customInstallStepHbox1.checkBox.setDisable(true);
+                                customInstallStepHbox2.checkBox.setDisable(true);
+                                customInstallStepHbox3.checkBox.setDisable(true);
+                                customInstallStepHbox4.checkBox.setDisable(true);
+                                customInstallStepHbox5.checkBox.setDisable(true);
+                                customInstallStepHbox6.checkBox.setDisable(true);
+                                customInstallStepHbox7.checkBox.setDisable(true);
+                                customInstallStepHbox8.checkBox.setDisable(true);
+                                customInstallStepHbox9.checkBox.setDisable(true);
+                                customInstallStepHbox10.checkBox.setDisable(true);
+                                customInstallStepHbox11.checkBox.setDisable(true);
+                                customInstallStepHbox12.checkBox.setDisable(true);
+                                customInstallStepHbox13.checkBox.setDisable(true);
+                                customInstallStepHbox14.checkBox.setDisable(true);
                             });
-                            executeCommandWithExitStatus("ps -ef |grep gbasedbt |grep -v grep |awk '{print \"kill -9 \"$2}' |sh");
-                            executeCommandWithExitStatus("find / -user gbasedbt -exec rm -rf {} +");
-                            if((executeCommandWithExitStatus("test -f /GBASEDBTTMP/.infxdirs") == 0)){
-                                if(executeCommandWithExitStatus("cat /GBASEDBTTMP/.infxdirs  |awk '{print \"rm -rf \"$1}'|sh")!=0) {
-                                    throw new Exception(I18n.t("remote.install.error.cleanup_install_dir", "删除数据库安装目录失败！"));
+                            boolean run1 = customInstallStepHbox1.checkBox.isSelected();
+                            boolean run2 = customInstallStepHbox2.checkBox.isSelected();
+                            boolean run3 = customInstallStepHbox3.checkBox.isSelected();
+                            boolean run4 = customInstallStepHbox4.checkBox.isSelected();
+                            boolean run5 = customInstallStepHbox5.checkBox.isSelected();
+                            boolean run6 = customInstallStepHbox6.checkBox.isSelected();
+                            boolean run7 = customInstallStepHbox7.checkBox.isSelected();
+                            boolean run8 = customInstallStepHbox8.checkBox.isSelected();
+                            boolean run9 = customInstallStepHbox9.checkBox.isSelected();
+                            boolean run10 = customInstallStepHbox10.checkBox.isSelected();
+                            boolean run11 = customInstallStepHbox11.checkBox.isSelected();
+                            boolean run12 = customInstallStepHbox12.checkBox.isSelected();
+                            boolean run13 = customInstallStepHbox13.checkBox.isSelected();
+                            boolean run14 = customInstallStepHbox14.checkBox.isSelected();
+                            if (run1) {
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox1.iconLabel.setVisible(true);
+                                    runningLabel.setText(" " + I18n.t("remote.install.status.installing", "正在安装..."));
+                                });
+                                executeCommandWithExitStatus("ps -ef |grep gbasedbt |grep -v grep |awk '{print \"kill -9 \"$2}' |sh");
+                                executeCommandWithExitStatus("find / -user gbasedbt -exec rm -rf {} +");
+                                if((executeCommandWithExitStatus("test -f /GBASEDBTTMP/.infxdirs") == 0)){
+                                    if(executeCommandWithExitStatus("cat /GBASEDBTTMP/.infxdirs  |awk '{print \"rm -rf \"$1}'|sh")!=0) {
+                                        throw new Exception(I18n.t("remote.install.error.cleanup_install_dir", "删除数据库安装目录失败！"));
+                                    }
+                                    if(executeCommandWithExitStatus("rm -rf /GBASEDBTTMP")!=0) {
+                                        throw new Exception(I18n.t("remote.install.error.cleanup_gbasedbttmp", "删除目录/GBASEDBTTMP失败！"));
+                                    }
                                 }
-                                if(executeCommandWithExitStatus("rm -rf /GBASEDBTTMP")!=0) {
-                                    throw new Exception(I18n.t("remote.install.error.cleanup_gbasedbttmp", "删除目录/GBASEDBTTMP失败！"));
+                                if((executeCommandWithExitStatus("test -d /opt/gbase") == 0)){
+                                    if(executeCommandWithExitStatus("rm -rf /opt/gbase")!=0) {
+                                        throw new Exception(I18n.t("remote.install.error.cleanup_opt_gbase", "删除数据库安装目录/opt/gbase失败！"));
+                                    }
                                 }
-                            }
-                            if((executeCommandWithExitStatus("test -d /opt/gbase") == 0)){
-                                if(executeCommandWithExitStatus("rm -rf /opt/gbase")!=0) {
-                                    throw new Exception(I18n.t("remote.install.error.cleanup_opt_gbase", "删除数据库安装目录/opt/gbase失败！"));
+                                if((executeCommandWithExitStatus("test -d /etc/gbasedbt") == 0)) {
+                                    if(executeCommandWithExitStatus("rm -rf /etc/gbasedbt")!=0) {
+                                        throw new Exception(I18n.t("remote.install.error.cleanup_etc_gbasedbt", "删除/etc/gbasedbt目录失败！"));
+                                    }
                                 }
-                            }
-                            if((executeCommandWithExitStatus("test -d /etc/gbasedbt") == 0)) {
-                                if(executeCommandWithExitStatus("rm -rf /etc/gbasedbt")!=0) {
-                                    throw new Exception(I18n.t("remote.install.error.cleanup_etc_gbasedbt", "删除/etc/gbasedbt目录失败！"));
+                                executeCommandWithExitStatus("crontab -u gbasedbt -r"); //如果不存在定时任务，返回1
+                            
+                                //麒麟系统可能有下面的错误
+                                if((executeCommandWithExitStatus("test -f /usr/lib64/libnsl.so.1") != 0)) {
+                                    executeCommandWithExitStatus("ln -s /usr/lib64/libnsl.so.2  /usr/lib64/libnsl.so.1");
                                 }
-                            }
-                            //麒麟系统可能有下面的错误
-                            if((executeCommandWithExitStatus("test -f /usr/lib64/libnsl.so.1") != 0)) {
-                                executeCommandWithExitStatus("ln -s /usr/lib64/libnsl.so.2  /usr/lib64/libnsl.so.1");
-                            }
-                            if((executeCommandWithExitStatus("id gbasedbt") == 0)) {
-                                if(executeCommandWithExitStatus("userdel gbasedbt")!=0) {
-                                    throw new Exception(I18n.t("remote.install.error.delete_gbasedbt_user", "删除用户gbasedbt失败！"));
+                                if((executeCommandWithExitStatus("id gbasedbt") == 0)) {
+                                    if(executeCommandWithExitStatus("userdel -r -f gbasedbt")!=0) {
+                                        throw new Exception(I18n.t("remote.install.error.delete_gbasedbt_user", "删除用户gbasedbt失败！"));
+                                    }
                                 }
-                            }
+                                Platform.runLater(() -> customInstallStepHbox1.iconLabel.setVisible(false));
+                            
+                            } 
                             //卸载完成，开始系统检查
-                            setInstallPhase(InstallPhase.PRECHECK);
-                            Platform.runLater(() -> {
-                                customInstallStepHbox1.iconLabel.setVisible(false);
-                                customInstallStepHbox2.iconLabel.setVisible(true);
-                            });
+                            if(run2){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox2.iconLabel.setVisible(true);
+                                });
 
-                            if(executeCommandWithExitStatus("chown root:root /opt&&chmod 755 /opt")!=0) {
-                                throw new Exception(I18n.t("remote.install.error.reset_opt_perm", "更改/opt为默认权限失败！"));
-                            }
+                                if(executeCommandWithExitStatus("chown root:root /opt&&chmod 755 /opt")!=0) {
+                                    throw new Exception(I18n.t("remote.install.error.reset_opt_perm", "更改/opt为默认权限失败！"));
+                                }
 
-                            if(Double.parseDouble(executeCommand("df -m /opt |tail -1 |awk '{print $4/1000}'"))<8) {
-                                throw new Exception(I18n.t("remote.install.error.opt_space_low", "空间检查不通过，最小要求/opt可用空间小于8G！"));
-                            }
-                            if(Double.parseDouble(executeCommand("df -m /tmp |tail -1 |awk '{print $4/1000}'"))<1) {
-                                throw new Exception(I18n.t("remote.install.error.tmp_space_low", "空间检查不通过，最小要求/tmp可用空间小于1G！"));
-                            }
-                            if(executeCommandWithExitStatus("stat -c \"%a\" /tmp | grep -q '777'")!=0) {
-                                executeCommandWithExitStatus("chmod 777 /tmp");
-                            }
-                            if(Double.parseDouble(executeCommand("free -m |sed -n 2p |awk '{print $2/1024}'"))<1) {
-                                throw new Exception(I18n.t("remote.install.error.memory_low", "内存检查不通过，最小要求1G！"));
-                            }
-                            if((executeCommandWithExitStatus("command -v unzip") != 0)) {
-                                throw new Exception(I18n.t("remote.install.error.unzip_missing", "系统缺失unzip！"));
-                            }
-                            if((executeCommandWithExitStatus("systemctl stop firewalld.service") != 0)) {
-                                executeCommandWithExitStatus("service iptables stop");
-                            }
-                            if((executeCommandWithExitStatus("systemctl disable firewalld.service") != 0)) {
-                                executeCommandWithExitStatus("chkconfig iptables off");
-                            }
+                                if(Double.parseDouble(executeCommand("df -m /opt |tail -1 |awk '{print $4/1000}'"))<8) {
+                                    throw new Exception(I18n.t("remote.install.error.opt_space_low", "空间检查不通过，最小要求/opt可用空间小于8G！"));
+                                }
+                                if(Double.parseDouble(executeCommand("df -m /tmp |tail -1 |awk '{print $4/1000}'"))<1) {
+                                    throw new Exception(I18n.t("remote.install.error.tmp_space_low", "空间检查不通过，最小要求/tmp可用空间小于1G！"));
+                                }
+                                if(executeCommandWithExitStatus("stat -c \"%a\" /tmp | grep -q '777'")!=0) {
+                                    executeCommandWithExitStatus("chmod 777 /tmp");
+                                }
+                                if(Double.parseDouble(executeCommand("free -m |sed -n 2p |awk '{print $2/1024}'"))<1) {
+                                    throw new Exception(I18n.t("remote.install.error.memory_low", "内存检查不通过，最小要求1G！"));
+                                }
+                                if((executeCommandWithExitStatus("command -v unzip") != 0)) {
+                                    throw new Exception(I18n.t("remote.install.error.unzip_missing", "系统缺失unzip！"));
+                                }
+                                if((executeCommandWithExitStatus("systemctl stop firewalld.service") != 0)) {
+                                    executeCommandWithExitStatus("service iptables stop");
+                                }
+                                if((executeCommandWithExitStatus("systemctl disable firewalld.service") != 0)) {
+                                    executeCommandWithExitStatus("chkconfig iptables off");
+                                }
 
-                            executeCommandWithExitStatus("sed -i \"s#^hosts.*#hosts:      files#g\" /etc/nsswitch.conf");
-                            executeCommandWithExitStatus("sed -i \"s#^SELINUX=.*#SELINUX=disabled#g\" /etc/selinux/config");
+                                executeCommandWithExitStatus("sed -i \"s#^hosts.*#hosts:      files#g\" /etc/nsswitch.conf");
+                                executeCommandWithExitStatus("sed -i \"s#^SELINUX=.*#SELINUX=disabled#g\" /etc/selinux/config");
 
-                            executeCommandWithExitStatus("sed -i \"s/^#RemoveIPC.*/RemoveIPC=no/g\" /etc/systemd/logind.conf");
-                            executeCommandWithExitStatus("systemctl daemon-reload");
-                            executeCommandWithExitStatus("systemctl restart systemd-logind");
+                                executeCommandWithExitStatus("sed -i \"s/^#RemoveIPC.*/RemoveIPC=no/g\" /etc/systemd/logind.conf");
+                                executeCommandWithExitStatus("systemctl daemon-reload");
+                                executeCommandWithExitStatus("systemctl restart systemd-logind");
 
-                            executeCommandWithExitStatus("sed -i '/^[[:space:]]*\\*[[:space:]]\\+\\(soft\\|hard\\)[[:space:]]/d' /etc/security/limits.conf");
-                            executeCommandWithExitStatus("sed -i '/^[[:space:]]*\\*[[:space:]]\\+\\(soft\\|hard\\)[[:space:]]/d' /etc/security/limits.d/20-nproc.conf");
-                            executeCommandWithExitStatus("echo \"* soft nproc 1048576\">> /etc/security/limits.conf");
-                            executeCommandWithExitStatus("echo \"* hard nproc 1048576\">> /etc/security/limits.conf");
-                            executeCommandWithExitStatus("echo \"* soft nofile 1048576\">> /etc/security/limits.conf");
-                            executeCommandWithExitStatus("echo \"* hard nofile 1048576\">> /etc/security/limits.conf");
+                                executeCommandWithExitStatus("sed -i '/^[[:space:]]*\\*[[:space:]]\\+\\(soft\\|hard\\)[[:space:]]/d' /etc/security/limits.conf");
+                                executeCommandWithExitStatus("sed -i '/^[[:space:]]*\\*[[:space:]]\\+\\(soft\\|hard\\)[[:space:]]/d' /etc/security/limits.d/20-nproc.conf");
+                                executeCommandWithExitStatus("echo \"* soft nproc 1048576\">> /etc/security/limits.conf");
+                                executeCommandWithExitStatus("echo \"* hard nproc 1048576\">> /etc/security/limits.conf");
+                                executeCommandWithExitStatus("echo \"* soft nofile 1048576\">> /etc/security/limits.conf");
+                                executeCommandWithExitStatus("echo \"* hard nofile 1048576\">> /etc/security/limits.conf");
 
-                            executeCommandWithExitStatus("sed -i \"/^kernel.shmmni.*/d\" /etc/sysctl.conf");
-                            executeCommandWithExitStatus("sed -i \"/^kernel.shmmax.*/d\" /etc/sysctl.conf");
-                            executeCommandWithExitStatus("sed -i \"/^kernel.shmall.*/d\" /etc/sysctl.conf");
-                            executeCommandWithExitStatus("sed -i \"/^kernel.sem.*/d\" /etc/sysctl.conf");
+                                executeCommandWithExitStatus("sed -i \"/^kernel.shmmni.*/d\" /etc/sysctl.conf");
+                                executeCommandWithExitStatus("sed -i \"/^kernel.shmmax.*/d\" /etc/sysctl.conf");
+                                executeCommandWithExitStatus("sed -i \"/^kernel.shmall.*/d\" /etc/sysctl.conf");
+                                executeCommandWithExitStatus("sed -i \"/^kernel.sem.*/d\" /etc/sysctl.conf");
 
-                            executeCommandWithExitStatus("echo \"kernel.shmmni=4096\">> /etc/sysctl.conf");
-                            executeCommandWithExitStatus("echo \"kernel.shmmax=18446744073709547520\">> /etc/sysctl.conf");
-                            executeCommandWithExitStatus("echo \"kernel.shmall=18446744073709547520\">> /etc/sysctl.conf");
-                            executeCommandWithExitStatus("echo \"kernel.sem=32000 1024000000  500 32000\" >>/etc/sysctl.conf");
-                            executeCommandWithExitStatus("sysctl -p");
+                                executeCommandWithExitStatus("echo \"kernel.shmmni=4096\">> /etc/sysctl.conf");
+                                executeCommandWithExitStatus("echo \"kernel.shmmax=18446744073709547520\">> /etc/sysctl.conf");
+                                executeCommandWithExitStatus("echo \"kernel.shmall=18446744073709547520\">> /etc/sysctl.conf");
+                                executeCommandWithExitStatus("echo \"kernel.sem=32000 1024000000  500 32000\" >>/etc/sysctl.conf");
+                                executeCommandWithExitStatus("sysctl -p");
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox2.iconLabel.setVisible(false);
+                                });
+                            }
 
                             //系统检查完成，开始创建用户和组
-                            setInstallPhase(InstallPhase.CREATE_USER);
-                            Platform.runLater(() -> {
-                                customInstallStepHbox2.iconLabel.setVisible(false);
-                                customInstallStepHbox3.iconLabel.setVisible(true);
-                            });
-                            System.out.println("change password before");
-                            String password=configValue(ConfigKey.GBASEDBT_PASSWORD);
-                            System.out.println("change password after");
-                            if((executeCommandWithExitStatus("groupadd gbasedbt&&useradd gbasedbt -d /home/gbasedbt -m -g gbasedbt&&echo \"gbasedbt:"+password+"\" | chpasswd") != 0)) {
-                                throw new Exception(I18n.t("remote.install.error.create_user_group_failed", "创建gbasedbt用户或组失败！"));
-                            }
-                            System.out.println("change password after1");
+                            if(run3){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox3.iconLabel.setVisible(true);
+                                });
+                                System.out.println("change password before");
+                                String password=configValue(ConfigKey.GBASEDBT_PASSWORD);
+                                System.out.println("change password after");
+                                if((executeCommandWithExitStatus("groupadd gbasedbt&&useradd gbasedbt -d /home/gbasedbt -m -g gbasedbt&&echo \"gbasedbt:"+password+"\" | chpasswd") != 0)) {
+                                    throw new Exception(I18n.t("remote.install.error.create_user_group_failed", "创建gbasedbt用户或组失败！"));
+                                }
+                                System.out.println("change password after1");
 
-                            executeCommandWithExitStatus("cat >>~gbasedbt/.bash_profile << EOF\nexport GBASEDBTDIR="+configValue(ConfigKey.GBASEDBTDIR)+
-                                    "\nexport GBASEDBTSERVER="+configValue(ConfigKey.GBASEDBTSERVER)+
-                                    "\nexport ONCONFIG=onconfig."+configValue(ConfigKey.GBASEDBTSERVER)+
-                                    "\nexport GBASEDBTSQLHOSTS=\\$GBASEDBTDIR/etc/sqlhosts."+configValue(ConfigKey.GBASEDBTSERVER)+
-                                    "\nexport DB_LOCALE="+configValue(ConfigKey.DB_LOCALE)+
-                                    "\nexport CLIENT_LOCALE="+configValue(ConfigKey.DB_LOCALE)+
-                                    "\nexport GL_USEGLU="+configValue(ConfigKey.GL_USEGLU)+
-                                    "\nexport PATH=\\$GBASEDBTDIR/bin:/usr/bin:\\${PATH}:.\nEOF"
-                            );
+                                executeCommandWithExitStatus("cat >>~gbasedbt/.bash_profile << EOF\nexport GBASEDBTDIR="+configValue(ConfigKey.GBASEDBTDIR)+
+                                        "\nexport GBASEDBTSERVER="+configValue(ConfigKey.GBASEDBTSERVER)+
+                                        "\nexport ONCONFIG=onconfig."+configValue(ConfigKey.GBASEDBTSERVER)+
+                                        "\nexport GBASEDBTSQLHOSTS=\\$GBASEDBTDIR/etc/sqlhosts."+configValue(ConfigKey.GBASEDBTSERVER)+
+                                        "\nexport DB_LOCALE="+configValue(ConfigKey.DB_LOCALE)+
+                                        "\nexport CLIENT_LOCALE="+configValue(ConfigKey.DB_LOCALE)+
+                                        "\nexport GL_USEGLU="+configValue(ConfigKey.GL_USEGLU)+
+                                        "\nexport PATH=\\$GBASEDBTDIR/bin:/usr/bin:\\${PATH}:.\nEOF"
+                                );
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox3.iconLabel.setVisible(false);
+                                });
+                            }
 
                             //创建用户和组完成，开始安装
-                            setInstallPhase(InstallPhase.INSTALL_SOFTWARE);
-                            Platform.runLater(() -> {
-                                customInstallStepHbox3.iconLabel.setVisible(false);
-                                customInstallStepHbox4.iconLabel.setVisible(true);
-                            });
-                            if((executeCommandWithExitStatus("tar -xvf " + shellQuote(remoteFilePath)) != 0)) {
-                                throw new Exception(I18n.t("remote.install.error.extract_package_failed", "解压安装包【%s】失败！").formatted(remoteFilePath));
-                            }
-                            int status=executeCommandWithExitStatus("source ~gbasedbt/.bash_profile && mkdir -p $GBASEDBTDIR && chown gbasedbt:gbasedbt $GBASEDBTDIR && ./ids_install -i silent -DLICENSE_ACCEPTED=TRUE");
-                            if(status!= 0) {
-                                throw new Exception(I18n.t("remote.install.error.install_to_gbasedbtdir_failed", "安装数据库到$GBASEDBTDIR失败！"));
+                            if(run4){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox4.iconLabel.setVisible(true);
+                                });
+                                if((executeCommandWithExitStatus("tar -xvf " + shellQuote(remoteFilePath)) != 0)) {
+                                    throw new Exception(I18n.t("remote.install.error.extract_package_failed", "解压安装包【%s】失败！").formatted(remoteFilePath));
+                                }
+                                int status=executeCommandWithExitStatus("source ~gbasedbt/.bash_profile && mkdir -p $GBASEDBTDIR && chown gbasedbt:gbasedbt $GBASEDBTDIR && ./ids_install -i silent -DLICENSE_ACCEPTED=TRUE");
+                                if(status!= 0) {
+                                    throw new Exception(I18n.t("remote.install.error.install_to_gbasedbtdir_failed", "安装数据库到$GBASEDBTDIR失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox4.iconLabel.setVisible(false);
+                                });
+                            } else {
+                                Platform.runLater(() -> customInstallStepHbox4.iconLabel.setVisible(false));
                             }
 
                             //安装完成，开始配置并初始化
-                            setInstallPhase(InstallPhase.INIT_INSTANCE);
-                            Platform.runLater(() -> {
-                                customInstallStepHbox4.iconLabel.setVisible(false);
-                                customInstallStepHbox5.iconLabel.setVisible(true);
-                            });
+                            if(run5){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox5.iconLabel.setVisible(true);
+                                });
 
-                            String cmd=
-                                    "source ~gbasedbt/.bash_profile &&" +
-                                            "DATADIR="+configValue(ConfigKey.DATA_FILE_PATH)+"&&"+
-                                            "mkdir -p ${DATADIR} &&"+
-                                            "chown gbasedbt:gbasedbt ${DATADIR} &&"+
-                                            "cp $GBASEDBTDIR/etc/onconfig.std  $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "chown gbasedbt:gbasedbt $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "sed -i \"s#^ROOTPATH.*#ROOTPATH ${DATADIR}/rootdbschk001#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "sed -i \"s#^ROOTSIZE.*#ROOTSIZE "+configValue(ConfigKey.ROOTSIZE)+"#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "sed -i \"s#^DBSERVERNAME.*#DBSERVERNAME $GBASEDBTSERVER#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "sed -i \"s#^TAPEDEV.*#TAPEDEV /dev/null#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "sed -i \"s#^LTAPEDEV.*#LTAPEDEV /dev/null#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
-                                            "echo \"$GBASEDBTSERVER onsoctcp "+configValue(ConfigKey.LISTEN_IP)+" "+configValue(ConfigKey.LISTEN_PORT)+"\" >> $GBASEDBTSQLHOSTS &&"+
-                                            "chown gbasedbt:gbasedbt $GBASEDBTSQLHOSTS &&"+
-                                            "touch ${DATADIR}/rootdbschk001 &&"+
-                                            "chown gbasedbt:gbasedbt ${DATADIR}/rootdbschk001 &&"+
-                                            "chmod 660 ${DATADIR}/rootdbschk001 && oninit -ivyw";
-                            System.out.println("cmd is:"+cmd);
-                            if(executeCommandWithExitStatus(cmd)!=0){
-                                throw new Exception(I18n.t("remote.install.error.init_instance_failed", "初始化实例失败！"));
-                            }
+                                String cmd=
+                                        "source ~gbasedbt/.bash_profile &&" +
+                                                "DATADIR="+configValue(ConfigKey.DATA_FILE_PATH)+"&&"+
+                                                "mkdir -p ${DATADIR} &&"+
+                                                "chown gbasedbt:gbasedbt ${DATADIR} &&"+
+                                                "cp $GBASEDBTDIR/etc/onconfig.std  $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "chown gbasedbt:gbasedbt $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "sed -i \"s#^ROOTPATH.*#ROOTPATH ${DATADIR}/rootdbschk001#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "sed -i \"s#^ROOTSIZE.*#ROOTSIZE "+configValue(ConfigKey.ROOTSIZE)+"#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "sed -i \"s#^DBSERVERNAME.*#DBSERVERNAME $GBASEDBTSERVER#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "sed -i \"s#^TAPEDEV.*#TAPEDEV /dev/null#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "sed -i \"s#^LTAPEDEV.*#LTAPEDEV /dev/null#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                                "echo \"$GBASEDBTSERVER onsoctcp "+configValue(ConfigKey.LISTEN_IP)+" "+configValue(ConfigKey.LISTEN_PORT)+"\" >> $GBASEDBTSQLHOSTS &&"+
+                                                "chown gbasedbt:gbasedbt $GBASEDBTSQLHOSTS &&"+
+                                                "touch ${DATADIR}/rootdbschk001 &&"+
+                                                "chown gbasedbt:gbasedbt ${DATADIR}/rootdbschk001 &&"+
+                                                "chmod 660 ${DATADIR}/rootdbschk001 && oninit -ivyw";
+                                if(executeCommandWithExitStatus(cmd)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.init_instance_failed", "初始化实例失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox5.iconLabel.setVisible(false);
+                                });
+                            } 
 
                             //初始化完成，优化配置参数
-                            setInstallPhase(InstallPhase.TUNE_CONFIG);
-                            Platform.runLater(() -> {
-                                customInstallStepHbox5.iconLabel.setVisible(false);
-                                customInstallStepHbox6.iconLabel.setVisible(true);
+                            if(run6){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox6.iconLabel.setVisible(true);
                             });
-                            String pramsCmd="""
-                                    source ~gbasedbt/.bash_profile &&\
-                                    sed -i "s#^PHYSBUFF.*#PHYSBUFF 2048#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^LOGBUFF.*#LOGBUFF 2048#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^NETTYPE.*#NETTYPE soctcp,4,50,NET#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^MULTIPROCESSOR.*#MULTIPROCESSOR 1#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^CLEANERS.*#CLEANERS 128#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^LOCKS.*#LOCKS """
-                                    +" "+configValue(ConfigKey.LOCKS)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^DEF_TABLE_LOCKMODE.*#DEF_TABLE_LOCKMODE row#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^DS_TOTAL_MEMORY.*#DS_TOTAL_MEMORY """
-                                    +" "+configValue(ConfigKey.DS_TOTAL_MEMORY)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^DS_NONPDQ_QUERY_MEM.*#DS_NONPDQ_QUERY_MEM """
-                                    +" "+configValue(ConfigKey.DS_NONPDQ_QUERY_MEM)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^SHMVIRTSIZE.*#SHMVIRTSIZE """
-                                    +" "+configValue(ConfigKey.SHMVIRTSIZE)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^SHMADD.*#SHMADD """
-                                    +" "+configValue(ConfigKey.SHMADD)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^STACKSIZE.*#STACKSIZE 2048#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^SBSPACENAME.*#SBSPACENAME sbspace01#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^DBSPACETEMP.*#DBSPACETEMP tempdbs01#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^VPCLASS cpu.*#VPCLASS"""
-                                    +" "+configValue(ConfigKey.VPCLASS)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^TEMPTAB_NOLOG.*#TEMPTAB_NOLOG 1#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^NS_CACHE.*#NS_CACHE host=0,service=0,user=0,group=0#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^DUMPSHMEM.*#DUMPSHMEM 0#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^USERMAPPING.*#USERMAPPING ADMIN#g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    sed -i "s#^BUFFERPOOL size=2k.*#BUFFERPOOL """
-                                    +" "+configValue(ConfigKey.BUFFERPOOL_2K)+
-                                    """
-                                    #g" $GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    echo "BUFFERPOOL """
-                                    +" "+configValue(ConfigKey.BUFFERPOOL_16K)+
-                                    """
-                                    ">>$GBASEDBTDIR/etc/$ONCONFIG &&\
-                                    touch $GBASEDBTDIR/etc/sysadmin/stop &&\
-                                    chown gbasedbt:gbasedbt $GBASEDBTDIR/etc/sysadmin/stop &&\
-                                    mkdir -p /etc/gbasedbt &&\
-                                    echo "USER:daemon" > /etc/gbasedbt/allowed.surrogates &&\
-                                    onmode -ky &&\
-                                    su - gbasedbt -c \"oninit\" &&\
-                                    echo "CREATE DEFAULT USER WITH PROPERTIES USER 'daemon'" |dbaccess sysuser -
-                                    """;
-                            System.out.println("pramsCmd is:"+pramsCmd);
-                            if(executeCommandWithExitStatus(pramsCmd)!=0){
-                                throw new Exception(I18n.t("remote.install.error.tune_params_failed", "优化配置参数失败！"));
+                                String pramsCmd =
+                                        "source ~gbasedbt/.bash_profile && " +
+                                        "sed -i \"s#^PHYSBUFF.*#PHYSBUFF 2048#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^LOGBUFF.*#LOGBUFF 2048#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^NETTYPE.*#NETTYPE soctcp,4,50,NET#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^MULTIPROCESSOR.*#MULTIPROCESSOR 1#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^CLEANERS.*#CLEANERS 128#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^LOCKS.*#LOCKS " + configValue(ConfigKey.LOCKS) + "#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^DEF_TABLE_LOCKMODE.*#DEF_TABLE_LOCKMODE row#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^DS_TOTAL_MEMORY.*#DS_TOTAL_MEMORY " + configValue(ConfigKey.DS_TOTAL_MEMORY) + "#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^DS_NONPDQ_QUERY_MEM.*#DS_NONPDQ_QUERY_MEM " + configValue(ConfigKey.DS_NONPDQ_QUERY_MEM) + "#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^SHMVIRTSIZE.*#SHMVIRTSIZE " + configValue(ConfigKey.SHMVIRTSIZE) + "#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^SHMADD.*#SHMADD " + configValue(ConfigKey.SHMADD) + "#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^STACKSIZE.*#STACKSIZE 2048#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^SBSPACENAME.*#SBSPACENAME sbspace01#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^DBSPACETEMP.*#DBSPACETEMP tempdbs01#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^VPCLASS cpu.*#VPCLASS " + configValue(ConfigKey.VPCLASS) + "#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^TEMPTAB_NOLOG.*#TEMPTAB_NOLOG 1#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^NS_CACHE.*#NS_CACHE host=0,service=0,user=0,group=0#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^DUMPSHMEM.*#DUMPSHMEM 0#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^USERMAPPING.*#USERMAPPING ADMIN#g\" $GBASEDBTDIR/etc/$ONCONFIG && " +
+                                        "sed -i \"s#^BUFFERPOOL size=2k.*#BUFFERPOOL "+configValue(ConfigKey.BUFFERPOOL_2K)+ "#g\" $GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                        "echo \"BUFFERPOOL "+configValue(ConfigKey.BUFFERPOOL_16K)+"\">>$GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                        "echo \"ENABLE_NULL_STRING 0\">>$GBASEDBTDIR/etc/$ONCONFIG &&"+
+                                        "touch $GBASEDBTDIR/etc/sysadmin/stop &&"+
+                                        "chown gbasedbt:gbasedbt $GBASEDBTDIR/etc/sysadmin/stop &&"+
+                                        "mkdir -p /etc/gbasedbt &&"+
+                                        "echo \"USER:daemon\" > /etc/gbasedbt/allowed.surrogates &&"+
+                                        "onmode -ky &&"+
+                                        "su - gbasedbt -c \"oninit\" &&"+
+                                        "echo \"CREATE DEFAULT USER WITH PROPERTIES USER 'daemon'\" |dbaccess sysuser -"
+                                        ;
+                                System.out.println("pramsCmd is:"+pramsCmd);
+                                //System.out.println(executeCommand(pramsCmd));
+                                if(executeCommandWithExitStatus(pramsCmd)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.tune_params_failed", "优化配置参数失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox6.iconLabel.setVisible(false);
+                                });
                             }
 
-                            Platform.runLater(() -> {
-                                customInstallStepHbox6.iconLabel.setVisible(false);
-                                customInstallStepHbox7.iconLabel.setVisible(true);
-                            });
-                            if(executeCommandWithExitStatus("""
-                                    source ~gbasedbt/.bash_profile &&\
-                                    DATADIR="""
-                                    +configValue(ConfigKey.DATA_FILE_PATH)+
-                                    """ 
-                                    &&\
-                                    touch ${DATADIR}/plogdbschk001 &&\
-                                    chown gbasedbt:gbasedbt ${DATADIR}/plogdbschk001 &&\
-                                    chmod 660 ${DATADIR}/plogdbschk001 &&\
-                                    onspaces -c -d plogdbs -p ${DATADIR}/plogdbschk001 -o 0 -s """
-                                    +" "+(Integer.parseInt(configValue(ConfigKey.PHYSFILE))+10000)+
-                                    """
-                                     &&\
-                                    onparams -p -d plogdbs -s """
-                                    +" "+configValue(ConfigKey.PHYSFILE)+
-                                    """
-                                     -y
-                                    """)!=0){
-                                throw new Exception(I18n.t("remote.install.error.tune_physlog_failed", "优化物理日志失败！"));
+                            if(run7){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox7.iconLabel.setVisible(true);
+                                });
+                                String cmd="source ~gbasedbt/.bash_profile && DATADIR="+configValue(ConfigKey.DATA_FILE_PATH)+ "&&"+
+                                        "touch ${DATADIR}/plogdbschk001 &&"+
+                                        "chown gbasedbt:gbasedbt ${DATADIR}/plogdbschk001 &&"+
+                                        "chmod 660 ${DATADIR}/plogdbschk001 &&"+
+                                        "onspaces -c -d plogdbs -p ${DATADIR}/plogdbschk001 -o 0 -s "+(Integer.parseInt(configValue(ConfigKey.PHYSFILE))+10000)+"&&"+
+                                        "onparams -p -d plogdbs -s "+configValue(ConfigKey.PHYSFILE)+" -y";
+                                System.out.println("plogcmd is:"+cmd);
+                                if(executeCommandWithExitStatus(cmd)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.tune_physlog_failed", "优化物理日志失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox7.iconLabel.setVisible(false);
+                                });
                             }
-                            Platform.runLater(() -> {
-                                customInstallStepHbox7.iconLabel.setVisible(false);
-                                customInstallStepHbox8.iconLabel.setVisible(true);
-                            });
-                            String logicCmd="""
-                                    source ~gbasedbt/.bash_profile &&\
-                                    DATADIR="""
-                                    +configValue(ConfigKey.DATA_FILE_PATH)+
-                                    """
-                                     &&\
-                                    touch ${DATADIR}/llogdbschk001 &&\
-                                    chown gbasedbt:gbasedbt ${DATADIR}/llogdbschk001 &&\
-                                    chmod 660 ${DATADIR}/llogdbschk001 &&\
-                                    onspaces -c -d llogdbs -p ${DATADIR}/llogdbschk001 -o 0 -s """
-                                    +" "+(Integer.parseInt(configValue(ConfigKey.LOGSIZE))*Integer.parseInt(configValue(ConfigKey.LOGFILES))+10240)+
-                                    """
-                                     &&\
-                                    for i in `seq """
-                                    +" "+Integer.parseInt(configValue(ConfigKey.LOGFILES))+
-                                    """
-                                    `;do onparams -a -d llogdbs -s """
-                                    +" "+Integer.parseInt(configValue(ConfigKey.LOGSIZE))+
-                                    """
-                                    ;done &&\
-                                    for i in `seq 7`;do onmode -l;done &&\
-                                    onmode -c &&\
-                                    for i in `seq 6`;do onparams -d -l $i -y;done
-                                    """;
-                            System.out.println("logiccmd is:"+logicCmd);
-                            if(executeCommandWithExitStatus(logicCmd)!=0){
-                                throw new Exception(I18n.t("remote.install.error.tune_logical_log_failed", "优化逻辑日志失败！"));
+                            if(run8){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox8.iconLabel.setVisible(true);
+                                });
+                                String logicCmd =
+                                        "source ~gbasedbt/.bash_profile && " +
+                                        "DATADIR=" + configValue(ConfigKey.DATA_FILE_PATH) + " && " +
+                                        "touch ${DATADIR}/llogdbschk001 && " +
+                                        "chown gbasedbt:gbasedbt ${DATADIR}/llogdbschk001 && " +
+                                        "chmod 660 ${DATADIR}/llogdbschk001 && " +
+                                        "onspaces -c -d llogdbs -p ${DATADIR}/llogdbschk001 -o 0 -s " +
+                                        (Integer.parseInt(configValue(ConfigKey.LOGSIZE)) * Integer.parseInt(configValue(ConfigKey.LOGFILES)) + 10240) + " && " +
+                                        "for i in `seq " + Integer.parseInt(configValue(ConfigKey.LOGFILES)) + "`;do onparams -a -d llogdbs -s " +
+                                        Integer.parseInt(configValue(ConfigKey.LOGSIZE)) + ";done && " +
+                                        "for i in `seq 7`;do onmode -l;done && " +
+                                        "onmode -c && " +
+                                        "for i in `seq 6`;do onparams -d -l $i -y;done";
+                                System.out.println("logiccmd is:"+logicCmd);
+                                if(executeCommandWithExitStatus(logicCmd)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.tune_logical_log_failed", "优化逻辑日志失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox8.iconLabel.setVisible(false);
+                                });
                             }
+                            
+                            if(run9){
 
-                            Platform.runLater(() -> {
-                                customInstallStepHbox8.iconLabel.setVisible(false);
-                                customInstallStepHbox9.iconLabel.setVisible(true);
-                            });
-                            String[] parts = configValue(ConfigKey.TEMPDBS).split("\\*");
-                            int tempdbsNum = Integer.parseInt(parts[0]);
-                            int tempdbsSize = Integer.parseInt(parts[1]);
-                            String onspaceCmd="";
-                            String dbspaceTemp="tempdbs01";
-                            for (int num = 1; num < tempdbsNum+1; num++) {
-                                onspaceCmd+=("touch ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 &&" +
-                                        "chown gbasedbt:gbasedbt ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 &&" +
-                                        "chmod 660 ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 &&" +
-                                        "onspaces -c -d tempdbs"+String.format("%02d", num)+" -p ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 -o 0 -s "+tempdbsSize+" -k 16 -t &&");
-                                if(num>1) dbspaceTemp+=(",tempdbs"+String.format("%02d", num));
-                            };
-                            String tempdbsCmd="source ~gbasedbt/.bash_profile && DATADIR="
-                                    +configValue(ConfigKey.DATA_FILE_PATH)+"&&"+onspaceCmd+ "onmode -wf DBSPACETEMP="+dbspaceTemp;
-                            System.out.println("tempdbsCmd is:"+tempdbsCmd);
-                            if(executeCommandWithExitStatus(tempdbsCmd)!=0){
-                                throw new Exception(I18n.t("remote.install.error.tune_temp_space_failed", "优化临时空间失败！"));
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox9.iconLabel.setVisible(true);
+                                });
+                                String[] parts = configValue(ConfigKey.TEMPDBS).split("\\*");
+                                int tempdbsNum = Integer.parseInt(parts[0]);
+                                int tempdbsSize = Integer.parseInt(parts[1]);
+                                String onspaceCmd="";
+                                String dbspaceTemp="tempdbs01";
+                                for (int num = 1; num < tempdbsNum+1; num++) {
+                                    onspaceCmd+=("touch ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 &&" +
+                                            "chown gbasedbt:gbasedbt ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 &&" +
+                                            "chmod 660 ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 &&" +
+                                            "onspaces -c -d tempdbs"+String.format("%02d", num)+" -p ${DATADIR}/tempdbs"+String.format("%02d", num)+"chk001 -o 0 -s "+tempdbsSize+" -k 16 -t &&");
+                                    if(num>1) dbspaceTemp+=(",tempdbs"+String.format("%02d", num));
+                                };
+                                String tempdbsCmd="source ~gbasedbt/.bash_profile && DATADIR="
+                                        +configValue(ConfigKey.DATA_FILE_PATH)+"&&"+onspaceCmd+ "onmode -wf DBSPACETEMP="+dbspaceTemp;
+                                System.out.println("tempdbsCmd is:"+tempdbsCmd);
+                                if(executeCommandWithExitStatus(tempdbsCmd)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.tune_temp_space_failed", "优化临时空间失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox9.iconLabel.setVisible(false);
+                                });
                             }
 
 
-                            Platform.runLater(() -> {
-                                customInstallStepHbox9.iconLabel.setVisible(false);
-                                customInstallStepHbox10.iconLabel.setVisible(true);
-                            });
-                            if(executeCommandWithExitStatus("""
-                                    source ~gbasedbt/.bash_profile &&\
-                                    DATADIR="""
-                                    +configValue(ConfigKey.DATA_FILE_PATH)+
-                                    """
-                                     &&\
-                                    touch ${DATADIR}/sbspace01chk001 &&\
-                                    chown gbasedbt:gbasedbt ${DATADIR}/sbspace01chk001 &&\
-                                    chmod 660 ${DATADIR}/sbspace01chk001 &&\
-                                    onspaces -c -S sbspace01 -p ${DATADIR}/sbspace01chk001 -o 0 -s """
-                                    +" "+configValue(ConfigKey.SBSPACE_SIZE)+ " "+
-                                    """
-                                     -Df "LOGGING = ON, AVG_LO_SIZE=1"
-                                    """)!=0){
-                                throw new Exception(I18n.t("remote.install.error.create_sbspace_failed", "创建智能大对象空间失败！"));
+                            if(run10){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox10.iconLabel.setVisible(true);
+                                });
+                                String sbspacecmd = "source ~gbasedbt/.bash_profile && " +
+                                        "DATADIR=" + configValue(ConfigKey.DATA_FILE_PATH) + " && " +
+                                        "touch ${DATADIR}/sbspace01chk001 && " +
+                                        "chown gbasedbt:gbasedbt ${DATADIR}/sbspace01chk001 && " +
+                                        "chmod 660 ${DATADIR}/sbspace01chk001 && " +
+                                        "onspaces -c -S sbspace01 -p ${DATADIR}/sbspace01chk001 -o 0 -s " +
+                                        configValue(ConfigKey.SBSPACE_SIZE) + " " +
+                                        "-Df \"LOGGING = ON, AVG_LO_SIZE=1\"";
+                                        System.out.println("sbspacecmd is:"+sbspacecmd);
+                                if(executeCommandWithExitStatus(sbspacecmd)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.create_sbspace_failed", "创建智能大对象空间失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox10.iconLabel.setVisible(false);
+                                });
                             }
 
-                            Platform.runLater(() -> {
-                                customInstallStepHbox10.iconLabel.setVisible(false);
-                                customInstallStepHbox11.iconLabel.setVisible(true);
-                            });
-                            if(executeCommandWithExitStatus("""
-                                    source ~gbasedbt/.bash_profile &&\
-                                    DATADIR="""
-                                    +configValue(ConfigKey.DATA_FILE_PATH)+
-                                    """ 
-                                    &&\
-                                    touch ${DATADIR}/datadbs01chk001 &&\
-                                    chown gbasedbt:gbasedbt ${DATADIR}/datadbs01chk001 &&\
-                                    chmod 660 ${DATADIR}/datadbs01chk001 &&\
-                                    onspaces -c -d datadbs01 -p ${DATADIR}/datadbs01chk001 -o 0 -s """
-                                    +" "+configValue(ConfigKey.DATA_SPACE_SIZE)+ " "+
-                                    """
-                                    -k 16
-                                    """)!=0){
-                                throw new Exception(I18n.t("remote.install.error.create_userdbspace_failed", "创建用户数据库空间失败！"));
+                            if(run11){
+
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox11.iconLabel.setVisible(true);
+                                });
+                                if(executeCommandWithExitStatus("""
+                                        source ~gbasedbt/.bash_profile &&\
+                                        DATADIR="""
+                                        +configValue(ConfigKey.DATA_FILE_PATH)+
+                                        """ 
+                                        &&\
+                                        touch ${DATADIR}/datadbs01chk001 &&\
+                                        chown gbasedbt:gbasedbt ${DATADIR}/datadbs01chk001 &&\
+                                        chmod 660 ${DATADIR}/datadbs01chk001 &&\
+                                        onspaces -c -d datadbs01 -p ${DATADIR}/datadbs01chk001 -o 0 -s """
+                                        +" "+configValue(ConfigKey.DATA_SPACE_SIZE)+ " "+
+                                        """
+                                        -k 16
+                                        """)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.create_userdbspace_failed", "创建用户数据库空间失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox11.iconLabel.setVisible(false);
+                                });
                             }
 
-                            Platform.runLater(() -> {
-                                customInstallStepHbox11.iconLabel.setVisible(false);
-                                customInstallStepHbox12.iconLabel.setVisible(true);
-                            });
-                            if(executeCommandWithExitStatus("""
-                                    source ~gbasedbt/.bash_profile &&\
-                                    echo "create database """
-                                    +" "+configValue(ConfigKey.DEFAULT_DB_NAME)+ " "+
-                                    """
-                                    in datadbs01 with log" |dbaccess - -
-                                    """)!=0){
-                                throw new Exception(I18n.t("remote.install.error.create_default_db_failed", "创建默认数据库失败！"));
+                            if(run12){
+                            
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox12.iconLabel.setVisible(true);
+                                });
+                                if(executeCommandWithExitStatus("""
+                                        source ~gbasedbt/.bash_profile &&\
+                                        echo "create database """
+                                        +" "+configValue(ConfigKey.DEFAULT_DB_NAME)+ " "+
+                                        """
+                                        in datadbs01 with log" |dbaccess - -
+                                        """)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.create_default_db_failed", "创建默认数据库失败！"));
+                                }
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox12.iconLabel.setVisible(false);
+                                });
                             }
-                            Platform.runLater(() -> {
-                                customInstallStepHbox12.iconLabel.setVisible(false);
-                                customInstallStepHbox13.iconLabel.setVisible(true);
-                            });
-                            if(executeCommandWithExitStatus("""
-                                    chmod +x /etc/rc.d/rc.local &&\
-                                    sed -i '/^su - gbasedbt/d' /etc/rc.local &&\
-                                    echo "su - gbasedbt -c \\"oninit\\"" >>/etc/rc.local
-                                    """)!=0){
-                                throw new Exception(I18n.t("remote.install.error.enable_autostart_failed", "配置开启自启动失败！"));
-                            }Platform.runLater(() -> {
+
+                            if(run13){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox13.iconLabel.setVisible(true);
+                                });
+                                if(executeCommandWithExitStatus("""
+                                        chmod +x /etc/rc.d/rc.local &&\
+                                        sed -i '/^su - gbasedbt/d' /etc/rc.local &&\
+                                        echo "su - gbasedbt -c \\"oninit\\"" >>/etc/rc.local
+                                        """)!=0){
+                                    throw new Exception(I18n.t("remote.install.error.enable_autostart_failed", "配置开启自启动失败！"));
+                                }
+                                Platform.runLater(() -> {
                                 customInstallStepHbox13.iconLabel.setVisible(false);
-                                customInstallStepHbox14.iconLabel.setVisible(true);
+                                });
+                            }
 
-                            });
                             executeCommandWithExitStatus("""
                                     source ~gbasedbt/.bash_profile &&
                                     mkdir -p $GBASEDBTDIR/scripts &&
@@ -1646,9 +1669,12 @@ GBASEEOF
 """);
 
 
-                            if(!configValue(ConfigKey.BACKUP_PATH).trim().isEmpty()){
+                            if(run14){
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox14.iconLabel.setVisible(true);
+                                });
                                 String backupPath = configValue(ConfigKey.BACKUP_PATH);
-                                String escapedBackupPath = shellQuote(backupPath);
+                                String escapedBackupPath = backupPath;
                                 String backupCmd="source ~gbasedbt/.bash_profile && mkdir -p "+escapedBackupPath+"&& chown gbasedbt:gbasedbt "+escapedBackupPath+"&& chmod 775 "+escapedBackupPath+
                                         "&& onmode -wf TAPEBLK=2048 && onmode -wf LTAPEBLK=2048 && onmode -wf LTAPEDEV="
                                         +escapedBackupPath+"&& onmode -wf TAPEDEV="+escapedBackupPath+
@@ -1666,17 +1692,14 @@ GBASEEOF
                                 if(executeCommandWithExitStatus(backupCmd)!=0) {
                                     throw new Exception(I18n.t("remote.install.error.configure_backup_failed", "配置备份失败！"));
                                 }
-
-
-                            }Platform.runLater(() -> {
-                                customInstallStepHbox14.iconLabel.setVisible(false);
-                            });
-                            setInstallPhase(InstallPhase.COMPLETE);
+                                Platform.runLater(() -> {
+                                    customInstallStepHbox14.iconLabel.setVisible(false);
+                                });
+                            }
                             return null;
                         }
                     };
                     installTask.setOnSucceeded(event1 -> {
-                        setInstallPhase(InstallPhase.IDLE);
                         backgroundHBox.setVisible(false);
                         customInstallStepHbox1.iconLabel.setVisible(false);
                         customInstallStepHbox2.iconLabel.setVisible(false);
@@ -1769,8 +1792,6 @@ GBASEEOF
 
                     });
                     installTask.setOnFailed(event1 -> {
-                        setInstallPhase(InstallPhase.IDLE);
-                        backgroundHBox.setVisible(false);
                         backgroundHBox.setVisible(false);
                         customInstallStepHbox1.iconLabel.setVisible(false);
                         customInstallStepHbox2.iconLabel.setVisible(false);
@@ -1919,13 +1940,13 @@ GBASEEOF
         Label desc = new Label();
         desc.textProperty().bind(I18n.bind("remote.install.desc.title", "说明："));
         Label desc1 = new Label();
-        desc1.textProperty().bind(I18n.bind("remote.install.desc.item1", "1、远程安装仅用于Linux或Unix系统远程安装，不适用于Windows系统。"));
+        desc1.textProperty().bind(I18n.bind("remote.install.desc.item1", "1远程安装仅用于Linux或Unix系统远程安装，不适用于Windows系统。"));
         Label desc2 = new Label();
-        desc2.textProperty().bind(I18n.bind("remote.install.desc.item2", "2、安装前可准备好已下载的安装包，如未准备，可在安装过程中自动下载。"));
+        desc2.textProperty().bind(I18n.bind("remote.install.desc.item2", "2安装前可准备好已下载的安装包，如未准备，可在安装过程中自动下载。"));
         Label desc3 = new Label();
-        desc3.textProperty().bind(I18n.bind("remote.install.desc.item3", "3、安装前会自动卸载之前已存在的GBase 8s数据库安装，并清理所有相关信息。"));
+        desc3.textProperty().bind(I18n.bind("remote.install.desc.item3", "3安装前会自动卸载之前已存在的GBase 8s数据库安装，并清理所有相关信息。"));
         Label desc4 = new Label();
-        desc4.textProperty().bind(I18n.bind("remote.install.desc.item4", "4、远程安装向导支持GBase 8s V8.7、GBase 8s V8.8。"));
+        desc4.textProperty().bind(I18n.bind("remote.install.desc.item4", "4远程安装向导支持GBase 8s V8.7GBase 8s V8.8。"));
         VBox vBox=new VBox(10);
         vBox.setStyle("-fx-padding: 10 0 0 30");
         grid.setStyle("-fx-padding: 10 0 10 0;");
@@ -2108,6 +2129,13 @@ GBASEEOF
         customInstallStepHbox12=new CustomInstallStepHbox("", "");
         customInstallStepHbox13=new CustomInstallStepHbox("", "");
         customInstallStepHbox14=new CustomInstallStepHbox("", "");
+        // 前五步必须执行，默认勾选且不可编辑
+        customInstallStepHbox1.checkBox.setSelected(true); customInstallStepHbox1.checkBox.setDisable(true);
+        customInstallStepHbox2.checkBox.setSelected(true); customInstallStepHbox2.checkBox.setDisable(true);
+        customInstallStepHbox3.checkBox.setSelected(true); customInstallStepHbox3.checkBox.setDisable(true);
+        customInstallStepHbox4.checkBox.setSelected(true); customInstallStepHbox4.checkBox.setDisable(true);
+        customInstallStepHbox5.checkBox.setSelected(true); customInstallStepHbox5.checkBox.setDisable(true);
+        customInstallStepHbox14.checkBox.setSelected(false);
         bindInstallStepTexts();
 
         Label titlePrefixLabel = new Label();
@@ -2152,7 +2180,7 @@ GBASEEOF
 
 
 
-    // 更新向导状态（标题、显示步骤）
+    // 更新向导状态（标题显示步骤）
     private static void updateWizardState() {
         showCurrentStep();
         updateButtonStates(
@@ -2196,33 +2224,33 @@ GBASEEOF
     }
 
     private static void bindInstallStepTexts() {
-        customInstallStepHbox1.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step1.name", "・卸载现有安装"));
+        customInstallStepHbox1.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step1.name", "卸载现有安装"));
         customInstallStepHbox1.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step1.desc", "kill所有gbasedbt用户进程，删除所有安装路径，删除gbasedbt数据文件，删除gbasedbt用户及组。"));
-        customInstallStepHbox2.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step2.name", "・检查系统依赖"));
-        customInstallStepHbox2.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step2.desc", "检查/opt不小于8G，权限755，/tmp不小于1G，内存不小于1G，检查所需unzip等依赖包、关闭防火墙等。"));
-        customInstallStepHbox3.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step3.name", "・创建用户组及用户"));
-        customInstallStepHbox3.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step3.desc", "创建gbasedbt用户组和gbasedbt用户，配置环境变量GBASEDBTDIR、GBASEDBTSERVER等。"));
-        customInstallStepHbox4.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step4.name", "・安装数据库软件"));
+        customInstallStepHbox2.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step2.name", "检查系统依赖"));
+        customInstallStepHbox2.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step2.desc", "检查/opt不小于8G，权限755，/tmp不小于1G，内存不小于1G，检查所需unzip等依赖包关闭防火墙等。"));
+        customInstallStepHbox3.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step3.name", "创建用户组及用户"));
+        customInstallStepHbox3.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step3.desc", "创建gbasedbt用户组和gbasedbt用户，配置环境变量GBASEDBTDIRGBASEDBTSERVER等。"));
+        customInstallStepHbox4.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step4.name", "安装数据库软件"));
         customInstallStepHbox4.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step4.desc", "安装软件到gbasedbt用户默认环境变量$GBASEDBTDIR指定路径。"));
-        customInstallStepHbox5.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step5.name", "・初始化数据库实例"));
+        customInstallStepHbox5.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step5.name", "初始化数据库实例"));
         customInstallStepHbox5.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step5.desc", "初始化数据库实例，数据文件路径$GBASEDBTDIR/dbs，监听IP 0.0.0.0，端口 9088。"));
-        customInstallStepHbox6.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step6.name", "・优化配置参数"));
-        customInstallStepHbox6.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step6.desc", "优化CPU、内存等关键参数，启用数据库用户，关闭sysadmin，重启数据库实例。"));
-        customInstallStepHbox7.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step7.name", "・优化物理日志"));
+        customInstallStepHbox6.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step6.name", "优化配置参数"));
+        customInstallStepHbox6.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step6.desc", "优化CPU内存等关键参数，启用数据库用户，关闭sysadmin，重启数据库实例。"));
+        customInstallStepHbox7.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step7.name", "优化物理日志"));
         customInstallStepHbox7.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step7.desc", "创建物理日志空间plogdbs，并将物理日志从rootdbs中移动到plogdbs。"));
-        customInstallStepHbox8.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step8.name", "・优化逻辑日志"));
+        customInstallStepHbox8.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step8.name", "优化逻辑日志"));
         customInstallStepHbox8.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step8.desc", "创建逻辑日志空间llogdbs，并将物理日志从rootdbs中移动到llogdbs。"));
-        customInstallStepHbox9.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step9.name", "・优化临时空间"));
+        customInstallStepHbox9.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step9.name", "优化临时空间"));
         customInstallStepHbox9.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step9.desc", "创建临时数据库空间tmpdbs01，避免在rootdbs中执行排序等操作。"));
-        customInstallStepHbox10.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step10.name", "・创建大对象空间"));
+        customInstallStepHbox10.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step10.name", "创建大对象空间"));
         customInstallStepHbox10.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step10.desc", "创建默认智能大对象空间sbspace01，用于存放blob/clob数据。"));
-        customInstallStepHbox11.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step11.name", "・创建用户数据空间"));
+        customInstallStepHbox11.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step11.name", "创建用户数据空间"));
         customInstallStepHbox11.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step11.desc", "创建用户数据空间datadbs01，存放用户数据。"));
-        customInstallStepHbox12.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step12.name", "・创建默认数据库"));
+        customInstallStepHbox12.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step12.name", "创建默认数据库"));
         customInstallStepHbox12.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step12.desc", "创建默认用户数据库gbasedb，存储于datadbs01。"));
-        customInstallStepHbox13.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step13.name", "・配置开机自启"));
+        customInstallStepHbox13.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step13.name", "配置开机自启"));
         customInstallStepHbox13.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step13.desc", "默认开机自启，自启方式为在/etc/rc.local中添加启动命令。"));
-        customInstallStepHbox14.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step14.name", "・配置备份"));
+        customInstallStepHbox14.nameLabel.textProperty().bind(I18n.bind("remote.install.step4.step14.name", "配置备份"));
         customInstallStepHbox14.descLabel.textProperty().bind(I18n.bind("remote.install.step4.step14.desc", "默认不配置备份及逻辑日志归档，可在自定义设置开启，备份脚本位于$GBASEDBTDIR/scripts。"));
     }
 
@@ -2352,9 +2380,6 @@ GBASEEOF
         }
     }
 
-    private static void setInstallPhase(InstallPhase phase) {
-        installPhase = phase;
-    }
 
     private static boolean remoteFileExists(String filePath) throws JSchException, InterruptedException {
         return executeCommandWithExitStatus("test -f " + shellQuote(filePath)) == 0;
@@ -2522,30 +2547,40 @@ GBASEEOF
         int DS_TOTAL_MEMORY=102400;
         int K2BUFFERS=51200;
         int K16BUFFERS=51200;
-        if(totalMem>2&&totalMem<=4){
-            K16BUFFERS=102400;
-        }else if(totalMem>4&&totalMem<=8){
+        if(totalMem>4&&totalMem<=8){
             SHMVIRTSIZE=512000;
             DS_TOTAL_MEMORY=512000;
             K2BUFFERS=102400;
-            K16BUFFERS=204800;
+            K16BUFFERS=102400;
         }else if(totalMem>8&&totalMem<=16){
             SHMVIRTSIZE=1024000;
             DS_TOTAL_MEMORY=1024000;
             K2BUFFERS=512000;
-            K16BUFFERS=409600;
+            K16BUFFERS=204800;
         }else if(totalMem>16&&totalMem<=32){
             LOCKS=10000000;
             SHMVIRTSIZE=2048000;
             DS_TOTAL_MEMORY=2048000;
             K2BUFFERS=512000;
-            K16BUFFERS=819200;
-        }else if(totalMem>32){
+            K16BUFFERS=409600;
+        }else if(totalMem>32&&totalMem<=64){
             LOCKS=10000000;
             SHMVIRTSIZE=4096000;
             DS_TOTAL_MEMORY=4096000;
             K2BUFFERS=512000;
-            K16BUFFERS=1500000;
+            K16BUFFERS=819200;
+        }else if(totalMem>64&&totalMem<=128){
+            LOCKS=10000000;
+            SHMVIRTSIZE=4096000;
+            DS_TOTAL_MEMORY=4096000;
+            K2BUFFERS=512000;
+            K16BUFFERS=2000000;
+        }else if(totalMem>128){
+            LOCKS=10000000;
+            SHMVIRTSIZE=10240000;
+            DS_TOTAL_MEMORY=4096000;
+            K2BUFFERS=512000;
+            K16BUFFERS=4000000;
         }
 
         /*
@@ -2601,11 +2636,10 @@ GBASEEOF
         installConfigItems.add(new InstallConfigItem("vpclass", "VPCLASS", "cpu,num="+NUMCPU+",noage", I18n.t("remote.install.cfg.vpclass.desc", "如是numa架构多路服务器，可绑定CPU，默认等于CPU内核数量")));
         installConfigItems.add(new InstallConfigItem("bufferpool_2k", "BUFFERPOOL", "size=2k,buffers="+K2BUFFERS+",lrus=32,lru_min_dirty=50,lru_max_dirty=60", I18n.t("remote.install.cfg.bufferpool_2k.desc", "建议不小于1G，默认根据内存自动计算")));
         installConfigItems.add(new InstallConfigItem("bufferpool_16k", "BUFFERPOOL", "size=16k,buffers="+K16BUFFERS+",lrus=128,lru_min_dirty=50,lru_max_dirty=60", I18n.t("remote.install.cfg.bufferpool_16k.desc", "建议不超过内存的50%，默认根据内存自动计算")));
-        installConfigItems.add(new InstallConfigItem("backup_path", I18n.t("remote.install.cfg.backup_path.name", "备份路径"), "", I18n.t("remote.install.cfg.backup_path.desc", "填写路径后每天0点执行全量备份到填写的指定路径，逻辑日志自动归档，保留7天。")));
+        installConfigItems.add(new InstallConfigItem("backup_path", I18n.t("remote.install.cfg.backup_path.name", "备份路径"), "$GBASEDBTDIR/backup", I18n.t("remote.install.cfg.backup_path.desc", "填写路径后每天0点执行全量备份到填写的指定路径，逻辑日志自动归档，保留7天。")));
         refreshLegacyConfigListFromItems();
     }
 
 
 
 }
-

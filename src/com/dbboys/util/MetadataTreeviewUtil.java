@@ -39,12 +39,16 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.Stage;
+import javafx.stage.FileChooser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -52,6 +56,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.UnaryOperator;
+import java.util.function.BiConsumer;
 
 public class MetadataTreeviewUtil {
     private static final Logger log = LogManager.getLogger(MetadataTreeviewUtil.class);
@@ -78,6 +83,7 @@ public class MetadataTreeviewUtil {
     public static CustomShortcutMenuItem connectInfoItem;
     public   static int currentIndex = -1;
     public static Thread testConnThread;
+    public static String ddl="";
     static{
         //executorService = Executors.newSingleThreadExecutor();
         connectionService = new ConnectionService();
@@ -210,7 +216,24 @@ public class MetadataTreeviewUtil {
         CustomShortcutMenuItem instanceStopItem = MenuItemUtil.createMenuItemI18n("metadata.menu.instance_start_stop",
                 IconFactory.group(IconPaths.METADATA_INSTANCE_STOP_ITEM, 0.65, 0.65, IconFactory.dangerColor()));
 
+        Menu ddlMenu = new Menu();
+        ddlMenu.textProperty().bind(I18n.bind("metadata.menu.ddl.title", "查看DDL"));
+        ddlMenu.getStyleClass().add("ddlMenu");
+        ddlMenu.setGraphic(IconFactory.group(IconPaths.METADATA_DDL_MENU, 0.65, 0.65));
 
+        CustomShortcutMenuItem ddlToFile =
+                MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_file", null);
+        CustomShortcutMenuItem ddlToClipboard  =
+                MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_clipboard", null);
+        CustomShortcutMenuItem ddlToCurrentSqlEditarea =
+                MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_current_sql", null);
+        CustomShortcutMenuItem ddlToNewSqlEditarea =
+                MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_new_sql", null);
+        CustomShortcutMenuItem ddlToPopuWindow =
+                MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_popup_window", null);
+        ddlMenu.getItems().addAll(ddlToClipboard,ddlToPopuWindow,ddlToFile,ddlToCurrentSqlEditarea,ddlToNewSqlEditarea);
+        
+        
         //右键连接信息点击响应
         connectInfoItem.setOnAction(event->{
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
@@ -768,6 +791,53 @@ public class MetadataTreeviewUtil {
             }
         });
 
+        ddlToFile.setOnAction(event -> handleDdlAction(treeView, (treeData, ddlText) -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle(I18n.t("metadata.menu.ddl.to_file", "保存DDL为SQL"));
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQL Files", "*.sql"));
+            fileChooser.setInitialFileName(treeData.getName() + ".sql");
+            File file = fileChooser.showSaveDialog(Main.scene.getWindow());
+            if (file != null) {
+                try (FileWriter writer = new FileWriter(file)) {
+                    writer.write(ddlText);
+                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("metadata.notice.ddl_saved", "DDL已保存到文件"));
+                } catch (IOException e) {
+                    AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
+                }
+            }
+        }));
+
+        ddlToClipboard.setOnAction(event -> handleDdlAction(treeView, (treeData, ddlText) -> {
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putString(ddlText);
+            clipboard.setContent(content);
+            NotificationUtil.showNotification(Main.mainController.noticePane, "DDL已复制到剪切板");
+        }));
+
+        ddlToPopuWindow.setOnAction(event -> handleDdlAction(treeView, (treeData, ddlText) -> {
+            PopupWindowUtil.openDDLWindow(ddlText);
+        }));
+
+        ddlToNewSqlEditarea.setOnAction(event -> handleDdlAction(treeView, (treeData, ddlText) -> {
+            Main.mainController.newSqlFileMenuItem.fire();
+            if (Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab currentSqlTab) {
+                currentSqlTab.sqlTabController.sqlEditCodeArea.replaceText(ddlText);
+            }
+        }));
+
+        ddlToCurrentSqlEditarea.setOnAction(event -> handleDdlAction(treeView, (treeData, ddlText) -> {
+            if (Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab currentSqlTab) {
+                int currentPos=currentSqlTab.sqlTabController.sqlEditCodeArea.getCaretPosition();
+                currentSqlTab.sqlTabController.sqlEditCodeArea.insertText(currentPos, ddlText);
+            }else{
+                Main.mainController.newSqlFileMenuItem.fire();
+                if (Main.mainController.sqlTabPane.getSelectionModel().getSelectedItem() instanceof CustomSqlTab currentSqlTab) {
+                    currentSqlTab.sqlTabController.sqlEditCodeArea.replaceText(ddlText);
+                }
+            }
+        }));
+
         //右键删除连接点击响应
         deleteItem.setOnAction(event -> {
             List<TreeItem<TreeData>> selectedItems = new ArrayList<>(treeView.getSelectionModel().getSelectedItems());
@@ -1163,6 +1233,7 @@ public class MetadataTreeviewUtil {
                     treeview_menu.getItems().add(updateStatisticsItem);
                     treeview_menu.getItems().add(truncateItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                     treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
                     return;
                 }
@@ -1176,6 +1247,7 @@ public class MetadataTreeviewUtil {
                     }
                     deleteItem.setDisable(disableDelete);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                     treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
                     return;
                 }
@@ -1371,11 +1443,14 @@ public class MetadataTreeviewUtil {
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
+
                 }
                 //视图
                 else if(selectedItem.getValue() instanceof View) {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                 }
                 //索引
                 else if(selectedItem.getValue() instanceof Index) {
@@ -1385,6 +1460,7 @@ public class MetadataTreeviewUtil {
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                     if(((Index)selectedItem.getValue()).getIsdisabled()) {
                         disableItem.setDisable(true);
                     }else{
@@ -1402,11 +1478,13 @@ public class MetadataTreeviewUtil {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                 }
                 //同义词
                 else if(selectedItem.getValue() instanceof Synonym) {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                 }
                 //触发器
                 else if(selectedItem.getValue() instanceof Trigger) {
@@ -1415,6 +1493,7 @@ public class MetadataTreeviewUtil {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                     if(((Trigger)selectedItem.getValue()).isIsdisabled()) {
                         disableItem.setDisable(true);
                     }else{
@@ -1425,22 +1504,27 @@ public class MetadataTreeviewUtil {
                 else if(selectedItem.getValue() instanceof Function) {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                 }
                 //存储过程
                 else if(selectedItem.getValue() instanceof Procedure) {
                     treeview_menu.getItems().add(updateStatisticsItem);
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                 }
                 //包
                 else if(selectedItem.getValue() instanceof DBPackage) {
-                    treeview_menu.getItems().add(packageDDLItem);
+                    //treeview_menu.getItems().add(packageDDLItem);
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(ddlMenu);
                 }
                 else if(selectedItem.getValue() instanceof PackageFunction||selectedItem.getValue() instanceof PackageProcedure) {
                     treeview_menu.getItems().add(copyItem);
+                    treeview_menu.getItems().add(ddlMenu);
+
                 }
 
                 // 树中右键框显示
@@ -2945,6 +3029,92 @@ public class MetadataTreeviewUtil {
             default -> {
             }
         }
+    }
+
+    public static void handleDdlAction(TreeView<TreeData> treeView, BiConsumer<TreeData, String> onSuccess) {
+        ObservableList<TreeItem<TreeData>> selectedItems = treeView.getSelectionModel().getSelectedItems();
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            return;
+        }
+
+        List<TreeItem<TreeData>> items = new ArrayList<>(selectedItems);
+        TreeItem<TreeData> firstItem = items.get(0);
+        if (firstItem == null || firstItem.getValue() == null) {
+            return;
+        }
+        TreeData firstData = firstItem.getValue();
+        boolean multi = items.size() > 1;
+
+        Task<String> ddlTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                StringBuilder sb = new StringBuilder();
+                for (TreeItem<TreeData> item : items) {
+                    if (item == null || item.getValue() == null) {
+                        continue;
+                    }
+                    TreeData data = item.getValue();
+                    if (data.isRunning()) {
+                        continue;
+                    }
+                    data.setRunning(true);
+                    Connect connectParam = MetadataTreeviewUtil.getMetaConnect(item);
+                    Database database = MetadataTreeviewUtil.getCurrentDatabase(item);
+                    String ddlText = "";
+                    if (data instanceof Table) {
+                        ddlText = tableService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof Index) {
+                        ddlText = indexService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof View) {
+                        ddlText = viewService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof Trigger) {
+                        ddlText = triggerService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof Sequence) {
+                        ddlText = sequenceService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof Synonym) {
+                        ddlText = synonymService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof Function) {
+                        ddlText = functionService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof Procedure) {
+                        ddlText = procedureService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof DBPackage) {
+                        ddlText = packageService.getDDL(connectParam, database, data.getName());
+                    } else if (data instanceof PackageFunction || data instanceof PackageProcedure) {
+                        ddlText = packageService.getChildrenDDL(
+                                ((DBPackage) item.getParent().getValue()).getDDL(), data.getName());
+                    }
+
+                    if (!multi) {
+                        data.setRunning(false);
+                        return SqlParserUtil.formatSql(ddlText);
+                    }
+                    if (ddlText != null && !ddlText.isEmpty()) {
+                        sb.append("-- ").append(data.getName()).append(System.lineSeparator());
+                        sb.append(ddlText).append(System.lineSeparator()).append(System.lineSeparator());
+                    }
+                     data.setRunning(false);
+                }
+                return SqlParserUtil.formatSql(sb.toString());
+            }
+        };
+
+        ddlTask.setOnSucceeded(event1 -> {
+            items.forEach(it -> {
+                if (it != null && it.getValue() != null) {
+                    it.getValue().setRunning(false);
+                }
+            });
+            String ddlText = ddlTask.getValue();
+            onSuccess.accept(firstData, ddlText == null ? "" : ddlText);
+        });
+        GlobalErrorHandlerUtil.bindTask(ddlTask, () -> items.forEach(it -> {
+            if (it != null && it.getValue() != null) {
+                it.getValue().setRunning(false);
+            }
+        }));
+
+        Thread thread = new Thread(ddlTask);
+        getMetaConnect(firstItem).executeSqlTask(thread);
     }
 
     private static void bindFolderName(TreeData treeData, String key, String defaultText) {

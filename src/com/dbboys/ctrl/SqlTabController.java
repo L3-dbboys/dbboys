@@ -1581,7 +1581,7 @@ public class SqlTabController {
                                                 sqlTransactionText.set(sqlTransactionText.get() + sqlExe.trim() + ";\n");
                                             }
                                         }
-                                    } else if(sqlSqlModeChoiceBox.getValue().equals("sqlmode=oracle")){ //oracle手动提交
+                                    } else if(sqlSqlModeChoiceBox.getValue().equals("sqlmode=oracle")||sqlSqlModeChoiceBox.getValue().equals("sqlmode=mysql")){ //oracle/mysql手动提交,ddl会触发commit
 
 
                                             if (sqlExe.endsWith(";")) {
