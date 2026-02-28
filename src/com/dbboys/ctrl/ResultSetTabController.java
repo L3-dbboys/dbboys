@@ -1,6 +1,8 @@
-package com.dbboys.ctrl;
+﻿package com.dbboys.ctrl;
 
 import com.dbboys.app.Main;
+import com.dbboys.customnode.CustomInfoCodeArea;
+import com.dbboys.customnode.CustomInfoStackPane;
 import com.dbboys.customnode.CustomLabelTextField;
 import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
@@ -19,15 +21,20 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -677,7 +684,9 @@ public class ResultSetTabController {
         for (int j = 1; j <= columnCount; j++) {
             final int columnIndex = j;
             String colTypeName = metaData.getColumnTypeName(j);
+            final String colTypeNameFinal = colTypeName;
             Integer length = metaData.getColumnDisplaySize(j);
+            final boolean isLob = colTypeName != null && colTypeName.toLowerCase().matches("(blob|clob|text|bytea|image|longvarbinary|longvarchar)");
 
             TableColumn<ObservableList<String>, Object> column = new TableColumn<>();
             if (colTypeName.equals("int") || colTypeName.equals("serial") || colTypeName.equals("smallint")) {
@@ -688,13 +697,100 @@ public class ResultSetTabController {
                         data.getValue().get(columnIndex) == null ? null : Float.parseFloat(data.getValue().get(columnIndex))));
             } else {
                 column.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(columnIndex)));
-                if (!colTypeName.startsWith("date")) {
-                    colTypeName = colTypeName + "(" + length + ")";
+                String displayType = colTypeName;
+                if (!displayType.startsWith("date")) {
+                    displayType = displayType + "(" + length + ")";
                 }
-                column.setComparator((str1, str2) -> str1.toString().toLowerCase().compareTo(str2.toString().toLowerCase()));
+                final String headerType = displayType;
+                column.setComparator((str1, str2) -> {
+                    if (str1 == null && str2 == null) return 0;
+                    if (str1 == null) return -1;
+                    if (str2 == null) return 1;
+                    return str1.toString().compareToIgnoreCase(str2.toString());
+                });
+
+                // set header tooltip later using headerType
+                colTypeName = headerType;
             }
 
-            column.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
+            final String headerName = metaData.getColumnLabel(j);
+            final String headerTypeFinal = colTypeName;
+
+            column.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>() {
+                {
+                    setOnMouseClicked(ev -> {
+                        if (isLob && ev.getClickCount() == 1 && !isEmpty() && getItem() != null) {
+                            Platform.runLater(() -> {
+                                Stage lobDataPopupStage = new Stage();
+                                CustomInfoCodeArea customInfoCodeArea=new CustomInfoCodeArea();
+                                CustomInfoStackPane customInfoStackPane=new CustomInfoStackPane(customInfoCodeArea);
+                                customInfoCodeArea.setWrapText(false);
+                                customInfoCodeArea.setEditable(resultSetEditableEnabledLabel.isVisible());
+                                customInfoStackPane.codeAreaSnapshotButton.setVisible(false);
+                                Button saveBtn = new Button(I18n.t("common.save", "保存"));
+                                VBox root = new VBox();
+                                if (resultSetEditableEnabledLabel.isVisible()) {
+                                    saveBtn.setOnAction(e -> {
+                                        try {
+                                            ObservableList<String> row = getTableView().getItems().get(getIndex());
+                                            updateCellValue(columnIndex, customInfoCodeArea.getText(), row, row.get(columnIndex), sqlTransactionText, commitmode);
+                                            // 保存成功后同步更新当前行的显示值
+                                            row.set(columnIndex, customInfoCodeArea.getText());
+                                            resultSetTableView.refresh();
+                                            lobDataPopupStage.close();
+                                        } catch (Exception ex) {
+                                            log.error(ex.getMessage(), ex);
+                                            AlterUtil.CustomAlert(I18n.t("common.error"), ex.getMessage());
+                                        }
+                                    });
+                                    saveBtn.setMaxWidth(Double.MAX_VALUE);
+                                }
+                                VBox.setVgrow(customInfoStackPane, Priority.ALWAYS);
+
+                                root.getChildren().add(customInfoStackPane);
+                                if(resultSetEditableEnabledLabel.isVisible()){
+                                    root.getChildren().add(saveBtn);
+                                }
+                                root.setPrefHeight(Double.MAX_VALUE);
+                                Scene lobDataPopupStageScene = new Scene(root, 800, 400);
+                                Image lobDataPopupStageIcon = new Image(IconPaths.MAIN_LOGO);
+                                lobDataPopupStage.setScene(lobDataPopupStageScene);
+                                lobDataPopupStage.getIcons().add(lobDataPopupStageIcon);
+                                lobDataPopupStageScene.getStylesheets().add(Main.class.getResource("/com/dbboys/css/app.css").toExternalForm());
+                                lobDataPopupStage.initModality(Modality.APPLICATION_MODAL);
+                                lobDataPopupStage.show();
+                                customInfoCodeArea.replaceText(getItem().toString());
+                                lobDataPopupStage.setOnCloseRequest(event -> {
+                                    lobDataPopupStage.close();
+                                });
+                                lobDataPopupStage.showAndWait();
+                            
+                            });
+                            //showLargeObject(headerName, getItem().toString());
+                            ev.consume();
+                        }
+                    });
+                }
+
+                @Override
+                protected void updateItem(Object item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty) return;
+                    if (item == null) {
+                        setText(getNullLabel());
+                        setTooltip(null);
+                    } else if (isLob) {
+                        setText(colTypeNameFinal.toUpperCase());
+                        Tooltip tp = new Tooltip(I18n.t("resultset.tooltip.double_click_lob"));
+                        tp.setShowDelay(Duration.millis(80));
+                        setTooltip(tp);
+                    } else {
+                        setText(item.toString().replace("\n", "\u21B5"));
+                        setTooltip(null);
+                    }
+                }
+            });
+
             if (allowEdit && sqlTransactionText != null && commitmode != null) {
                 bindEditableColumn(column, columnIndex, sqlTransactionText, commitmode);
             }
@@ -703,11 +799,11 @@ public class ResultSetTabController {
             StackPane colheader = new StackPane();
             String colName = metaData.getColumnLabel(j);
             Label colLabel = new Label(colName);
-            Label colType = new Label(colTypeName);
+            Label colType = new Label(headerTypeFinal);
             colheader.getChildren().addAll(colLabel);
             colType.setStyle("-fx-font-size: 5");
             StackPane.setAlignment(colType, Pos.BOTTOM_LEFT);
-            Tooltip tp = new Tooltip(colTypeName);
+            Tooltip tp = new Tooltip(headerTypeFinal);
             tp.setShowDelay(Duration.millis(100));
             colLabel.setTooltip(tp);
             column.setPrefWidth(Math.max(colLabel.getText().length() * 15, avgColWidth));
@@ -733,70 +829,8 @@ public class ResultSetTabController {
             Object colvalue = event.getNewValue().toString().replaceAll("\u21B5", "\n");
             event.getRowValue().set(columnIndex, colvalue.toString());
 
-            String updateCol = String.valueOf(resultTableCols.get(columnIndex - 1));
-            String updateSql = "update " + resultFromTable + " set " + updateCol + "=? where 1=1 ";
-            String sqlParams = "";
-
             try {
-                if (resultTablePriNum != null && !resultTablePriNum.isEmpty()) {
-                    for (Integer colnum : resultTablePriNum) {
-                        updateSql += " and " + resultTableCols.get(colnum) + "=?";
-                    }
-                }
-
-                sqlStatement = sqlConnect.getConn().prepareStatement(updateSql);
-                sqlStatement.setObject(1, colvalue.equals("[NULL]") ? null : colvalue);
-
-                if (colvalue.equals("[NULL]")) {
-                    sqlStatement.setObject(1, null);
-                    sqlParams += "(null";
-                    Platform.runLater(() -> {
-                        event.getRowValue().set(columnIndex, null);
-                        event.getTableView().refresh();
-                    });
-                } else {
-                    sqlParams += "[" + colvalue;
-                    sqlStatement.setObject(1, colvalue);
-                }
-
-                Integer rownumber = event.getTablePosition().getRow();
-                List selectedData = (List) resultSetTableView.getItems().get(rownumber);
-                int prepareNum = 2;
-                for (Integer colnum : resultTablePriNum) {
-                    TablePosition<?, ?> position = (TablePosition<?, ?>) resultSetTableView.getSelectionModel().getSelectedCells().get(0);
-                    if (position.getColumn() == colnum + 1) {
-                        sqlStatement.setObject(prepareNum, oldvalue);
-                        sqlParams += "," + oldvalue;
-                    } else {
-                        sqlStatement.setObject(prepareNum, selectedData.get(colnum + 1));
-                        sqlParams += "," + selectedData.get(colnum + 1);
-                    }
-                    prepareNum++;
-                }
-
-                UpdateResult updateResult = new UpdateResult();
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                int sqlAffect = 0;
-                long sql_begin_time = System.currentTimeMillis();
-                sqlAffect = sqlStatement.executeUpdate();
-                long sql_finish_time = System.currentTimeMillis();
-                updateResult.setConnectId(sqlConnect.getId());
-                updateResult.setStartTime(sdf.format(sql_begin_time));
-                updateResult.setEndTime(sdf.format(sql_finish_time));
-                updateResult.setElapsedTime(String.format("%.3f", (sql_finish_time - sql_begin_time) / 1000.0) + " sec");
-                updateResult.setAffectedRows(sqlAffect);
-                updateResult.setDatabase(sqlConnect.getDatabase());
-                sqlParams += "]";
-                updateResult.setUpdateSql(updateSql);
-                if (commitmode.getValue().toString().equals("手动提交")) {
-                    updateResult.setMark("手动提交，查询结果集编辑，参数" + sqlParams);
-                    sqlTransactionText.set(sqlTransactionText.get() + updateSql + "\n");
-                    NotificationUtil.showNotification(Main.mainController.noticePane, "当前连接为手动提交，修改暂未提交，请点击提交或回滚！");
-                } else {
-                    updateResult.setMark("自动提交，查询结果集编辑，参数" + sqlParams);
-                }
-                SqliteDBaccessUtil.saveSqlHistory(updateResult);
-
+                updateCellValue(columnIndex, colvalue.toString(), event.getRowValue(), oldvalue, sqlTransactionText, commitmode);
             } catch (SQLException e) {
                 Platform.runLater(() -> {
                     event.getRowValue().set(columnIndex, oldvalue == null ? null : oldvalue.toString());
@@ -815,6 +849,71 @@ public class ResultSetTabController {
                 }
             }
         });
+    }
+
+    /**
+     * 执行单元格更新（结果集可编辑及 LOB 弹窗公用）。
+     */
+    private void updateCellValue(int columnIndex,
+                                 String newValue,
+                                 ObservableList<String> row,
+                                 Object oldValue,
+                                 SimpleStringProperty sqlTransactionText,
+                                 ChoiceBox commitmode) throws SQLException {
+        String updateCol = String.valueOf(resultTableCols.get(columnIndex - 1));
+        String updateSql = "update " + resultFromTable + " set " + updateCol + "=? where 1=1 ";
+        if (resultTablePriNum != null && !resultTablePriNum.isEmpty()) {
+            for (Integer colnum : resultTablePriNum) {
+                updateSql += " and " + resultTableCols.get(colnum) + "=?";
+            }
+        }
+
+        sqlStatement = sqlConnect.getConn().prepareStatement(updateSql);
+        boolean isNull = "[NULL]".equals(newValue);
+        sqlStatement.setObject(1, isNull ? null : newValue);
+
+        int prepareNum = 2;
+        StringBuilder sqlParams = new StringBuilder();
+        if (resultTablePriNum != null) {
+            for (Integer colnum : resultTablePriNum) {
+                Object pkVal = (columnIndex - 1 == colnum) ? oldValue : row.get(colnum + 1);
+                sqlStatement.setObject(prepareNum++, pkVal);
+                if (sqlParams.length() > 0) {
+                    sqlParams.append(",");
+                }
+                sqlParams.append(pkVal == null ? "null" : pkVal);
+            }
+        }
+
+        //如果是修改为[NULL]，则刷新结果集表格以显示灰色表示null
+        if(isNull){
+            resultSetTableView.refresh();
+        }
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        long sql_begin_time = System.currentTimeMillis();
+        int sqlAffect = sqlStatement.executeUpdate();
+        long sql_finish_time = System.currentTimeMillis();
+
+        //if (commitmode != null && sqlTransactionText != null) {
+            UpdateResult updateResult = new UpdateResult();
+            updateResult.setConnectId(sqlConnect.getId());
+            updateResult.setStartTime(sdf.format(sql_begin_time));
+            updateResult.setEndTime(sdf.format(sql_finish_time));
+            updateResult.setElapsedTime(String.format("%.3f", (sql_finish_time - sql_begin_time) / 1000.0) + " sec");
+            updateResult.setAffectedRows(sqlAffect);
+            updateResult.setDatabase(sqlConnect.getDatabase());
+            updateResult.setUpdateSql(updateSql);
+            if (commitmode.getSelectionModel().getSelectedIndex() == 1) {
+                updateResult.setMark("手动提交，查询结果集编辑，参数[" +newValue+","+ sqlParams + "]");
+                sqlTransactionText.set(sqlTransactionText.get() + updateSql + "\n");
+                NotificationUtil.showNotification(Main.mainController.noticePane, "当前连接为手动提交，修改暂未提交，请点击提交或回滚！");
+            } else {
+                updateResult.setMark("自动提交，查询结果集编辑，参数[" +newValue+","+ sqlParams + "]");
+            }
+            SqliteDBaccessUtil.saveSqlHistory(updateResult);
+    
+        sqlStatement.close();
     }
 
     private boolean prepareParams(ParameterMetaData meta, Statement stmt) {
@@ -979,6 +1078,28 @@ public class ResultSetTabController {
             this.primaryKeys = primaryKeys;
             this.selectedColumns = selectedColumns;
         }
+    }
+
+    /**
+     * Show large object content in a dialog when user double-clicks LOB cell.
+     */
+    private void showLargeObject(String title, String content) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(I18n.t("resultset.lob.title", "大对象查看"));
+            alert.setHeaderText(title);
+            TextArea area = new TextArea(content);
+            area.setEditable(false);
+            area.setWrapText(true);
+            area.setPrefSize(800, 500);
+            alert.getDialogPane().setContent(area);
+            alert.getDialogPane().setPrefSize(820, 550);
+            alert.showAndWait();
+        });
+    }
+
+    private String getNullLabel() {
+        return I18n.t("customtablecell.null", "[NULL]");
     }
 }
 

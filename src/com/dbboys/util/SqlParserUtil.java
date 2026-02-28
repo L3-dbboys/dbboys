@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.vo.Sql;
 
@@ -584,7 +584,7 @@ public class SqlParserUtil {
                     || checkSql.toLowerCase().startsWith("alter table ")
                     || checkSql.toLowerCase().startsWith("alter fragment ")
                     || checkSql.toLowerCase().startsWith("rename ")
-                    || checkSql.toLowerCase().startsWith("commnet on ")
+                    || checkSql.toLowerCase().startsWith("comment on ")
                     || checkSql.toLowerCase().startsWith("delete from ")
                     || checkSql.toLowerCase().startsWith("drop ")
                     || checkSql.toLowerCase().startsWith("insert ")
