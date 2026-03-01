@@ -344,6 +344,7 @@ class DownloadTaskWrapper {
                 ObservableList<TableColumn<T, ?>> columns = tableView.getColumns();
                 ObservableList<T> items = tableView.getItems();
                 int rowsTotal = items.size();
+                final int excelCellCharLimit = 32767;
 
                 CellStyle headerStyle = workbook.createCellStyle();  // 统一接口，不用 HSSFCellStyle
                 Font headerFont = workbook.createFont();             // 统一接口，不用 HSSFFont
@@ -374,7 +375,18 @@ class DownloadTaskWrapper {
                         TableColumn<T, ?> column = columns.get(j);
                         Object value = column.getCellData(rowData);
                         Cell cell = row.createCell(j-1);
-                        cell.setCellValue(value == null ? "" : value.toString());
+                        String text;
+                        if (value == null) {
+                            text = "";
+                        } else {
+                            text = value.toString();
+                            if (text.length() > excelCellCharLimit) {
+                                // 保留前段内容，避免超长 LOB/文本导致 POI/Excel 卡死
+                                text = text.substring(0, excelCellCharLimit - 16) +
+                                        String.format("...(len=%d)", text.length());
+                            }
+                        }
+                        cell.setCellValue(text);
                     }
                 }
                 if(cancelled){

@@ -727,7 +727,8 @@ public class ResultSetTabController {
                                 customInfoCodeArea.setWrapText(false);
                                 customInfoCodeArea.setEditable(resultSetEditableEnabledLabel.isVisible());
                                 customInfoStackPane.codeAreaSnapshotButton.setVisible(false);
-                                Button saveBtn = new Button(I18n.t("common.save", "保存"));
+                                Button saveBtn = new Button();
+                                saveBtn.textProperty().bind(I18n.bind("common.save", "保存"));
                                 VBox root = new VBox();
                                 if (resultSetEditableEnabledLabel.isVisible()) {
                                     saveBtn.setOnAction(e -> {
@@ -781,9 +782,9 @@ public class ResultSetTabController {
                         setTooltip(null);
                     } else if (isLob) {
                         setText(colTypeNameFinal.toUpperCase());
-                        Tooltip tp = new Tooltip(I18n.t("resultset.tooltip.double_click_lob"));
-                        tp.setShowDelay(Duration.millis(80));
-                        setTooltip(tp);
+                        //Tooltip tp = new Tooltip(I18n.t("resultset.tooltip.double_click_lob"));
+                        //tp.setShowDelay(Duration.millis(80));
+                        //setTooltip(tp);
                     } else {
                         setText(item.toString().replace("\n", "\u21B5"));
                         setTooltip(null);
@@ -905,11 +906,11 @@ public class ResultSetTabController {
             updateResult.setDatabase(sqlConnect.getDatabase());
             updateResult.setUpdateSql(updateSql);
             if (commitmode.getSelectionModel().getSelectedIndex() == 1) {
-                updateResult.setMark("手动提交，查询结果集编辑，参数[" +newValue+","+ sqlParams + "]");
+                updateResult.setMark(String.format(I18n.t("resultset.mark.manual_edit", "手动提交，查询结果集编辑，参数[%s,%s]"), newValue, sqlParams));
                 sqlTransactionText.set(sqlTransactionText.get() + updateSql + "\n");
-                NotificationUtil.showNotification(Main.mainController.noticePane, "当前连接为手动提交，修改暂未提交，请点击提交或回滚！");
+                NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("resultset.notice.manual_commit_pending", "当前连接为手动提交，修改暂未提交，请点击提交或回滚！"));
             } else {
-                updateResult.setMark("自动提交，查询结果集编辑，参数[" +newValue+","+ sqlParams + "]");
+                updateResult.setMark(String.format(I18n.t("resultset.mark.auto_edit", "自动提交，查询结果集编辑，参数[%s,%s]"), newValue, sqlParams));
             }
             SqliteDBaccessUtil.saveSqlHistory(updateResult);
     

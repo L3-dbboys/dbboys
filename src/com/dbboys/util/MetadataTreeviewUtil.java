@@ -45,10 +45,16 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -58,8 +64,16 @@ import java.util.concurrent.Executors;
 import java.util.function.UnaryOperator;
 import java.util.function.BiConsumer;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+
 public class MetadataTreeviewUtil {
     private static final Logger log = LogManager.getLogger(MetadataTreeviewUtil.class);
+    private enum ExportFormat {CSV, XLSX, SQL}
 
 
     //public static ExecutorService executorService;
@@ -204,7 +218,14 @@ public class MetadataTreeviewUtil {
                 IconFactory.group(IconPaths.METADATA_SET_DEFAULT_DATABASE_ITEM, 0.6, 0.6));
         //setDefaultDatabaseItem.disableProperty().bind(trans_not_committed_buttons_hbox.visibleProperty());
         SeparatorMenuItem separator1 = new SeparatorMenuItem(); // 第一个分隔线
-        SeparatorMenuItem separator2 = new SeparatorMenuItem(); // 第一个分隔线
+        SeparatorMenuItem separator2 = new SeparatorMenuItem();
+        Menu exportMenu = new Menu();
+        exportMenu.textProperty().bind(I18n.bind("metadata.menu.export", "导出"));
+        exportMenu.setGraphic(IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.55, 0.55));
+        CustomShortcutMenuItem exportCsvItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.csv",null);
+        CustomShortcutMenuItem exportXlsxItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.xlsx",null);
+        CustomShortcutMenuItem exportSqlItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.sql",null);
+ // 第一个分隔线
         CustomShortcutMenuItem healthCheckItem = MenuItemUtil.createMenuItemI18n("metadata.menu.health_check",
                 IconFactory.group(IconPaths.METADATA_HEALTH_CHECK_ITEM, 0.65, 0.65));
         CustomShortcutMenuItem onlinelogItem = MenuItemUtil.createMenuItemI18n("metadata.menu.online_log",
@@ -1440,9 +1461,14 @@ public class MetadataTreeviewUtil {
                         modifyToStandardItem.setDisable(true);
                     }
                     treeview_menu.getItems().add(copyItem);
+                    exportMenu.getItems().setAll(exportCsvItem, exportXlsxItem, exportSqlItem);
+                    exportCsvItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.CSV));
+                    exportXlsxItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.XLSX));
+                    exportSqlItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.SQL));
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(exportMenu);
                     treeview_menu.getItems().add(ddlMenu);
 
                 }
@@ -2481,6 +2507,151 @@ public class MetadataTreeviewUtil {
         }
         return  (Database) retrunTreeItem.getValue();
 
+    }
+
+    private static void exportTableData(TreeItem<TreeData> tableItem, ExportFormat format) {
+        if (!(tableItem.getValue() instanceof Table)) {
+            return;
+        }
+        Table table = (Table) tableItem.getValue();
+        Connect connect = buildObjectConnect(tableItem,false);
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.t("metadata.export.title", "导出表数据"));
+        String baseName = table.getName();
+        switch (format) {
+            case CSV -> {
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
+                chooser.setInitialFileName(baseName + ".csv");
+            }
+            case XLSX -> {
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel", "*.xlsx"));
+                chooser.setInitialFileName(baseName + ".xlsx");
+            }
+            case SQL -> {
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQL", "*.sql"));
+                chooser.setInitialFileName(baseName + ".sql");
+            }
+        }
+        File file = chooser.showSaveDialog(Main.scene.getWindow());
+        if (file == null) return;
+        if (file.exists()) {
+            file.delete();
+        }
+
+        Task<Void> exportTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                String sql = "select * from " + table.getName();
+                try (Connection conn = metadataService.getConnection(connect);
+                     PreparedStatement ps = conn.prepareStatement(sql);
+                     ResultSet rs = ps.executeQuery()) {
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int columnCount = meta.getColumnCount();
+                    switch (format) {
+                        case CSV -> writeCsv(rs, meta, columnCount, file);
+                        case XLSX -> writeXlsx(rs, meta, columnCount, file);
+                        case SQL -> writeSql(rs, meta, columnCount, table.getName(), file);
+                    }
+                }
+                return null;
+            }
+        };
+
+        exportTask.setOnSucceeded(e -> Platform.runLater(() -> NotificationUtil.showNotification(
+                Main.mainController.noticePane,
+                I18n.t("metadata.export.success", "表%s导出完成：%s").formatted(table.getName(), file.getName())
+        )));
+        exportTask.setOnFailed(e -> Platform.runLater(() -> NotificationUtil.showNotification(
+                Main.mainController.noticePane,
+                I18n.t("metadata.export.failure", "表%s导出失败：%s").formatted(table.getName(), exportTask.getException().getMessage())
+        )));
+
+        connect.executeSqlTask(new Thread(exportTask));
+    }
+
+    private static void writeCsv(ResultSet rs, ResultSetMetaData meta, int columnCount, File file) throws Exception {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+            for (int i = 1; i <= columnCount; i++) {
+                if (i > 1) writer.write(",");
+                writer.write(escapeCsv(meta.getColumnLabel(i)));
+            }
+            writer.newLine();
+            while (rs.next()) {
+                for (int i = 1; i <= columnCount; i++) {
+                    if (i > 1) writer.write(",");
+                    Object val = rs.getObject(i);
+                    writer.write(val == null ? "" : escapeCsv(val.toString()));
+                }
+                writer.newLine();
+            }
+        }
+    }
+
+    private static String escapeCsv(String value) {
+        String escaped = value.replace("\"", "\"\"");
+        return "\"" + escaped + "\"";
+    }
+
+    private static void writeXlsx(ResultSet rs, ResultSetMetaData meta, int columnCount, File file) throws Exception {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(200);
+             FileOutputStream fos = new FileOutputStream(file)) {
+            Sheet sheet = workbook.createSheet(I18n.t("metadata.export.sheet_name", "数据"));
+
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+
+            Row headerRow = sheet.createRow(0);
+            for (int i = 1; i <= columnCount; i++) {
+                Cell cell = headerRow.createCell(i - 1);
+                cell.setCellValue(meta.getColumnLabel(i));
+                cell.setCellStyle(headerStyle);
+            }
+
+            int rowIndex = 1;
+            while (rs.next()) {
+                Row row = sheet.createRow(rowIndex++);
+                for (int i = 1; i <= columnCount; i++) {
+                    Object val = rs.getObject(i);
+                    Cell cell = row.createCell(i - 1);
+                    cell.setCellValue(val == null ? "" : val.toString());
+                }
+            }
+            workbook.write(fos);
+        }
+    }
+
+    private static void writeSql(ResultSet rs, ResultSetMetaData meta, int columnCount, String tableName, File file) throws Exception {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+            StringBuilder prefix = new StringBuilder();
+            prefix.append("INSERT INTO ").append(tableName).append(" (");
+            for (int i = 1; i <= columnCount; i++) {
+                if (i > 1) prefix.append(", ");
+                prefix.append(meta.getColumnLabel(i));
+            }
+            prefix.append(") VALUES ");
+
+            while (rs.next()) {
+                writer.write(prefix.toString());
+                writer.write("(");
+                for (int i = 1; i <= columnCount; i++) {
+                    if (i > 1) writer.write(", ");
+                    Object val = rs.getObject(i);
+                    if (val == null) {
+                        writer.write("NULL");
+                    } else if (val instanceof Number || val instanceof Boolean) {
+                        writer.write(val.toString());
+                    } else {
+                        writer.write("'");
+                        writer.write(val.toString().replace("'", "''"));
+                        writer.write("'");
+                    }
+                }
+                writer.write(");\n");
+            }
+        }
     }
 
 
