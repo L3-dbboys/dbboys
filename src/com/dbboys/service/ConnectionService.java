@@ -65,9 +65,10 @@ public class ConnectionService {
                 info.setProperty(jsonObject.getString("propName"), jsonObject.getString("propValue"));
             }
         }
+        //info("conn info is:" + info);
 
         Connection connection = driver.connect(urlString, info);
-        log.info("conn info is:" + connection.getMetaData().getURL());
+        //log.info("conn info is:" + connection.getMetaData().getURL());
         return connection;
     }
 
@@ -197,7 +198,7 @@ public static class ChangeDefaultDatabaseResult {
             return connect.getProps();
         }
         String dbLocale = DBlocale.replaceAll("(?i)" + "UTF8", "57372")
-                .replaceAll("(?i)" + "GB18030-2000", "5488");
+                .replaceAll("(?i)" + "GB18030-2000", "5488").trim();
         JSONArray jsonArray = new JSONArray(connect.getProps());
         JSONArray jsonArraynew = new JSONArray();
         for (int i = 0; i < jsonArray.length(); i++) {
@@ -342,6 +343,7 @@ public static class ChangeDefaultDatabaseResult {
                 connect1.setDatabase(database.getName());
                 connect1.setProps(modifyProps(connect1, database.getDbLocale()));
                 Connection newConn = getConnection(connect1);
+                sessionChangeToGbaseMode(newConn);
                 metadataRepository.setDatabase(newConn, database.getName());
                 return new ConnectionLease(newConn, true);
             }
