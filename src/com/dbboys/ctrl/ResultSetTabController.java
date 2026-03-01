@@ -1,4 +1,4 @@
-﻿package com.dbboys.ctrl;
+package com.dbboys.ctrl;
 
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomInfoCodeArea;
