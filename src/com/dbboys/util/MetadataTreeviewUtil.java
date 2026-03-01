@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.CreateConnectController;
@@ -40,6 +40,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -220,6 +221,8 @@ public class MetadataTreeviewUtil {
         CustomShortcutMenuItem exportCsvItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.csv",null);
         CustomShortcutMenuItem exportJsonItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.json",null);
         CustomShortcutMenuItem exportSqlItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.sql",null);
+        exportMenu.getItems().setAll(exportCsvItem, exportJsonItem, exportSqlItem);
+        exportMenu.getStyleClass().add("ddlMenu");
  // 第一个分隔线
         CustomShortcutMenuItem healthCheckItem = MenuItemUtil.createMenuItemI18n("metadata.menu.health_check",
                 IconFactory.group(IconPaths.METADATA_HEALTH_CHECK_ITEM, 0.65, 0.65));
@@ -249,6 +252,10 @@ public class MetadataTreeviewUtil {
                 MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_popup_window", null);
         ddlMenu.getItems().addAll(ddlToClipboard,ddlToPopuWindow,ddlToFile,ddlToCurrentSqlEditarea,ddlToNewSqlEditarea);
         
+
+        exportCsvItem.setOnAction(ev -> exportTableData(treeView.getSelectionModel().getSelectedItems(), ExportFormat.CSV));
+        exportJsonItem.setOnAction(ev -> exportTableData(treeView.getSelectionModel().getSelectedItems(), ExportFormat.JSON));
+        exportSqlItem.setOnAction(ev -> exportTableData(treeView.getSelectionModel().getSelectedItems(), ExportFormat.SQL));
         
         //右键连接信息点击响应
         connectInfoItem.setOnAction(event->{
@@ -1249,6 +1256,7 @@ public class MetadataTreeviewUtil {
                     treeview_menu.getItems().add(updateStatisticsItem);
                     treeview_menu.getItems().add(truncateItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(exportMenu);
                     treeview_menu.getItems().add(ddlMenu);
                     treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
                     return;
@@ -1456,10 +1464,6 @@ public class MetadataTreeviewUtil {
                         modifyToStandardItem.setDisable(true);
                     }
                     treeview_menu.getItems().add(copyItem);
-                    exportMenu.getItems().setAll(exportCsvItem, exportJsonItem, exportSqlItem);
-                    exportCsvItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.CSV));
-                    exportJsonItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.JSON));
-                    exportSqlItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.SQL));
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
@@ -2504,41 +2508,78 @@ public class MetadataTreeviewUtil {
 
     }
 
-    private static void exportTableData(TreeItem<TreeData> tableItem, ExportFormat format) {
-        if (!(tableItem.getValue() instanceof Table)) {
+    private static void exportTableData(List<TreeItem<TreeData>> selectedItems, ExportFormat format) {
+        if (selectedItems == null || selectedItems.isEmpty()) {
             return;
         }
-        Table table = (Table) tableItem.getValue();
-        Connect connect = buildObjectConnect(tableItem,false);
-
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(I18n.t("metadata.export.title", "导出表数据"));
-        String baseName = table.getName();
-        switch (format) {
-            case CSV -> {
-                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
-                chooser.setInitialFileName(baseName + ".csv");
-            }
-            case JSON -> {
-                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
-                chooser.setInitialFileName(baseName + ".json");
-            }
-            case SQL -> {
-                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQL", "*.sql"));
-                chooser.setInitialFileName(baseName + ".sql");
+        List<TreeItem<TreeData>> tableItems = new ArrayList<>();
+        for (TreeItem<TreeData> item : selectedItems) {
+            if (item != null && item.getValue() instanceof Table) {
+                tableItems.add(item);
             }
         }
-        File file = chooser.showSaveDialog(Main.scene.getWindow());
-        if (file == null) return;
-        if (file.exists()) {
-            file.delete();
+        if (tableItems.isEmpty()) {
+            return;
         }
 
-        // 使用下载管理器流式导出，可暂停/取消，避免一次性占用大量内存
-        
-        String exportSql = "select * from " + table.getName();
-        DownloadManagerUtil.addSqlExportTask(connect, exportSql, file, format.name().toLowerCase(), true);
-    
+        if (tableItems.size() == 1) {
+            TreeItem<TreeData> tableItem = tableItems.get(0);
+            Table table = (Table) tableItem.getValue();
+            Connect connect = buildObjectConnect(tableItem,false);
+
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle(I18n.t("metadata.export.title", "导出表数据"));
+            String baseName = table.getName();
+            switch (format) {
+                case CSV -> {
+                    chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
+                    chooser.setInitialFileName(baseName + ".csv");
+                }
+                case JSON -> {
+                    chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
+                    chooser.setInitialFileName(baseName + ".json");
+                }
+                case SQL -> {
+                    chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQL", "*.sql"));
+                    chooser.setInitialFileName(baseName + ".sql");
+                }
+            }
+            File file = chooser.showSaveDialog(Main.scene.getWindow());
+            if (file == null) return;
+            if (file.exists()) {
+                file.delete();
+            }
+
+            // 使用下载管理器流式导出，可暂停/取消，避免一次性占用大量内存
+            String exportSql = "select * from " + table.getName();
+            DownloadManagerUtil.addSqlExportTask(connect, exportSql, file, format.name().toLowerCase(), true);
+            return;
+        }
+
+        // 多表导出：选择目录，按表名各生成一个文件和任务
+        DirectoryChooser dirChooser = new DirectoryChooser();
+        dirChooser.setTitle(I18n.t("metadata.export.dir.title", "选择导出目录"));
+        File dir = dirChooser.showDialog(Main.scene.getWindow());
+        if (dir == null) {
+            return;
+        }
+
+        String extension = switch (format) {
+            case CSV -> ".csv";
+            case JSON -> ".json";
+            case SQL -> ".sql";
+        };
+
+        for (TreeItem<TreeData> tableItem : tableItems) {
+            Table table = (Table) tableItem.getValue();
+            Connect connect = buildObjectConnect(tableItem,false);
+            File file = new File(dir, table.getName() + extension);
+            if (file.exists()) {
+                file.delete();
+            }
+            String exportSql = "select * from " + table.getName();
+            DownloadManagerUtil.addSqlExportTask(connect, exportSql, file, format.name().toLowerCase(), true);
+        }
     }
     
 
