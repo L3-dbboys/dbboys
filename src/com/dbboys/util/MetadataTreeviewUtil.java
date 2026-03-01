@@ -2540,114 +2540,12 @@ public class MetadataTreeviewUtil {
         }
 
         // 使用下载管理器流式导出，可暂停/取消，避免一次性占用大量内存
-        try {
-            Connection conn = metadataService.getConnection(connect);
-            long totalRows = -1;
-            try (PreparedStatement countPs = conn.prepareStatement("select count(*) from " + table.getName())) {
-                try (ResultSet crs = countPs.executeQuery()) {
-                    if (crs.next()) totalRows = crs.getLong(1);
-                }
-            } catch (Exception ignored) { }
-            PreparedStatement ps = conn.prepareStatement("select * from " + table.getName(),
-                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-            try { ps.setFetchSize(500); } catch (Exception ignored) {}
-            ResultSet rs = ps.executeQuery();
-            DownloadManagerUtil.addResultSetExport(
-                    new DownloadManagerUtil.ResultSetExportSource(rs, rs.getMetaData(), format.name().toLowerCase(), totalRows),
-                    file,
-                    true
-            );
-        } catch (Exception e) {
-            GlobalErrorHandlerUtil.handle(e);
-            NotificationUtil.showNotification(Main.mainController.noticePane,
-                    I18n.t("metadata.export.failure", "表%s导出失败：%s").formatted(table.getName(), e.getMessage()));
-        }
+        
+        String exportSql = "select * from " + table.getName();
+        DownloadManagerUtil.addSqlExportTask(connect, exportSql, file, format.name().toLowerCase(), true);
+    
     }
     
-
-    private static void writeCsv(ResultSet rs, ResultSetMetaData meta, int columnCount, File file) throws Exception {
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
-            for (int i = 1; i <= columnCount; i++) {
-                if (i > 1) writer.write(",");
-                writer.write(escapeCsv(meta.getColumnLabel(i)));
-            }
-            writer.newLine();
-            while (rs.next()) {
-                for (int i = 1; i <= columnCount; i++) {
-                    if (i > 1) writer.write(",");
-                    Object val = rs.getObject(i);
-                    writer.write(val == null ? "" : escapeCsv(val.toString()));
-                }
-                writer.newLine();
-            }
-        }
-    }
-
-    private static String escapeCsv(String value) {
-        String escaped = value.replace("\"", "\"\"");
-        return "\"" + escaped + "\"";
-    }
-
-    private static void writeXlsx(ResultSet rs, ResultSetMetaData meta, int columnCount, File file) throws Exception {
-        try (SXSSFWorkbook workbook = new SXSSFWorkbook(200);
-             FileOutputStream fos = new FileOutputStream(file)) {
-            Sheet sheet = workbook.createSheet(I18n.t("metadata.export.sheet_name", "数据"));
-
-            CellStyle headerStyle = workbook.createCellStyle();
-            Font headerFont = workbook.createFont();
-            headerFont.setBold(true);
-            headerStyle.setFont(headerFont);
-
-            Row headerRow = sheet.createRow(0);
-            for (int i = 1; i <= columnCount; i++) {
-                Cell cell = headerRow.createCell(i - 1);
-                cell.setCellValue(meta.getColumnLabel(i));
-                cell.setCellStyle(headerStyle);
-            }
-
-            int rowIndex = 1;
-            while (rs.next()) {
-                Row row = sheet.createRow(rowIndex++);
-                for (int i = 1; i <= columnCount; i++) {
-                    Object val = rs.getObject(i);
-                    Cell cell = row.createCell(i - 1);
-                    cell.setCellValue(val == null ? "" : val.toString());
-                }
-            }
-            workbook.write(fos);
-        }
-    }
-
-    private static void writeSql(ResultSet rs, ResultSetMetaData meta, int columnCount, String tableName, File file) throws Exception {
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
-            StringBuilder prefix = new StringBuilder();
-            prefix.append("INSERT INTO ").append(tableName).append(" (");
-            for (int i = 1; i <= columnCount; i++) {
-                if (i > 1) prefix.append(", ");
-                prefix.append(meta.getColumnLabel(i));
-            }
-            prefix.append(") VALUES ");
-
-            while (rs.next()) {
-                writer.write(prefix.toString());
-                writer.write("(");
-                for (int i = 1; i <= columnCount; i++) {
-                    if (i > 1) writer.write(", ");
-                    Object val = rs.getObject(i);
-                    if (val == null) {
-                        writer.write("NULL");
-                    } else if (val instanceof Number || val instanceof Boolean) {
-                        writer.write(val.toString());
-                    } else {
-                        writer.write("'");
-                        writer.write(val.toString().replace("'", "''"));
-                        writer.write("'");
-                    }
-                }
-                writer.write(");\n");
-            }
-        }
-    }
 
 
 

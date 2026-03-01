@@ -3,8 +3,11 @@ package com.dbboys.util;
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.i18n.I18n;
+import com.dbboys.service.ConnectionService;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
+import com.dbboys.vo.Connect;
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
@@ -31,6 +34,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
@@ -917,6 +922,46 @@ public class DownloadManagerUtil {
     /** 鍋滄鎵€鏈変换鍔?*/
     public void stopAll() {
         queueByStackPane.values().forEach(queue -> queue.tasks.forEach(DownloadTaskWrapper::cancelDownload));
+    }
+
+    /**
+     * 基于 SQL 的结果集异步导出，复用下载管理的流式写出，避免阻塞 UI。
+     * 注意：传入的连接需由调用方维护生命周期。
+     */
+    public static void addSqlExportTask(Connect sqlConnect,
+                                        String sql,
+                                        File file,
+                                        String format,
+                                        boolean autoCloseOnComplete) {
+        Task<Void> prepTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                long totalRows = -1;
+                Connection conn = new ConnectionService().getConnection(sqlConnect);
+                // 统计总行数
+                try (PreparedStatement cps = conn.prepareStatement("select count(*) from (" + sql + ") t")) {
+                    try (ResultSet crs = cps.executeQuery()) {
+                        if (crs.next()) totalRows = crs.getLong(1);
+                    }
+                } catch (Exception ignored) { }
+
+                PreparedStatement ps = conn.prepareStatement(sql,
+                        ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                try { ps.setFetchSize(500); } catch (Exception ignored) {}
+                ResultSet rs = ps.executeQuery();
+                ResultSetMetaData meta = rs.getMetaData();
+                long finalTotalRows = totalRows;
+
+                Platform.runLater(() -> addResultSetExport(
+                        new ResultSetExportSource(rs, meta, format, finalTotalRows),
+                        file,
+                        autoCloseOnComplete
+                ));
+                return null;
+            }
+        };
+        prepTask.setOnFailed(ev -> GlobalErrorHandlerUtil.handle(prepTask.getException()));
+        new Thread(prepTask, "export-prep-task").start();
     }
 
     /** 娓呴櫎鎵€鏈変换鍔?*/

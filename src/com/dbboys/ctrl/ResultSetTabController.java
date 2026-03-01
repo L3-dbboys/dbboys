@@ -304,30 +304,10 @@ public class ResultSetTabController {
             if (file == null) return;
             if (file.exists()) file.delete();
 
-            try {
-                // 先统计总行数用于进度条
-                long totalRows = -1;
-                Connection conn = connectionService.getConnection(sqlConnect);
-                //Connection conn = sqlConnect.getConn();
+            final String finalExportSql = exportSql;
 
-                try (PreparedStatement cps = conn.prepareStatement("select count(*) from (" + exportSql + ") t")) {
-                    try (ResultSet crs = cps.executeQuery()) {
-                        if (crs.next()) totalRows = crs.getLong(1);
-                    }
-                } catch (Exception ignored) { }
-
-                PreparedStatement ps = conn.prepareStatement(exportSql,
-                        ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-                try { ps.setFetchSize(500); } catch (Exception ignored) {}
-                ResultSet rs = ps.executeQuery();
-                DownloadManagerUtil.addResultSetExport(
-                        new DownloadManagerUtil.ResultSetExportSource(rs, rs.getMetaData(), "csv", totalRows),
-                        file,
-                        true
-                );
-            } catch (Exception e) {
-                GlobalErrorHandlerUtil.handle(e);
-            }
+            // 复用 DownloadManagerUtil 统一的 SQL 导出入口，在内部获取连接并流式写出
+            DownloadManagerUtil.addSqlExportTask(sqlConnect, finalExportSql, file, "csv", true);
         });
     }
 
