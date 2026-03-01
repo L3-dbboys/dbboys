@@ -20,9 +20,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -352,96 +349,14 @@ class DownloadTaskWrapper {
             progressLabel.textProperty().bind(task.progressProperty().multiply(100).asString("%.0f%%"));
             speedLabel.textProperty().unbind();
             speedLabel.textProperty().bind(task.messageProperty());
-        } else {
-            task = createExportTask(tableView,file);
-            task.setOnFailed(e -> {
-                stackPaneRemoveSelf();
-                Platform.runLater(() -> AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), task.getException().getMessage()));
-            });
-            progressBar.progressProperty().bind(task.progressProperty());
-            progressLabel.textProperty().bind(task.progressProperty().multiply(100).asString("%.0f%%"));
-        }
+        } 
 
         Thread t = new Thread(task);
         t.setDaemon(true);
         t.start();
     }
 
-    private <T> Task<Void> createExportTask(TableView<T> tableView, File file) {
-        return new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                updateProgress(0,1);
-                Workbook workbook = new SXSSFWorkbook(10000);
-                Sheet sheet = workbook.createSheet(I18n.t("download.export.sheet_name", "鏁版嵁"));
-
-                ObservableList<TableColumn<T, ?>> columns = tableView.getColumns();
-                ObservableList<T> items = tableView.getItems();
-                int rowsTotal = items.size();
-                final int excelCellCharLimit = 32767;
-
-                CellStyle headerStyle = workbook.createCellStyle();  // 缁熶竴鎺ュ彛锛屼笉鐢?HSSFCellStyle
-                Font headerFont = workbook.createFont();             // 缁熶竴鎺ュ彛锛屼笉鐢?HSSFFont
-                headerFont.setBold(true);
-                headerStyle.setFont(headerFont);
-
-                Row headerRow = sheet.createRow(0);
-
-                for (int j = 1; j < metaData.getColumnCount()+1; j++) {
-                    Cell cell = headerRow.createCell(j-1);
-                    cell.setCellValue(metaData.getColumnName(j));
-                    cell.setCellStyle(headerStyle);
-                }
-
-
-                long lastUpdate = System.currentTimeMillis();
-
-                for (int i = 0; i < items.size(); i++) {
-                    if (cancelled) break;
-                    if (System.currentTimeMillis() - lastUpdate >= 1000) {
-                        updateProgress(i+1,rowsTotal );
-                        lastUpdate=System.currentTimeMillis();
-                    }
-                    Row row = sheet.createRow(i+1);
-                    T rowData = items.get(i);
-                    for (int j = 1; j < columns.size(); j++) {
-                        if (cancelled) break;
-                        TableColumn<T, ?> column = columns.get(j);
-                        Object value = column.getCellData(rowData);
-                        Cell cell = row.createCell(j-1);
-                        String text;
-                        if (value == null) {
-                            text = "";
-                        } else {
-                            text = value.toString();
-                            if (text.length() > excelCellCharLimit) {
-                                // 淇濈暀鍓嶆鍐呭锛岄伩鍏嶈秴闀?LOB/鏂囨湰瀵艰嚧 POI/Excel 鍗℃
-                                text = text.substring(0, excelCellCharLimit - 16) +
-                                        String.format("...(len=%d)", text.length());
-                            }
-                        }
-                        cell.setCellValue(text);
-                    }
-                }
-                if(cancelled){
-                }else{
-                    try (FileOutputStream fos = new FileOutputStream(file)) {
-                        workbook.write(fos);
-                    }
-                    workbook.close();
-                    updateProgress(1,1);
-                    Platform.runLater(() -> {
-
-                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_completed", "瀵煎嚭宸插畬鎴愶紒"));
-                        //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
-                        if (autoCloseOnComplete) stackPaneRemoveSelf();
-                    });
-                }
-                workbook.close();
-                return null;
-            }
-        };
-    }
+    
 
     private Task<Void> createResultSetExportTask(String format, ResultSet rs, ResultSetMetaData meta, File file, long totalRows) {
         return new Task<>() {
