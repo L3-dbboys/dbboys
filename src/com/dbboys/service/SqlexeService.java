@@ -53,6 +53,7 @@ public class SqlexeService {
                     connection.close();
                     connect.setConn(connection1);
                     connect.setDatabase(database.getName());
+                    connect.setProps(connect1.getProps());
                     result = "success";
                 }
                 catch (Exception ex) {

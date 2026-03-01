@@ -8,6 +8,7 @@ import com.dbboys.customnode.CustomResultsetTableView;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.i18n.I18n;
+import com.dbboys.service.ConnectionService;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
@@ -136,7 +137,7 @@ public class ResultSetTabController {
     @FXML
     private Button lastSqlCopyButton;
     private String sqlResultCount;
-
+    private ConnectionService connectionService = new ConnectionService();
 
     public ResultSetTabController(Connect sqlConnect, StackPane sqlExecuteProcessStackPane) {
         this.sqlExecuteProcessStackPane = sqlExecuteProcessStackPane;
@@ -282,33 +283,50 @@ public class ResultSetTabController {
             new Thread(sqlTask).start();
         });
         resultSetExportButton.setOnAction(event -> {
-            if (resultSetTableView.getItems().size() == 0) {
-                AlterUtil.CustomAlert(
-                        I18n.t("common.error", "错误"),
-                        I18n.t("resultset.export.empty", "当前结果集为空，无数据需要导出！")
-                );
+            String sqlText = lastSqlTextField.getText();
+            if (resultSetTableView.getItems().isEmpty()) {
+                AlterUtil.CustomAlert(I18n.t("common.error", "错误"),
+                        I18n.t("resultset.export.empty_sql", "没有可以导出的结果集！"));
                 return;
             }
-            if (!AlterUtil.CustomAlertConfirm(
-                    I18n.t("resultset.export.title", "结果集导出"),
-                    I18n.t("resultset.export.confirm", "导出程序只导出已加载到结果集表格的数据，确定要执行导出吗?")
-            )) {
-                return;
-            }
+            String exportSql = sqlText.trim();
+            if (exportSql.endsWith(";")) exportSql = exportSql.substring(0, exportSql.length() - 1);
+
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle(I18n.t("resultset.export.title", "结果集导出"));
             String defaultName = I18n.t("resultset.export.filename_prefix", "结果集导出")
                     + "_"
                     + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-                    + ".xlsx";
+                    + ".csv";
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
             fileChooser.setInitialFileName(defaultName);
             File file = fileChooser.showSaveDialog(Main.scene.getWindow());
+            if (file == null) return;
+            if (file.exists()) file.delete();
 
-            if (file != null) {
-                if (file.exists()) {
-                    file.delete();
-                }
-                DownloadManagerUtil.addDownload(resultSetTableView, file, true, sqlMetaData);
+            try {
+                // 先统计总行数用于进度条
+                long totalRows = -1;
+                Connection conn = connectionService.getConnection(sqlConnect);
+                //Connection conn = sqlConnect.getConn();
+
+                try (PreparedStatement cps = conn.prepareStatement("select count(*) from (" + exportSql + ") t")) {
+                    try (ResultSet crs = cps.executeQuery()) {
+                        if (crs.next()) totalRows = crs.getLong(1);
+                    }
+                } catch (Exception ignored) { }
+
+                PreparedStatement ps = conn.prepareStatement(exportSql,
+                        ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                try { ps.setFetchSize(500); } catch (Exception ignored) {}
+                ResultSet rs = ps.executeQuery();
+                DownloadManagerUtil.addResultSetExport(
+                        new DownloadManagerUtil.ResultSetExportSource(rs, rs.getMetaData(), "csv", totalRows),
+                        file,
+                        true
+                );
+            } catch (Exception e) {
+                GlobalErrorHandlerUtil.handle(e);
             }
         });
     }
