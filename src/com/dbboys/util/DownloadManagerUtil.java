@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,9 +50,12 @@ class DownloadTaskWrapper {
     private final File tempFile; // 临时文件
     private TableView tableView;
     private ResultSetMetaData metaData;
+    private ResultSet streamingResultSet;
+    private String streamingFormat;
+    private long totalRows = -1;
 
 
-    private final Node rootPane; // StackPane 的子节点
+    private final Node rootPane; // StackPane 鐨勫瓙鑺傜偣
     private final ProgressBar progressBar;
     private final Label nameLabel;
     private final Label progressLabel;
@@ -90,6 +94,13 @@ class DownloadTaskWrapper {
         this.installerMode = installerMode;
         this.installerRemotePathField = installerRemotePathField;
         this.installerInstallFilePathField = installerInstallFilePathField;
+        if (source instanceof DownloadManagerUtil.ResultSetExportSource) {
+            DownloadManagerUtil.ResultSetExportSource s = (DownloadManagerUtil.ResultSetExportSource) source;
+            this.streamingResultSet = s.resultSet;
+            this.streamingFormat = s.format;
+            this.metaData = s.metaData;
+            this.totalRows = s.totalRows;
+        }
 
         progressBar = new ProgressBar(0);
         progressBar.setPrefWidth(100);
@@ -166,6 +177,14 @@ class DownloadTaskWrapper {
             ));
             speedLabel.textProperty().bind(I18n.bind("download.label.waiting", "等待开始..."));
 
+        } else if (source instanceof DownloadManagerUtil.ResultSetExportSource) {
+            HBox line = new HBox(6, nameLabel, speedLabel, progressBar, progressLabel, stopButton);
+            line.setAlignment(Pos.CENTER_RIGHT);
+            rootPane = line;
+            nameLabel.textProperty().bind(Bindings.createStringBinding(
+                    () -> I18n.t("download.label.exporting_prefix", "正在导出：") + file.getName(),
+                    I18n.localeProperty()
+            ));
         } else {
             this.tableView = (TableView) source;
             HBox line = new HBox(6, nameLabel, progressBar, progressLabel, stopButton);
@@ -262,8 +281,6 @@ class DownloadTaskWrapper {
                             }
                         }
 
-
-
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     } finally {
@@ -312,18 +329,30 @@ class DownloadTaskWrapper {
 
             task.setOnFailed(e -> {
                 stackPaneRemoveSelf();
-                Platform.runLater(() ->
-                {
-                    AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), task.getException().getMessage());
-                });
+                Platform.runLater(() -> AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), task.getException().getMessage()));
             });
 
             progressBar.progressProperty().bind(task.progressProperty());
             speedLabel.textProperty().unbind();
             speedLabel.textProperty().bind(task.messageProperty());
             progressLabel.textProperty().bind(task.progressProperty().multiply(100).asString("%.0f%%"));
-        }else{
+        } else if (source instanceof DownloadManagerUtil.ResultSetExportSource) {
+            task = createResultSetExportTask(streamingFormat, streamingResultSet, metaData, file, totalRows);
+            task.setOnFailed(e -> {
+                stackPaneRemoveSelf();
+                Platform.runLater(() -> AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), task.getException().getMessage()));
+            });
+            progressBar.progressProperty().bind(task.progressProperty());
+            // 百分比显示在 progressLabel，行数/总行数显示在 speedLabel
+            progressLabel.textProperty().bind(task.progressProperty().multiply(100).asString("%.0f%%"));
+            speedLabel.textProperty().unbind();
+            speedLabel.textProperty().bind(task.messageProperty());
+        } else {
             task = createExportTask(tableView,file);
+            task.setOnFailed(e -> {
+                stackPaneRemoveSelf();
+                Platform.runLater(() -> AlterUtil.CustomAlert(I18n.t("download.error.title", "下载失败"), task.getException().getMessage()));
+            });
             progressBar.progressProperty().bind(task.progressProperty());
             progressLabel.textProperty().bind(task.progressProperty().multiply(100).asString("%.0f%%"));
         }
@@ -339,15 +368,15 @@ class DownloadTaskWrapper {
             protected Void call() throws Exception {
                 updateProgress(0,1);
                 Workbook workbook = new SXSSFWorkbook(10000);
-                Sheet sheet = workbook.createSheet(I18n.t("download.export.sheet_name", "数据"));
+                Sheet sheet = workbook.createSheet(I18n.t("download.export.sheet_name", "鏁版嵁"));
 
                 ObservableList<TableColumn<T, ?>> columns = tableView.getColumns();
                 ObservableList<T> items = tableView.getItems();
                 int rowsTotal = items.size();
                 final int excelCellCharLimit = 32767;
 
-                CellStyle headerStyle = workbook.createCellStyle();  // 统一接口，不用 HSSFCellStyle
-                Font headerFont = workbook.createFont();             // 统一接口，不用 HSSFFont
+                CellStyle headerStyle = workbook.createCellStyle();  // 缁熶竴鎺ュ彛锛屼笉鐢?HSSFCellStyle
+                Font headerFont = workbook.createFont();             // 缁熶竴鎺ュ彛锛屼笉鐢?HSSFFont
                 headerFont.setBold(true);
                 headerStyle.setFont(headerFont);
 
@@ -381,7 +410,7 @@ class DownloadTaskWrapper {
                         } else {
                             text = value.toString();
                             if (text.length() > excelCellCharLimit) {
-                                // 保留前段内容，避免超长 LOB/文本导致 POI/Excel 卡死
+                                // 淇濈暀鍓嶆鍐呭锛岄伩鍏嶈秴闀?LOB/鏂囨湰瀵艰嚧 POI/Excel 鍗℃
                                 text = text.substring(0, excelCellCharLimit - 16) +
                                         String.format("...(len=%d)", text.length());
                             }
@@ -398,7 +427,7 @@ class DownloadTaskWrapper {
                     updateProgress(1,1);
                     Platform.runLater(() -> {
 
-                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_completed", "导出已完成！"));
+                        NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_completed", "瀵煎嚭宸插畬鎴愶紒"));
                         //rootPane.setStyle("-fx-background-color: #c8e6c9; -fx-padding: 10;");
                         if (autoCloseOnComplete) stackPaneRemoveSelf();
                     });
@@ -407,6 +436,187 @@ class DownloadTaskWrapper {
                 return null;
             }
         };
+    }
+
+    private Task<Void> createResultSetExportTask(String format, ResultSet rs, ResultSetMetaData meta, File file, long totalRows) {
+        return new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                if (totalRows > 0) {
+                    updateProgress(0, totalRows);
+                    updateMessage("0/" + totalRows);
+                } else {
+                    updateProgress(-1,1); // indeterminate
+                    updateMessage("0/?");
+                }
+                java.util.function.Consumer<String> msg = this::updateMessage;
+                java.util.function.BiConsumer<Long, Long> progressCb = (done, total) -> {
+                    if (total > 0) {
+                        updateProgress(done, total);
+                        updateMessage(done + "/" + total);
+                    } else {
+                        updateMessage(done + "/?");
+                    }
+                };
+                try {
+                    switch (format.toLowerCase()) {
+                        case "csv" -> writeCsvStreaming(rs, meta, file, progressCb, msg, totalRows);
+                        case "json" -> writeJsonStreaming(rs, meta, file, progressCb, msg, totalRows);
+                        case "sql" -> writeSqlStreaming(rs, meta, file, progressCb, msg, totalRows);
+                        default -> throw new IllegalArgumentException("Unknown format: " + format);
+                    }
+                    if (!cancelled) {
+                        updateProgress(1,1);
+                        Platform.runLater(() -> NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_completed", "瀵煎嚭宸插畬鎴愶紒")));
+                        if (autoCloseOnComplete) stackPaneRemoveSelf();
+                    }
+                } finally {
+                    try { if (rs != null) rs.close(); } catch (Exception ignored) {}
+                    try {
+                        if (meta != null && rs != null && rs.getStatement() != null && rs.getStatement().getConnection() != null) {
+                            rs.getStatement().getConnection().close();
+                        }
+                    } catch (Exception ignored) {}
+                }
+                return null;
+            }
+        };
+    }
+
+    private void writeCsvStreaming(ResultSet rs, ResultSetMetaData meta, File file,
+                                   java.util.function.BiConsumer<Long, Long> progressUpdater,
+                                   java.util.function.Consumer<String> messageUpdater,
+                                   long totalRows) throws Exception {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+            int columnCount = meta.getColumnCount();
+            for (int i = 1; i <= columnCount; i++) {
+                if (i > 1) writer.write(",");
+                writer.write(escapeCsv(meta.getColumnLabel(i)));
+            }
+            writer.newLine();
+            long row = 0;
+            while (!cancelled && rs.next()) {
+                for (int i = 1; i <= columnCount; i++) {
+                    if (i > 1) writer.write(",");
+                    Object val = rs.getObject(i);
+                    writer.write(val == null ? "" : escapeCsv(String.valueOf(val)));
+                }
+                writer.newLine();
+                row++;
+                if (totalRows > 0 && progressUpdater != null) progressUpdater.accept(row, totalRows);
+                if (row % 200 == 0 && messageUpdater != null) {
+                    messageUpdater.accept(totalRows > 0 ? (row + "/" + totalRows) : (row + "/?"));
+                }
+            }
+        }
+    }
+
+    private void writeJsonStreaming(ResultSet rs, ResultSetMetaData meta, File file,
+                                    java.util.function.BiConsumer<Long, Long> progressUpdater,
+                                    java.util.function.Consumer<String> messageUpdater,
+                                    long totalRows) throws Exception {
+        int columnCount = meta.getColumnCount();
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+            writer.write("[");
+            long row = 0;
+            while (!cancelled && rs.next()) {
+                if (row > 0) writer.write(",\n");
+                writer.write("{");
+                for (int i = 1; i <= columnCount; i++) {
+                    if (i > 1) writer.write(",");
+                    String key = meta.getColumnLabel(i);
+                    Object val = rs.getObject(i);
+                    writer.write("\"");
+                    writer.write(escapeJson(key));
+                    writer.write("\":");
+                    if (val == null) {
+                        writer.write("null");
+                    } else if (val instanceof Number || val instanceof Boolean) {
+                        writer.write(val.toString());
+                    } else {
+                        writer.write("\"");
+                        writer.write(escapeJson(String.valueOf(val)));
+                        writer.write("\"");
+                    }
+                }
+                writer.write("}");
+                row++;
+                if (totalRows > 0 && progressUpdater != null) progressUpdater.accept(row, totalRows);
+                if (row % 200 == 0 && messageUpdater != null) {
+                    messageUpdater.accept(totalRows > 0 ? (row + "/" + totalRows) : (row + "/?"));
+                }
+            }
+            writer.write("]");
+        }
+    }
+
+    private void writeSqlStreaming(ResultSet rs, ResultSetMetaData meta, File file,
+                                   java.util.function.BiConsumer<Long, Long> progressUpdater,
+                                   java.util.function.Consumer<String> messageUpdater,
+                                   long totalRows) throws Exception {
+        int columnCount = meta.getColumnCount();
+        String tableName = meta.getTableName(1);
+        if (tableName == null || tableName.isBlank()) tableName = "table";
+        StringBuilder prefix = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
+        for (int i = 1; i <= columnCount; i++) {
+            if (i > 1) prefix.append(", ");
+            prefix.append(meta.getColumnLabel(i));
+        }
+        prefix.append(") VALUES ");
+
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+            long row = 0;
+            while (!cancelled && rs.next()) {
+                writer.write(prefix.toString());
+                writer.write("(");
+                for (int i = 1; i <= columnCount; i++) {
+                    if (i > 1) writer.write(", ");
+                    Object val = rs.getObject(i);
+                    if (val == null) {
+                        writer.write("NULL");
+                    } else if (val instanceof Number || val instanceof Boolean) {
+                        writer.write(val.toString());
+                    } else {
+                        writer.write("'");
+                        writer.write(val.toString().replace("'", "''"));
+                        writer.write("'");
+                    }
+                }
+                writer.write(");\n");
+                row++;
+                if (totalRows > 0 && progressUpdater != null) progressUpdater.accept(row, totalRows);
+                if (row % 200 == 0 && messageUpdater != null) {
+                    messageUpdater.accept(totalRows > 0 ? (row + "/" + totalRows) : (row + "/?"));
+                }
+            }
+        }
+    }
+
+    private String escapeCsv(String value) {
+        String escaped = value.replace("\"", "\"\"");
+        return "\"" + escaped + "\"";
+    }
+
+    private String escapeJson(String value) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : value.toCharArray()) {
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '"': sb.append("\\\""); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int)c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
     }
 
     private boolean moveTempToTargetWithRetry() {
@@ -449,7 +659,7 @@ class DownloadTaskWrapper {
 
 
     private void stackPaneRemoveSelf() {
-        //从list里移除当前对象，避免取消后有空白轮询显示
+        //浠巐ist閲岀Щ闄ゅ綋鍓嶅璞★紝閬垮厤鍙栨秷鍚庢湁绌虹櫧杞鏄剧ず
         DownloadManagerUtil.removeDownload(this, hostStackPane);
         Platform.runLater(() -> {
             StackPane parent = (StackPane) rootPane.getParent();
@@ -480,10 +690,10 @@ class DownloadTaskWrapper {
 
         new Thread(() -> {
             try {
-                if (task != null) task.get(); // 等待 Task 完全结束
+                if (task != null) task.get(); // 绛夊緟 Task 瀹屽叏缁撴潫
             } catch (Exception ignored) {}
 
-            // Task 完全结束后删除文件
+            // Task 瀹屽叏缁撴潫鍚庡垹闄ゆ枃浠?
             boolean deleted = false;
             int retries = 5;
             while (!deleted && retries-- > 0) {
@@ -499,12 +709,12 @@ class DownloadTaskWrapper {
                 if(source instanceof String) {
                     NotificationUtil.showNotification(
                             Main.mainController.noticePane,
-                            // success ? "文件【" + file.getName() + "】下载已取消！" :
+                            // success ? "鏂囦欢銆? + file.getName() + "銆戜笅杞藉凡鍙栨秷锛? :
                             success ? I18n.t("download.notice.cancelled", "下载已取消！")
-                                    : I18n.t("download.notice.delete_failed", "文件【%s】删除失败，可能被占用！").formatted(file.getName())
+                                    : I18n.t("download.notice.delete_failed", "鏂囦欢銆?s銆戝垹闄ゅけ璐ワ紝鍙兘琚崰鐢紒").formatted(file.getName())
                     );
                 }else{
-                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_cancelled", "导出已取消！"));
+                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_cancelled", "瀵煎嚭宸插彇娑堬紒"));
                 }
             });
         }).start();
@@ -524,6 +734,21 @@ public class DownloadManagerUtil {
     private static final class DownloadQueue {
         private final List<DownloadTaskWrapper> tasks = new ArrayList<>();
         private int currentIndex = 0;
+    }
+
+    /** 缁撴灉闆嗘祦寮忓鍑烘簮锛堥伩鍏嶄竴娆℃€ц浇鍏ュ唴瀛橈級 */
+    public static class ResultSetExportSource {
+        public final ResultSet resultSet;
+        public final ResultSetMetaData metaData;
+        /** csv | json | sql */
+        public final String format;
+        public final long totalRows;
+        public ResultSetExportSource(ResultSet resultSet, ResultSetMetaData metaData, String format, long totalRows) {
+            this.resultSet = resultSet;
+            this.metaData = metaData;
+            this.format = format;
+            this.totalRows = totalRows;
+        }
     }
 
     static {
@@ -554,7 +779,24 @@ public class DownloadManagerUtil {
                 null,
                 null,
                 I18n.t("download.error.file_exists", "文件\"%s\"已存在，无需重复下载！"),
-                I18n.t("download.error.file_downloading", "该文件已在下载，无需重复下载！"),
+                I18n.t("download.error.file_downloading", "该文件正在下载，无需重复下载！"),
+                false
+        );
+    }
+
+    /** 娣诲姞缁撴灉闆嗗鍑轰换鍔★紙鍚庡彴銆佸彲鏆傚仠/鍙栨秷銆佹祦寮忓啓鍑猴級 */
+    public static void addResultSetExport(ResultSetExportSource source, File file, boolean autoCloseOnComplete) {
+        addDownloadInternal(
+                source,
+                file,
+                autoCloseOnComplete,
+                source.metaData,
+                downloadStackPane,
+                false,
+                null,
+                null,
+                I18n.t("download.error.file_exists", "文件\"%s\"已存在，无需重复下载！"),
+                I18n.t("download.error.file_downloading", "该文件正在下载，无需重复下载！"),
                 false
         );
     }
@@ -577,8 +819,8 @@ public class DownloadManagerUtil {
                 true,
                 remotePathField,
                 installFilePathField,
-                I18n.t("install.download.error.file_exists", "该文件在桌面已存在，无需重复下载！"),
-                I18n.t("install.download.error.file_downloading", "该文件已在下载，已自动填充路径，无需重复下载！"),
+                I18n.t("install.download.error.file_exists", "该文件在目录中已存在，无需重复下载！"),
+                I18n.t("install.download.error.file_downloading", "该文件正在下载，路径已自动填充，无需重复下载！"),
                 true
         );
     }
@@ -638,20 +880,20 @@ public class DownloadManagerUtil {
 
         Platform.runLater(() -> {
             hostStackPane.getChildren().add(wrapper.getRootPane());
-            wrapper.getRootPane().setVisible(false); // 默认隐藏
+            wrapper.getRootPane().setVisible(false); // 榛樿闅愯棌
             if (queue.tasks.size() == 1) {
-                wrapper.getRootPane().setVisible(true); // 第一个显示
+                wrapper.getRootPane().setVisible(true); // 绗竴涓樉绀?
             }
         });
 
-        wrapper.start(); // 启动下载
+        wrapper.start(); // 鍚姩涓嬭浇
     }
 
     private static DownloadQueue getOrCreateQueue(StackPane hostStackPane) {
         return queueByStackPane.computeIfAbsent(hostStackPane, key -> new DownloadQueue());
     }
 
-    /** 显示下一个任务 */
+    /** 鏄剧ず涓嬩竴涓换鍔?*/
     private static void showNextForAllQueues() {
         for (Map.Entry<StackPane, DownloadQueue> entry : queueByStackPane.entrySet()) {
             showNext(entry.getValue());
@@ -661,23 +903,23 @@ public class DownloadManagerUtil {
     private static void showNext(DownloadQueue queue) {
         if (queue.tasks.isEmpty()) return;
 
-        // 隐藏当前显示
+        // 闅愯棌褰撳墠鏄剧ず
         if (queue.currentIndex < queue.tasks.size()) {
             queue.tasks.get(queue.currentIndex).getRootPane().setVisible(false);
         }
 
         queue.currentIndex = (queue.currentIndex + 1) % queue.tasks.size();
 
-        // 显示下一个
+        // 鏄剧ず涓嬩竴涓?
         queue.tasks.get(queue.currentIndex).getRootPane().setVisible(true);
     }
 
-    /** 停止所有任务 */
+    /** 鍋滄鎵€鏈変换鍔?*/
     public void stopAll() {
         queueByStackPane.values().forEach(queue -> queue.tasks.forEach(DownloadTaskWrapper::cancelDownload));
     }
 
-    /** 清除所有任务 */
+    /** 娓呴櫎鎵€鏈変换鍔?*/
     public void clearAll() {
         stopAll();
         Platform.runLater(() -> queueByStackPane.keySet().forEach(pane -> pane.getChildren().clear()));
@@ -694,12 +936,12 @@ public class DownloadManagerUtil {
 
         queue.tasks.remove(wrapper);
 
-        // 修正 currentIndex，避免越界
+        // 淇 currentIndex锛岄伩鍏嶈秺鐣?
         if (queue.currentIndex >= queue.tasks.size()) {
             queue.currentIndex = 0;
         }
 
-        // 如果移除的是当前显示的任务，需要显示下一个
+        // 如果移除的是当前显示的任务，需要展示下一个
         if (!queue.tasks.isEmpty()) {
             queue.tasks.get(queue.currentIndex).getRootPane().setVisible(true);
         } else {
@@ -708,9 +950,9 @@ public class DownloadManagerUtil {
     }
 
     /**
-     * 追踪HTTP重定向，获取真实文件名
-     * @param originalUrl 原始下载链接
-     * @return 真实文件名（解析失败返回原文件名）
+     * 杩借釜HTTP閲嶅畾鍚戯紝鑾峰彇鐪熷疄鏂囦欢鍚?
+     * @param originalUrl 鍘熷涓嬭浇閾炬帴
+     * @return 鐪熷疄鏂囦欢鍚嶏紙瑙ｆ瀽澶辫触杩斿洖鍘熸枃浠跺悕锛?
      */
     public static String getRealFileNameFromRedirect(String originalUrl) throws Exception {
         String fileName="";
@@ -718,20 +960,20 @@ public class DownloadManagerUtil {
 
         HttpURLConnection conn = null;
             URL url = new URL(originalUrl);
-            // 手动追踪所有重定向，不依赖自动跳转
+            // 鎵嬪姩杩借釜鎵€鏈夐噸瀹氬悜锛屼笉渚濊禆鑷姩璺宠浆
             while (true) {
                 conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("HEAD"); // 仅获取响应头，不下载内容，提升性能
-                conn.setInstanceFollowRedirects(false); // 关闭自动重定向，手动处理
+                conn.setRequestMethod("HEAD"); // 浠呰幏鍙栧搷搴斿ご锛屼笉涓嬭浇鍐呭锛屾彁鍗囨€ц兘
+                conn.setInstanceFollowRedirects(false); // 鍏抽棴鑷姩閲嶅畾鍚戯紝鎵嬪姩澶勭悊
                 conn.setRequestProperty("User-Agent", "JavaFX Downloader");
                 conn.connect();
 
                 int responseCode = conn.getResponseCode();
-                // 处理3xx重定向响应
+                // 澶勭悊3xx閲嶅畾鍚戝搷搴?
                 if (responseCode >= 300 && responseCode < 400) {
                     String redirectUrl = conn.getHeaderField("Location");
                     if (redirectUrl == null) break;
-                    // 处理相对路径重定向（如 Location: /file.zip）
+                    // 澶勭悊鐩稿璺緞閲嶅畾鍚戯紙濡?Location: /file.zip锛?
                     url = new URL(url, redirectUrl);
                     conn.disconnect();
                 } else {
@@ -739,7 +981,7 @@ public class DownloadManagerUtil {
                 }
             }
 
-            // 优先级1：从 Content-Disposition 响应头解析文件名（标准方式）
+            // 浼樺厛绾?锛氫粠 Content-Disposition 鍝嶅簲澶磋В鏋愭枃浠跺悕锛堟爣鍑嗘柟寮忥級
             String disposition = conn.getHeaderField("Content-Disposition");
             if (disposition != null && !disposition.isEmpty()) {
                 Pattern pattern = Pattern.compile("filename[^;=\\n]*=((['\"]).*?\\2|[^;\\n]*)");
@@ -751,17 +993,17 @@ public class DownloadManagerUtil {
                 }
             }
 
-            // 优先级2：从最终重定向的URL中解析文件名
+            // 浼樺厛绾?锛氫粠鏈€缁堥噸瀹氬悜鐨刄RL涓В鏋愭枃浠跺悕
             String finalUrl = url.toString();
             fileName = finalUrl.substring(finalUrl.lastIndexOf('/') + 1);
-            // 去除URL参数（如 file.zip?token=xxx → file.zip）
+            // 鍘婚櫎URL鍙傛暟锛堝 file.zip?token=xxx 鈫?file.zip锛?
             if (fileName.contains("?")) {
                 fileName = fileName.substring(0, fileName.indexOf('?'));
             }
         if (conn != null) conn.disconnect();
         fileName=URLDecoder.decode(fileName, StandardCharsets.UTF_8.name());
         return fileName;
-        //return fileName; // 解析失败返回原文件名
+        //return fileName; // 解析失败则返回原文件名
 
     }
 
@@ -784,4 +1026,9 @@ public class DownloadManagerUtil {
 
 
 }
+
+
+
+
+
 

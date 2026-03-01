@@ -1,4 +1,4 @@
-package com.dbboys.util;
+﻿package com.dbboys.util;
 
 import com.dbboys.app.Main;
 import com.dbboys.ctrl.CreateConnectController;
@@ -73,7 +73,7 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 public class MetadataTreeviewUtil {
     private static final Logger log = LogManager.getLogger(MetadataTreeviewUtil.class);
-    private enum ExportFormat {CSV, XLSX, SQL}
+    private enum ExportFormat {CSV, JSON, SQL}
 
 
     //public static ExecutorService executorService;
@@ -223,7 +223,7 @@ public class MetadataTreeviewUtil {
         exportMenu.textProperty().bind(I18n.bind("metadata.menu.export", "导出"));
         exportMenu.setGraphic(IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.55, 0.55));
         CustomShortcutMenuItem exportCsvItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.csv",null);
-        CustomShortcutMenuItem exportXlsxItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.xlsx",null);
+        CustomShortcutMenuItem exportJsonItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.json",null);
         CustomShortcutMenuItem exportSqlItem = MenuItemUtil.createMenuItemI18n("metadata.menu.export.sql",null);
  // 第一个分隔线
         CustomShortcutMenuItem healthCheckItem = MenuItemUtil.createMenuItemI18n("metadata.menu.health_check",
@@ -1461,9 +1461,9 @@ public class MetadataTreeviewUtil {
                         modifyToStandardItem.setDisable(true);
                     }
                     treeview_menu.getItems().add(copyItem);
-                    exportMenu.getItems().setAll(exportCsvItem, exportXlsxItem, exportSqlItem);
+                    exportMenu.getItems().setAll(exportCsvItem, exportJsonItem, exportSqlItem);
                     exportCsvItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.CSV));
-                    exportXlsxItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.XLSX));
+                    exportJsonItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.JSON));
                     exportSqlItem.setOnAction(ev -> exportTableData(selectedItem, ExportFormat.SQL));
                     treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(renameItem);
@@ -2524,9 +2524,9 @@ public class MetadataTreeviewUtil {
                 chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
                 chooser.setInitialFileName(baseName + ".csv");
             }
-            case XLSX -> {
-                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel", "*.xlsx"));
-                chooser.setInitialFileName(baseName + ".xlsx");
+            case JSON -> {
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
+                chooser.setInitialFileName(baseName + ".json");
             }
             case SQL -> {
                 chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQL", "*.sql"));
@@ -2539,36 +2539,31 @@ public class MetadataTreeviewUtil {
             file.delete();
         }
 
-        Task<Void> exportTask = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                String sql = "select * from " + table.getName();
-                try (Connection conn = metadataService.getConnection(connect);
-                     PreparedStatement ps = conn.prepareStatement(sql);
-                     ResultSet rs = ps.executeQuery()) {
-                    ResultSetMetaData meta = rs.getMetaData();
-                    int columnCount = meta.getColumnCount();
-                    switch (format) {
-                        case CSV -> writeCsv(rs, meta, columnCount, file);
-                        case XLSX -> writeXlsx(rs, meta, columnCount, file);
-                        case SQL -> writeSql(rs, meta, columnCount, table.getName(), file);
-                    }
+        // 使用下载管理器流式导出，可暂停/取消，避免一次性占用大量内存
+        try {
+            Connection conn = metadataService.getConnection(connect);
+            long totalRows = -1;
+            try (PreparedStatement countPs = conn.prepareStatement("select count(*) from " + table.getName())) {
+                try (ResultSet crs = countPs.executeQuery()) {
+                    if (crs.next()) totalRows = crs.getLong(1);
                 }
-                return null;
-            }
-        };
-
-        exportTask.setOnSucceeded(e -> Platform.runLater(() -> NotificationUtil.showNotification(
-                Main.mainController.noticePane,
-                I18n.t("metadata.export.success", "表%s导出完成：%s").formatted(table.getName(), file.getName())
-        )));
-        exportTask.setOnFailed(e -> Platform.runLater(() -> NotificationUtil.showNotification(
-                Main.mainController.noticePane,
-                I18n.t("metadata.export.failure", "表%s导出失败：%s").formatted(table.getName(), exportTask.getException().getMessage())
-        )));
-
-        connect.executeSqlTask(new Thread(exportTask));
+            } catch (Exception ignored) { }
+            PreparedStatement ps = conn.prepareStatement("select * from " + table.getName(),
+                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            try { ps.setFetchSize(500); } catch (Exception ignored) {}
+            ResultSet rs = ps.executeQuery();
+            DownloadManagerUtil.addResultSetExport(
+                    new DownloadManagerUtil.ResultSetExportSource(rs, rs.getMetaData(), format.name().toLowerCase(), totalRows),
+                    file,
+                    true
+            );
+        } catch (Exception e) {
+            GlobalErrorHandlerUtil.handle(e);
+            NotificationUtil.showNotification(Main.mainController.noticePane,
+                    I18n.t("metadata.export.failure", "表%s导出失败：%s").formatted(table.getName(), e.getMessage()));
+        }
     }
+    
 
     private static void writeCsv(ResultSet rs, ResultSetMetaData meta, int columnCount, File file) throws Exception {
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
@@ -3345,6 +3340,12 @@ public class MetadataTreeviewUtil {
     }
 
 }
+
+
+
+
+
+
 
 
 
