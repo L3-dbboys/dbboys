@@ -1,5 +1,6 @@
 package com.dbboys.util;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.vo.Version;
@@ -55,7 +56,7 @@ public class UpgradeUtil {
                 restartExecutable();
                 //Platform.exit();
             });
-            new Thread(task).start();
+            AppExecutor.runTask(task);
         }
     }
 

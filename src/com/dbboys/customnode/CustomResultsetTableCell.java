@@ -1,6 +1,8 @@
 package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.dbboys.i18n.I18n;
 import com.dbboys.vo.UpdateResult;
 import javafx.application.Platform;
@@ -9,6 +11,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TextArea;
 //只有执行批量sql或者非查询的sql使用此类，以标记不同结果行的颜色，表的查询结果集使用CustomTableCell
 public class CustomResultsetTableCell<S, T> extends CustomTableCell<S, T> {
+    private static final Logger log = LogManager.getLogger(CustomResultsetTableCell.class);
     @Override
     protected void updateItem(T item, boolean empty) {
         super.updateItem(item, empty);
@@ -30,7 +33,7 @@ public class CustomResultsetTableCell<S, T> extends CustomTableCell<S, T> {
 
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
 
 

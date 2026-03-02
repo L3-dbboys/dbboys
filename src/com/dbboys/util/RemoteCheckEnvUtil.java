@@ -1,5 +1,6 @@
 package com.dbboys.util;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
@@ -428,9 +429,7 @@ public class RemoteCheckEnvUtil {
     }
 
     private static void startTask(Task<?> task, String threadName) {
-        Thread thread = new Thread(task, threadName);
-        thread.setDaemon(true);
-        thread.start();
+        AppExecutor.runTask(task);
     }
 
     private static String executeCommand(String command) throws JSchException, IOException {

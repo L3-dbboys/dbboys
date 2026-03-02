@@ -1,7 +1,7 @@
 package com.dbboys.service;
 
-import com.dbboys.impl.MetaObjectImpl;
-import com.dbboys.impl.MetaObjectImpl.DdlFetcher;
+import com.dbboys.impl.IMetaObjectService;
+import com.dbboys.impl.IMetaObjectService.DdlFetcher;
 import com.dbboys.db.MetadataRepository;
 import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.db.DDLRepository;
@@ -17,8 +17,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class TriggerService implements MetaObjectImpl {
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+public class TriggerService implements IMetaObjectService {
+    private final MetadataRepository metadataRepository;
+
+    public TriggerService() {
+        this(new MetadataRepository());
+    }
+
+    public TriggerService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
 
     public Trigger getTrigger(Connect connect, Database database,String objectName) throws Exception {
         return withMetaSession(connect, database, conn -> metadataRepository.getTrigger(conn, database.getName(), objectName));

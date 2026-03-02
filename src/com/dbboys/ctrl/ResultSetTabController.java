@@ -1,5 +1,6 @@
 package com.dbboys.ctrl;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomInfoCodeArea;
 import com.dbboys.customnode.CustomInfoStackPane;
@@ -137,7 +138,7 @@ public class ResultSetTabController {
     @FXML
     private Button lastSqlCopyButton;
     private String sqlResultCount;
-    private ConnectionService connectionService = new ConnectionService();
+    private final ConnectionService connectionService = com.dbboys.app.AppContext.get(ConnectionService.class);
 
     public ResultSetTabController(Connect sqlConnect, StackPane sqlExecuteProcessStackPane) {
         this.sqlExecuteProcessStackPane = sqlExecuteProcessStackPane;
@@ -272,15 +273,15 @@ public class ResultSetTabController {
     private void setupButtons() {
         resultSetNextPageButton.setOnAction(event -> {
             sqlTask = createGetNextPageResultSetTask();
-            new Thread(sqlTask).start();
+            AppExecutor.runTask(sqlTask);
         });
         resultSetAllRowsButton.setOnAction(event -> {
             sqlTask = createGetAllResultSetTask();
-            new Thread(sqlTask).start();
+            AppExecutor.runTask(sqlTask);
         });
         resultSetCountButton.setOnAction(event -> {
             sqlTask = createGetResultSetCountTask();
-            new Thread(sqlTask).start();
+            AppExecutor.runTask(sqlTask);
         });
         resultSetExportButton.setOnAction(event -> {
             String sqlText = lastSqlTextField.getText();
@@ -569,7 +570,7 @@ public class ResultSetTabController {
             }
         };
 
-        new Thread(sqlTask).start();
+        AppExecutor.runTask(sqlTask);
     }
 
     public void closeResultSet() {

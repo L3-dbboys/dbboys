@@ -1,7 +1,7 @@
 package com.dbboys.service;
 
-import com.dbboys.impl.MetaObjectImpl;
-import com.dbboys.impl.MetaObjectImpl.DdlFetcher;
+import com.dbboys.impl.IMetaObjectService;
+import com.dbboys.impl.IMetaObjectService.DdlFetcher;
 import com.dbboys.db.MetadataRepository;
 import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.db.DDLRepository;
@@ -14,8 +14,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class TableService implements MetaObjectImpl {
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+public class TableService implements IMetaObjectService {
+    private final MetadataRepository metadataRepository;
+
+    public TableService() {
+        this(new MetadataRepository());
+    }
+
+    public TableService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
     public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
         ObjectList objectList = new ObjectList();
         List<Table> result = new ArrayList<>();
@@ -85,7 +93,7 @@ public class TableService implements MetaObjectImpl {
         Task<List<String>> loadIndexColumnsTask = new Task<>() {
             @Override
             protected List<String> call() throws Exception {
-                try (Connection conn = new ConnectionService().getConnection(connect)) {
+                try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
                     return metadataRepository.getIndexColumnsForTable(conn, tableName);
                 }
             }

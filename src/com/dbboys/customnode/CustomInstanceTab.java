@@ -1,5 +1,6 @@
 package com.dbboys.customnode;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.service.AdminService;
@@ -50,7 +51,7 @@ import java.util.regex.Pattern;
 public class CustomInstanceTab extends CustomTab {
     private static final Logger log = LogManager.getLogger(CustomInstanceTab.class);
     private final AdminService adminService = new AdminService();
-    private final ConnectionService connectionService = new ConnectionService();
+    private final ConnectionService connectionService = com.dbboys.app.AppContext.get(ConnectionService.class);
     private Connect connect;
     // 为每个需要懒加载的 Tab 定义「已加载」标记
     private boolean infoTabLoaded = false;
@@ -303,7 +304,7 @@ public class CustomInstanceTab extends CustomTab {
                 String error = task.getException().getMessage();
                 AlterUtil.CustomAlert("错误", error);
             });
-            new Thread(task).start();
+            AppExecutor.runTask(task);
 
         });
 
@@ -673,7 +674,7 @@ public class CustomInstanceTab extends CustomTab {
                                     return null;
                                 }
                             };
-                            new Thread(stopTask).start();
+                            AppExecutor.runTask(stopTask);
                         });
                         dialog.setOnCloseRequest(event1 -> {
                             processStopButton.fire();
@@ -682,8 +683,8 @@ public class CustomInstanceTab extends CustomTab {
                             processStopButton.fire();
                         });
                         backgroupHbox.setVisible(true);
-                        new Thread(task).start();
-                        new Thread(processTask).start();
+                        AppExecutor.runTask(task);
+                        AppExecutor.runTask(processTask);
                     }
                 });
 
@@ -751,7 +752,7 @@ public class CustomInstanceTab extends CustomTab {
                         String error = task.getException().getMessage();
                         AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
-                    new Thread(task).start();
+                    AppExecutor.runTask(task);
                 }
                 // 后续可添加：调用删除接口、刷新图表数据等逻辑
             }
@@ -791,7 +792,7 @@ public class CustomInstanceTab extends CustomTab {
                         String error = task.getException().getMessage();
                         AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
-                    new Thread(task).start();
+                    AppExecutor.runTask(task);
                 }
                 // 后续可添加：调用删除接口、刷新图表数据等逻辑
             }
@@ -822,7 +823,7 @@ public class CustomInstanceTab extends CustomTab {
                         String error = task.getException().getMessage();
                         AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
-                    new Thread(task).start();
+                    AppExecutor.runTask(task);
                 }
                 // 后续可添加：调用删除接口、刷新图表数据等逻辑
             }
@@ -853,7 +854,7 @@ public class CustomInstanceTab extends CustomTab {
                         String error = task.getException().getMessage();
                         AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
-                    new Thread(task).start();
+                    AppExecutor.runTask(task);
                 }
                 // 后续可添加：调用删除接口、刷新图表数据等逻辑
             }
@@ -882,7 +883,7 @@ public class CustomInstanceTab extends CustomTab {
                         String error = task.getException().getMessage();
                         AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
-                    new Thread(task).start();
+                    AppExecutor.runTask(task);
                 }
                 // 后续可添加：调用删除接口、刷新图表数据等逻辑
             }
@@ -1096,7 +1097,7 @@ public class CustomInstanceTab extends CustomTab {
         currentTab.setContent(createLoadingNode());
 
         // 异步刷新（避免阻塞 UI）
-        new Thread(() -> {
+        AppExecutor.runAsync(() -> {
             try {
                 updateGroupInstanceInfo();
                 // 根据当前 Tab 类型执行刷新
@@ -1120,7 +1121,7 @@ public class CustomInstanceTab extends CustomTab {
                     currentTab.setContent(createErrorNode(e.getMessage()));
                 });
             }
-        }).start();
+        });
     }
 
     private void updateGroupInstanceInfo() {
@@ -1186,7 +1187,7 @@ public class CustomInstanceTab extends CustomTab {
             // 仅当「首次选中」（newVal 为 true，且未加载）时触发加载
             if (newVal && !isLoaded.get()) {
                 // 启动线程执行加载任务（避免阻塞 UI）
-                new Thread(() -> {
+                AppExecutor.runAsync(() -> {
                     try {
                         updateGroupInstanceInfo();
                         setLoaded.accept(true); // 标记为已加载
@@ -1198,7 +1199,7 @@ public class CustomInstanceTab extends CustomTab {
                             tab.setContent(createErrorNode(e.getMessage()));
                         });
                     }
-                }).start();
+                });
             }
         });
     }

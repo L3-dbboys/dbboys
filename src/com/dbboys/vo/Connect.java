@@ -271,19 +271,23 @@ public class Connect extends TreeData{
     }
 
     public void executeSqlTask(Thread thread) {
-        //thread.setDaemon(true);
-        //thread.start();
-
         executorService.submit(() -> {
             try {
-                // 执行数据库操作
                 thread.run();
             } catch (Exception e) {
                 com.dbboys.util.GlobalErrorHandlerUtil.handle(e);
             }
         });
+    }
 
+    public ConnectConfig toConfig() {
+        return ConnectConfig.fromConnect(this);
+    }
 
+    public static Connect fromConfig(ConnectConfig config) {
+        Connect c = new Connect();
+        config.applyTo(c);
+        return c;
     }
 }
 

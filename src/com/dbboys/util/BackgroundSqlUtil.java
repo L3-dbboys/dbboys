@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.dbboys.app.AppContext;
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.service.ConnectionService;
@@ -20,8 +21,23 @@ public class BackgroundSqlUtil {
     private static final Logger log = LogManager.getLogger(BackgroundSqlUtil.class);
 
     public static List<BackgroundSqlTask> backSqlTaskList = Collections.synchronizedList(new ArrayList<>());
-    public final static ConnectionService connectionService = new ConnectionService();
+    private static volatile ConnectionService connectionServiceInstance;
     public final static ExecutorService backSqlExecutor = Executors.newCachedThreadPool();
+
+    public static ConnectionService getConnectionService() {
+        if (connectionServiceInstance == null) {
+            try {
+                connectionServiceInstance = AppContext.get(ConnectionService.class);
+            } catch (IllegalStateException e) {
+                connectionServiceInstance = new ConnectionService();
+            }
+        }
+        return connectionServiceInstance;
+    }
+
+    /** @deprecated Use {@link #getConnectionService()} instead */
+    @Deprecated
+    public static final ConnectionService connectionService = new ConnectionService();
     public static void updateBackSqlUIOnStart() {
         Platform.runLater(() -> {
             Main.mainController.statusBackSqlStopButton.setDisable(false);

@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SqlexeRepository {
+public class SqlexeRepository implements com.dbboys.impl.ISqlexeRepository {
     public static final String SQL_SYS_DUAL = "select  * from sysmaster:sysdual";
     public static final String SQLMODE_GBASE = "set environment sqlmode 'gbase'";
     public static final String SQLMODE_MYSQL = "set environment sqlmode 'mysql'";

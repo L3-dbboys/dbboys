@@ -26,11 +26,19 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-public class ConnectionService {
+public class ConnectionService implements com.dbboys.impl.IConnectionService {
     private static final Logger log = LogManager.getLogger(ConnectionService.class);
     private static final Map<String, Driver> DRIVER_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, URLClassLoader> LOADER_CACHE = new ConcurrentHashMap<>();
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+    private final MetadataRepository metadataRepository;
+
+    public ConnectionService() {
+        this(new MetadataRepository());
+    }
+
+    public ConnectionService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
 
     public Connection createConnection(Connect connect) throws Exception {
         String urlString = null;
@@ -97,6 +105,11 @@ public class ConnectionService {
         }
     }
 
+    public Connection getGbaseModeConnection(Connect connect) throws Exception {
+        Connection conn = createConnection(connect);
+        sessionChangeToGbaseMode(conn);
+        return conn;
+    }
     public Connection getConnection(Connect connect) throws Exception {
         return createConnection(connect);
     }
@@ -164,6 +177,11 @@ public static class ChangeDefaultDatabaseResult {
         try {
             metadataRepository.changeDatabase(connect.getConn(), database.getName());
             connect.setDatabase(database.getName());
+            if(database.getName().equals("sysmaster")||database.getName().equals("sysadmin")||database.getName().equals("sysutils")||database.getName().equals("syscdcv1")||database.getName().equals("sys")||database.getName().equals("gbasedbt")){
+            }else{
+                connect.setProps(modifyProps(connect, database.getDbLocale()));
+
+            }
             connect.setProps(modifyProps(connect, database.getDbLocale()));
             SqliteDBaccessUtil.updateConnect(connect);
             result.setSuccess(true);
@@ -291,7 +309,7 @@ public static class ChangeDefaultDatabaseResult {
                 rs = connect.getConn().createStatement().executeQuery("select first 1 tabid from systables");
                 result = true;
             } catch (SQLException e) {
-                e.printStackTrace();
+                log.error("Operation failed", e);
             } finally {
                 if (rs != null) {
                     try {

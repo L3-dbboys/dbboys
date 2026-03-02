@@ -1,6 +1,8 @@
 package com.dbboys.util;
 
 import com.dbboys.customnode.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.i18n.I18n;
@@ -32,7 +34,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class MarkdownUtil {
-
+    private static final Logger log = LogManager.getLogger(MarkdownUtil.class);
     private static Pattern LINK_PATTERN = Pattern.compile("\\[([^]]+)\\]\\(([^)]+)\\)");
     private Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private Pattern INLINE_CODE_PATTERN = Pattern.compile("`([^`]+)`");
@@ -261,7 +263,7 @@ public class MarkdownUtil {
                     TabpaneUtil.renameCustomMarkdownTab(file.toPath(),newPath);
 
                 } catch (IOException ex) {
-                    ex.printStackTrace();
+                    log.error("Operation failed", ex);
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"),ex.getMessage());
                 }
             }
@@ -329,7 +331,7 @@ public class MarkdownUtil {
                     }
 
                 } catch (IOException e1) {
-                    e1.printStackTrace();
+                    log.error("Operation failed", e1);
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e1.getMessage());
                 }
             }
@@ -552,7 +554,7 @@ public class MarkdownUtil {
             }
 
         } catch (IOException ex) {
-            ex.printStackTrace();
+            log.error("Operation failed", ex);
             AlterUtil.CustomAlert(I18n.t("markdown.tree.paste.error_title", "粘贴错误"), ex.getMessage());
         }
     }
@@ -610,7 +612,7 @@ public class MarkdownUtil {
                     TabpaneUtil.addCustomMarkdownTab(treeView.getSelectionModel().getSelectedItem().getValue().getFile(),true);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Operation failed", e);
                 AlterUtil.CustomAlert(I18n.t("common.error", "错误"),e.getMessage());
             }
         }
@@ -671,7 +673,7 @@ public class MarkdownUtil {
                 }
                 treeItem.getParent().getChildren().remove(treeItem);
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Operation failed", e);
                 AlterUtil.CustomAlert(I18n.t("common.error", "错误"),e.getMessage());
             }
         }
@@ -724,7 +726,7 @@ public class MarkdownUtil {
                 if (Files.isDirectory(src)) Files.createDirectories(dest);
                 else Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Operation failed", e);
                 AlterUtil.CustomAlert(I18n.t("common.error", "错误"),e.getMessage());
             }
         });

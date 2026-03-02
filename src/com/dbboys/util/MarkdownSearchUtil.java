@@ -1,6 +1,9 @@
 package com.dbboys.util;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.dbboys.i18n.I18n;
 import javafx.application.Platform;
 import javafx.beans.binding.StringBinding;
@@ -293,6 +296,7 @@ class LuceneSearcher {
 
 
 public class MarkdownSearchUtil {
+    private static final Logger log = LogManager.getLogger(MarkdownSearchUtil.class);
     private static final Popup searchResultPopup = new Popup();
     private static final Path indexDir = Paths.get("index");
     private static final ListView<LuceneSearcher.SearchResult> resultList = new ListView<>();
@@ -439,7 +443,7 @@ public class MarkdownSearchUtil {
         buildIndex(true);
     }
     public static void buildIndex(boolean isNeedNotice) {
-        new Thread(() -> {
+        AppExecutor.runAsync(() -> {
             Platform.runLater(()->{
                 Main.mainController.rebuildMarkdownIndexButton.setVisible(false);
             });
@@ -471,9 +475,9 @@ public class MarkdownSearchUtil {
                         AlterUtil.CustomAlert(errorTitleBinding.get(),
                                 buildFailedBinding.get().formatted(e.getMessage()));
                     });
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
-        }).start();
+        });
     }
 
     public static void performSearch(String searchText) {
@@ -546,7 +550,7 @@ public class MarkdownSearchUtil {
             Platform.runLater(()->{
                 AlterUtil.CustomAlert(errorTitleBinding.get(), e.getMessage());
             });
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
     }
 

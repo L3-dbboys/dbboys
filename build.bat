@@ -16,9 +16,10 @@ dir /b /s src\*.java > sources.txt
 javac -encoding UTF-8 -d bin -sourcepath src -cp lib\lib_modular\*;lib\lib_nonmodular\* @sources.txt
 echo 编译源码完成。
 
-:: 复制fxml、css文件夹到bin
+:: 复制fxml、css、sql文件夹到bin
 xcopy /e /h /y /q "src\com\dbboys\fxml\*" "bin\com\dbboys\fxml\"
 xcopy /e /h /y /q "src\com\dbboys\css\*" "bin\com\dbboys\css\"
+xcopy /e /h /y /q "src\com\dbboys\sql\*" "bin\com\dbboys\sql\"
 
 :: 生成jar文件
 jar --create --file lib/lib_nonmodular/dbboys.jar --main-class com.dbboys.app.Main -C bin .

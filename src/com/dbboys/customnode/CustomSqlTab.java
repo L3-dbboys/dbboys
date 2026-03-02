@@ -1,6 +1,8 @@
 package com.dbboys.customnode;
 
 import com.dbboys.app.Main;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.dbboys.ctrl.SqlTabController;
 import com.dbboys.i18n.I18n;
 import com.dbboys.util.AlterUtil;
@@ -91,7 +93,7 @@ public class CustomSqlTab extends CustomTab{
             markSaved();
             refreshTooltip();
         } catch (IOException e) {
-            e.printStackTrace();
+           // log.error("Operation failed", e);
             AlterUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
         }
     }

@@ -7,24 +7,24 @@ import com.dbboys.vo.TreeData;
 import com.dbboys.vo.UpdateResult;
 import com.dbboys.service.ConnectionService;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public  class SqliteDBaccessUtil {
-    private static String dbPath = "jdbc:sqlite:data/dbboys.dat";
-    private static Connection conn=null;
-    static
-    {
-        try {
-            // 加载SQLite JDBC驱动
-            Class.forName("org.sqlite.JDBC");
-            conn = DriverManager.getConnection(dbPath);
-        }  catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private static final Logger log = LogManager.getLogger(SqliteDBaccessUtil.class);
+
+    private static final com.dbboys.db.local.ConnectFolderDao folderDao = new com.dbboys.db.local.ConnectFolderDao();
+    private static final com.dbboys.db.local.ConnectConfigDao connectDao = new com.dbboys.db.local.ConnectConfigDao();
+    private static final com.dbboys.db.local.SqlHistoryDao historyDao = new com.dbboys.db.local.SqlHistoryDao();
+
+    /** @deprecated Use {@link com.dbboys.db.local.LocalDbConnection#get()} */
+    @Deprecated
+    private static Connection conn = com.dbboys.db.local.LocalDbConnection.get();
 
     //初始化数据库，在恢复出厂设置时调用
     public static boolean initDB()   {
@@ -42,7 +42,7 @@ public  class SqliteDBaccessUtil {
             //statement.executeUpdate("INSERT INTO t_connect(c_parentid,c_level,c_name,c_expand,c_dbtype,c_ip,c_port,c_username,c_password) VALUES (2,3, '核心业务系统',0,'GBASE 8S','192.168.17.123','9088','gbasedbt','GBase123')");
             success = true;
         }catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -62,7 +62,7 @@ public  class SqliteDBaccessUtil {
                 connectFolders.add(connectFolder);
             }
         }catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return connectFolders;
     }
@@ -88,7 +88,7 @@ public  class SqliteDBaccessUtil {
             psmt.executeUpdate();
             success = true;
         }catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -111,7 +111,7 @@ public  class SqliteDBaccessUtil {
             rs.close();
             success = true;
         }catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -128,7 +128,7 @@ public  class SqliteDBaccessUtil {
             psmt.executeUpdate();
             success = true;
         }catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -144,7 +144,7 @@ public  class SqliteDBaccessUtil {
             psmt.executeUpdate();
             success = true;
         }catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -164,7 +164,7 @@ public  class SqliteDBaccessUtil {
             rs.close();
             psmt.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return connectFolderName;
     }
@@ -195,7 +195,7 @@ public  class SqliteDBaccessUtil {
         String result = "";
         PreparedStatement psmt = null;
         try {
-            new ConnectionService().setConnectInfo(connect);
+            com.dbboys.app.AppContext.get(ConnectionService.class).setConnectInfo(connect);
             psmt=conn.prepareStatement("insert into t_connect(c_parentid,c_name,c_dbtype,c_driver,c_ip,c_port,c_database,c_readonly,c_username,c_password,c_props,c_info,c_drivermd5,c_dbversion) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             psmt.setObject(1, connect.getParentId());
             psmt.setObject(2, connect.getName());
@@ -221,7 +221,7 @@ public  class SqliteDBaccessUtil {
             rs.close();
             psmt.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
             result=e.getMessage();
         }
         return result;
@@ -240,7 +240,7 @@ public  class SqliteDBaccessUtil {
             psmt.executeUpdate();
             success = true;
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -259,7 +259,7 @@ public  class SqliteDBaccessUtil {
             rs.close();
             psmt.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return success;
     }
@@ -291,7 +291,7 @@ public  class SqliteDBaccessUtil {
                 connectLeafList.add(connect);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return connectLeafList;
     }
@@ -328,7 +328,7 @@ public  class SqliteDBaccessUtil {
                     connectLeafList.add(connect);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("SQLite operation failed", e);
             }
             return connectLeafList;
         }
@@ -349,7 +349,7 @@ public  class SqliteDBaccessUtil {
                        return_sl.setExpand(rs.getInt(5));
                    }
                } catch (Exception e) {
-                   e.printStackTrace();
+                   log.error("SQLite operation failed", e);
                }
                return return_sl;
            }
@@ -368,7 +368,7 @@ public  class SqliteDBaccessUtil {
                    psmt.executeUpdate();
                    success = true;
                } catch (Exception e) {
-                   e.printStackTrace();
+                   log.error("SQLite operation failed", e);
                }
                return success;
            }
@@ -559,7 +559,7 @@ public  class SqliteDBaccessUtil {
                        connection.close(); //测试连接完成后关闭释放
                    }
                } catch (Exception e) {
-                   e.printStackTrace();
+                   log.error("SQLite operation failed", e);
                    return_val=e.getMessage();
                }
                return return_val;
@@ -583,7 +583,7 @@ public  class SqliteDBaccessUtil {
             psmt.executeUpdate();
             psmt.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
             return_val=e.getMessage();
         }
         return return_val;
@@ -615,7 +615,7 @@ public  class SqliteDBaccessUtil {
             rs.close();
             psmt.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("SQLite operation failed", e);
         }
         return return_val;
     }

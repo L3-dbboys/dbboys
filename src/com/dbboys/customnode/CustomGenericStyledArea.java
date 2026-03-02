@@ -1,5 +1,6 @@
 package com.dbboys.customnode;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
@@ -49,9 +50,6 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -72,18 +70,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             "png", "jpg", "jpeg", "gif", "bmp", "mp3", "mp4", "avi",
             "mkv", "txt", "csv", "json", "xml", "iso", "tar", "gz", "tar.gz",
             "sh", "chm", "jar", "yml"
-    );
-    private static final ExecutorService LINK_CHECK_EXECUTOR = Executors.newFixedThreadPool(
-            4,
-            new ThreadFactory() {
-                private int index = 1;
-                @Override
-                public Thread newThread(Runnable r) {
-                    Thread t = new Thread(r, "markdown-link-check-" + index++);
-                    t.setDaemon(true);
-                    return t;
-                }
-            }
     );
     private static final String LINK_STYLE = "-fx-fill: #0066cc; -fx-underline: true; -fx-cursor: hand;";
     private static final String INVALID_LINK_STYLE = "-fx-fill: #f00; -fx-underline: true;-fx-cursor: hand;-fx-strikethrough: true";
@@ -632,7 +618,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                                         );
                                         NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("genericstyled.notice.image_saved"));
                                     } catch (IOException e) {
-                                        e.printStackTrace();
+                                        log.error("Operation failed", e);
                                     }
                                 });
                                 imageCopyItem.setOnAction(event1 -> {
@@ -833,7 +819,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
     }
 
@@ -959,7 +945,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             return;
         }
 
-        LINK_CHECK_EXECUTOR.submit(() -> {
+        AppExecutor.runAsync(() -> {
             boolean valid = false;
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();

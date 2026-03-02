@@ -1,7 +1,7 @@
 package com.dbboys.service;
 
 import com.dbboys.db.MetadataRepository;
-import com.dbboys.impl.MetaObjectImpl;
+import com.dbboys.impl.IMetaObjectService;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.ObjectList;
@@ -12,9 +12,17 @@ import java.util.List;
 //import org.apache.logging.log4j.LogManager;
 //import org.apache.logging.log4j.Logger;
 
-public class DatabaseService implements MetaObjectImpl {
+public class DatabaseService implements IMetaObjectService {
     //private static final Logger log = LogManager.getLogger(DatabaseService.class);
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+    private final MetadataRepository metadataRepository;
+
+    public DatabaseService() {
+        this(new MetadataRepository());
+    }
+
+    public DatabaseService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
 
     public List<String> getDBspaceForCreateDatabase(Connection conn) throws SQLException {
         return metadataRepository.getDBspaceForCreateDatabase(conn);

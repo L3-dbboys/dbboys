@@ -35,22 +35,30 @@ import java.util.Locale;
 public class Main extends Application {
     private static final Logger log = LogManager.getLogger(Main.class);
 
-    //版本号
     private static final String VERSION_NAME = "DBboys V1.0.0beta.20260301";
     private static final int BUILD_NUMBER = 8;
     private static final String VERSION_URL = "";
     private static final String CHANGELOG = "";
-    public static Version VERSION;
-    //静态类实例，用于弹出界面与主程序的交互调用
-    public static MainController mainController;
-    public static Scene scene;
-    public static double split1Pos;  //竖分割线位置
-    public static double split2Pos;  //横分割线折叠位置，1为顶，2为实际位置，3为底部
-    public static double sqledit_codearea_is_max=0;
-    public static ProgressBar loadProgressBar = new ProgressBar(0.1);
-    public static Connect lastInstallConnect;
+
+    /** @deprecated Use {@link AppState#getVersion()} */
+    @Deprecated public static Version VERSION;
+    /** @deprecated Use {@link AppState#getMainController()} */
+    @Deprecated public static MainController mainController;
+    /** @deprecated Use {@link AppState#getScene()} */
+    @Deprecated public static Scene scene;
+    /** @deprecated Use {@link AppState#getSplit1Pos()} */
+    @Deprecated public static double split1Pos;
+    /** @deprecated Use {@link AppState#getSplit2Pos()} */
+    @Deprecated public static double split2Pos;
+    /** @deprecated Use {@link AppState#getSqlEditCodeAreaIsMax()} */
+    @Deprecated public static double sqledit_codearea_is_max = 0;
+    /** @deprecated Use {@link AppState#getLoadProgressBar()} */
+    @Deprecated public static ProgressBar loadProgressBar = new ProgressBar(0.1);
+    /** @deprecated Use {@link AppState#getLastInstallConnect()} */
+    @Deprecated public static Connect lastInstallConnect;
     @Override
     public void start(Stage primaryStage) throws Exception {
+        AppContext.init();
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
 
         //版本号
@@ -60,6 +68,7 @@ public class Main extends Application {
         jsonObject.put("url", VERSION_URL);
         jsonObject.put("changelog", CHANGELOG);
         VERSION=new Version(jsonObject);
+        AppState.setVersion(VERSION);
 
         try {
             Thread.currentThread().setUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
@@ -87,7 +96,7 @@ public class Main extends Application {
             loadingStage.show();
 
             //使用线程后台加载界面
-            new Thread(() -> {
+            AppExecutor.runAsync(() -> {
                 //初始化数据库和配置文件
                 Path dataDir = Paths.get("data");
                 Path configFile = dataDir.resolve("dbboys.dat");
@@ -107,6 +116,8 @@ public class Main extends Application {
                 //从配置文件读取分隔符位置，配置文件保存的是最后一次拖动的位置
                 split1Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_MAIN", "0.2"));
                 split2Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_SQL", "0.6"));
+                AppState.setSplit1Pos(split1Pos);
+                AppState.setSplit2Pos(split2Pos);
 
                 //加载主界面
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/Main.fxml"));
@@ -117,7 +128,9 @@ public class Main extends Application {
                         throw new RuntimeException(e);
                     }
                 mainController = loader.getController();
+                AppState.setMainController(mainController);
                 scene = new Scene(root, 800, 600);
+                AppState.setScene(scene);
 
                 scene.getStylesheets().add(getClass().getResource("/com/dbboys/css/app.css").toExternalForm());
 
@@ -128,7 +141,7 @@ public class Main extends Application {
                 primaryStage.initStyle(StageStyle.UNDECORATED); //UNDECORATED可以避免加载treelist黑块现象
 
                 // 在后台线程中预加载，避免首次点击时卡顿，首次打开sql编辑界面300+ms下降到50+ms
-                new Thread(() -> {
+                AppExecutor.runAsync(() -> {
                     try {
                         // 预加载FXML文件
                         FXMLLoader sqlTabLoader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/SqlTab.fxml"));
@@ -142,7 +155,7 @@ public class Main extends Application {
                     } catch (IOException e) {
                         log.error("预加载资源失败", e);
                     }
-                }).start();
+                });
     
 
 
@@ -191,10 +204,10 @@ public class Main extends Application {
                     }
                 });
 
-            }).start();
+            });
 
         } catch(Exception e) {
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
 
     }

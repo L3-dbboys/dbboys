@@ -1,10 +1,13 @@
 package com.dbboys.util;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.*;
 import java.util.Properties;
 
 public class ConfigManagerUtil {
-
+    private static final Logger log = LogManager.getLogger(ConfigManagerUtil.class);
     private static Properties properties = new Properties();
     private static String filePath="etc/config.properties";
 
@@ -17,7 +20,7 @@ public class ConfigManagerUtil {
         try (InputStream input = new FileInputStream(filePath)) {
             properties.load(input);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
     }
 
@@ -42,7 +45,7 @@ public class ConfigManagerUtil {
         try (OutputStream output = new FileOutputStream(filePath)) {
             properties.store(output, "Updated configuration");
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Operation failed", e);
         }
     }
 

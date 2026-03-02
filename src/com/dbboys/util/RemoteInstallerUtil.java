@@ -1,5 +1,6 @@
 package com.dbboys.util;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
@@ -402,7 +403,7 @@ public class RemoteInstallerUtil {
                                 AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                             });
 
-                            new Thread(systeminfoTask).start();
+                            AppExecutor.runTask(systeminfoTask);
                             stopButton.setOnAction(event1->{
                                 systeminfoTask.cancel();
                                 backgroundHBox.setVisible(false);
@@ -429,7 +430,7 @@ public class RemoteInstallerUtil {
                         });
 
 
-                        new Thread(runningTask).start();
+                        AppExecutor.runTask(runningTask);
                         stopButton.setOnAction(event1->{
                             runningTask.cancel();
                             backgroundHBox.setVisible(false);
@@ -556,7 +557,7 @@ public class RemoteInstallerUtil {
                                     currentStep.set(currentStep.get() + 1);
                                     updateWizardState();
                                 }else{
-                                    new Thread(runningTask).start();
+                                    AppExecutor.runTask(runningTask);
                                 }
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
@@ -1813,9 +1814,9 @@ GBASEEOF
                     });
 
                     try {
-                        new Thread(installTask).start();
+                        AppExecutor.runTask(installTask);
                     }catch (Exception e){
-                        e.printStackTrace();
+                        log.error("Operation failed", e);
                     }
                     backgroundHBox.setVisible(true);
                     stopButton.setOnAction(event1->{
@@ -2455,7 +2456,7 @@ GBASEEOF
                     } catch (Exception e) {
                         rowData.value = oldvalue == null ? null : oldvalue.toString();
                         event.getTableView().refresh();
-                        e.printStackTrace();
+                        log.error("Operation failed", e);
                         throw new RuntimeException(e);
                     }
                     //diskSize=1024000000.0;

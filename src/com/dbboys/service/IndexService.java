@@ -1,7 +1,7 @@
 package com.dbboys.service;
 
-import com.dbboys.impl.MetaObjectImpl;
-import com.dbboys.impl.MetaObjectImpl.DdlFetcher;
+import com.dbboys.impl.IMetaObjectService;
+import com.dbboys.impl.IMetaObjectService.DdlFetcher;
 import com.dbboys.db.MetadataRepository;
 import com.dbboys.util.GlobalErrorHandlerUtil;
 import com.dbboys.db.DDLRepository;
@@ -17,8 +17,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class IndexService implements MetaObjectImpl {
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+public class IndexService implements IMetaObjectService {
+    private final MetadataRepository metadataRepository;
+
+    public IndexService() {
+        this(new MetadataRepository());
+    }
+
+    public IndexService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
 
     public Index getIndex(Connect connect, Database database,String objectName) throws Exception {
         return withMetaSession(connect, database, conn -> metadataRepository.getIndex(conn, database.getName(), objectName));

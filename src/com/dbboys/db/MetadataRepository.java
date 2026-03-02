@@ -11,7 +11,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MetadataRepository {
+public class MetadataRepository implements com.dbboys.impl.IMetadataRepository {
     private static final int DEFAULT_QUERY_TIMEOUT_SECONDS = 30;
 
     private static final String SQL_DATABASES_GBASE = """

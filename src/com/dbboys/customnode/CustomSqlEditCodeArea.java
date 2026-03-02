@@ -1,5 +1,6 @@
 package com.dbboys.customnode;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.customnode.CustomShortcutMenuItem;
@@ -15,8 +16,6 @@ import org.fxmisc.richtext.model.PlainTextChange;
 import org.fxmisc.richtext.model.TwoDimensional.Bias;
 
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
@@ -28,11 +27,6 @@ public class CustomSqlEditCodeArea extends CodeArea {
 
     private final int[] sqlEditCodeAreaCursorPosition = {0, 0};
     private int styleChangeFlag = 0;
-    private final ExecutorService highlightExecutor = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "sql-highlight");
-        t.setDaemon(true);
-        return t;
-    });
     private final AtomicLong highlightSeq = new AtomicLong(0);
     private Runnable onSaveRequest = () -> {};
     private Runnable onContentDirty = () -> {};
@@ -378,7 +372,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
 
         long seq = highlightSeq.incrementAndGet();
         String slice = getText(effectiveStart, regionEnd);
-        highlightExecutor.submit(() -> {
+        AppExecutor.runAsync(() -> {
             var spans = KeywordsHighlightUtil.highlightSql(slice);
             Platform.runLater(() -> {
                 if (highlightSeq.get() != seq) {
@@ -424,7 +418,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
     private void scheduleHighlighting() {
         long seq = highlightSeq.incrementAndGet();
         String snapshot = getText();
-        highlightExecutor.submit(() -> {
+        AppExecutor.runAsync(() -> {
             var spans = KeywordsHighlightUtil.highlightSql(snapshot);
             Platform.runLater(() -> {
                 if (highlightSeq.get() != seq) {

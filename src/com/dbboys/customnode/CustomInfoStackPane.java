@@ -1,5 +1,6 @@
 package com.dbboys.customnode;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
@@ -26,9 +27,6 @@ import org.fxmisc.richtext.GenericStyledArea;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 public class CustomInfoStackPane extends StackPane {
     private static final Logger log = LogManager.getLogger(CustomInfoStackPane.class);
@@ -51,16 +49,6 @@ public class CustomInfoStackPane extends StackPane {
     public final StackPane noticePane = new StackPane();
     private volatile boolean snapshotInProgress = false;
     private volatile boolean disposed = false;
-    private final ExecutorService snapshotExecutor = Executors.newSingleThreadExecutor(
-            new ThreadFactory() {
-                @Override
-                public Thread newThread(Runnable r) {
-                    Thread t = new Thread(r, "info-stackpane-snapshot");
-                    t.setDaemon(true);
-                    return t;
-                }
-            }
-    );
     public boolean showNoticeInMain = true;
 
     @Deprecated public final VirtualizedScrollPane codearea_scollpane;
@@ -122,7 +110,7 @@ public class CustomInfoStackPane extends StackPane {
         });
         snapshotTask.addEventHandler(WorkerStateEvent.WORKER_STATE_CANCELLED, event -> finishSnapshot());
         try {
-            snapshotExecutor.execute(snapshotTask);
+            AppExecutor.runTask(snapshotTask);
         } catch (RuntimeException ex) {
             log.error("Unable to schedule info snapshot task.", ex);
             finishSnapshot();
@@ -320,7 +308,6 @@ public class CustomInfoStackPane extends StackPane {
         disposed = true;
         snapshotInProgress = false;
         codeAreaSnapshotButton.setDisable(true);
-        snapshotExecutor.shutdownNow();
     }
 
 }

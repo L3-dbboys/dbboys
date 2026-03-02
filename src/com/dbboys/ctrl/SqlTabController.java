@@ -1,5 +1,7 @@
 package com.dbboys.ctrl;
 
+import com.dbboys.app.AppContext;
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.customnode.*;
 import com.dbboys.service.ConnectionService;
@@ -101,79 +103,82 @@ public class SqlTabController {
     public SimpleStringProperty sqlTransactionText = new SimpleStringProperty("");
     boolean isSingleSql = true;  //判断是否只有一条sql，如果是，select要执行并弹出报错信息，update要弹出报错，且用于是否在任务完成后获取主键
     @FXML
-    private VBox sqlTab;
+    VBox sqlTab;
     @FXML
-    private Pane topPane;
+    Pane topPane;
     @FXML
-    private Button sqlExplainButton;
+    Button sqlExplainButton;
     @FXML
-    private Button sqlStopButton;
+    Button sqlStopButton;
     @FXML
-    private StackPane sqlConnectChoiceBoxIconStackPane;
+    StackPane sqlConnectChoiceBoxIconStackPane;
     @FXML
-    private StackPane sqlDbIconPane;
+    StackPane sqlDbIconPane;
     @FXML
-    private StackPane sqlUserIconPane;
+    StackPane sqlUserIconPane;
     @FXML
-    private CustomLabelTextField sqlUserTextField;
+    CustomLabelTextField sqlUserTextField;
     @FXML
-    private ChoiceBox<String> sqlSqlModeChoiceBox;
+    ChoiceBox<String> sqlSqlModeChoiceBox;
     @FXML
-    private Button sqlRecordButton;
+    Button sqlRecordButton;
     @FXML
-    private Label sqlReadOnlyLabel;
+    Label sqlReadOnlyLabel;
     @FXML
-    private VirtualizedScrollPane sqlEditScrollPane;
-    //事务未提交hbox
+    VirtualizedScrollPane sqlEditScrollPane;
     @FXML
-    private HBox transactionBox;
+    HBox transactionBox;
     @FXML
-    private Button transactionCommitButton;
+    Button transactionCommitButton;
     @FXML
-    private Button transactionRollbackButton;
+    Button transactionRollbackButton;
     //结果集
     @FXML
-    private Pane bottomPane;
+    Pane bottomPane;
     @FXML
-    private StackPane bottomPaneStackPane;
+    StackPane bottomPaneStackPane;
     @FXML
-    private TabPane resultsetTabPane;
+    TabPane resultsetTabPane;
     @FXML
-    private Tab resultsetSummaryTab;
+    Tab resultsetSummaryTab;
     @FXML
-    private CustomResultsetTableView resultsetTotalTableView;
+    CustomResultsetTableView resultsetTotalTableView;
     @FXML
-    private StackPane resultsetStackPane;
+    StackPane resultsetStackPane;
     //执行过程中提示面板
     @FXML
-    private StackPane sqlExecuteProcessStackPane;
+    StackPane sqlExecuteProcessStackPane;
     @FXML
-    private Label sqlExecuteLoadingLabel;
+    Label sqlExecuteLoadingLabel;
     @FXML
-    private Label sqlExecuteTaskInfo;
+    Label sqlExecuteTaskInfo;
     @FXML
-    private Label sqlExecuteTimeInfo;
-    private CustomInfoStackPane explain_result_stackpane;
-    private Boolean isSqlRefresh = false;
-    private final ConnectionService connectionService = new ConnectionService();
-    private final SqlexeService sqlexeService = new SqlexeService();
-    private final Connect defaultConnect = new Connect();
-    private final Database defaultDatabase = new Database();
+    Label sqlExecuteTimeInfo;
+    CustomInfoStackPane explain_result_stackpane;
+    Boolean isSqlRefresh = false;
+    private final ConnectionService connectionService = AppContext.get(ConnectionService.class);
+    private final SqlexeService sqlexeService = AppContext.get(SqlexeService.class);
+    final Connect defaultConnect = new Connect();
+    final Database defaultDatabase = new Database();
     private List sqlParamList = new ArrayList();
     private String sqlExecutionResult = "";
     private boolean sqlExecutionSuccess = false;
     //执行sql所需相关变量
     private String sqlText = "";
-    private final Tooltip commitButtonTooltip = new Tooltip();
+    final Tooltip commitButtonTooltip = new Tooltip();
     private String newResultsetTabName;
     private final int[] sqlSelectionRange = {0, 0};
     private boolean suppressConnectChange = false;
     private boolean suppressDbChange = false;
     private boolean suppressCommitModeChange = false;
     private ResultSetTabController activeResultSetController;
-    private Label sqlConnectChoiceBoxDbIcon;
-    private Label sqlConnectChoiceBoxLoadingIcon;
-    private SVGPath sqlConnectIconPath;
+    Label sqlConnectChoiceBoxDbIcon;
+    Label sqlConnectChoiceBoxLoadingIcon;
+    SVGPath sqlConnectIconPath;
+
+    SqlExecutionHelper executionHelper;
+    SqlTabUiHelper uiHelper;
+    SqlTabI18nHelper i18nHelper;
 
     private void clearUpdateResults() {
         Platform.runLater(() -> updateResults.clear());
@@ -292,6 +297,9 @@ public class SqlTabController {
     }
 
     public void initialize() throws IOException {
+        executionHelper = new SqlExecutionHelper(this);
+        uiHelper = new SqlTabUiHelper(this);
+        i18nHelper = new SqlTabI18nHelper(this);
 
         setupTransactionTooltips();
         initI18nBindings();
@@ -360,7 +368,7 @@ public class SqlTabController {
                         //boolean allowed = confirmChange(newVal);
 
                         //在线程中执行，避免切换连接长时间连不上时主界面卡死
-                        new Thread(() -> {
+                        AppExecutor.runAsync(() -> {
                             Platform.runLater(() -> {
                                 sqlConnectChoiceBoxDbIcon.setVisible(false);
                                 sqlConnectChoiceBoxLoadingIcon.setVisible(true);
@@ -476,7 +484,7 @@ public class SqlTabController {
                                 else
                                     Platform.runLater(() -> sqlConnectChoiceBox.setValue(sqlConnect));
                             }
-                        }).start();
+                        });
 
                     }
                 });
@@ -623,7 +631,7 @@ public class SqlTabController {
 
             if (!sqlTask.isRunning() && newValue != null) {
                 sqlTask = createSqlModeTask(sqlConnect, newValue);
-                new Thread(sqlTask).start();
+                AppExecutor.runTask(sqlTask);
             }
         });
 
@@ -863,7 +871,7 @@ public class SqlTabController {
             }
         });
 
-        new Thread(() -> {
+        AppExecutor.runAsync(() -> {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -874,7 +882,7 @@ public class SqlTabController {
                     sqlSplitPaneDividerPosition = sqlSplitPane.getDividers().get(0).getPosition();
                 });
             });
-        }).start();
+        });
     }
 
     private void bindEditorSizeToPane() {
@@ -1121,7 +1129,7 @@ public class SqlTabController {
                     sqlTask = createExecuteSqlTask();
                     closeResultSet();
                     resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
-                    new Thread(sqlTask).start();
+                    AppExecutor.runTask(sqlTask);
                     if (sqlSplitPane.getDividers().get(0).getPosition() > Main.split2Pos) {
                         sqlSplitPane.getDividers().get(0).setPosition(Main.split2Pos);
                     }
@@ -1144,7 +1152,7 @@ public class SqlTabController {
                     sqlTask = createExplainTask();
                     closeResultSet();
                     resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
-                    new Thread(sqlTask).start();
+                    AppExecutor.runTask(sqlTask);
                     if (sqlSplitPane.getDividers().get(0).getPosition() > Main.split2Pos) {
                         sqlSplitPane.getDividers().get(0).setPosition(Main.split2Pos);
                     }

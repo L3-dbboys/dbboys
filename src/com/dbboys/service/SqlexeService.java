@@ -1,6 +1,8 @@
 package com.dbboys.service;
 
 import com.dbboys.ctrl.SqlTabController;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.dbboys.db.SqlexeRepository;
 import com.dbboys.util.AlterUtil;
 import com.dbboys.util.GlobalErrorHandlerUtil;
@@ -16,15 +18,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SqlexeService {
-    private final ConnectionService connectionService = new ConnectionService();
-    private final DatabaseService databaseService = new DatabaseService();
-    private final SqlexeRepository sqlexeRepository = new SqlexeRepository();
+    private static final Logger log = LogManager.getLogger(SqlexeService.class);
+    private final ConnectionService connectionService;
+    private final DatabaseService databaseService;
+    private final SqlexeRepository sqlexeRepository;
+
+    public SqlexeService() {
+        this(new ConnectionService(), new DatabaseService(), new SqlexeRepository());
+    }
+
+    public SqlexeService(ConnectionService connectionService, DatabaseService databaseService, SqlexeRepository sqlexeRepository) {
+        this.connectionService = connectionService;
+        this.databaseService = databaseService;
+        this.sqlexeRepository = sqlexeRepository;
+    }
 
     public List<String> getSqlMode(Connection conn) {
         try {
             return sqlexeRepository.getSqlMode(conn);
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.error("Operation failed", e);
             return new ArrayList<>();
         }
     }
@@ -69,7 +82,7 @@ public class SqlexeService {
                 }
             } else if (e.getErrorCode() == -79716 || e.getErrorCode() == -79730) {
                 result = "disconnected";
-                e.printStackTrace();
+                log.error("Operation failed", e);
             } else {
                 GlobalErrorHandlerUtil.handle(e);
             }
@@ -87,7 +100,7 @@ public class SqlexeService {
                 try {
                     catalogs = databaseService.getDatabases(connection, true);
                 } catch (Exception ex) {
-                    ex.printStackTrace();
+                    log.error("Operation failed", ex);
                 }
             } else if (e.getErrorCode() == -79716 || e.getErrorCode() == -79730) {
                 MetadataTreeviewUtil.connectionDisconnected();

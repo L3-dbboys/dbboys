@@ -1,7 +1,7 @@
 package com.dbboys.service;
 
-import com.dbboys.impl.MetaObjectImpl;
-import com.dbboys.impl.MetaObjectImpl.DdlFetcher;
+import com.dbboys.impl.IMetaObjectService;
+import com.dbboys.impl.IMetaObjectService.DdlFetcher;
 import com.dbboys.db.MetadataRepository;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.util.SqlParserUtil;
@@ -15,8 +15,16 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PackageService implements MetaObjectImpl {
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+public class PackageService implements IMetaObjectService {
+    private final MetadataRepository metadataRepository;
+
+    public PackageService() {
+        this(new MetadataRepository());
+    }
+
+    public PackageService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
 
     public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
         ObjectList objectList = new ObjectList();

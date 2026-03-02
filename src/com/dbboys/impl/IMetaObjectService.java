@@ -20,8 +20,8 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public interface MetaObjectImpl {
-    Logger LOG = LogManager.getLogger(MetaObjectImpl.class);
+public interface IMetaObjectService {
+    Logger LOG = LogManager.getLogger(IMetaObjectService.class);
 
     @FunctionalInterface
     interface DdlFetcher {
@@ -33,7 +33,7 @@ public interface MetaObjectImpl {
     ObjectList loadObjects(Connection conn, String databaseName) throws Exception;
 
     default ConnectionService connectionService() {
-        return Holder.CONNECTION_SERVICE;
+        return Holder.get();
     }
 
     default <T> T withMetaSession(Connect connect,
@@ -67,7 +67,7 @@ public interface MetaObjectImpl {
                 backSqlTask.setConnect(connect);
                 long beginTime = System.currentTimeMillis();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                try (Connection conn = BackgroundSqlUtil.connectionService.getConnection(connect)) {
+                try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
                     if (conn == null) {
                         throw new Exception("ERROR");
                     }
@@ -143,7 +143,7 @@ public interface MetaObjectImpl {
             protected Void call() throws Exception {
                 backSqlTask.setConnect(connect);
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                try (Connection conn = BackgroundSqlUtil.connectionService.getConnection(connect)) {
+                try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
                     if (conn == null) {
                         throw new Exception("ERROR");
                     }
@@ -213,11 +213,24 @@ public interface MetaObjectImpl {
     }
 
     final class Holder {
-        private static final ConnectionService CONNECTION_SERVICE = new ConnectionService();
+        private static volatile ConnectionService CONNECTION_SERVICE;
 
         private Holder() {
         }
+
+        static ConnectionService get() {
+            if (CONNECTION_SERVICE == null) {
+                synchronized (Holder.class) {
+                    if (CONNECTION_SERVICE == null) {
+                        try {
+                            CONNECTION_SERVICE = com.dbboys.app.AppContext.get(ConnectionService.class);
+                        } catch (IllegalStateException e) {
+                            CONNECTION_SERVICE = new ConnectionService();
+                        }
+                    }
+                }
+            }
+            return CONNECTION_SERVICE;
+        }
     }
 }
-
-

@@ -10,8 +10,17 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class AdminService {
-    private final ConnectionService connectionService = new ConnectionService();
-    private final AdminRepository adminRepository = new AdminRepository();
+    private final ConnectionService connectionService;
+    private final AdminRepository adminRepository;
+
+    public AdminService() {
+        this(new ConnectionService(), new AdminRepository());
+    }
+
+    public AdminService(ConnectionService connectionService, AdminRepository adminRepository) {
+        this.connectionService = connectionService;
+        this.adminRepository = adminRepository;
+    }
 
     public void modifyChunkExtendable(Connect connect, int chunkId, boolean toExtendAble) throws Exception {
         Connection conn = connectionService.getConnection(connect);

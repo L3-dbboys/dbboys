@@ -81,7 +81,7 @@ public final class GlobalErrorHandlerUtil {
         @Override
         public void handle(Throwable e) {
             try {
-                e.printStackTrace();
+                log.error("Operation failed", e);
                 MetadataTreeviewUtil.connectionDisconnected();
             } catch (Exception ex) {
                 log.error("Connection disconnected. {}", formatExceptionDetails(ex));

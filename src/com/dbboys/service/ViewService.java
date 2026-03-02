@@ -1,7 +1,7 @@
 package com.dbboys.service;
 
-import com.dbboys.impl.MetaObjectImpl;
-import com.dbboys.impl.MetaObjectImpl.DdlFetcher;
+import com.dbboys.impl.IMetaObjectService;
+import com.dbboys.impl.IMetaObjectService.DdlFetcher;
 import com.dbboys.db.MetadataRepository;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
@@ -14,8 +14,16 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ViewService implements MetaObjectImpl {
-    private final MetadataRepository metadataRepository = new MetadataRepository();
+public class ViewService implements IMetaObjectService {
+    private final MetadataRepository metadataRepository;
+
+    public ViewService() {
+        this(new MetadataRepository());
+    }
+
+    public ViewService(MetadataRepository metadataRepository) {
+        this.metadataRepository = metadataRepository;
+    }
 
     public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
         ObjectList objectList = new ObjectList();

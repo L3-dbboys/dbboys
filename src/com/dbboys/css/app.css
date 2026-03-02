@@ -201,6 +201,20 @@
     -fx-pref-width: 240;
     -fx-graphic-text-gap: 10; /*图标与文字之间的距离,似乎无效，但设置后可避免数据管理右键后图标与文字紧连在一起*/
 }
+.context-menu .menu-item:focused {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: -fx-text-base-color;
+}
+.context-menu .menu-item:hover {
+    -fx-background: -fx-accent;
+    -fx-background-color: -fx-selection-bar;
+}
+.context-menu .menu-item:hover .label {
+    -fx-text-fill: -fx-selection-bar-text;
+}
 .choice-box {
     -fx-background-color: white; /* 背景色 */
     -fx-border-radius: 2;

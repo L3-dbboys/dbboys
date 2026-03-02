@@ -1,5 +1,6 @@
 package com.dbboys.util;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.Main;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.i18n.I18n;
@@ -351,9 +352,7 @@ class DownloadTaskWrapper {
             speedLabel.textProperty().bind(task.messageProperty());
         } 
 
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
+        AppExecutor.runTask(task);
     }
 
     
@@ -608,7 +607,7 @@ class DownloadTaskWrapper {
 
         if (task != null) task.cancel();
 
-        new Thread(() -> {
+        AppExecutor.runAsync(() -> {
             try {
                 if (task != null) task.get(); // 绛夊緟 Task 瀹屽叏缁撴潫
             } catch (Exception ignored) {}
@@ -634,10 +633,10 @@ class DownloadTaskWrapper {
                                     : I18n.t("download.notice.delete_failed", "鏂囦欢銆?s銆戝垹闄ゅけ璐ワ紝鍙兘琚崰鐢紒").formatted(file.getName())
                     );
                 }else{
-                    NotificationUtil.showNotification(Main.mainController.noticePane, I18n.t("download.notice.export_cancelled", "瀵煎嚭宸插彇娑堬紒"));
+                    NotificationUtil.showNotification(Main.mainController.noticePane,                     I18n.t("download.notice.export_cancelled", "瀵煎嚭宸插彇娑堬紒"));
                 }
             });
-        }).start();
+        });
     }
 
 
@@ -674,7 +673,7 @@ public class DownloadManagerUtil {
     static {
         downloadStackPane = Main.mainController.downloadStackPane;
         // 自动轮播
-        Thread switcher = new Thread(() -> {
+        AppExecutor.runAsync(() -> {
             try {
                 while (true) {
                     Thread.sleep(3000); // 每3秒切换
@@ -682,8 +681,6 @@ public class DownloadManagerUtil {
                 }
             } catch (InterruptedException ignored) {}
         });
-        switcher.setDaemon(true);
-        switcher.start();
     }
 
 
@@ -852,7 +849,7 @@ public class DownloadManagerUtil {
             @Override
             protected Void call() throws Exception {
                 long totalRows = -1;
-                Connection conn = new ConnectionService().getConnection(sqlConnect);
+                Connection conn = com.dbboys.app.AppContext.get(ConnectionService.class).getConnection(sqlConnect);
                 // 统计总行数
                 try (PreparedStatement cps = conn.prepareStatement("select count(*) from (" + sql + ") t")) {
                     try (ResultSet crs = cps.executeQuery()) {
@@ -876,7 +873,7 @@ public class DownloadManagerUtil {
             }
         };
         prepTask.setOnFailed(ev -> GlobalErrorHandlerUtil.handle(prepTask.getException()));
-        new Thread(prepTask, "export-prep-task").start();
+        AppExecutor.runTask(prepTask);
     }
 
     /** 娓呴櫎鎵€鏈変换鍔?*/

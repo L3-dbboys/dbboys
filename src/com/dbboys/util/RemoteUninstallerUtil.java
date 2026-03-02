@@ -1,5 +1,6 @@
 package com.dbboys.util;
 
+import com.dbboys.app.AppExecutor;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
@@ -226,7 +227,7 @@ public class RemoteUninstallerUtil {
                         });
 
 
-                        new Thread(runningTask).start();
+                        AppExecutor.runTask(runningTask);
                         stopButton.setOnAction(event1->{
                             runningTask.cancel();
                             backgroundHBox.setVisible(false);
@@ -332,7 +333,7 @@ public class RemoteUninstallerUtil {
                         AlterUtil.CustomAlert(I18n.t("common.error", "错误"), error);
                     });
 
-                    new Thread(installTask).start();
+                    AppExecutor.runTask(installTask);
                     backgroundHBox.setVisible(true);
                     stopButton.setOnAction(event1->{
                         installTask.cancel();

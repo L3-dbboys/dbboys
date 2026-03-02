@@ -361,7 +361,7 @@ public class MainController {
 
         markdownSearchButton.setOnAction(event -> {
 
-            new Thread(()->{
+            AppExecutor.runAsync(() -> {
                 Platform.runLater(()->{
                     markdownSearchButton.setVisible(false);
                 });
@@ -369,7 +369,7 @@ public class MainController {
                 Platform.runLater(()->{
                     markdownSearchButton.setVisible(true);
                 });
-            }).start();
+            });
 
         });
 
@@ -394,6 +394,22 @@ public class MainController {
     private void initMenuActions() {
         newSqlFileMenuItem.setOnAction(event -> {
             TabpaneUtil.addCustomSqlTab(null);});
+
+        fixSubmenuAutoClose(menuSettings);
+    }
+
+    private void fixSubmenuAutoClose(Menu parentMenu) {
+        for (MenuItem item : parentMenu.getItems()) {
+            if (item instanceof CustomShortcutMenuItem csmi && csmi.getContent() != null) {
+                csmi.getContent().addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
+                    for (MenuItem sibling : parentMenu.getItems()) {
+                        if (sibling instanceof Menu sub && sub.isShowing()) {
+                            sub.hide();
+                        }
+                    }
+                });
+            }
+        }
     }
 
     private void initI18nBindings() {
@@ -788,9 +804,9 @@ public class MainController {
 
     private void initBackgroundTasks() {
         //清理sql历史记录保留1000行
-        new Thread( () -> { SqliteDBaccessUtil.deleteSqlHistory();} ).start();
+        AppExecutor.runAsync(() -> SqliteDBaccessUtil.deleteSqlHistory());
         //运行一次搜索，避免首次搜索慢
-        new Thread( () -> { MarkdownSearchUtil.warmUpIndex();}).start();
+        AppExecutor.runAsync(() -> MarkdownSearchUtil.warmUpIndex());
     }
 
     //初始化数据库，响应恢复出厂设置
