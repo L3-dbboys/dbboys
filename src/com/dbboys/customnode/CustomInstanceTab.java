@@ -75,12 +75,12 @@ public class CustomInstanceTab extends CustomTab {
 
     //checktab
 
-    private CustomResultsetTableView checkTableView = new CustomResultsetTableView();
+    private CustomResultsetTableView<HealthCheck> checkTableView = new CustomResultsetTableView<>();
     private List<HealthCheck> checkDatalist = FXCollections.observableArrayList();//如果确认，返回更新后的list
     private StackPane checkStackPane;
 
     //configtab
-    private CustomResultsetTableView configTableView = new CustomResultsetTableView();
+    private CustomResultsetTableView<ObservableList<String>> configTableView = new CustomResultsetTableView<>();
     private List<ObservableList<String>> configDatalist = FXCollections.observableArrayList();//如果确认，返回更新后的list
     private StackPane configStackPane;
 
@@ -165,42 +165,42 @@ public class CustomInstanceTab extends CustomTab {
             });
             return row;
         });
-        TableColumn<ObservableList<String>, Object> nameColumn = new TableColumn<>();
+        TableColumn<HealthCheck, Object> nameColumn = new TableColumn<>();
         nameColumn.textProperty().bind(I18n.bind("instance.check.column.item", "巡检项"));
-        nameColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
+        nameColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("entry"));
         nameColumn.setReorderable(false); // 禁用拖动
         nameColumn.setEditable(false);
         nameColumn.setReorderable(false);
         nameColumn.setPrefWidth(200);
-        TableColumn<ObservableList<String>, Object> cmdColumn = new TableColumn<>();
+        TableColumn<HealthCheck, Object> cmdColumn = new TableColumn<>();
         cmdColumn.textProperty().bind(I18n.bind("instance.check.column.cmd", "巡检命令"));
-        cmdColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
+        cmdColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
         cmdColumn.setCellValueFactory(new PropertyValueFactory<>("cmd"));
         cmdColumn.setReorderable(false); // 禁用拖动
         cmdColumn.setEditable(false);
         cmdColumn.setReorderable(false);
         cmdColumn.setPrefWidth(100);
-        TableColumn<ObservableList<String>, Object> valueColumn = new TableColumn<>();
+        TableColumn<HealthCheck, Object> valueColumn = new TableColumn<>();
         valueColumn.textProperty().bind(I18n.bind("instance.check.column.expected", "正常值"));
-        valueColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
+        valueColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
         valueColumn.setCellValueFactory(new PropertyValueFactory<>("healthValue"));
         valueColumn.setReorderable(false); // 禁用拖动
         valueColumn.setEditable(false);
         valueColumn.setReorderable(false);
         valueColumn.setPrefWidth(300);
-        TableColumn<ObservableList<String>, Object> currentColumn = new TableColumn<>();
+        TableColumn<HealthCheck, Object> currentColumn = new TableColumn<>();
         currentColumn.textProperty().bind(I18n.bind("instance.check.column.current", "当前值"));
-        currentColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
+        currentColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
         currentColumn.setCellValueFactory(new PropertyValueFactory<>("currentValue"));
         currentColumn.setReorderable(false); // 禁用拖动
         currentColumn.setEditable(false);
         currentColumn.setReorderable(false);
         currentColumn.setPrefWidth(300);
 
-        TableColumn<ObservableList<String>, Object> resultColumn = new TableColumn<>();
+        TableColumn<HealthCheck, Object> resultColumn = new TableColumn<>();
         resultColumn.textProperty().bind(I18n.bind("instance.check.column.result", "巡检结论"));
-        resultColumn.setCellFactory(col -> new CustomCheckTableCell<ObservableList<String>, Object>());
+        resultColumn.setCellFactory(col -> new CustomCheckTableCell<HealthCheck, Object>());
         resultColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
         resultColumn.setReorderable(false); // 禁用拖动
         resultColumn.setEditable(false);
@@ -268,7 +268,7 @@ public class CustomInstanceTab extends CustomTab {
                 cmd="onmode -wf "+paramName+"=\""+colvalue.toString()+"\";sed -i \"s#^"+paramName+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" $GBASEDBTDIR/etc/$ONCONFIG";
             }
 
-            Task task = new Task<>() {
+            Task<Void> task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
                     try {
@@ -418,7 +418,7 @@ public class CustomInstanceTab extends CustomTab {
 
                 Label spaceTypeLabel=new Label(I18n.t("instance.dialog.space_type", "空间类型"));
                 spaceTypeLabel.setGraphic(IconFactory.group(IconPaths.INSTANCE_SPACE_TYPE_LABEL, 0.5));
-                ChoiceBox<String> spaceTypeChoiceBox = new ChoiceBox();
+                ChoiceBox<String> spaceTypeChoiceBox = new ChoiceBox<>();
                 spaceTypeChoiceBox.getItems().addAll(
                         I18n.t("instance.dialog.space_type.standard", "标准空间"),
                         I18n.t("instance.dialog.space_type.temp", "临时空间"),
@@ -457,7 +457,7 @@ public class CustomInstanceTab extends CustomTab {
 
                 Label pagesizeLabel=new Label(I18n.t("instance.dialog.page_size", "页大小"));
                 pagesizeLabel.setGraphic(IconFactory.group(IconPaths.INSTANCE_SPACE_PAGESIZE_LABEL, 0.6, 0.5));
-                ChoiceBox<String> pagesizeChoiceBox = new ChoiceBox();
+                ChoiceBox<String> pagesizeChoiceBox = new ChoiceBox<>();
                 pagesizeChoiceBox.getItems().addAll("2k","4k","6k","8k","10k","12k","14k",I18n.t("instance.dialog.page_size.16k_recommended", "16k(推荐)"));
                 pagesizeChoiceBox.getSelectionModel().select(7);
 
@@ -582,7 +582,7 @@ public class CustomInstanceTab extends CustomTab {
                         cmd="touch "+filePathTextField.getText()+"&&chown gbasedbt:gbasedbt "+filePathTextField.getText()+"&&chmod 660 "+filePathTextField.getText()+"&&"+cmd;
                         String finalCmd = cmd;
 
-                        Task task = new Task<>() {
+                        Task<Void> task = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
                                 try {
@@ -601,7 +601,7 @@ public class CustomInstanceTab extends CustomTab {
                             }
                         };
 
-                        Task processTask = new Task<>() {
+                        Task<Void> processTask = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
                                 try {
@@ -653,7 +653,7 @@ public class CustomInstanceTab extends CustomTab {
                             processTask.cancel();
                             task.cancel();
                             backgroupHbox.setVisible(false);
-                            Task stopTask = new Task<>() {
+                            Task<Void> stopTask = new Task<>() {
                                 @Override
                                 protected Void call() throws Exception {
                                     try {
@@ -726,7 +726,7 @@ public class CustomInstanceTab extends CustomTab {
                         }
                     }
                     String finalCmd = cmd;
-                    Task task = new Task<>() {
+                    Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
                             try {
@@ -766,7 +766,7 @@ public class CustomInstanceTab extends CustomTab {
                     String cmd="onspaces -d "+dbspace+" -p "+spaceUsage.getName()+" -o 0 -y";
                     cmd+="&& rm -rf "+spaceUsage.getName();
                     String finalCmd = cmd;
-                    Task task = new Task<>() {
+                    Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
                             try {
@@ -803,7 +803,7 @@ public class CustomInstanceTab extends CustomTab {
                 // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
                 if(AlterUtil.CustomAlertConfirm(I18n.t("instance.confirm.expand_datafile.title", "数据文件自动扩展"), String.format(I18n.t("instance.confirm.expand_datafile.content", "确定要设置数据文件\"%s\"自动扩展吗？"), spaceUsage.getName()))){
                     int chunkId=spaceUsage.getNumber();
-                    Task task = new Task<>() {
+                    Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
                             try {
@@ -834,7 +834,7 @@ public class CustomInstanceTab extends CustomTab {
                 // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
                 if(AlterUtil.CustomAlertConfirm(I18n.t("instance.confirm.unexpand_datafile.title", "数据文件关闭自动扩展"), String.format(I18n.t("instance.confirm.unexpand_datafile.content", "确定要关闭数据文件\"%s\"自动扩展吗？"), spaceUsage.getName()))){
                     int chunkId=spaceUsage.getNumber();
-                    Task task = new Task<>() {
+                    Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
                             try {
@@ -862,8 +862,7 @@ public class CustomInstanceTab extends CustomTab {
             public void onUnlimitedSpaceSize(CustomSpaceChart.SpaceUsage spaceUsage) {
                 // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
                 if(AlterUtil.CustomAlertConfirm(I18n.t("instance.confirm.unlimit_space.title", "解除大小限制"), String.format(I18n.t("instance.confirm.unlimit_space.content", "确定要解除数据库空间\"%s\"的大小限制吗？"), spaceUsage.getName()))){
-                    int chunkId=spaceUsage.getNumber();
-                    Task task = new Task<>() {
+                    Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
                             try {
@@ -939,7 +938,7 @@ public class CustomInstanceTab extends CustomTab {
 
         //stopButton.disableProperty().bind(startButton.disableProperty().not());
         startButton.setOnAction(e -> {
-            Task instanceInfoTask = new Task<>() {
+            Task<Void> instanceInfoTask = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
                     try {
@@ -964,7 +963,6 @@ public class CustomInstanceTab extends CustomTab {
             instanceInfoTask.setOnFailed(event1 -> {
                 AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("instance.error.start_exception", "数据库启动出现异常，请查看日志。"));
 
-                //NotificationUtil.showNotification(Main.mainController.noticePane,"数据库启动出现异常，请查看日志。");
                 startButton.setDisable(false);
             });
             startButton.setDisable(true);
@@ -973,7 +971,7 @@ public class CustomInstanceTab extends CustomTab {
 
         stopButton.setOnAction(e -> {
             if(AlterUtil.CustomAlertConfirm(I18n.t("instance.confirm.stop.title", "关闭数据库"), I18n.t("instance.confirm.stop.content", "确定要关闭数据库吗？"))) {
-                Task instanceInfoTask = new Task<>() {
+                Task<Void> instanceInfoTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
                         try {
@@ -998,7 +996,6 @@ public class CustomInstanceTab extends CustomTab {
                 instanceInfoTask.setOnFailed(event1 -> {
                     stopButton.setDisable(false);
                     AlterUtil.CustomAlert(I18n.t("common.error", "错误"), I18n.t("instance.error.stop_exception", "数据库停止出现异常，请查看日志。"));
-                    // NotificationUtil.showNotification(Main.mainController.noticePane,"数据库停止出现异常，请查看日志。");
                 });
                 stopButton.setDisable(true);
                 connect.executeSqlTask(instanceInfoTask);
@@ -1091,7 +1088,6 @@ public class CustomInstanceTab extends CustomTab {
         Node currentContent = currentTab.getContent();
         if (currentContent != null && "loadingNode".equals(currentContent.getId())) {
             // 可选：提示用户正在加载中
-            //NotificationUtil.showNotification(Main.mainController.noticePane, "当前Tab正在加载中，请稍后再试！");
             return;
         }
         currentTab.setContent(createLoadingNode());

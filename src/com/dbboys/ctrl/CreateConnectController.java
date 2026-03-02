@@ -4,7 +4,6 @@ package com.dbboys.ctrl;
 import com.dbboys.customnode.CustomInfoCodeArea;
 import com.dbboys.customnode.CustomLostFocusCommitTableCell;
 import com.dbboys.customnode.CustomResultsetTableView;
-import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.service.ConnectionService;
 import com.dbboys.i18n.I18n;
@@ -16,7 +15,6 @@ import com.dbboys.app.AppState;
 import com.dbboys.app.Main;
 import com.dbboys.vo.ConnectFolder;
 import com.dbboys.vo.Connect;
-import com.dbboys.vo.Prop;
 import com.dbboys.vo.TreeData;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -24,17 +22,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -134,7 +127,7 @@ public class CreateConnectController {
     public  Boolean isCopy;
     public  String props;
     public  Button cancelButton;
-    public  Dialog dialog;
+    public  Dialog<?> dialog;
 
     public CreateConnectController(){
 
@@ -144,7 +137,7 @@ public class CreateConnectController {
     //    this.choiceName = choiceName;
     //}
 
-    public void init(TreeData treeDataParam,Boolean isCopy,Dialog dialog){
+    public void init(TreeData treeDataParam, Boolean isCopy, Dialog<?> dialog){
         this.dialog = dialog;
         //默认属性
         this.props = DEFAULT_PROPS;
@@ -154,13 +147,13 @@ public class CreateConnectController {
         }
         this.isCopy=isCopy;
         Connect connect=new Connect();
-        ObservableList<TreeData> list = FXCollections.observableArrayList(SqliteDBaccessUtil.getConnectFolders());
+        ObservableList<ConnectFolder> list = FXCollections.observableArrayList(SqliteDBaccessUtil.getConnectFolders());
         connectFolderChoiceBox.setItems(list);
         connectFolderChoiceBox.getValue();
         connectFolderChoiceBox.getSelectionModel().select(0);
-        connect.setParentId(((ConnectFolder)connectFolderChoiceBox.getSelectionModel().getSelectedItem()).getId());
-        connectFolderChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
-            connect.setParentId(((ConnectFolder)newValue).getId());
+        connect.setParentId(connectFolderChoiceBox.getSelectionModel().getSelectedItem().getId());
+        connectFolderChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)->{
+            connect.setParentId(newValue.getId());
         });
         //根据目录里的文件夹，读取数据库种类
         List<String> dbtypes = new ArrayList<>();
@@ -504,7 +497,7 @@ public class CreateConnectController {
             if(driverChoiceBox.getItems().size()<=1){
                 AlterUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_last_one"));
             }else{
-                String currItem=(String)driverChoiceBox.getValue();
+                String currItem = driverChoiceBox.getValue();
                 File file = new File("extlib/"+dbTypeChoiceBox.getValue()+"/"+currItem);
                 if(SqliteDBaccessUtil.checkDriverInUse(currItem)){
                     //如果正在使用，提示是否确认要删除
@@ -514,7 +507,7 @@ public class CreateConnectController {
                     alert.setContentText(I18n.t("createconnect.confirm.delete_driver.content"));
                     alert.setGraphic(null); //避免显示问号
                     //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-                    AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+                    AppState.applyAppStylesheet(alert);
                     Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
                     alterstage.getIcons().add(new Image("file:images/logo.png"));
 
@@ -522,9 +515,6 @@ public class CreateConnectController {
                     ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
                     ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
                     alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-                    Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
-                    //button.setDisable(true);
-                    //textField.requestFocus();
                     ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
                     if (result == buttonTypeOk) {
                         if(file.delete()) {
@@ -565,7 +555,7 @@ public class CreateConnectController {
             ObservableList<String> rowCopy = FXCollections.observableArrayList(row);
             datalist.add(rowCopy);
         }
-        CustomResultsetTableView tableView = new CustomResultsetTableView();
+        CustomResultsetTableView<ObservableList<String>> tableView = new CustomResultsetTableView<>();
         tableView.setEditable(true);
         tableView.setSortPolicy((param) -> false);//禁用排序
 
@@ -608,7 +598,7 @@ public class CreateConnectController {
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image("file:images/logo.png"));
         HBox hbox = new HBox();
@@ -621,7 +611,6 @@ public class CreateConnectController {
         ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
         ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
         if (result == buttonTypeOk) {
             lastdata = datalist;
@@ -647,7 +636,7 @@ public class CreateConnectController {
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image("file:images/logo.png"));
         HBox hbox = new HBox();
@@ -668,7 +657,7 @@ public class CreateConnectController {
             log.error(e.getMessage(),e);
         }
         CustomInfoCodeArea codeArea = new CustomInfoCodeArea();
-        VirtualizedScrollPane virtualizedScrollPane=new VirtualizedScrollPane<>(codeArea);
+        VirtualizedScrollPane<CustomInfoCodeArea> virtualizedScrollPane = new VirtualizedScrollPane<>(codeArea);
         hbox.getChildren().add(virtualizedScrollPane);
         codeArea.setPrefWidth(400);
         codeArea.setPrefHeight(100);
@@ -680,7 +669,6 @@ public class CreateConnectController {
         ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
         ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
         if (result == buttonTypeOk) {
             try {
@@ -699,7 +687,7 @@ public class CreateConnectController {
     public void commitConnecting(Connect connect,boolean isCommit){
         try{
             setConnectingVisible(true);
-            Task task = new Task<>() {
+            Task<Void> task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
                     Long start = System.currentTimeMillis();

@@ -432,16 +432,14 @@ public class CustomTableInfoTab extends CustomTab {
         saveColumnButton.setTooltip(saveColumnTooltip);
         saveColumnButton.setOnAction(e -> {
             if (tableChangeSubmitting) {
-                NotificationUtil.showNotification(
-                        AppState.getNoticePane(),
+                NotificationUtil.showMainNotification(
                         I18n.t("tableinfo.save_changes.running", "表结构变更正在后台执行，请等待完成后再保存")
                 );
                 return;
             }
             List<String> alterSQLList = this.createMode ? generateCreateTableSQL() : generateAlterTableSQL();
             if (alterSQLList == null || alterSQLList.isEmpty()) {
-                NotificationUtil.showNotification(
-                        AppState.getNoticePane(),
+                NotificationUtil.showMainNotification(
                         I18n.t("tableinfo.save_changes.no_sql", "未检测到可执行的变更SQL")
                 );
                 return;
@@ -468,8 +466,7 @@ public class CustomTableInfoTab extends CustomTab {
                                 this.createMode = false;
                                 colsTableView.refresh();
                             }
-                            NotificationUtil.showNotification(
-                                    AppState.getNoticePane(),
+                            NotificationUtil.showMainNotification(
                                     I18n.t("tableinfo.save_changes.success", "表结构变更已成功执行")
                             );
                             colsTabLoaded = false;
@@ -478,8 +475,7 @@ public class CustomTableInfoTab extends CustomTab {
                         } catch (Exception ex) {
                             log.error("保存回调处理失败", ex);
                             try {
-                                NotificationUtil.showNotification(
-                                        AppState.getNoticePane(),
+                                NotificationUtil.showMainNotification(
                                         I18n.t("tableinfo.save_changes.success", "表结构变更已成功执行")
                                 );
                             } catch (Exception notifyEx) {
@@ -491,8 +487,7 @@ public class CustomTableInfoTab extends CustomTab {
                     },
                     () -> tableChangeSubmitting = false
             );
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     I18n.t("tableinfo.save_changes.queued", "变更SQL已提交后台任务，按顺序执行（共 %d 条）").formatted(alterSQLList.size())
             );
         });
@@ -567,7 +562,6 @@ public class CustomTableInfoTab extends CustomTab {
         Node currentContent = currentTab.getContent();
         if (currentContent != null && "loadingNode".equals(currentContent.getId())) {
             // 可选：提示用户正在加载中
-            //NotificationUtil.showNotification(Main.mainController.noticePane, "当前Tab正在加载中，请稍后再试！");
             return;
         }
         currentTab.setContent(createLoadingNode());

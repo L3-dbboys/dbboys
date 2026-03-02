@@ -166,7 +166,6 @@ public class Main extends Application {
                     Thread.currentThread().setUncaughtExceptionHandler((t, e) -> GlobalErrorHandlerUtil.handle(e));
                     primaryStage.setScene(scene);
                         //打开软件默认打开一个sql编辑面板
-                        //Main.mainController.createNewTab(null);
                         //StageStyle.UNDECORATED
                         //StageStyle.DECORATED
                         //primaryStage.setMaximized(true);
@@ -193,8 +192,6 @@ public class Main extends Application {
                                 }
                             });
                         }
-
-                        //Main.mainController.mainSplitPane.prefWidthProperty().bind(primaryStage.widthProperty());
 
                         //打开软件默认最大化
                         Main.mainController.windowMaximizeButton.fire();

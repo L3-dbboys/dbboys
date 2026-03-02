@@ -217,7 +217,7 @@ public class MarkdownUtil {
             alert.setHeaderText("");
             alert.setGraphic(null); //避免显示问号
             //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+            AppState.applyAppStylesheet(alert);
             Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
             alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             HBox hbox = new HBox();
@@ -568,7 +568,7 @@ public class MarkdownUtil {
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();

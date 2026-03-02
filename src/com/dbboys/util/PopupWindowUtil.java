@@ -344,7 +344,7 @@ public class PopupWindowUtil {
         alert.setHeaderText("");
         alert.setGraphic(null);
 
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
         if (stage.getIcons().isEmpty()) {
             stage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
@@ -386,7 +386,7 @@ public class PopupWindowUtil {
         alert.titleProperty().bind(I18n.bind("popup.param_window.title", "输入SQL绑定变量参数"));
         alert.setHeaderText("");
         alert.setGraphic(null);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
 

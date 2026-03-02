@@ -399,8 +399,7 @@ public class SqlParserUtil {
         return fromTable;
     }
 
-    public static List getSelectedCols(String sql, List cols) {
-        List selectedCols = null;
+    public static List<String> getSelectedCols(String sql, List<String> cols) {
         String regex = "(?i)SELECT\\s+(.*?)\\s+FROM(?![^(]*\\))";
 
         Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
@@ -723,119 +722,5 @@ public class SqlParserUtil {
         return sb.toString();
     }
     public static void main(String[] args) {
-        String sql = """
-                
-                select count(*),a,b,c,max(aaa)
-                  from (select distinct a.business_key as businessKey,
-                                        a.wfinstcode as wfinstCode,
-                                        b.wfinstcode as wfinstCodef,
-                                        a.wfinstname as wfinstName,
-                                        a.req_type as status, ( select count(*),* from dual)
-                                        a.node_name as name,
-                                        case
-                                          when u7.username is not null then
-                                           u7.username || '|' || a.allname
-                                          else
-                                           a.allname
-                                        end as username7,
-                                        case
-                                          when a.implement_type = '1' then
-                                           '厂商'
-                                          when a.implement_type = '0' then
-                                           '自主开发'
-                                        END as type,
-                                        u3.username as username1,
-                                        u4.fullpath as orgname1,
-                                        a.req_createdate,
-                                        u0.username as username2,
-                                        u2.orgname as orgname2,
-                                        u5.username as username3,
-                                        u6.orgname as orgname3,
-                                        '是' as ntype,
-                                                                gbase_to_date(a.time1, '%Y-%m-%d %H:%M:%S') as time1,
-                                        gbase_to_date(a.time2, '%Y-%m-%d %H:%M:%S') as time2,
-                                        gbase_to_date(a.time3, '%Y-%m-%d %H:%M:%S') as time3,
-                                        gbase_to_date(a.time4, '%Y-%m-%d %H:%M:%S') as time4,
-                                        gbase_to_date(a.time5, '%Y-%m-%d %H:%M:%S') as time5,
-                                        gbase_to_date(a.time6, '%Y-%m-%d %H:%M:%S') as time6,
-                                        gbase_to_date(a.time7, '%Y-%m-%d %H:%M:%S') as time7,
-                                        gbase_to_date(a.time8, '%Y-%m-%d %H:%M:%S') as time8,
-                                        gbase_to_date(a.time9, '%Y-%m-%d %H:%M:%S') as time9,
-                 nvl(a.time10,(select\s
-                                           max(ac4.start_time_)
-                                      from act_hi_procinst ac3
-                                      left join act_hi_actinst ac4
-                                        on ac4.proc_inst_id_ = ac3.proc_inst_id_
-                                       and ac4.act_id_ = 'dev_test'
-                                     where ac3.business_key_=a.business_key)) as time10,
-                                        nvl(a.time11, (select\s
-                                           max(ac4.start_time_)
-                                      from act_hi_procinst ac3
-                                      left join act_hi_actinst ac4
-                                        on ac4.proc_inst_id_ = ac3.proc_inst_id_
-                                       and ac4.act_id_ = 'dev_test'
-                                     where ac3.business_key_=a.business_key)) as time11,
-                
-                                        gbase_to_date(a.time12, '%Y-%m-%d %H:%M:%S') as time12,
-                                        gbase_to_date(a.closetime, '%Y-%m-%d %H:%M:%S') as time13,
-                                        ii.attrvalue as surveydate,
-                                        u8.username as username8,
-                                        a.accesstime as accesstime,
-                                        a.breqmanagername as username9,
-                                        a.dev_date as devdate,
-                                       -- cc.plandate as plandate,
-                                                           (select a,b,c,d,
-                                           max(ar.attrvalue) plandate
-                                      from tb_comm_online ol,aaa bb,ccc d
-                                      left join tb_bpm_instanceattr ar
-                                        on ar.business_key = ol.businesskey
-                                       and ar.attrcode = 'plandate'
-                                    where ol.swbusinesskey = a.business_key) as plandate,
-                                        a.demandsources as demandsources,
-                                        a.develop as developer
-                          from TB_RPT_REQ_BASE_INFO a
-                          left join tb_bpm_instance b
-                            on b.business_key = a.top_busikey
-                          left join tb_comm_user u0
-                            on a.req_manager = u0.userid
-                          left join tb_comm_organization u2
-                            on u0.orgcode = u2.orgcode
-                          left join tb_comm_user u3
-                            on b.createuserid = u3.userid
-                          left join tb_comm_organization u4
-                 on  u3.orgcode = CASE
-                        WHEN u3.orgcode LIKE 'JL000%' THEN SUBSTR(u3.orgcode, 1, 8)
-                        ELSE SUBSTR(u3.orgcode, 1, 5)
-                    END AND u4.orgcode = u3.orgcode
-                                          \s
-                
-                          left join tb_comm_user u5
-                            on a.leanman = u5.userid
-                          left join tb_comm_organization u6
-                            on u5.orgcode = u6.orgcode
-                          left join tb_comm_user u7
-                            on u7.userid = a.assignee
-                          left join tb_bpm_instanceattr ii
-                            on ii.business_key = a.business_key
-                           and ii.attrcode = 'surveydate'
-                          left join tb_comm_user u8
-                            on u8.userid = ii.createuserid
-                         where b.wfinstcode is not null
-                     )
-                """;
-        sql= """
-                select * from t
-                where id in(
-                select1 id,  --这是id --换一行
-                --sjfdlskj
-                --adssf
-                lksajdlf,aaa
-                from tt
-  /*kslsj
-        safdsa        
-    sdfsa            
-                */
-                )
-                """;
     }
 }

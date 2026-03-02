@@ -628,8 +628,7 @@ class DownloadTaskWrapper {
             Platform.runLater(() -> {
                 stackPaneRemoveSelf();
                 if(source instanceof String) {
-                    NotificationUtil.showNotification(
-                            AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                             // success ? "鏂囦欢銆? + file.getName() + "銆戜笅杞藉凡鍙栨秷锛? :
                             success ? I18n.t("download.notice.cancelled", "下载已取消！")
                                     : I18n.t("download.notice.delete_failed", "鏂囦欢銆?s銆戝垹闄ゅけ璐ワ紝鍙兘琚崰鐢紒").formatted(file.getName())

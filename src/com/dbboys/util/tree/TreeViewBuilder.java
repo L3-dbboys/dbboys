@@ -2,7 +2,6 @@ package com.dbboys.util.tree;
 
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
-import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.SqliteDBaccessUtil;
 import com.dbboys.vo.*;
@@ -11,14 +10,10 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.Comparator;
 
 
 public class TreeViewBuilder {
-    private static final Logger log = LogManager.getLogger(TreeViewBuilder.class);
 
     //创建一个TreeItem,重构ifLeaf显示箭头
     public static TreeItem<TreeData> createTreeItem(TreeData treeData) {
@@ -60,7 +55,7 @@ public class TreeViewBuilder {
         alert.setHeaderText("");
         alert.setGraphic(null);
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
@@ -103,8 +98,7 @@ public class TreeViewBuilder {
             connectFolder.setName(textField.getText());
             connectFolder.setExpand(1);
             SqliteDBaccessUtil.createConnectFolder(connectFolder);
-            TreeItem treeItem= createTreeItem(connectFolder);
-            //ConnectTreeViewUtil.treeViewAddItem(databaseobjects_treeview,treeItem);
+            TreeItem<TreeData> treeItem = createTreeItem(connectFolder);
             treeView.getRoot().getChildren().add(treeItem);
             reorderTreeview(treeView,treeItem);
         }

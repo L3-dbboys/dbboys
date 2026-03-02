@@ -42,6 +42,10 @@ public final class AppState {
         if (s != null) s.getStylesheets().add(APP_STYLESHEET);
     }
 
+    public static void applyAppStylesheet(javafx.scene.control.Alert alert) {
+        if (alert != null) applyAppStylesheet(alert.getDialogPane().getScene());
+    }
+
     // --- MainController ---
     public static MainController getMainController() { return mainController.get(); }
     public static void setMainController(MainController ctrl) { mainController.set(ctrl); }

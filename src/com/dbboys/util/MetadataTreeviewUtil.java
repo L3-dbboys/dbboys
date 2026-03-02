@@ -3,9 +3,6 @@ package com.dbboys.util;
 import com.dbboys.app.AppContext;
 import com.dbboys.customnode.*;
 
-import com.dbboys.i18n.I18n;
-import com.dbboys.ui.IconFactory;
-import com.dbboys.ui.IconPaths;
 import com.dbboys.service.ConnectionService;
 import com.dbboys.service.DatabaseService;
 import com.dbboys.service.FunctionService;
@@ -18,13 +15,9 @@ import com.dbboys.service.TableService;
 import com.dbboys.service.TriggerService;
 import com.dbboys.service.UserService;
 import com.dbboys.service.ViewService;
-import com.dbboys.impl.IMetaObjectService;
 import com.dbboys.util.tree.*;
 import com.dbboys.vo.*;
 import javafx.scene.control.*;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -32,7 +25,6 @@ import java.util.function.BiConsumer;
 
 
 public class MetadataTreeviewUtil {
-    private static final Logger log = LogManager.getLogger(MetadataTreeviewUtil.class);
 
 
     //public static ExecutorService executorService;
@@ -83,12 +75,12 @@ public class MetadataTreeviewUtil {
         treeView.getSelectionModel().select(rootItem);
         treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         treeView.setShowRoot(false);
-        List<TreeData> connectFolders = SqliteDBaccessUtil.getConnectFolders();
-        List<TreeData> connectLeafs = SqliteDBaccessUtil.getConnectLeafs();
+        List<ConnectFolder> connectFolders = SqliteDBaccessUtil.getConnectFolders();
+        List<Connect> connectLeafs = SqliteDBaccessUtil.getConnectLeafs();
         //添加分类节点
-        for(TreeData connectFolder : connectFolders){
+        for(ConnectFolder connectFolder : connectFolders){
             TreeItem<TreeData> connectFolderItem = createTreeItem(connectFolder);
-            if(((ConnectFolder)connectFolder).getExpand()==1){
+            if(connectFolder.getExpand()==1){
                 connectFolderItem.setExpanded(true);
             }else{
                 connectFolderItem.setExpanded(false);
@@ -96,8 +88,8 @@ public class MetadataTreeviewUtil {
             rootItem.getChildren().add(connectFolderItem);
 
             //每个分类添加子节点
-            for(TreeData connectLeaf : connectLeafs){
-                if(((Connect)connectLeaf).getParentId()==((ConnectFolder)connectFolder).getId()){
+            for(Connect connectLeaf : connectLeafs){
+                if(connectLeaf.getParentId()==connectFolder.getId()){
                     TreeItem<TreeData> connectLeafItem = createTreeItem(connectLeaf);
                     connectFolderItem.getChildren().add(connectLeafItem);
                 }
@@ -188,7 +180,7 @@ public class MetadataTreeviewUtil {
         TreeNavigator.treeViewMoveConnectItem(treeView, treeItem);
     }
 
-    public static void searchTree(TreeView treeView, String searchText, Button nextButton) {
+    public static void searchTree(TreeView<TreeData> treeView, String searchText, Button nextButton) {
         TreeNavigator.searchTree(treeView, searchText, nextButton);
     }
 

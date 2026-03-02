@@ -165,14 +165,10 @@ public class TreeNavigator {
         for (TreeItem<TreeData> t : selectedItem.getChildren()) {
             disconnectItem(t);
         }
-        //Main.mainController.connect_list_treeview.refresh();
-        //刷新
-        //ConnectTreeViewUtil.reorderTreeview(connect_list_treeview,selectedItem);
-
     }
 
     public static void reconnectItem(TreeItem<TreeData> selectedItem) {
-        TreeItem connTreeItem=getMetaConnTreeItem(selectedItem);
+        TreeItem<TreeData> connTreeItem = getMetaConnTreeItem(selectedItem);
         disconnectItem(connTreeItem);
         connTreeItem.setExpanded(true);
     }
@@ -188,7 +184,7 @@ public class TreeNavigator {
         TreeViewBuilder.reorderTreeview(treeView, treeItem);
     }
 
-    public static void searchTree(TreeView treeView,String searchText,Button nextButton) {
+    public static void searchTree(TreeView<TreeData> treeView, String searchText, Button nextButton) {
         nextButton.setOnAction(e -> findNext(treeView));
         nextButton.setDisable(true);
         //String searchText = searchField.getText().trim();
@@ -219,7 +215,7 @@ public class TreeNavigator {
         }
     }
 
-    public static void findNext(TreeView treeView) {
+    public static void findNext(TreeView<TreeData> treeView) {
         if (MetadataTreeviewUtil.searchResults.isEmpty()) {
             return;
         }

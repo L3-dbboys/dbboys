@@ -2,24 +2,18 @@ package com.dbboys.util;
 
 import com.dbboys.vo.ConnectFolder;
 import com.dbboys.vo.Connect;
-import com.dbboys.vo.TreeData;
 import com.dbboys.vo.UpdateResult;
 import com.dbboys.service.ConnectionService;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public  class SqliteDBaccessUtil {
     private static final Logger log = LogManager.getLogger(SqliteDBaccessUtil.class);
-
-    private static final com.dbboys.db.local.ConnectFolderDao folderDao = new com.dbboys.db.local.ConnectFolderDao();
-    private static final com.dbboys.db.local.ConnectConfigDao connectDao = new com.dbboys.db.local.ConnectConfigDao();
-    private static final com.dbboys.db.local.SqlHistoryDao historyDao = new com.dbboys.db.local.SqlHistoryDao();
 
     /** @deprecated Use {@link com.dbboys.db.local.LocalDbConnection#get()} */
     @Deprecated
@@ -47,8 +41,8 @@ public  class SqliteDBaccessUtil {
     }
 
     //获取系统分类
-    public static List<TreeData> getConnectFolders()  {
-        List<TreeData> connectFolders=new ArrayList();
+    public static List<ConnectFolder> getConnectFolders()  {
+        List<ConnectFolder> connectFolders = new ArrayList<>();
         Statement statement = null;
         try {
             statement = conn.createStatement();
@@ -264,8 +258,8 @@ public  class SqliteDBaccessUtil {
     }
 
     //获取所有连接
-    public static List<TreeData> getConnectLeafs()  {
-        List<TreeData> connectLeafList=new ArrayList();
+    public static List<Connect> getConnectLeafs()  {
+        List<Connect> connectLeafList = new ArrayList<>();
         Statement statement = null;
         try{
             statement = conn.createStatement();
@@ -300,8 +294,8 @@ public  class SqliteDBaccessUtil {
 
 
         //获取分类的所有连接
-        public static List<TreeData> getFolderConnect(ConnectFolder connectParm)  {
-            List<TreeData> connectLeafList=new ArrayList();
+        public static List<Connect> getFolderConnect(ConnectFolder connectParm)  {
+            List<Connect> connectLeafList = new ArrayList<>();
             PreparedStatement psmt = null;
             try{
                 psmt= conn.prepareStatement("select c_id,c_parentid,c_name,c_dbtype,c_ip,c_port,c_database,c_readonly,c_username,c_password,c_driver,c_props,c_info,c_drivermd5,c_dbversion from t_connect where c_parentid=? order by c_name");
@@ -455,7 +449,7 @@ public  class SqliteDBaccessUtil {
                    System.out.println(e);
                }
                int i=1;
-               while(1==1){
+               while(true){
                    return_val=connect.getName()+"_"+i;
                    if(name_list.contains(return_val)){
                        i=i+1;
@@ -591,8 +585,8 @@ public  class SqliteDBaccessUtil {
 
 
     //创建连接，如果错误返回错误信息，在调用出弹出提示
-    public static List getSqlHistoryList(Integer Id)  {
-        List return_val = new ArrayList();
+    public static List<UpdateResult> getSqlHistoryList(Integer Id)  {
+        List<UpdateResult> return_val = new ArrayList<>();
         PreparedStatement psmt = null;
         ResultSet rs = null;
         UpdateResult updateResult=new UpdateResult();

@@ -1,7 +1,6 @@
 package com.dbboys.util;
 
 import com.dbboys.app.AppExecutor;
-import com.dbboys.app.AppState;
 import com.dbboys.app.Main;
 import com.dbboys.i18n.I18n;
 import com.dbboys.vo.Version;
@@ -121,8 +120,7 @@ public class UpgradeUtil {
                 }
             } else {
 
-                NotificationUtil.showNotification(
-                        AppState.getNoticePane(),
+                NotificationUtil.showMainNotification(
                         I18n.t("upgrade.notice.already_latest", "当前已是最新版本，无需更新！")
                 );
             }

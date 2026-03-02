@@ -67,7 +67,7 @@ public final class AlterUtil {
         alert.getDialogPane().setContent(new javafx.scene.layout.VBox(text));
         ((javafx.scene.layout.VBox) alert.getDialogPane().getContent()).setPadding(CONTENT_PADDING);
 
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
 
         Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
         if (stage.getIcons().isEmpty()) {

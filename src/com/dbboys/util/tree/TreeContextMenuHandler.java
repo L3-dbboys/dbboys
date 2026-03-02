@@ -71,12 +71,8 @@ public class TreeContextMenuHandler {
                 IconFactory.group(IconPaths.METADATA_DISABLE_ITEM, 0.06, 0.06));
         MetadataTreeviewUtil.connectFolderInfoItem = MenuItemUtil.createMenuItemI18n("metadata.menu.folder_connect_info",
                 IconFactory.group(IconPaths.METADATA_CONNECT_FOLDER_INFO_ITEM, 0.55, 0.55));
-        CustomShortcutMenuItem addSystemLevel = MenuItemUtil.createMenuItemI18n("metadata.menu.add_system_level",
-                IconFactory.group(IconPaths.METADATA_ADD_SYSTEM_LEVEL, 0.7, 0.7));
         CustomShortcutMenuItem createConnectItem = MenuItemUtil.createMenuItemI18n("metadata.menu.create_connection",
                 IconFactory.group(IconPaths.METADATA_CREATE_CONNECT_ITEM, 0.6, 0.6));
-        CustomShortcutMenuItem connectOpenFileItem = MenuItemUtil.createMenuItemI18n("metadata.menu.new_sql",
-                IconFactory.group(IconPaths.METADATA_CONNECT_OPEN_FILE_ITEM, 0.65, 0.65));
         MetadataTreeviewUtil.databaseOpenFileItem = MenuItemUtil.createMenuItemI18n("metadata.menu.new_sql", "Ctrl+N",
                 IconFactory.group(IconPaths.METADATA_DATABASE_OPEN_FILE_ITEM, 0.6, 0.55));
         //MenuItem disconnectAll = new MenuItem("断开所有连接(Disconnect ALL)",disconnectItemIcon);
@@ -280,7 +276,6 @@ public class TreeContextMenuHandler {
             ClipboardContent content = new ClipboardContent();
             content.putString(selectedItem.getValue().getName());
             clipboard.setContent(content);
-            //NotificationUtil.showNotification(Main.mainController.noticePane, "对象名称已复制");
         });
         packageDDLItem.setOnAction(event-> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
@@ -311,8 +306,7 @@ public class TreeContextMenuHandler {
                 MetadataTreeviewUtil.tableService.modifyTableToRaw(connect, treeData.getName(), () -> 
                 {
                     ((Table)treeData).setTableTypeCode("raw");
-                    NotificationUtil.showNotification(
-                        AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                         I18n.t("backsql.notice.table_raw", "表\"%s\"已改为裸表！").formatted(treeData.getName())
                     );
                 }
@@ -334,8 +328,7 @@ public class TreeContextMenuHandler {
                 MetadataTreeviewUtil.tableService.modifyTableToStandard(connect, treeData.getName(), () -> 
                 {
                     ((Table)treeData).setTableTypeCode("standard");
-                    NotificationUtil.showNotification(
-                            AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                             I18n.t("backsql.notice.table_standard", "表\"%s\"已改为标准表！").formatted(treeData.getName())
                     );
             }
@@ -385,8 +378,7 @@ public class TreeContextMenuHandler {
                                 () -> item.getValue().setRunning(false)
                         );
                     }
-                    NotificationUtil.showNotification(
-                            AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                             I18n.t("backsql.notice.batch_table_truncate_submitted", "已提交%d个表的清空任务！")
                                     .formatted(selectedItems.size())
                     );
@@ -412,8 +404,7 @@ public class TreeContextMenuHandler {
                             () -> selectedItem.getValue().setRunning(false)
                     );
 
-                    NotificationUtil.showNotification(
-                        AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                         I18n.t("backsql.notice.table_truncated", "表\"%s\"已清空！").formatted(treeData.getName())
                 );
 
@@ -588,8 +579,7 @@ public class TreeContextMenuHandler {
                         selectedItem.getChildren().clear();
                         selectedItem.setExpanded(false);
                         selectedItem.setExpanded(true);
-                        NotificationUtil.showNotification(
-                                AppState.getNoticePane(),
+                        NotificationUtil.showMainNotification(
                                 I18n.t("metadata.success.create_user", "用户创建成功！")
                         );
                         dialog.close();
@@ -620,7 +610,6 @@ public class TreeContextMenuHandler {
             grid.setHgap(10);
             grid.setVgap(5);
             grid.setPadding(new Insets(10));
-            CustomUserTextField userName = new CustomUserTextField();
             CustomPasswordField passwordField1 = new CustomPasswordField();
             CustomPasswordField passwordField2 = new CustomPasswordField();
 
@@ -660,8 +649,7 @@ public class TreeContextMenuHandler {
                             connect,
                             "alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'",
                             () -> {
-                                NotificationUtil.showNotification(
-                                        AppState.getNoticePane(),
+                                NotificationUtil.showMainNotification(
                                         I18n.t("backsql.notice.user_password_reset", "用户\"%s\"密码已重置！")
                                                 .formatted(selectedItem.getValue().getName())
                                 );
@@ -692,8 +680,7 @@ public class TreeContextMenuHandler {
                 for (TreeItem<TreeData> item : selectedItems) {
                     sqlList.add("update statistics for table " + item.getValue().getName());
                 }
-                MetadataTreeviewUtil.tableService.executeObjectSqls(connect, sqlList, () -> NotificationUtil.showNotification(
-                        AppState.getNoticePane(),
+                MetadataTreeviewUtil.tableService.executeObjectSqls(connect, sqlList, () -> NotificationUtil.showMainNotification(
                         I18n.t("backsql.notice.batch_update_statistics_submitted", "%d个表统计更新已完成！")
                                 .formatted(selectedItems.size())
                 ));
@@ -811,8 +798,7 @@ public class TreeContextMenuHandler {
                             parent.getChildren().remove(item);
                         }
                     }
-                    NotificationUtil.showNotification(
-                            AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                             I18n.t("backsql.notice.batch_table_delete_submitted", "%d个表已删除！")
                                     .formatted(selectedItems.size())
                     );
@@ -847,8 +833,7 @@ public class TreeContextMenuHandler {
                             parent.getChildren().remove(item);
                         }
                     }
-                    NotificationUtil.showNotification(
-                            AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                             I18n.t("metadata.notice.delete_object_batch_done", "已删除%d个%s！")
                                     .formatted(selectedItems.size(), objectDisplayName)
                     );
@@ -866,13 +851,13 @@ public class TreeContextMenuHandler {
             alert.setHeaderText("");
             alert.setGraphic(null); //避免显示问号
             //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+            AppState.applyAppStylesheet(alert);
             Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
             alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             HBox hbox = new HBox();
             hbox.getChildren().add(new Label(I18n.t("metadata.dialog.move_connection.target", "请选择移动到  ")));
             hbox.setAlignment(Pos.CENTER_LEFT);
-            ChoiceBox choiceBox = new ChoiceBox();
+            ChoiceBox<TreeData> choiceBox = new ChoiceBox<>();
             List<TreeData> list = new ArrayList<>();
             for (TreeItem<TreeData> treeItem : treeView.getRoot().getChildren()) {
                 if ( !treeItem.getValue().getName().equals(selectedItem.getParent().getValue().getName())) {
@@ -888,7 +873,6 @@ public class TreeContextMenuHandler {
             ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
             ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
             alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-            Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
             choiceBox.requestFocus();
             choiceBox.setPrefWidth(150);
             Connect connect = (Connect) selectedItem.getValue();
@@ -934,7 +918,7 @@ public class TreeContextMenuHandler {
             alert.setHeaderText("");
             alert.setGraphic(null); //避免显示问号
             //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+            AppState.applyAppStylesheet(alert);
             Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
             alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             GridPane grid = new GridPane();
@@ -1031,8 +1015,7 @@ public class TreeContextMenuHandler {
                         + ((String) comboBox1.getValue()).replaceAll("\\([^()]*\\)", "")
                         + " with log";
                 MetadataTreeviewUtil.databaseService.executeObjectSql(connect, sql, () -> {
-                    NotificationUtil.showNotification(
-                            AppState.getNoticePane(),
+                    NotificationUtil.showMainNotification(
                             I18n.t("backsql.notice.database_created", "数据库[%s]创建成功").formatted(textField.getText())
                     );
                     selectedItem.getChildren().clear();

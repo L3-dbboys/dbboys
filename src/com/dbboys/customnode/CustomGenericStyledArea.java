@@ -25,8 +25,6 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.FileChooser;
@@ -829,10 +827,9 @@ public class CustomGenericStyledArea extends GenericStyledArea {
      */
     private Node createTableView(List<List<String>> tableRows) {
         // 创建表格视图
-        CustomResultsetTableView tableView = new CustomResultsetTableView();
+        CustomResultsetTableView<List<String>> tableView = new CustomResultsetTableView<>();
         tableView.setStyle("-fx-border-color: #dddddd; -fx-border-width: 1px;");
         tableView.prefWidthProperty().bind(widthProperty().subtract(20)); // 自适应宽度
-        //tableView.prefWidthProperty().bind(Main.mainController.sqlTabPane.widthProperty().subtract(20)); // 自适应宽度
 
         // 获取表头行（第一行）
         List<String> headers = tableRows.get(0);

@@ -1,6 +1,5 @@
 package com.dbboys.customnode;
 
-import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
@@ -223,8 +222,7 @@ public class CustomSearchReplaceVbox extends VBox {
             highlightAndMove(foundPos, findText.length());
             lastFindPosition = foundPos;
         } else {
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     I18n.t("searchreplace.notice.reach_end", "已到达结尾，下一个从开头开始查找！")
             );
             lastFindPosition = -1;
@@ -255,8 +253,7 @@ public class CustomSearchReplaceVbox extends VBox {
             highlightAndMove(foundPos, findText.length());
             lastFindPosition = foundPos;
         } else {
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     I18n.t("searchreplace.notice.reach_start", "已到达开头，下一个从结尾开始搜索!")
             );
             lastFindPosition = -1;
@@ -283,7 +280,6 @@ public class CustomSearchReplaceVbox extends VBox {
 
             // 执行替换
             codeArea.replaceText(lastFindPosition, lastFindPosition + findText.length(), replaceText);
-            //NotificationUtil.showNotification(Main.mainController.noticePane,"已替换一处!");
 
             // 继续查找下一个
             lastFindPosition = lastFindPosition + replaceText.length();
@@ -331,8 +327,7 @@ public class CustomSearchReplaceVbox extends VBox {
         // 更新文本
         if (count > 0) {
             codeArea.replaceText(0, text.length(), newText.toString());
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     String.format(I18n.t("searchreplace.notice.replace_all_count", "已替换全部 %d 处！"), count)
             );
             lastFindPosition = -1;

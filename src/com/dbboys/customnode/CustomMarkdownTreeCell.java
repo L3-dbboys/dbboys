@@ -107,7 +107,6 @@ public class CustomMarkdownTreeCell extends TreeCell<Markdown> {
                     }catch (Exception e){
                         log.error(e.getMessage(), e);
                     }
-                    //NotificationUtil.showNotification(Main.mainController.noticePane, "不支持Markdown以外的文件格式编辑！");
                 }
             }
         }

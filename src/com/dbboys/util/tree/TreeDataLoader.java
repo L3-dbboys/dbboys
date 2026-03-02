@@ -10,16 +10,12 @@ import com.dbboys.vo.*;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.scene.control.TreeItem;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class TreeDataLoader {
-    private static final Logger log = LogManager.getLogger(TreeDataLoader.class);
 
     public enum ObjectFolderKind {
         SYSTEM_TABLE_VIEW,

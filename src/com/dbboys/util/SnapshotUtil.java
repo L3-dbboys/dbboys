@@ -52,8 +52,7 @@ public class SnapshotUtil {
             );
         } catch (IOException e) {
             log.error("Failed to write snapshot image.", e);
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     I18n.t("snapshot.error.write_failed", "截图写入临时文件失败：%s").formatted(e.getMessage())
             );
         }

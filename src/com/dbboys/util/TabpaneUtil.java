@@ -5,7 +5,6 @@ import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.ConnectFolder;
-import com.dbboys.vo.Table;
 import com.dbboys.vo.TreeData;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -96,7 +95,7 @@ public class TabpaneUtil {
 
         newtab.setContent(instanceInfoTableView);
         //如果分类下有连接，显示所有连接信息
-        ObservableList<TreeData> data = FXCollections.observableArrayList(SqliteDBaccessUtil.getFolderConnect(connect));
+        ObservableList<TreeData> data = FXCollections.observableArrayList(new ArrayList<>(SqliteDBaccessUtil.getFolderConnect(connect)));
         // 设置数据
         instanceInfoTableView.setItems(data);
         //默认选中第一行，保证右键事件当前行不为null
@@ -146,7 +145,6 @@ public class TabpaneUtil {
     }
 
     public static void addCustomCreateTableTab(TreeItem<TreeData> treeItem) {
-        TreeData treeData = treeItem.getValue();
         String newTableName = nextNewTableName(treeItem);
         System.out.print("newTableName:"+newTableName);
 

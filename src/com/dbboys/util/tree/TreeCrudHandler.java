@@ -4,7 +4,6 @@ import com.dbboys.app.AppState;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.impl.IMetaObjectService;
-import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
@@ -17,19 +16,13 @@ import javafx.scene.layout.HBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
 
 public class TreeCrudHandler {
-    private static final Logger log = LogManager.getLogger(TreeCrudHandler.class);
 
     public enum ExportFormat {CSV, JSON, SQL}
 
@@ -42,7 +35,7 @@ public class TreeCrudHandler {
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
@@ -193,8 +186,7 @@ public class TreeCrudHandler {
         Connect connect = buildObjectConnect(selectedItem, useSysmaster);
         service.renameObject(connect, sql, () -> {
             selectedItem.getValue().setName(newName);
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     I18n.t("backsql.notice.renamed", "%s\"%s\"已重命名为\"%s\"")
                             .formatted(objectDisplayName, oldName, newName)
             );
@@ -232,8 +224,7 @@ public class TreeCrudHandler {
             if (parent != null) {
                 parent.getChildren().remove(selectedItem);
             }
-            NotificationUtil.showNotification(
-                    AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                     I18n.t("backsql.notice.deleted", "%s\"%s\"已删除！")
                             .formatted(objectDisplayName, selectedItem.getValue().getName())
             );
@@ -348,8 +339,7 @@ public class TreeCrudHandler {
         Runnable onSucceeded = () -> {
             ((Index)treeData).setIsdisabled(!enabled);
 
-            NotificationUtil.showNotification(
-                AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                 I18n.t(
                         enabled ? "backsql.notice.index_enabled" : "backsql.notice.index_disabled",
                         enabled ? "索引\"%s\"已启用！" : "索引\"%s\"已禁用！"
@@ -378,8 +368,7 @@ public class TreeCrudHandler {
         String sql = "set triggers " + treeData.getName() + (enabled ? " enabled" : " disabled");
         Runnable onSucceeded = () -> {
             ((Trigger)treeData).setIsdisabled(!enabled);
-            NotificationUtil.showNotification(
-                AppState.getNoticePane(),
+            NotificationUtil.showMainNotification(
                 I18n.t(
                         enabled ? "backsql.notice.trigger_enabled" : "backsql.notice.trigger_disabled",
                         enabled ? "触发器\"%s\"已启用！" : "触发器\"%s\"已禁用！"

@@ -34,10 +34,7 @@ import org.apache.logging.log4j.Logger;
 
 import javax.swing.filechooser.FileSystemView;
 import java.io.*;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -112,8 +109,6 @@ public class RemoteInstallerUtil {
     private static ToggleGroup uploadToggleGroup = new ToggleGroup();
     private static RadioButton notUploadedRadioButton = new RadioButton();
     private static RadioButton uploadedRadioButton = new RadioButton();
-    // Legacy list kept for compatibility with existing step logic; source of truth is installConfigItems.
-    private static List<ObservableList<String>> configList = FXCollections.observableArrayList();
     private static final ObservableList<InstallConfigItem> installConfigItems = FXCollections.observableArrayList();
     private static final Map<ConfigKey, InstallConfigItem> installConfigMap = new EnumMap<>(ConfigKey.class);
 
@@ -344,12 +339,9 @@ public class RemoteInstallerUtil {
                                         fileSystemInfo = executeCommand("df -h");
                                         diskInfo = executeCommand("lsblk");
                                         kernelInfo = executeCommand("uname -a");
-                                        String kernelParams = executeCommand("sysctl -p");
-
                                         // 显示信息
                                         Platform.runLater(() -> {
                                             systemInfoArea.replaceText("");
-                                            int start = 0;
 
                                             systemInfoArea.append(I18n.t("remote.install.info.machine", "服务器型号") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(machineInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
@@ -587,7 +579,7 @@ public class RemoteInstallerUtil {
 
                     break;
                 case 4:
-                    Task installTask = new Task<>() {
+                    Task<Void> installTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
                             // 任务开始后禁用所有复选框，防止中途修改
@@ -2389,9 +2381,6 @@ GBASEEOF
 
     private static void refreshLegacyConfigListFromItems() {
         rebuildInstallConfigMap();
-        configList = installConfigItems.stream()
-                .map(item -> FXCollections.observableArrayList(item.id, item.name, item.value, item.description))
-                .collect(Collectors.toList());
     }
 
     public static void modifyEnv(){
@@ -2400,7 +2389,7 @@ GBASEEOF
                 .map(InstallConfigItem::new)
                 .collect(Collectors.toCollection(FXCollections::observableArrayList));
 
-        CustomResultsetTableView tableView = new CustomResultsetTableView();
+        CustomResultsetTableView<InstallConfigItem> tableView = new CustomResultsetTableView<>();
         tableView.setEditable(true);
         tableView.setSortPolicy((param) -> false);//禁用排序
 
@@ -2435,7 +2424,6 @@ GBASEEOF
                 rowData.value = newValue == null ? "" : newValue.toString();
                 if ("data_file_path".equals(rowData.id)) {
                     try {
-                        Path path = Paths.get((String) newValue);
                         String remoteScript =
                                 "path=" + shellQuote(String.valueOf(newValue)) + ";" +
                                         "while [ ! -e \"$path\" ]; do " +
@@ -2509,7 +2497,7 @@ GBASEEOF
         alert.setHeaderText("");
         alert.setGraphic(null); //避免显示问号
         //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert.getDialogPane().getScene());
+        AppState.applyAppStylesheet(alert);
         Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
         alterstage.getIcons().add(new Image("file:images/logo.png"));
         HBox hbox = new HBox();
