@@ -16,8 +16,6 @@ public interface ConnectionService {
 
     void changeCommitMode(Connection conn, int commitChoiceBoxIndex) throws SQLException;
 
-    void sessionChangeToGbaseMode(Connection conn);
-
     ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database);
 
     String modifyProps(Connect connect, String DBlocale);

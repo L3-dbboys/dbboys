@@ -4,9 +4,7 @@ import com.dbboys.ctrl.SqlTabController;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.dbboys.api.ConnectionService;
-import com.dbboys.api.SqlexeRepository;
-import com.dbboys.impl.ConnectionServiceImpl;
-import com.dbboys.impl.SqlexeRepositoryImpl;
+import com.dbboys.api.SqlexeRepositoryProvider;
 import com.dbboys.util.AlertUtil;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.vo.Connect;
@@ -24,21 +22,21 @@ public class SqlexeService {
     private static final Logger log = LogManager.getLogger(SqlexeService.class);
     private final ConnectionService connectionService;
     private final DatabaseService databaseService;
-    private final SqlexeRepository sqlexeRepository;
+    private final SqlexeRepositoryProvider sqlexeRepositoryProvider;
 
     public SqlexeService() {
-        this(new ConnectionServiceImpl(), new DatabaseService(), new SqlexeRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(ConnectionService.class), com.dbboys.app.AppContext.get(DatabaseService.class), com.dbboys.app.AppContext.get(SqlexeRepositoryProvider.class));
     }
 
-    public SqlexeService(ConnectionService connectionService, DatabaseService databaseService, SqlexeRepository sqlexeRepository) {
+    public SqlexeService(ConnectionService connectionService, DatabaseService databaseService, SqlexeRepositoryProvider sqlexeRepositoryProvider) {
         this.connectionService = connectionService;
         this.databaseService = databaseService;
-        this.sqlexeRepository = sqlexeRepository;
+        this.sqlexeRepositoryProvider = sqlexeRepositoryProvider;
     }
 
-    public List<String> getSqlMode(Connection conn) {
+    public List<String> getSqlMode(Connect connect, Connection conn) {
         try {
-            return sqlexeRepository.getSqlMode(conn);
+            return sqlexeRepositoryProvider.get(connect).getSqlMode(conn);
         } catch (SQLException e) {
             log.error("Operation failed", e);
             return new ArrayList<>();
@@ -51,7 +49,7 @@ public class SqlexeService {
         Connection connection = connect.getConn();
         Connection connection1 = null;
         try {
-            sqlexeRepository.setDatabase(connection, database.getName());
+            sqlexeRepositoryProvider.get(connect).setDatabase(connection, database.getName());
             connect.setDatabase(database.getName());
             result = "success";
         } catch (SQLException e) {
@@ -97,11 +95,11 @@ public class SqlexeService {
         Connection connection = connect.getConn();
         List<Database> catalogs = new ArrayList<>();
         try {
-            catalogs = databaseService.getDatabases(connection, false);
+            catalogs = databaseService.getDatabases(connect, false);
         } catch (SQLException e) {
             if (e.getErrorCode() == -201) {
                 try {
-                    catalogs = databaseService.getDatabases(connection, true);
+                    catalogs = databaseService.getDatabases(connect, true);
                 } catch (Exception ex) {
                     log.error("Operation failed", ex);
                 }

@@ -2,8 +2,7 @@ package com.dbboys.service;
 
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.util.SqlParserUtil;
 import com.dbboys.vo.Connect;
@@ -17,23 +16,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PackageService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public PackageService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public PackageService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public PackageService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
 
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<DBPackage> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getPackageCount(conn);
+        int count = repo.getPackageCount(conn);
         objectList.setInfo(count + "个");
-        result.addAll(metadataRepository.getPackages(conn, databaseName));
+        result.addAll(repo.getPackages(conn, databaseName));
         return objectList;
     }
     @Override

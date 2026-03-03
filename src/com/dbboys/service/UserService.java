@@ -1,40 +1,37 @@
 package com.dbboys.service;
 
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
 import com.dbboys.api.MetaObjectService;
-import com.dbboys.db.DDLRepository;
+import com.dbboys.api.MetadataRepositoryProvider;
+import com.dbboys.vo.Connect;
 import com.dbboys.vo.ObjectList;
 import com.dbboys.vo.User;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class UserService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public UserService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public UserService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public UserService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
-
 
     @Override
     public DdlFetcher ddlFetcher() {
         return null;
     }
 
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
         return null;
     }
 
-    public List<User> getUsers(Connection conn) throws SQLException {
-        return metadataRepository.getUsers(conn);
+    public List<User> getUsers(Connect connect, Connection conn) throws SQLException {
+        return metadataRepositoryProvider.get(connect).getUsers(conn);
     }
 }
 

@@ -3,8 +3,7 @@ package com.dbboys.service;
 import com.dbboys.app.AppExecutor;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.*;
@@ -17,28 +16,30 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class TableService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public TableService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public TableService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public TableService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<Table> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getUserTablesCount(conn);
-        String size = metadataRepository.getUserTablesSize(conn, databaseName);
+        int count = repo.getUserTablesCount(conn);
+        String size = repo.getUserTablesSize(conn, databaseName);
         String info = count + "个";
         if (size != null) {
             info = info + "/" + size;
         }
         objectList.setInfo(info);
         LOG.info("loadObjects: " + info );
-        result.addAll(metadataRepository.getUserTables(conn, databaseName));
+        result.addAll(repo.getUserTables(conn, databaseName));
         return objectList;
     }
 
@@ -50,17 +51,18 @@ public class TableService implements MetaObjectService {
 
 
     public ObjectList loadSystemTables(Connect connect, Database database) throws Exception {
-        return withMetaSession(connect, database, conn -> buildSystemTables(conn, database.getName()));
+        return withMetaSession(connect, database, conn -> buildSystemTables(connect, conn, database.getName()));
     }
 
-    private ObjectList buildSystemTables(Connection conn, String databaseName) throws SQLException {
+    private ObjectList buildSystemTables(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<SysTable> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getSystemTablesCount(conn);
-        String size = metadataRepository.getSystemTablesSize(conn, databaseName);
+        int count = repo.getSystemTablesCount(conn);
+        String size = repo.getSystemTablesSize(conn, databaseName);
         objectList.setInfo(count + "个/" + size);
-        result.addAll(metadataRepository.getSystemTables(conn, databaseName));
+        result.addAll(repo.getSystemTables(conn, databaseName));
         return objectList;
     }
     public ArrayList<ColumnsInfo> getColumns(Connect connect, Database database,String objectName) throws Exception {
@@ -68,11 +70,11 @@ public class TableService implements MetaObjectService {
     }
 
     public Table getTable(Connect connect, Database database,String objectName) throws Exception {
-        return withMetaSession(connect, database, conn -> metadataRepository.getTable(conn, database.getName(), objectName));
+        return withMetaSession(connect, database, conn -> metadataRepositoryProvider.get(connect).getTable(conn, database.getName(), objectName));
     }
 
     public String getTableComment(Connect connect, Database database, String objectName) throws Exception {
-        return withMetaSession(connect, database, conn -> metadataRepository.getTableComment(conn, objectName));
+        return withMetaSession(connect, database, conn -> metadataRepositoryProvider.get(connect).getTableComment(conn, objectName));
     }
 
     public void updateStatistics(Connect connect, String sql, Runnable onSucceededUi) {
@@ -96,7 +98,7 @@ public class TableService implements MetaObjectService {
             @Override
             protected List<String> call() throws Exception {
                 try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
-                    return metadataRepository.getIndexColumnsForTable(conn, tableName);
+                    return metadataRepositoryProvider.get(connect).getIndexColumnsForTable(conn, tableName);
                 }
             }
         };

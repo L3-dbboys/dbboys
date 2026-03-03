@@ -973,7 +973,8 @@ public class TreeContextMenuHandler {
                 else {
                     log.info("selectitem is "+selectedItem.getValue().getName());
                 }
-                dbspaceList = FXCollections.observableArrayList(TreeViewUtil.databaseService.getDBspaceForCreateDatabase(((Connect) selectedItem.getParent().getValue()).getConn()));
+                Connect connectForDb = (Connect) selectedItem.getParent().getValue();
+                dbspaceList = FXCollections.observableArrayList(TreeViewUtil.databaseService.getDBspaceForCreateDatabase(connectForDb));
             }catch (SQLException e){
                 AppErrorHandler.handle(e);
             }

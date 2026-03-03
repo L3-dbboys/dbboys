@@ -2,8 +2,7 @@ package com.dbboys.service;
 
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
@@ -19,27 +18,28 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class TriggerService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public TriggerService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public TriggerService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public TriggerService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
 
     public Trigger getTrigger(Connect connect, Database database,String objectName) throws Exception {
-        return withMetaSession(connect, database, conn -> metadataRepository.getTrigger(conn, database.getName(), objectName));
+        return withMetaSession(connect, database, conn -> metadataRepositoryProvider.get(connect).getTrigger(conn, database.getName(), objectName));
     }
 
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<Trigger> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getTriggerCount(conn);
+        int count = repo.getTriggerCount(conn);
         objectList.setInfo(count + "个");
-        result.addAll(metadataRepository.getTriggers(conn, databaseName));
+        result.addAll(repo.getTriggers(conn, databaseName));
         return objectList;
     }
     @Override

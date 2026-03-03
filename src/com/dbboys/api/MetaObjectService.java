@@ -29,7 +29,7 @@ public interface MetaObjectService {
 
     DdlFetcher ddlFetcher();
 
-    ObjectList loadObjects(Connection conn, String databaseName) throws Exception;
+    ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws Exception;
 
     default ConnectionService connectionService() {
         return Holder.get();
@@ -46,7 +46,7 @@ public interface MetaObjectService {
     }
 
     default ObjectList loadObjects(Connect connect, Database database) throws Exception {
-        return withMetaSession(connect, database, conn -> loadObjects(conn, database.getName()));
+        return withMetaSession(connect, database, conn -> loadObjects(connect, conn, database.getName()));
     }
 
     default void renameObject(Connect connect, String sql, Runnable onSucceededUi) {

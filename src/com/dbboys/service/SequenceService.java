@@ -2,8 +2,7 @@ package com.dbboys.service;
 
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
@@ -16,24 +15,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SequenceService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public SequenceService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public SequenceService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public SequenceService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
 
     @Override
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<Sequence> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getSequenceCount(conn);
+        int count = repo.getSequenceCount(conn);
         objectList.setInfo(count + "个");
-        result.addAll(metadataRepository.getSequences(conn, databaseName));
+        result.addAll(repo.getSequences(conn, databaseName));
         return objectList;
     }
     @Override

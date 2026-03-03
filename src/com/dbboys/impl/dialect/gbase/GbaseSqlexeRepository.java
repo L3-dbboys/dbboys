@@ -1,4 +1,4 @@
-package com.dbboys.impl;
+package com.dbboys.impl.dialect.gbase;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SqlexeRepositoryImpl implements com.dbboys.api.SqlexeRepository {
+public class GbaseSqlexeRepository implements com.dbboys.api.SqlexeRepository {
     public static final String SQL_SYS_DUAL = "select  * from sysmaster:sysdual";
     public static final String SQLMODE_GBASE = "set environment sqlmode 'gbase'";
     public static final String SQLMODE_MYSQL = "set environment sqlmode 'mysql'";

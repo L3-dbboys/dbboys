@@ -2,8 +2,7 @@ package com.dbboys.service;
 
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
@@ -16,24 +15,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FunctionService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public FunctionService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public FunctionService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public FunctionService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
 
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<Function> result = new ArrayList<>();
         objectList.setItems(result);
-        boolean filterType = metadataRepository.hasSysProcTypeColumn(conn);
-        int count = metadataRepository.getFunctionCount(conn, filterType);
+        boolean filterType = repo.hasSysProcTypeColumn(conn);
+        int count = repo.getFunctionCount(conn, filterType);
         objectList.setInfo(count + "个");
-        result.addAll(metadataRepository.getFunctions(conn, databaseName, filterType));
+        result.addAll(repo.getFunctions(conn, databaseName, filterType));
         return objectList;
     }
     @Override

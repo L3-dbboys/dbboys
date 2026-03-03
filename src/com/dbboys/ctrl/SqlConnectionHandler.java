@@ -220,7 +220,7 @@ public class SqlConnectionHandler {
                         ctrl.suppressDbChange = false;
                     });
                 } else if (result.equals("success")) {
-                    ctrl.updateSqlModeChoicebox(sqlexeService.getSqlMode(ctrl.sqlConnect.getConn()));
+                    ctrl.updateSqlModeChoicebox(sqlexeService.getSqlMode(ctrl.sqlConnect, ctrl.sqlConnect.getConn()));
                     if (ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex() == 1) {
                         try {
                             ctrl.sqlConnect.getConn().setAutoCommit(false);

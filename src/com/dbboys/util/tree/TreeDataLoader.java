@@ -42,9 +42,8 @@ public class TreeDataLoader {
             TreeNavigator.getMetaConnect(treeItem).executeSqlTask(
                     () -> {
                         try{
-                              connect.setConn(TreeViewUtil.metadataService.getConnection(connect));
-                              //连接之后切换到gbase模式
-                              TreeViewUtil.metadataService.sessionChangeToGbaseMode(connect.getConn());
+                              // 获取已经按当前数据库类型初始化过会话的连接
+                              connect.setConn(TreeViewUtil.metadataService.getGbaseModeConnection(connect));
 
 
                             //TreeItem<TreeData> scanItem=createTreeItem(checkTreeData);
@@ -89,12 +88,12 @@ public class TreeDataLoader {
                     () -> {
                           final List<Database> databases = new ArrayList<>();
                           try {
-                              databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem).getConn(), false));
+                              databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem), false));
                           } catch (SQLException e) {
                               if (e.getErrorCode() == -201) {
                                   try {
                                       databases.clear();
-                                      databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem).getConn(), true));
+                                      databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem), true));
                                   } catch (SQLException ex) {
                                       AppErrorHandler.handle(ex);
                                   }
@@ -125,7 +124,7 @@ public class TreeDataLoader {
                     () -> {
                           final List<User> users = new ArrayList<>();
                           try {
-                              users.addAll(TreeViewUtil.userService.getUsers(TreeNavigator.getMetaConnect(treeItem).getConn()));
+                              users.addAll(TreeViewUtil.userService.getUsers(TreeNavigator.getMetaConnect(treeItem), TreeNavigator.getMetaConnect(treeItem).getConn()));
                           } catch (SQLException e) {
                               AppErrorHandler.handle(e);
                           }

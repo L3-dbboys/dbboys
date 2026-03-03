@@ -1,16 +1,13 @@
 package com.dbboys.impl;
 
-import com.dbboys.api.MetadataRepository;
 import com.dbboys.api.ConnectionService;
-import com.dbboys.api.ConnectionService.ChangeDefaultDatabaseResult;
-import com.dbboys.api.ConnectionService.SqlWork;
+import com.dbboys.api.MetadataRepositoryProvider;
+import com.dbboys.api.DatabaseDialect;
+import com.dbboys.impl.dialect.DatabaseDialectRegistry;
 import com.dbboys.i18n.I18n;
-import com.dbboys.app.AppErrorHandler;
 import com.dbboys.util.MD5Util;
-import com.dbboys.util.tree.TreeViewUtil;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.vo.*;
-import javafx.scene.control.TreeItem;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -33,42 +30,37 @@ public class ConnectionServiceImpl implements ConnectionService {
     private static final Logger log = LogManager.getLogger(ConnectionServiceImpl.class);
     private static final Map<String, Driver> DRIVER_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, URLClassLoader> LOADER_CACHE = new ConcurrentHashMap<>();
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
+    private final DatabaseDialectRegistry dialectRegistry;
 
     public ConnectionServiceImpl() {
-        this(new MetadataRepositoryImpl());
+        this(new DefaultMetadataRepositoryProvider(DatabaseDialectRegistry.createDefault()), DatabaseDialectRegistry.createDefault());
     }
 
-    public ConnectionServiceImpl(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public ConnectionServiceImpl(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this(metadataRepositoryProvider, DatabaseDialectRegistry.createDefault());
+    }
+
+    public ConnectionServiceImpl(MetadataRepositoryProvider metadataRepositoryProvider, DatabaseDialectRegistry dialectRegistry) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
+        this.dialectRegistry = dialectRegistry != null ? dialectRegistry : DatabaseDialectRegistry.createDefault();
     }
 
     public Connection createConnection(Connect connect) throws Exception {
-        String urlString = null;
-        String className = null;
-        String jarFilePath = null;
-
-        switch (connect.getDbtype()) {
-            case "GBASE 8S":
-                if (connect.getPropByName("GBASEDBTSERVER").isEmpty()) {
-                    urlString = "jdbc:gbasedbt-sqli://" + connect.getIp() + ":" + connect.getPort() + "/" + connect.getDatabase();
-                } else {
-                    urlString = "jdbc:gbasedbt-sqli:/" + connect.getDatabase() + ":SQLH_TYPE=FILE;SQLH_FILE=extlib/GBASE 8S/sqlhosts;";
-                }
-                className = "com.gbasedbt.jdbc.Driver";
-                jarFilePath = "file:extlib/" + connect.getDbtype() + "/" + connect.getDriver();
-                break;
-            case "oracle":
-                break;
-            default:
-                break;
+        DatabaseDialect dialect = dialectRegistry.getDialect(connect.getDbtype());
+        if (dialect == null) {
+            throw new IllegalArgumentException("Unsupported database type: " + connect.getDbtype());
         }
+        DatabaseDialect.ConnectionParams params = dialect.getConnectionParams(connect);
+        Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
+        Properties info = buildConnectionProperties(connect);
+        return driver.connect(params.getUrl(), info);
+    }
 
-        Driver driver = getOrLoadDriver(className, jarFilePath);
+    private static Properties buildConnectionProperties(Connect connect) {
         Properties info = new Properties();
         info.setProperty("user", connect.getUsername());
         info.setProperty("password", connect.getPassword());
-
         JSONArray jsonArray = new JSONArray(connect.getProps());
         for (int i = 0; i < jsonArray.length(); i++) {
             JSONObject jsonObject = jsonArray.getJSONObject(i);
@@ -76,9 +68,7 @@ public class ConnectionServiceImpl implements ConnectionService {
                 info.setProperty(jsonObject.getString("propName"), jsonObject.getString("propValue"));
             }
         }
-
-        Connection connection = driver.connect(urlString, info);
-        return connection;
+        return info;
     }
 
     private Driver getOrLoadDriver(String className, String jarFilePath) throws Exception {
@@ -108,7 +98,7 @@ public class ConnectionServiceImpl implements ConnectionService {
 
     public Connection getGbaseModeConnection(Connect connect) throws Exception {
         Connection conn = createConnection(connect);
-        sessionChangeToGbaseMode(conn);
+        initializeSessionIfSupported(connect, conn);
         return conn;
     }
 
@@ -124,11 +114,17 @@ public class ConnectionServiceImpl implements ConnectionService {
         }
     }
 
-    public void sessionChangeToGbaseMode(Connection conn) {
-        try {
-            conn.createStatement().execute("set environment sqlmode 'gbase'");
-        } catch (SQLException e) {
-            // ignore
+    private void initializeSessionIfSupported(Connect connect, Connection conn) {
+        if (connect == null || conn == null) {
+            return;
+        }
+        DatabaseDialect dialect = dialectRegistry.getDialect(connect.getDbtype());
+        if (dialect != null && dialect.supportsSessionInit()) {
+            try {
+                dialect.sessionInit(conn, connect);
+            } catch (Exception e) {
+                // ignore
+            }
         }
     }
 
@@ -139,7 +135,7 @@ public class ConnectionServiceImpl implements ConnectionService {
             return result;
         }
         try {
-            metadataRepository.changeDatabase(connect.getConn(), database.getName());
+            metadataRepositoryProvider.get(connect).changeDatabase(connect.getConn(), database.getName());
             connect.setDatabase(database.getName());
             if(database.getName().equals("sysmaster")||database.getName().equals("sysadmin")||database.getName().equals("sysutils")||database.getName().equals("syscdcv1")||database.getName().equals("sys")||database.getName().equals("gbasedbt")){
             }else{
@@ -158,7 +154,7 @@ public class ConnectionServiceImpl implements ConnectionService {
                     connect.setDatabase(database.getName());
                     connect.setProps(modifyProps(connect, database.getDbLocale()));
                     connect.setConn(getConnection(connect));
-                    sessionChangeToGbaseMode(connect.getConn());
+                    initializeSessionIfSupported(connect, connect.getConn());
                     LocalDbRepository.updateConnect(connect);
                     result.setSuccess(true);
                 } catch (Exception ex) {
@@ -176,30 +172,16 @@ public class ConnectionServiceImpl implements ConnectionService {
         if (connect == null) {
             return null;
         }
-        if (DBlocale == null || DBlocale.trim().isEmpty()) {
+        DatabaseDialect dialect = dialectRegistry.getDialect(connect.getDbtype());
+        if (dialect == null) {
             return connect.getProps();
         }
-        String dbLocale = DBlocale.replaceAll("(?i)" + "UTF8", "57372")
-                .replaceAll("(?i)" + "GB18030-2000", "5488").trim();
-        JSONArray jsonArray = new JSONArray(connect.getProps());
-        JSONArray jsonArraynew = new JSONArray();
-        for (int i = 0; i < jsonArray.length(); i++) {
-            JSONObject jsonObject = jsonArray.getJSONObject(i);
-            if (!jsonObject.getString("propName").equals("DB_LOCALE")) {
-                jsonArraynew.put(jsonObject);
-            }
-        }
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("propName", "DB_LOCALE");
-        jsonObject.put("propValue", dbLocale);
-        jsonArraynew.put(jsonObject);
-        return jsonArraynew.toString();
+        return dialect.adjustProps(connect, DBlocale);
     }
 
     public String setConnectInfo(Connect connect) throws Exception {
         String primaryInstance = "";
-        Connection connection = getConnection(connect);
-        sessionChangeToGbaseMode(connection);
+        Connection connection = getGbaseModeConnection(connect);
 
         ResultSet rs = null;
         String dbversion = null;
@@ -304,18 +286,20 @@ public class ConnectionServiceImpl implements ConnectionService {
 
     private ConnectionLease acquireConnection(Connect connect, Database database) throws Exception {
         Connection conn = connect.getConn();
+        var repo = metadataRepositoryProvider.get(connect);
         try {
-            metadataRepository.setDatabase(conn, database.getName());
+            repo.setDatabase(conn, database.getName());
             return new ConnectionLease(conn, false);
         } catch (SQLException e) {
-            if (e.getErrorCode() == -23197) {
-                metadataRepository.setDatabase(connect.getConn(), "sysmaster");
+            DatabaseDialect dialect = dialectRegistry.getDialect(connect.getDbtype());
+            if (dialect != null && dialect.supportsSessionInit() && e.getErrorCode() == -23197) {
+                repo.setDatabase(connect.getConn(), "sysmaster");
                 Connect connect1 = new Connect(connect);
                 connect1.setDatabase(database.getName());
                 connect1.setProps(modifyProps(connect1, database.getDbLocale()));
                 Connection newConn = getConnection(connect1);
-                sessionChangeToGbaseMode(newConn);
-                metadataRepository.setDatabase(newConn, database.getName());
+                initializeSessionIfSupported(connect1, newConn);
+                repo.setDatabase(newConn, database.getName());
                 return new ConnectionLease(newConn, true);
             }
             throw e;

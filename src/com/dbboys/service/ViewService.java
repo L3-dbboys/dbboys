@@ -2,8 +2,7 @@ package com.dbboys.service;
 
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
@@ -16,23 +15,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ViewService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public ViewService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public ViewService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public ViewService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
 
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<View> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getViewCount(conn);
+        int count = repo.getViewCount(conn);
         objectList.setInfo(count + "个");
-        result.addAll(metadataRepository.getViews(conn, databaseName));
+        result.addAll(repo.getViews(conn, databaseName));
         return objectList;
     }
     @Override

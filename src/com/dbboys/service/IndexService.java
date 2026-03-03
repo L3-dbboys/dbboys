@@ -2,8 +2,7 @@ package com.dbboys.service;
 
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.api.MetadataRepository;
-import com.dbboys.impl.MetadataRepositoryImpl;
+import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
@@ -19,35 +18,36 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class IndexService implements MetaObjectService {
-    private final MetadataRepository metadataRepository;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public IndexService() {
-        this(new MetadataRepositoryImpl());
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
     }
 
-    public IndexService(MetadataRepository metadataRepository) {
-        this.metadataRepository = metadataRepository;
+    public IndexService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this.metadataRepositoryProvider = metadataRepositoryProvider;
     }
 
     public Index getIndex(Connect connect, Database database,String objectName) throws Exception {
-        return withMetaSession(connect, database, conn -> metadataRepository.getIndex(conn, database.getName(), objectName));
+        return withMetaSession(connect, database, conn -> metadataRepositoryProvider.get(connect).getIndex(conn, database.getName(), objectName));
     }
     @Override
     public DdlFetcher ddlFetcher() {
         return DDLRepository::printIndex;
     }
-    public ObjectList loadObjects(Connection conn, String databaseName) throws SQLException {
+    public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
+        var repo = metadataRepositoryProvider.get(connect);
         ObjectList objectList = new ObjectList();
         List<Index> result = new ArrayList<>();
         objectList.setItems(result);
-        int count = metadataRepository.getIndexCount(conn);
-        String size = metadataRepository.getIndexSize(conn);
+        int count = repo.getIndexCount(conn);
+        String size = repo.getIndexSize(conn);
         String info = count + "个";
         if (size != null) {
             info = info + "/" + size;
         }
         objectList.setInfo(info);
-        result.addAll(metadataRepository.getIndexes(conn, databaseName));
+        result.addAll(repo.getIndexes(conn, databaseName));
         return objectList;
     }
 
