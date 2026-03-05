@@ -673,16 +673,23 @@ public class MainController {
 
     private void initSplitPaneResizeBehavior() {
         mainSplitPane.widthProperty().addListener((obs, oldVal, newVal) -> {
-            if(AppState.getSqlEditCodeAreaIsMax()==0) {
-                //保留两位小数设置，否则可能因为小数过多而设置不准
-                Platform.runLater(() -> {
-                    mainSplitPane.setDividerPositions(AppState.getSplit1Pos());
-                });
+            log.info("mainSplitPane.widthProperty() newVal: " + newVal);
+            if(treeviewTabPane.getSelectionModel().getSelectedItem()==aiTab){
+                mainSplitPane.setDividerPositions(1.0);
             }else{
-                Platform.runLater(() -> {
-                    mainSplitPane.setDividerPositions(0);
-                });
+                if(AppState.getSqlEditCodeAreaIsMax()==0) {
+                    //保留两位小数设置，否则可能因为小数过多而设置不准
+                    Platform.runLater(() -> {
+                        mainSplitPane.setDividerPositions(AppState.getSplit1Pos());
+                    });
+                }else{
+                    Platform.runLater(() -> {
+                        mainSplitPane.setDividerPositions(0);
+                    });
+                    
+                }
             }
+            
         });
     }
 

@@ -35,7 +35,7 @@ public class CustomTab extends Tab {
 
         titleLabel.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                if(Main.sqledit_codearea_is_max == 0)
+                if(AppState.getSqlEditCodeAreaIsMax() == 0)
                 {
                     for(Tab tab:AppState.getTreeviewTabPane().getTabs()){
                         if(((CustomTreeviewTab)tab).titleToggle.isSelected()){
@@ -43,7 +43,7 @@ public class CustomTab extends Tab {
                         }
                     }
                     AppState.getMainSplitPane().setDividerPositions(0);
-                    Main.sqledit_codearea_is_max = 1;
+                    AppState.setSqlEditCodeAreaIsMax(1);
                 }else{
                     for(Tab tab:AppState.getTreeviewTabPane().getTabs()){
                         if(((CustomTreeviewTab)tab).isSelected()){
@@ -51,7 +51,7 @@ public class CustomTab extends Tab {
                         }
                     }
                     AppState.getMainSplitPane().setDividerPositions(AppState.getSplit1Pos());
-                    Main.sqledit_codearea_is_max = 0;
+                    AppState.setSqlEditCodeAreaIsMax(0);
                 }
                 if(this instanceof CustomSqlTab){
                     Platform.runLater(()->{

@@ -45,12 +45,6 @@ public class Main extends Application {
     @Deprecated public static MainController mainController;
     /** @deprecated Use {@link AppState#getScene()} */
     @Deprecated public static Scene scene;
-    /** @deprecated Use {@link AppState#getSplit1Pos()} */
-    @Deprecated public static double split1Pos;
-    /** @deprecated Use {@link AppState#getSplit2Pos()} */
-    @Deprecated public static double split2Pos;
-    /** @deprecated Use {@link AppState#getSqlEditCodeAreaIsMax()} */
-    @Deprecated public static double sqledit_codearea_is_max = 0;
     /** @deprecated Use {@link AppState#getLoadProgressBar()} */
     @Deprecated public static ProgressBar loadProgressBar = new ProgressBar(0.1);
     /** @deprecated Use {@link AppState#getLastInstallConnect()} */
@@ -113,10 +107,8 @@ public class Main extends Application {
 
 
                 //从配置文件读取分隔符位置，配置文件保存的是最后一次拖动的位置
-                split1Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_MAIN", "0.2"));
-                split2Pos= Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_SQL", "0.6"));
-                AppState.setSplit1Pos(split1Pos);
-                AppState.setSplit2Pos(split2Pos);
+                AppState.setSplit1Pos(Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_MAIN", "0.2")));
+                AppState.setSplit2Pos(Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_SQL", "0.6")));
 
                 //加载主界面
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/Main.fxml"));
@@ -170,11 +162,20 @@ public class Main extends Application {
                         //primaryStage.setMaximized(true);
                         loadingStage.hide();
                         primaryStage.show();//此处有黑色闪现，不使用系统自带窗口后正常
+                        // 根据当前选中的左侧 Tab 设置初始分割线位置（AI 标签时分割线最右）
+                        if (mainController.treeviewTabPane.getSelectionModel().getSelectedItem() instanceof com.dbboys.customnode.CustomTreeviewTab currentLeft) {
+                            if (currentLeft == mainController.aiTab) {
+                                mainController.mainSplitPane.setDividerPositions(1.0);
+                            } else {
+                                mainController.mainSplitPane.setDividerPositions(AppState.getSplit1Pos());
+                            }
+                        }
                         //页面渲染后增加监听,否则无法正常监听
                         mainController.mainSplitPane.lookupAll(".split-pane-divider").forEach(divider -> {
                             // 鼠标拖动事件
                             divider.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
-                                split1Pos=mainController.mainSplitPane.getDividers().get(0).getPosition();
+                                //ConfigManagerUtil.setProperty("SPLIT_DRIVER_MAIN", String.valueOf(split1Pos));
+                                AppState.setSplit1Pos(mainController.mainSplitPane.getDividers().get(0).getPosition());
                             });
                         });
 

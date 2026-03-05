@@ -44,7 +44,6 @@ public class CustomTreeviewTab extends Tab {
         //设置图标保证响应双击最大化事件
         setGraphic(header);
         titleToggle.selectedProperty().addListener((observable, oldValue, newValue) -> {
-            log.info("newValue: " + newValue);
             if (newValue) {
                 Platform.runLater(() -> {
                     titleToggleIcon.setFill(Color.valueOf("#074675"));
@@ -54,6 +53,9 @@ public class CustomTreeviewTab extends Tab {
                     int idx = getTabPane().getTabs().indexOf(this);
                     if (idx >= 0) {
                         ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB", String.valueOf(idx));
+                    }
+                    if(idx==2){
+                        Platform.runLater(() -> AppState.getMainSplitPane().setDividerPositions(1.0));
                     }
             
                 }
@@ -68,12 +70,12 @@ public class CustomTreeviewTab extends Tab {
                 }
                 if(AppState.getMainController()!=null){
                     AppState.getMainSplitPane().setDividerPositions(AppState.getSplit1Pos());
-                    Main.sqledit_codearea_is_max=0;
+                    AppState.setSqlEditCodeAreaIsMax(0);
                 }
 
             } else {
                 AppState.getMainSplitPane().setDividerPositions(0);
-                Main.sqledit_codearea_is_max=1;
+                AppState.setSqlEditCodeAreaIsMax(1);
                 Platform.runLater(() -> {
                 titleToggleIcon.setFill(Color.valueOf("#ddd"));
                 });

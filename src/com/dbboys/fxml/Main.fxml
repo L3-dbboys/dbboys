@@ -166,7 +166,7 @@
                                     <Button fx:id="aiPasteKeyButton" styleClass="little-custom-button" onAction="#showPasteAiKeyDialog"/>
                                     <Button fx:id="aiTestDemoButton" styleClass="little-custom-button" onAction="#runDoubaoDemo"/>
                                 </HBox>
-                                <ScrollPane fx:id="aiChatScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: #fafafa;-fx-border-width: 0.5 0 0 0;-fx-border-color: #aaa">
+                                <ScrollPane fx:id="aiChatScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: #fafafa;-fx-border-width: 0.5 0 0 0;-fx-border-color: #aaa;-fx-background-insets: 0">
                                     <VBox fx:id="aiChatMessages" spacing="8" style="-fx-padding: 8"/>
                                 </ScrollPane>
                                 <HBox alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 6;-fx-border-width: 0.5 0 0 0;-fx-border-color: #ddd;-fx-background-color: #fff">
@@ -178,7 +178,7 @@
                     </TabPane>
                 </StackPane>
             </VBox>
-            <StackPane style="-fx-border-color: #eee;-fx-border-width:0 2 0 0; -fx-min-width: 0px;">
+            <StackPane style="-fx-border-color: #eee;-fx-border-width:0 2 0 0; -fx-min-width: 0;">
                 <Label fx:id="doubleClickNewSqlLabel" style="-fx-text-fill: #ccc;"></Label>
                 <TabPane tabDragPolicy="REORDER" tabClosingPolicy="ALL_TABS" fx:id="sqlTabPane"  style="-fx-border-color: #aaa;-fx-border-width:0 0.5 0 0;">
                 </TabPane>

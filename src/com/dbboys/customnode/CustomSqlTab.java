@@ -51,7 +51,7 @@ public class CustomSqlTab extends CustomTab{
         //增加最大化时SQL编辑分隔栏到最底下，addEventHandler不会覆盖父类事件响应，而是累加
         getTitleLabel().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                if (Main.sqledit_codearea_is_max == 1) {
+                if (AppState.getSqlEditCodeAreaIsMax() == 1) {
                     sqlTabController.sqlSplitPane.setDividerPositions(1);
                 } else {
                     sqlTabController.sqlSplitPane.setDividerPositions(sqlTabController.sqlSplitPaneDividerPosition);
