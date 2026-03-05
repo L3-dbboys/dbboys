@@ -78,9 +78,12 @@ public class MainController {
     @FXML
     public VBox aiChatMessages;
     @FXML
-    public TextField aiInputField;
+    public TextArea aiInputField;
     @FXML
     public Button aiSendButton;
+    private java.util.concurrent.Future<?> aiTaskFuture;
+    private HBox aiThinkingPlaceholder;
+    private volatile boolean aiCancelled = false;
     @FXML
     private Menu menuFile;
     @FXML
@@ -418,14 +421,7 @@ public class MainController {
     }
 
     private void initAiPanel() {
-        if (aiInputField != null) {
-            aiInputField.setOnKeyPressed(event -> {
-                if (event.getCode() == KeyCode.ENTER) {
-                    sendAiMessage();
-                    event.consume();
-                }
-            });
-        }
+        updateAiSendButtonText(false);
     }
 
     private void initMenuActions() {
@@ -891,13 +887,22 @@ public class MainController {
     @FXML
     public void sendAiMessage() {
         if (aiInputField == null || aiChatMessages == null) return;
+
+        if (aiTaskFuture != null && !aiTaskFuture.isDone()) {
+            cancelAiRequest();
+            return;
+        }
+
         String text = aiInputField.getText();
         if (text == null || text.isBlank()) return;
-        Label userMsg = new Label("我: " + text);
-        userMsg.setWrapText(true);
-        userMsg.setMaxWidth(1.0E7);
-        userMsg.setStyle("-fx-padding: 6 10;-fx-background-color: #e3f2fd;-fx-background-radius: 8;-fx-border-radius: 8;");
-        aiChatMessages.getChildren().add(userMsg);
+
+        javafx.scene.text.Text userText = new javafx.scene.text.Text(text);
+        javafx.scene.text.TextFlow userFlow = new javafx.scene.text.TextFlow(userText);
+        userFlow.setStyle("-fx-padding: 6 10;-fx-background-color: #e3f2fd;-fx-background-radius: 8;-fx-border-radius: 8;");
+        HBox userBox = new HBox(userFlow);
+        userBox.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+        userBox.setFillHeight(false);
+        aiChatMessages.getChildren().add(userBox);
         aiInputField.clear();
         scrollAiChatToBottom();
 
@@ -910,22 +915,57 @@ public class MainController {
         assistantPlaceholder.setWrapText(true);
         assistantPlaceholder.setMaxWidth(1.0E7);
         assistantPlaceholder.setStyle("-fx-padding: 6 10;-fx-background-color: #f0f0f0;-fx-background-radius: 8;-fx-border-radius: 8;");
-        aiChatMessages.getChildren().add(assistantPlaceholder);
+        HBox placeholderBox = new HBox(assistantPlaceholder);
+        placeholderBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        placeholderBox.setFillHeight(false);
+        aiThinkingPlaceholder = placeholderBox;
+        aiChatMessages.getChildren().add(placeholderBox);
         scrollAiChatToBottom();
+        updateAiSendButtonText(true);
+        aiCancelled = false;
 
-        com.dbboys.app.AppExecutor.runAsync(() -> {
+        aiTaskFuture = com.dbboys.app.AppExecutor.submit(() -> {
             String reply = com.dbboys.util.AiApiUtil.chat(text);
             Platform.runLater(() -> {
-                aiChatMessages.getChildren().remove(assistantPlaceholder);
+                aiChatMessages.getChildren().remove(placeholderBox);
+                aiThinkingPlaceholder = null;
+                if (aiCancelled) {
+                    aiTaskFuture = null;
+                    updateAiSendButtonText(false);
+                    return;
+                }
                 String content = reply != null && !reply.isEmpty() ? reply : I18n.t("ai.notice.api_error");
-                Label assistantMsg = new Label("AI: " + content);
-                assistantMsg.setWrapText(true);
-                assistantMsg.setMaxWidth(1.0E7);
-                assistantMsg.setStyle("-fx-padding: 6 10;-fx-background-color: #f0f0f0;-fx-background-radius: 8;-fx-border-radius: 8;");
-                aiChatMessages.getChildren().add(assistantMsg);
+                javafx.scene.text.Text aiText = new javafx.scene.text.Text(content);
+                javafx.scene.text.TextFlow aiFlow = new javafx.scene.text.TextFlow(aiText);
+                aiFlow.setStyle("-fx-padding: 6 10;-fx-background-color: #f0f0f0;-fx-background-radius: 8;-fx-border-radius: 8;");
+                HBox aiBox = new HBox(aiFlow);
+                aiBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                aiBox.setFillHeight(false);
+                aiChatMessages.getChildren().add(aiBox);
                 scrollAiChatToBottom();
+                aiTaskFuture = null;
+                updateAiSendButtonText(false);
             });
         });
+    }
+
+    private void cancelAiRequest() {
+        aiCancelled = true;
+        if (aiTaskFuture != null && !aiTaskFuture.isDone()) {
+            aiTaskFuture.cancel(true);
+        }
+        aiTaskFuture = null;
+        if (aiThinkingPlaceholder != null) {
+            aiChatMessages.getChildren().remove(aiThinkingPlaceholder);
+            aiThinkingPlaceholder = null;
+        }
+        updateAiSendButtonText(false);
+    }
+
+    private void updateAiSendButtonText(boolean thinking) {
+        if (aiSendButton != null) {
+            aiSendButton.setText(thinking ? I18n.t("ai.button.stop") : I18n.t("ai.button.send"));
+        }
     }
 
     private void scrollAiChatToBottom() {
@@ -1007,5 +1047,4 @@ public class MainController {
     }
 
 }
-
 

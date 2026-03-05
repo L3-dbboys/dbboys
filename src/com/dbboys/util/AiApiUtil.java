@@ -9,7 +9,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.stream.Collectors;
+import java.io.InterruptedIOException;
 
 /**
  * 调用 OpenAI 兼容�?Chat Completions API（用�?AI 对话框）�?
@@ -31,6 +31,10 @@ public final class AiApiUtil {
         String token = AiAuthUtil.getApiToken();
         if (baseUrl == null || baseUrl.isEmpty() || token == null || token.isEmpty()) {
             log.warn("AI API not configured (baseUrl or token missing)");
+            return null;
+        }
+
+        if (Thread.currentThread().isInterrupted()) {
             return null;
         }
 
@@ -61,6 +65,9 @@ public final class AiApiUtil {
             conn.setReadTimeout(600000);
 
             try (OutputStream os = conn.getOutputStream()) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("cancelled");
+                }
                 os.write(json.getBytes(StandardCharsets.UTF_8));
             }
 
@@ -74,6 +81,10 @@ public final class AiApiUtil {
 
             String body = readStream(conn.getInputStream());
             return parseContentFromResponse(body);
+        } catch (InterruptedIOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.info("AI API request cancelled");
+            return null;
         } catch (Exception e) {
             log.warn("AI API request failed", e);
             return null;
@@ -265,7 +276,18 @@ public final class AiApiUtil {
     private static String readStream(InputStream is) throws IOException {
         if (is == null) return "";
         try (BufferedReader r = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-            return r.lines().collect(Collectors.joining("\n"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = r.readLine()) != null) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedIOException("interrupted");
+                }
+                sb.append(line);
+                if (r.ready()) {
+                    sb.append("\n");
+                }
+            }
+            return sb.toString();
         }
     }
 
