@@ -975,7 +975,7 @@ public class MainController {
     }
 
     private void addAiMarkdownMessage(String content) {
-        com.dbboys.customnode.AiStyledArea area = new com.dbboys.customnode.AiStyledArea();
+        com.dbboys.customnode.CustomAiStyledArea area = new com.dbboys.customnode.CustomAiStyledArea();
         area.parseMarkdownWithStyles(content == null ? "" : content);
         area.setEditable(false);
         area.maxWidthProperty().bind(aiChatMessages.widthProperty().subtract(24));
@@ -984,7 +984,7 @@ public class MainController {
     }
 
     private void addUserMarkdownMessage(String content) {
-        com.dbboys.customnode.AiStyledArea area = new com.dbboys.customnode.AiStyledArea();
+        com.dbboys.customnode.CustomAiStyledArea area = new com.dbboys.customnode.CustomAiStyledArea();
         area.parseMarkdownWithStyles(content == null ? "" : content);
         area.setEditable(false);
         area.maxWidthProperty().bind(aiChatMessages.widthProperty().subtract(24));

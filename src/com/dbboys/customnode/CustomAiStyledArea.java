@@ -24,33 +24,34 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+
 /**
  * 专用于 AI 对话消息展示的区域：
- * - 不显示标题行
- * - 不自动缩进、不自动编号
- * - 简化 Markdown，仅支持 ``` 代码块样式
- * - 宽度由外部容器控制（如绑定到父 VBox 宽度）
+ * - 显示 Markdown 标题（#、## 等），但不自动编号、不自动缩进
+ * - 代码块宽度与本区域一致，不单独出现内部滚动条
+ * - 其它解析逻辑参考 CustomGenericStyledArea（表格、图片等）
  */
-public class AiStyledArea extends CustomGenericStyledArea {
-    private static final Logger log = LogManager.getLogger(AiStyledArea.class);
-    public AiStyledArea() {
+public class CustomAiStyledArea extends CustomGenericStyledArea {
+    private static final Logger log = LogManager.getLogger(CustomAiStyledArea.class);
+
+    public CustomAiStyledArea() {
         super(new java.io.File("ai-inline.md"));
-        getStyleClass().add("AiStyledArea");
+        getStyleClass().add("CustomAiStyledArea");
         setEditable(false);
         setWrapText(true);
         setStyle("-fx-font-family: system; -fx-font-size: 11px;");
+        // AI 对话不需要右键菜单，避免误操作
         setContextMenu(null);
     }
 
     /**
      * 简化 Markdown 解析：
-     * - 支持 ``` 包裹的代码块，整体标记为 code-block
-     * - 不添加文件名标题
-     * - 不做标题编号和缩进
+     * - 支持 ``` 包裹的代码块，整体作为 AI 代码块显示（宽度跟随区域）
+     * - 标题使用 Markdown 的 # 前缀，显示为 heading-1/2/... 样式，但不自动编号
+     * - 继承表格、图片等处理逻辑
      */
     @Override
     public void parseMarkdownWithStyles(String markdown) {
-        headingCounters=new int[6];
         String[] lines = markdown.split("\n");
 
         List<List<String>> tableRows = new ArrayList<>(); // 存储表格行数据
@@ -62,45 +63,37 @@ public class AiStyledArea extends CustomGenericStyledArea {
         int currentParagraph = 0;
 
         for (String line : lines) {
-            //去掉空行
-            if(line.trim().isEmpty()){
+            // 去掉空行（保持行为与原来一致）
+            if (line.trim().isEmpty()) {
                 continue;
             }
+
             // 处理代码块
             if (line.startsWith("```")) {
 
-                //结束上一个未完成的table
+                // 结束上一个未完成的 table
                 if (inTable) {
-                    // 表格结束，生成TableView并添加到内容中
                     inTable = false;
-                    if (tableRows.size() >= 1) { // 至少需要表头行
+                    if (tableRows.size() >= 1) {
                         Node tableNode = createTableView(tableRows);
                         append(Either.right(tableNode), "");
                         appendText("\n");
                     }
-                    // 清空表格数据，准备下一个表格
                     tableRows.clear();
                 }
-                //上一个未完成的table结束
 
                 if (!inCodeBlock) {
                     // 开始代码块
                     inCodeBlock = true;
                     codeLanguage = line.substring(3).trim();
                     codeBlock.setLength(0);
-
-                    // 添加代码语言提示
-                    if (!codeLanguage.isEmpty()) {
-                        //append(Either.left("// " + codeLanguage.toUpperCase()), "");
-                        //appendText("\n");
-                    }
                 } else {
                     // 结束代码块
                     inCodeBlock = false;
 
-                    // 添加代码内容
+                    // 添加代码内容，使用专用样式标记，避免走通用 code-block TextArea 逻辑
                     if (codeBlock.length() > 0) {
-                        append(Either.left(codeBlock.toString().trim()), "code-block");
+                        append(Either.left(codeBlock.toString().trim()), "ai-code-block");
                         appendText("\n");
                     }
                     codeBlock.setLength(0);
@@ -113,11 +106,11 @@ public class AiStyledArea extends CustomGenericStyledArea {
                 continue;
             }
 
-            //表格
+            // 表格
             if (inTable && TABLE_SEPARATOR_PATTERN.matcher(line).matches()) {
                 // 识别为表头分隔线，不添加到数据行，仅作为表格结构标识
                 continue;
-            }else if (TABLE_LINE_PATTERN.matcher(line).matches()) {
+            } else if (TABLE_LINE_PATTERN.matcher(line).matches()) {
                 // 识别为表格行
                 inTable = true;
                 // 分割单元格（去除首尾|，再按|分割）
@@ -129,7 +122,7 @@ public class AiStyledArea extends CustomGenericStyledArea {
                 }
                 tableRows.add(row);
                 continue;
-            }else if (inTable) {
+            } else if (inTable) {
                 // 表格结束，生成TableView并添加到内容中
                 inTable = false;
                 if (tableRows.size() >= 1) { // 至少需要表头行
@@ -137,83 +130,50 @@ public class AiStyledArea extends CustomGenericStyledArea {
                     append(Either.right(tableNode), "");
                     appendText("\n");
                 }
-                // 清空表格数据，准备下一个表格
                 tableRows.clear();
             }
 
-            // 标题计数器
+            // 标题：仅根据 # 级别应用 heading-X 样式，不自动编号
             if (HEADING_PATTERN.matcher(line).matches()) {
                 int level = 0;
-                // 计算标题级别（#数量，最多6级）
                 while (level < line.length() && line.charAt(level) == '#') {
                     level++;
                 }
-                level = Math.min(level, 6); // 限制为H1~H6（1~6）
-                if (level == 0) {
-                    level = 1; // 避免0级标题
-                }
+                level = Math.min(Math.max(level, 1), 6);
 
-                // 关键：更新计数器
-                int index = level - 1; // 转换为数组索引（0~5）
-                headingCounters[index]++; // 当前级别计数器+1
-
-                // 重置所有子级计数器（比当前级别低的级，如H2的子级是H3~H6）
-                for (int i = index + 1; i < headingCounters.length; i++) {
-                    headingCounters[i] = 0;
-                }
-
-                // 生成编号（如1.1.2）
-                StringBuilder number = new StringBuilder();
-                for (int i = 0; i <= index; i++) { // 只拼接当前级别及以上的计数器
-                    if (headingCounters[i] > 0) {
-                        if (number.length() > 0) {
-                            number.append("."); // 各级之间加"."
-                        }
-                        number.append(headingCounters[i]);
-                    }
-                }
-                number.append(".");
-
-
-                // 核心修改：移除标题中的**标记
                 String titleContent = line.substring(level).trim()
-                        .replace("**", ""); // 过滤所有**，不保留加粗
-                String numberedTitle = number + " " + titleContent;
+                        .replace("**", ""); // 去掉粗体标记，交由样式控制
                 String styleClass = "heading-" + level;
 
-                append(Either.left(numberedTitle ), styleClass);
+                append(Either.left(titleContent), styleClass);
                 appendText("\n");
                 continue;
-
             }
 
-            // 处理图片
+            // 处理图片（保持与 CustomGenericStyledArea 一致）
             if (line.contains("![") && line.contains("](")) {
                 Matcher imgMatcher = IMG_PATTERN.matcher(line);
                 if (imgMatcher.find()) {
                     String imgUrl = imgMatcher.group(1);
-                    //imgUrl="docs"+imgUrl;
 
                     ImageView imgView = new ImageView(new Image("file:images/failed.png"));
-                    //imgView.setFitHeight(Math.min(300, imgView));
                     imgView.setPreserveRatio(true);
                     imgView.setFitWidth(500);
                     StackPane pane = new StackPane(imgView);
                     pane.prefWidthProperty().bind(widthProperty());
                     try {
-                        Path path=getAbsPath(markdownFile,imgUrl);
+                        Path path = getAbsPath(markdownFile, imgUrl);
 
-                        if(Files.exists(path)){
-                            imgView.setImage(new Image("file:"+path));
+                        if (Files.exists(path)) {
+                            imgView.setImage(new Image("file:" + path));
                         }
-                        Image image=imgView.getImage();
-                        if(Files.exists(path)) {
+                        Image image = imgView.getImage();
+                        if (Files.exists(path)) {
                             pane.setOnContextMenuRequested(event -> {
                                 imageSaveAsItem.setOnAction(event1 -> {
                                     FileChooser fileChooser = new FileChooser();
                                     fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
 
-                                    // 2. 设置默认文件名（与原始文件同名）和格式过滤
                                     String originalFileName = new File(path.toUri()).getName();
                                     fileChooser.setInitialFileName(originalFileName);
                                     fileChooser.getExtensionFilters().addAll(
@@ -221,19 +181,16 @@ public class AiStyledArea extends CustomGenericStyledArea {
                                             new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
                                     );
 
-                                    // 3. 选择保存路径
                                     File targetFile = fileChooser.showSaveDialog(AppState.getWindow());
                                     if (targetFile == null) {
-                                        return; // 用户取消
+                                        return;
                                     }
 
-                                    // 4. 用 Files.copy() 复制文件（支持覆盖已存在文件）
                                     try {
-                                        // 复制原始文件到目标路径，若目标存在则覆盖
                                         Files.copy(
                                                 path,
                                                 targetFile.toPath(),
-                                                StandardCopyOption.REPLACE_EXISTING // 覆盖选项
+                                                StandardCopyOption.REPLACE_EXISTING
                                         );
                                         NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_saved"));
                                     } catch (IOException e) {
@@ -242,12 +199,8 @@ public class AiStyledArea extends CustomGenericStyledArea {
                                 });
                                 imageCopyItem.setOnAction(event1 -> {
                                     Clipboard clipboard = Clipboard.getSystemClipboard();
-
-                                    // 创建剪贴板内容并放入图像
                                     ClipboardContent content = new ClipboardContent();
-                                    content.putImage(image); // 直接放入 Image 对象
-
-                                    // 复制到剪贴板
+                                    content.putImage(image);
                                     clipboard.setContent(content);
                                     NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_copied"));
 
@@ -258,13 +211,10 @@ public class AiStyledArea extends CustomGenericStyledArea {
                         }
                         append(Either.right(pane), "");
                         appendText("\n");
-                        //append(Either.left("\n"), "");
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
                         append(Either.right(pane), "");
-                            //append(Either.left("[图片加载失败: " + imgUrl + "]"), "");
-                            appendText("\n");
-
+                        appendText("\n");
                     }
                 }
                 continue;
@@ -273,19 +223,13 @@ public class AiStyledArea extends CustomGenericStyledArea {
             // 处理普通文本行（包含链接、行内代码、粗体等）
             if (!line.trim().isEmpty()) {
                 processTextLine(line);
-               // append(Either.left("\n"), "");
                 appendText("\n");
             } else {
-                // 空行
-                //append(Either.left("\n"), "");
                 appendText("\n");
-
             }
-
-
         }
-        // 在parseMarkdownWithStyles方法的循环结束后添加
-        //在循环结束后，检查是否还有未处理的表格数据（避免表格结束在文档末尾）：
+
+        // 收尾：末尾未结束的表格
         if (inTable && tableRows.size() >= 1) {
             Node tableNode = createTableView(tableRows);
             append(Either.right(tableNode), "");
@@ -293,14 +237,55 @@ public class AiStyledArea extends CustomGenericStyledArea {
             tableRows.clear();
         }
 
-        // 如果代码块没有正确结束，确保添加剩余内容
+        // 收尾：末尾未结束的代码块
         if (inCodeBlock && codeBlock.length() > 0) {
-            append(Either.left(codeBlock.toString()), "");
-            currentParagraph = getParagraphs().size() - 1;
-            setParagraphStyle(currentParagraph, ("code-block"));
+            append(Either.left(codeBlock.toString()), "ai-code-block");
         }
-        for(int i=0;i<getParagraphs().size();i++) {
+
+        // 统一设置段落行距
+        for (int i = 0; i < getParagraphs().size(); i++) {
             setParagraphStyle(i, "-fx-line-spacing: 10px");
+        }
+    }
+
+    @Override
+    public void processTextLine(String line) {
+        
+        // 首先处理行内代码，因为它们不应该包含其他格式
+        List<TextSegment> segments = new ArrayList<>();
+        int lastIndex = 0;
+
+        // 查找所有行内代码
+        Matcher codeMatcher = INLINE_CODE_PATTERN.matcher(line);
+        while (codeMatcher.find()) {
+            // 添加代码前的普通文本
+            if (codeMatcher.start() > lastIndex) {
+                String normalText = line.substring(lastIndex, codeMatcher.start());
+                segments.add(new TextSegment(normalText, ""));
+            }
+
+            // 添加代码文本
+            String codeText = codeMatcher.group(1);
+            segments.add(new TextSegment(codeText, "code-inline"));
+
+            lastIndex = codeMatcher.end();
+        }
+
+        // 添加剩余文本
+        if (lastIndex < line.length()) {
+            String remainingText = line.substring(lastIndex);
+            segments.add(new TextSegment(remainingText, ""));
+        }
+
+        // 处理每个段落的链接和粗体
+        for (TextSegment segment : segments) {
+            if ("code-inline".equals(segment.style)) {
+                // 代码段不处理链接和粗体
+                append(Either.left(segment.text), segment.style);
+            } else {
+                // 普通文本段处理链接和粗体
+                processFormattedText(segment.text);
+            }
         }
     }
 }

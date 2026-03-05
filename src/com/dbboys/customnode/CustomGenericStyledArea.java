@@ -731,7 +731,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         }
     }
 
-    private void processFormattedText(String text) {
+    public void processFormattedText(String text) {
 
         int lastIndex = 0;
         // 同时匹配链接和粗体（优先匹配链接，避免冲突）
@@ -784,7 +784,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
     }
 
     // 辅助类，用于存储文本段及其样式
-    private static class TextSegment {
+    public static class TextSegment {
         String text;
         String style;
 
