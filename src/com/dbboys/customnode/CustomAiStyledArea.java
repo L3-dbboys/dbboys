@@ -7,6 +7,7 @@ import java.util.regex.Matcher;
 import org.reactfx.util.Either;
 
 import javafx.scene.Node;
+import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Region;
@@ -17,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.io.File;
 import java.io.IOException;
 import javafx.stage.FileChooser;
+import javafx.beans.value.ChangeListener;
 
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
@@ -25,6 +27,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.Parent;
 
 /**
  * 专用于 AI 对话消息展示的区域：
@@ -44,7 +48,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         // AI 对话不需要右键菜单，避免误操作
         setContextMenu(null);
 
-            // 关键：高度随内容变化
+        // 关键：高度随内容变化
         setMinHeight(Region.USE_PREF_SIZE);
         setPrefHeight(Region.USE_COMPUTED_SIZE);
         // 监听内容总高度估算，动态设置 prefHeight
@@ -53,6 +57,15 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
                 // +10 预留一点内边距，可根据需要调整
                 setPrefHeight((double)newVal + 10);
             }
+        });
+
+        // 不在自身消费滚轮事件，将滚动转发给父容器（如外层 ScrollPane）
+        addEventFilter(ScrollEvent.SCROLL, event -> {
+            Parent parent = getParent();
+            if (parent != null) {
+                parent.fireEvent(event.copyFor(parent, parent));
+            }
+            event.consume();
         });
     }
 
@@ -72,7 +85,6 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         boolean inCodeBlock = false;
         String codeLanguage = "";
         StringBuilder codeBlock = new StringBuilder();
-        int currentParagraph = 0;
 
         for (String line : lines) {
             // 去掉空行（保持行为与原来一致）
@@ -103,9 +115,9 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
                     // 结束代码块
                     inCodeBlock = false;
 
-                    // 添加代码内容，使用专用样式标记，避免走通用 code-block TextArea 逻辑
                     if (codeBlock.length() > 0) {
-                        append(Either.left(codeBlock.toString().trim()), "ai-code-block");
+                        TextArea codeArea = createCodeBlockArea(codeBlock.toString().trim());
+                        append(Either.right(codeArea), "");
                         appendText("\n");
                     }
                     codeBlock.setLength(0);
@@ -251,13 +263,53 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
 
         // 收尾：末尾未结束的代码块
         if (inCodeBlock && codeBlock.length() > 0) {
-            append(Either.left(codeBlock.toString()), "ai-code-block");
+            TextArea codeArea = createCodeBlockArea(codeBlock.toString().trim());
+            append(Either.right(codeArea), "");
+        }
+
+        // 去掉结尾多余的空行（避免只有一行内容却显示两行）
+        int len = getLength();
+        if (len > 0) {
+            String tail = getText(len - 1, len);
+            if ("\n".equals(tail)) {
+                replaceText(len - 1, len, "");
+            }
         }
 
         // 统一设置段落行距
         for (int i = 0; i < getParagraphs().size(); i++) {
             setParagraphStyle(i, "-fx-line-spacing: 10px");
         }
+    }
+
+    /** 创建用于显示代码块的 TextArea，宽度随当前区域变化，高度随内容自适应。 */
+    private TextArea createCodeBlockArea(String code) {
+        TextArea textArea = new TextArea();
+        textArea.setWrapText(true);
+        textArea.setEditable(false);
+        textArea.setMaxHeight(500);
+        textArea.setMinHeight(14);
+        textArea.setText(code);
+
+        // 高度根据内容自适应
+        ChangeListener<Object> listener = (obs, oldVal, newVal) -> {
+            double textHeight = computeTextHeightForCode(textArea);
+            textArea.setPrefHeight(textHeight);
+        };
+        textArea.textProperty().addListener(listener);
+        textArea.widthProperty().addListener(listener);
+
+        // 宽度填满 CustomAiStyledArea（预留一点内边距）
+        textArea.prefWidthProperty().bind(widthProperty().subtract(27));
+
+        return textArea;
+    }
+
+    /** 计算代码块 TextArea 的高度（简单按行数估算）。 */
+    private static double computeTextHeightForCode(TextArea textArea) {
+        int lines = textArea.getParagraphs().size();
+        double lineHeight = 14;
+        return lines * lineHeight + 8;
     }
 
     @Override
