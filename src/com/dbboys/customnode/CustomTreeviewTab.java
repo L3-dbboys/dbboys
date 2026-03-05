@@ -54,30 +54,36 @@ public class CustomTreeviewTab extends Tab {
                     if (idx >= 0) {
                         ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB", String.valueOf(idx));
                     }
-                    if(idx==2){
-                        Platform.runLater(() -> AppState.getMainSplitPane().setDividerPositions(1.0));
+                    if (idx == 2) {
+                        javafx.scene.control.SplitPane mainSplitPane = AppState.getMainSplitPane();
+                        if (mainSplitPane != null) {
+                            Platform.runLater(() -> mainSplitPane.setDividerPositions(1.0));
+                        }
                     }
-            
+
                 }
-                for(Tab tab:getTabPane().getTabs()){
-                    //tab=(CustomTreeviewTab)tab;
-                    if(!((CustomTreeviewTab)tab).getTitle().equals(getTitle())){
-                        ((CustomTreeviewTab)tab).titleToggle.setSelected(false);
+                for (Tab tab : getTabPane().getTabs()) {
+                    if (!((CustomTreeviewTab) tab).getTitle().equals(getTitle())) {
+                        ((CustomTreeviewTab) tab).titleToggle.setSelected(false);
                         Platform.runLater(() -> {
-                                ((CustomTreeviewTab)tab).titleToggleIcon.setFill(Color.valueOf("#ddd"));
+                            ((CustomTreeviewTab) tab).titleToggleIcon.setFill(Color.valueOf("#ddd"));
                         });
                     }
                 }
-                if(AppState.getMainController()!=null){
-                    AppState.getMainSplitPane().setDividerPositions(AppState.getSplit1Pos());
+                javafx.scene.control.SplitPane mainSplitPane = AppState.getMainSplitPane();
+                if (mainSplitPane != null) {
+                    mainSplitPane.setDividerPositions(AppState.getSplit1Pos());
                     AppState.setSqlEditCodeAreaIsMax(0);
                 }
 
             } else {
-                AppState.getMainSplitPane().setDividerPositions(0);
+                javafx.scene.control.SplitPane mainSplitPane = AppState.getMainSplitPane();
+                if (mainSplitPane != null) {
+                    mainSplitPane.setDividerPositions(0);
+                }
                 AppState.setSqlEditCodeAreaIsMax(1);
                 Platform.runLater(() -> {
-                titleToggleIcon.setFill(Color.valueOf("#ddd"));
+                    titleToggleIcon.setFill(Color.valueOf("#ddd"));
                 });
             }
         });

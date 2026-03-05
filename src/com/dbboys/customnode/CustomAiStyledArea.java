@@ -17,12 +17,16 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+
 import javafx.stage.FileChooser;
 import javafx.beans.value.ChangeListener;
 
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
 import com.dbboys.util.NotificationUtil;
+import com.dbboys.util.DownloadManagerUtil;
+import com.dbboys.util.AlertUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import javafx.scene.input.Clipboard;
@@ -187,8 +191,56 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
                 pane.prefWidthProperty().bind(widthProperty());
                 try {
                     if (imgUrl.startsWith("http://") || imgUrl.startsWith("https://")) {
-                        // 网络图片：直接使用 URL 加载
+                        // 网络图片：直接使用 URL 加载，仅提供“另存为”右键菜单，参考通用下载逻辑
                         imgView.setImage(new Image(imgUrl, true));
+                        pane.setOnContextMenuRequested(event -> {
+                            javafx.scene.control.MenuItem saveAsItem =
+                                    new javafx.scene.control.MenuItem(I18n.t("genericstyled.menu.image_save_as"));
+                            saveAsItem.setOnAction(event1 -> {
+                                FileChooser fileChooser = new FileChooser();
+                                fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
+
+                                // 默认文件名：先尝试通过重定向获取真实文件名，失败则从 URL path 猜
+                                String defaultName = "image";
+                                try {
+                                    String name = DownloadManagerUtil.getRealFileNameFromRedirect(imgUrl);
+                                    if (name != null && !name.isEmpty()) {
+                                        defaultName = name;
+                                    } else {
+                                        URL u = new URL(imgUrl);
+                                        String path = u.getPath();
+                                        int slash = path.lastIndexOf('/');
+                                        if (slash >= 0 && slash < path.length() - 1) {
+                                            defaultName = path.substring(slash + 1);
+                                        }
+                                    }
+                                } catch (Exception ex) {
+                                    log.error(ex.getMessage(), ex);
+                                    AlertUtil.CustomAlert(I18n.t("genericstyled.alert.download_error"), ex.getMessage());
+                                    return;
+                                }
+
+                                fileChooser.setInitialFileName(defaultName);
+                                fileChooser.getExtensionFilters().addAll(
+                                        new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.image_files"), "*.png", "*.jpg", "*.jpeg", "*.gif"),
+                                        new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
+                                );
+
+                                File file = fileChooser.showSaveDialog(AppState.getWindow());
+                                if (file != null) {
+                                    if (file.exists()) {
+                                        file.delete();
+                                    }
+                                    // 使用下载管理器处理网络图片下载
+                                    DownloadManagerUtil.addDownload(imgUrl, file, true, null);
+                                }
+                            });
+
+                            javafx.scene.control.ContextMenu ctx =
+                                    new javafx.scene.control.ContextMenu(saveAsItem);
+                            ctx.show(pane, event.getScreenX(), event.getScreenY());
+                            event.consume();
+                        });
                     } else {
                         // 本地图片：按照原有逻辑解析相对路径
                         Path path = getAbsPath(markdownFile, imgUrl);
@@ -290,14 +342,17 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
 
     /** 创建用于显示代码块的 TextArea，宽度随当前区域变化，高度随内容自适应。 */
     private TextArea createCodeBlockArea(String code) {
-        TextArea textArea = new TextArea();
+        TextArea textArea = new TextArea(code);
         textArea.setWrapText(true);
         textArea.setEditable(false);
         textArea.setMaxHeight(500);
         textArea.setMinHeight(14);
-        textArea.setText(code);
 
-        // 高度根据内容自适应
+        // 先根据当前内容计算一次高度，避免初始出现多余空白
+        double initHeight = computeTextHeightForCode(textArea);
+        textArea.setPrefHeight(initHeight);
+
+        // 高度根据内容/宽度变化自适应
         ChangeListener<Object> listener = (obs, oldVal, newVal) -> {
             double textHeight = computeTextHeightForCode(textArea);
             textArea.setPrefHeight(textHeight);

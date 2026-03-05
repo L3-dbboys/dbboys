@@ -450,10 +450,10 @@
     -fx-font-size: 11;
     -fx-pref-height: 18;
 }
-.MarkdownTableView .table-cell:selected {
-    -fx-background-color: #ddd; /* 选中单元格的背景色 */
+.MarkdownTableView .table-cell:hover,.MarkdownTableView .table-cell:selected {
+    -fx-background-color: #2871a8; /* 选中单元格的背景色 */
     -fx-border-color: white;
-    -fx-text-fill: black;
+    -fx-text-fill: white;
 }
 
 .MarkdownTableView .column-header ,.table-view .filler{
