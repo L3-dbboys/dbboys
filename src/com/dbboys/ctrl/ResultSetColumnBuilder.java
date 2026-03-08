@@ -1,12 +1,12 @@
 package com.dbboys.ctrl;
 
-import com.dbboys.app.AppState;
 import com.dbboys.customnode.CustomInfoCodeArea;
 import com.dbboys.customnode.CustomInfoStackPane;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.AlertUtil;
+import com.dbboys.util.CustomWindowFrameUtil;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
@@ -21,6 +21,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -132,11 +133,18 @@ public class ResultSetColumnBuilder {
                         root.getChildren().add(saveBtn);
                     }
                     root.setPrefHeight(Double.MAX_VALUE);
-                    Scene lobScene = new Scene(root, 800, 400);
                     Image lobIcon = new Image(IconPaths.MAIN_LOGO);
+                    lobDataPopupStage.initStyle(StageStyle.UNDECORATED);
+                    lobDataPopupStage.setResizable(true);
+                    Scene lobScene = CustomWindowFrameUtil.create(
+                            lobDataPopupStage,
+                            lobDataPopupStage.titleProperty(),
+                            root,
+                            800,
+                            400
+                    ).scene;
                     lobDataPopupStage.setScene(lobScene);
                     lobDataPopupStage.getIcons().add(lobIcon);
-                    AppState.applyAppStylesheet(lobScene);
                     lobDataPopupStage.initModality(Modality.APPLICATION_MODAL);
                     lobDataPopupStage.show();
                     customInfoCodeArea.replaceText(getItem().toString());
