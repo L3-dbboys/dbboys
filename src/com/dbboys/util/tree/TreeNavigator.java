@@ -287,8 +287,8 @@ public class TreeNavigator {
 
             dialogPane.setHeader(null);
             int dialogW = 520;
-            int dialogH = 520;
-            int titleBarHeight = 36;
+            int dialogH = 320;
+            int titleBarHeight = 20;
             int contentH = dialogH - titleBarHeight;
 
             dialogPane.setMinSize(dialogW, contentH);
@@ -296,7 +296,17 @@ public class TreeNavigator {
             dialogPane.setMaxSize(dialogW, contentH);
 
             SimpleStringProperty titleProp = new SimpleStringProperty(I18n.t("createconnect.dialog.title"));
-            CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(stage, titleProp, dialogPane, dialogW, dialogH, null, false);
+            CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(
+                    stage,
+                    titleProp,
+                    dialogPane,
+                    dialogW,
+                    dialogH,
+                    null,
+                    false,
+                    false,
+                    false
+            );
             stage.setScene(frame.scene);
             stage.setResizable(false);
             stage.sizeToScene();

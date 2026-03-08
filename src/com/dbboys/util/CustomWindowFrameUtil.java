@@ -83,6 +83,18 @@ public final class CustomWindowFrameUtil {
                                double height,
                                Node titleBarLeft,
                                boolean enableResize) {
+        return create(stage, titleBinding, content, width, height, titleBarLeft, enableResize, true, true);
+    }
+
+    public static Frame create(Stage stage,
+                               ObservableValue<String> titleBinding,
+                               Node content,
+                               double width,
+                               double height,
+                               Node titleBarLeft,
+                               boolean enableResize,
+                               boolean showMinButton,
+                               boolean showMaxButton) {
         Region dragRegion = new Region();
         HBox.setHgrow(dragRegion, Priority.ALWAYS);
 
@@ -99,10 +111,23 @@ public final class CustomWindowFrameUtil {
                 closeButton.setStyle(CLOSE_STYLE + "-fx-background-color: #a63f3a;"));
         closeButton.setOnMouseExited(event -> closeButton.setStyle(CLOSE_STYLE));
 
-        HBox titleBar = new HBox(titleLabel, dragRegion, minButton, maxButton, closeButton);
+        HBox titleBar = new HBox(titleLabel, dragRegion);
         if (titleBarLeft != null) {
             titleBar.getChildren().add(0, titleBarLeft);
         }
+        if (showMinButton) {
+            titleBar.getChildren().add(minButton);
+        } else {
+            minButton.setManaged(false);
+            minButton.setVisible(false);
+        }
+        if (showMaxButton) {
+            titleBar.getChildren().add(maxButton);
+        } else {
+            maxButton.setManaged(false);
+            maxButton.setVisible(false);
+        }
+        titleBar.getChildren().add(closeButton);
         titleBar.setAlignment(Pos.CENTER_LEFT);
         titleBar.setStyle(TITLE_STYLE);
 
@@ -122,8 +147,8 @@ public final class CustomWindowFrameUtil {
         }
 
         WindowState state = new WindowState();
-        configureTitleBar(stage, titleBar, maxButton, state);
-        configureButtons(stage, minButton, maxButton, closeButton, state);
+        configureTitleBar(stage, titleBar, maxButton, state, showMaxButton);
+        configureButtons(stage, minButton, maxButton, closeButton, state, showMinButton, showMaxButton);
 
         return new Frame(scene, root, titleBar, minButton, maxButton, closeButton, state);
     }
@@ -143,19 +168,25 @@ public final class CustomWindowFrameUtil {
                                          Button minButton,
                                          Button maxButton,
                                          Button closeButton,
-                                         WindowState state) {
-        minButton.setOnAction(event -> stage.setIconified(true));
-        maxButton.setOnAction(event -> toggleMaximize(stage, maxButton, state));
+                                         WindowState state,
+                                         boolean showMinButton,
+                                         boolean showMaxButton) {
+        if (showMinButton) {
+            minButton.setOnAction(event -> stage.setIconified(true));
+        }
+        if (showMaxButton) {
+            maxButton.setOnAction(event -> toggleMaximize(stage, maxButton, state));
+        }
         closeButton.setOnAction(event -> stage.close());
     }
 
-    private static void configureTitleBar(Stage stage, HBox titleBar, Button maxButton, WindowState state) {
+    private static void configureTitleBar(Stage stage, HBox titleBar, Button maxButton, WindowState state, boolean showMaxButton) {
         final double[] dragOffsetX = new double[1];
         final double[] dragOffsetY = new double[1];
         final double[] dragRatioX = new double[1];
 
         titleBar.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) {
+            if (showMaxButton && event.getClickCount() == 2) {
                 maxButton.fire();
             }
         });
