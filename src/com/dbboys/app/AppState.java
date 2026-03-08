@@ -32,7 +32,7 @@ public final class AppState {
     private static Connect lastInstallConnect;
 
     private static final String APP_STYLESHEET =
-            AppState.class.getResource("/com/dbboys/css/app.css").toExternalForm();
+            AppState.class.getResource("/com/dbboys/css/cupertino-dark.css").toExternalForm();
 
     private AppState() {}
 
