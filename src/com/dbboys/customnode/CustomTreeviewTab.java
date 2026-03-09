@@ -24,7 +24,6 @@ public class CustomTreeviewTab extends Tab {
     private static final Logger log = LogManager.getLogger(CustomTreeviewTab.class);
 
     public ToggleButton titleToggle = new ToggleButton();
-    private StackPane header = new StackPane(titleToggle);
     public ContextMenu contextMenu=new ContextMenu();
     public SVGPath titleToggleIcon;
 
@@ -43,6 +42,7 @@ public class CustomTreeviewTab extends Tab {
         titleToggle.setStyle("-fx-background-color: transparent; -fx-border-width: 0; -fx-border-color: transparent;");
         titleToggle.setFocusTraversable(false);
         titleToggle.setTooltip(new Tooltip("数据库连接"));
+        setText("TEST");
 
         // 设置图标保证响应点击/双击等事件
         setGraphic(titleToggle);

@@ -4992,9 +4992,11 @@ Text {
   -fx-background-color: none;
 }
 
-/*标题栏里顶部和左边的距离*/
+/*标题栏里顶部和左边的距离 + 与内容之间的分隔线（0.5px，#333）*/
 #treeviewTabPane .tab-header-area {
   -fx-padding: 0 0 0 0;   /* 上 右 下 左 */
+  -fx-border-color: #333333;
+  -fx-border-width: 0 0.5 0 0; /* 右侧 0.5 像素线，位于标题与内容之间 */
 }
 
 /*标题栏高度*/
