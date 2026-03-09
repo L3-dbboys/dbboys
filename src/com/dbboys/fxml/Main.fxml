@@ -13,13 +13,13 @@
 <?import com.dbboys.customnode.CustomShortcutMenuItem?>
 <?import com.dbboys.customnode.CustomUserTextField?>
 <?import com.dbboys.customnode.CustomTreeviewTab?>
-<StackPane fx:controller="com.dbboys.ctrl.MainController" fx:id="root" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1" style="-fx-border-width: 0.5;-fx-border-color: #888">
+<StackPane fx:controller="com.dbboys.ctrl.MainController" fx:id="root" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
     <VBox fx:id="mainVBox">
-        <HBox alignment="CENTER_LEFT" spacing="0" style="-fx-background-color: linear-gradient(to bottom, #eee, #eee);" >
-            <Label fx:id="appLogoLabel" style="-fx-padding: 0 10 0 10" />
+        <HBox alignment="CENTER_LEFT" spacing="0">
+            <Label fx:id="appLogoLabel" />
             <MenuBar>
                 <menus >
-                    <Menu fx:id="menuFile" mnemonicParsing="false"  style="-fx-min-height: 30">
+                    <Menu fx:id="menuFile" mnemonicParsing="false" >
                         <items>
                             <CustomShortcutMenuItem fx:id="menuFileAddFolder" mnemonicParsing="false" onAction="#createConnectFolder">
                             </CustomShortcutMenuItem>
@@ -35,7 +35,7 @@
                             </CustomShortcutMenuItem>
                         </items>
                     </Menu>
-                    <Menu fx:id="menuConfig" mnemonicParsing="false"  style="-fx-min-height: 30">
+                    <Menu fx:id="menuConfig" mnemonicParsing="false">
                         <items>
                             <CustomShortcutMenuItem fx:id="menuConfigCheckEnv" mnemonicParsing="false" id="modifyMenu" onAction="#checkInstallEnv">
                             </CustomShortcutMenuItem>
@@ -61,7 +61,7 @@
                              -->
                         </items>
                     </Menu>
-                    <Menu fx:id="menuSettings" mnemonicParsing="false"  style="-fx-min-height: 30">
+                    <Menu fx:id="menuSettings" mnemonicParsing="false" >
                         <items>
                             <Menu fx:id="menuSettingsLanguage" mnemonicParsing="false">
                                 <items>
@@ -74,7 +74,7 @@
                             </CustomShortcutMenuItem>
                         </items>
                     </Menu>
-                    <Menu fx:id="menuHelp" mnemonicParsing="false"  style="-fx-min-height: 30">
+                    <Menu fx:id="menuHelp" mnemonicParsing="false" >
                         <items>
                             <CustomShortcutMenuItem fx:id="menuHelpAbout" mnemonicParsing="false"  id="helpMenu" onAction="#aboutDBboys">
                             </CustomShortcutMenuItem>
@@ -102,12 +102,12 @@
             </Label>
         </HBox>
         -->
-        <SplitPane fx:id="mainSplitPane" style="-fx-border-color: #aaa;-fx-border-width: 0.5 0 0.5 0;-fx-background-insets: 0;-fx-padding: 0">
-            <VBox alignment="TOP_LEFT">
+        <SplitPane fx:id="mainSplitPane" style="-fx-border-width:0.5 0 0.5 0; -fx-border-color: #333;">
+            <VBox alignment="TOP_LEFT" >
                 <StackPane prefHeight="2000">
                     <TabPane fx:id="treeviewTabPane" side="LEFT" minWidth="35" tabClosingPolicy="UNAVAILABLE">
                         <CustomTreeviewTab fx:id="connectTab" closable="false" >
-                            <VBox style="-fx-border-width: 0 0 0 0.5;-fx-border-color: #aaa">
+                            <VBox>
                                 <HBox minHeight="30" alignment="CENTER_LEFT">
                                     <Button fx:id="create_connect"  focusTraversable="false" styleClass="little-custom-button" onAction="#createConnectLeaf">
                                         <tooltip>
@@ -125,11 +125,11 @@
                                         </tooltip>
                                     </Button>
                                 </HBox>
-                                <TreeView fx:id="databaseMetaTreeView" prefHeight="2000" style="-fx-border-width: 0.5 0 0 0;-fx-border-color: #aaa;"></TreeView>
+                                <TreeView fx:id="databaseMetaTreeView" prefHeight="2000" style="-fx-padding:0;-fx-border-width:0"></TreeView>
                             </VBox>
                         </CustomTreeviewTab>
                         <CustomTreeviewTab fx:id="markdownTab" closable="false">
-                            <VBox fx:id="markdownTreeViewVBox"  style="-fx-border-width: 0 0 0 0.5;-fx-border-color: #aaa">
+                            <VBox fx:id="markdownTreeViewVBox" >
                                 <HBox minHeight="30" alignment="CENTER_LEFT">
                                     <StackPane fx:id="rebuildMarkdownIndexButton_stackpane">
                                     <Button fx:id="rebuildMarkdownIndexButton"  focusTraversable="false" styleClass="little-custom-button" onAction="#rebuildMarkdownIndex">
@@ -157,12 +157,12 @@
                             </VBox>
                         </CustomTreeviewTab>
                         <CustomTreeviewTab fx:id="aiTab" closable="false">
-                            <VBox fx:id="aiTabVBox" style="-fx-border-width: 0 0 0 0.5;-fx-border-color: #aaa" VBox.vgrow="ALWAYS">
-                                <ScrollPane fx:id="aiChatScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: #fafafa;-fx-border-width: 0.5 0 0 0;-fx-border-color: #aaa;-fx-background-insets: 0">
+                            <VBox fx:id="aiTabVBox"  VBox.vgrow="ALWAYS">
+                                <ScrollPane fx:id="aiChatScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" >
                                     <VBox fx:id="aiChatMessages" spacing="8" style="-fx-padding: 8"/>
                                 </ScrollPane>
-                                <HBox alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 6;-fx-border-width: 0.5 0 0 0;-fx-border-color: #ddd;-fx-background-color: #fff">
-                                    <TextArea fx:id="aiInputField" HBox.hgrow="ALWAYS" promptText="输入消息..." wrapText="true" prefRowCount="3" prefHeight="90" style="-fx-padding: 8;-fx-focus-color: #c0d8f8;-fx-faint-focus-color: transparent"/>
+                                <HBox alignment="CENTER_LEFT" spacing="6" >
+                                    <TextArea fx:id="aiInputField" HBox.hgrow="ALWAYS" promptText="输入消息..." wrapText="true" prefRowCount="3" prefHeight="90" />
                                     <Button fx:id="aiSendButton" text="发送" styleClass="little-custom-button" onAction="#sendAiMessage" focusTraversable="false"/>
                                 </HBox>
                             </VBox>
@@ -171,7 +171,7 @@
                 </StackPane>
             </VBox>
             <StackPane style="-fx-min-width: 0;">
-                <Label fx:id="doubleClickNewSqlLabel" style="-fx-text-fill: #ccc;"></Label>
+                <Label fx:id="doubleClickNewSqlLabel" ></Label>
                 <TabPane tabDragPolicy="REORDER" tabClosingPolicy="ALL_TABS" fx:id="sqlTabPane">
                 </TabPane>
             </StackPane>

@@ -139,13 +139,14 @@ public class Main extends Application {
 
                 mainController.removeCustomFrameResizeLayersFromRoot();
 
-                SimpleStringProperty titleProp = new SimpleStringProperty("DBboys");
+                // 自定义窗口标题栏不显示文字，仅显示左侧 logo + 菜单
+                SimpleStringProperty titleProp = new SimpleStringProperty("");
                 CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(
                         primaryStage, titleProp, root, 800, 600, titleBarLeft);
                 scene = frame.scene;
                 AppState.setScene(scene);
 
-                primaryStage.setTitle("DBboys");
+                primaryStage.setTitle("");
                 Image image = new Image("file:images/logo.png");
                 primaryStage.getIcons().add(image);
                 primaryStage.initStyle(StageStyle.UNDECORATED);

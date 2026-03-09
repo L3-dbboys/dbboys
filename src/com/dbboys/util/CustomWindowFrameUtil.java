@@ -25,19 +25,20 @@ import java.util.List;
 
 public final class CustomWindowFrameUtil {
     private static final String MAXIMIZED_KEY = "customWindowMaximized";
-    private static final String TITLE_BG = "#1f2a36";
-    private static final String BODY_BG = "#151a1f";
-    private static final String BORDER_COLOR = "#314150";
+    // Use theme variables so title bar / tabs / window border share the same colors
+    private static final String TITLE_BG = "-color-bg-default";
+    private static final String BODY_BG = "-color-bg-default";
+    private static final String BORDER_COLOR = "-color-border-default";
     private static final String TITLE_STYLE =
             "-fx-background-color: " + TITLE_BG + ";" +
-            "-fx-padding: 0 0 0 12;" +
-            "-fx-min-height: 36;" +
-            "-fx-pref-height: 36;" +
+            "-fx-padding: 0 0 0 6;" +
+            "-fx-min-height: 28;" +
+            "-fx-pref-height: 28;" +
             "-fx-alignment: center-left;";
     private static final String ROOT_STYLE =
             "-fx-background-color: " + BODY_BG + ";" +
             "-fx-border-color: " + BORDER_COLOR + ";" +
-            "-fx-border-width: 1;";
+            "-fx-border-width: 0;";
     private static final String CLOSE_STYLE =
             "-fx-background-color: transparent;" +
             "-fx-text-fill: white;" +
