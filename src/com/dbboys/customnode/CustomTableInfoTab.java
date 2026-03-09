@@ -139,9 +139,7 @@ public class CustomTableInfoTab extends CustomTab {
         mainTabPane=new TabPane();
         ddlTab = new CustomTab("DDL");
         colsTab = new CustomTab("列");
-        ddlTab.getTitleLabel().textProperty().bind(I18n.bind("tableinfo.tab.ddl", "DDL"));
         ddlTab.textProperty().bind(I18n.bind("tableinfo.tab.ddl", "DDL"));
-        colsTab.getTitleLabel().textProperty().bind(I18n.bind("tableinfo.tab.columns", "列"));
         colsTab.textProperty().bind(I18n.bind("tableinfo.tab.columns", "列"));
 
         //初始化列面板

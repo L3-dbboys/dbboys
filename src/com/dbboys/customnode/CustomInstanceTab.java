@@ -1012,12 +1012,6 @@ public class CustomInstanceTab extends CustomTab {
         spaceTab=new CustomTab(I18n.t("metadata.menu.space_manager", "容量管理"));
         paramsTab=new CustomTab(I18n.t("metadata.menu.onconfig", "参数管理"));
         startTab=new CustomTab(I18n.t("metadata.menu.instance_start_stop", "实例启停"));
-        infoTab.getTitleLabel().textProperty().bind(I18n.bind("metadata.menu.instance_info", "实例信息"));
-        checkTab.getTitleLabel().textProperty().bind(I18n.bind("metadata.menu.health_check", "一键巡检"));
-        logTab.getTitleLabel().textProperty().bind(I18n.bind("metadata.menu.online_log", "运行日志"));
-        spaceTab.getTitleLabel().textProperty().bind(I18n.bind("metadata.menu.space_manager", "容量管理"));
-        paramsTab.getTitleLabel().textProperty().bind(I18n.bind("metadata.menu.onconfig", "参数管理"));
-        startTab.getTitleLabel().textProperty().bind(I18n.bind("metadata.menu.instance_start_stop", "实例启停"));
         infoTab.textProperty().bind(I18n.bind("metadata.menu.instance_info", "实例信息"));
         checkTab.textProperty().bind(I18n.bind("metadata.menu.health_check", "一键巡检"));
         logTab.textProperty().bind(I18n.bind("metadata.menu.online_log", "运行日志"));
@@ -1048,10 +1042,8 @@ public class CustomInstanceTab extends CustomTab {
         }else{
             mainTabPane.getTabs().addAll(infoTab);
         }
-        //去掉页头的右键菜单        
-        for(Tab tab:mainTabPane.getTabs()){
-            ((CustomTab)tab).getTitleLabel().setContextMenu(null);
-        }
+        //去掉实例信息子 tab 页头的右键菜单（改为整个 mainTabPane 不显示菜单）
+        mainTabPane.setContextMenu(null);
         mainTabPane.setStyle("-fx-background-color: #fff;");
         StackPane  stackPane=new StackPane(mainTabPane,refreshButton,instanceInfoLabel);
         StackPane.setAlignment(refreshButton,Pos.BOTTOM_RIGHT);

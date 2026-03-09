@@ -2447,7 +2447,7 @@ Text {
 .tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
   -fx-alignment: CENTER;
   -fx-text-fill: -color-fg-default;
-  -fx-padding: 0.4em 0.4em 0.4em 0.4em;
+  -fx-padding: 0 0.6em 0 0.6em;
 }
 .tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label > * {
   -fx-fill: -color-fg-default;
@@ -2613,6 +2613,12 @@ Text {
 }
 .tab-pane.classic > .tab-header-area > .headers-region > .tab:hover > .tab-container, .tab-pane.classic > .tab-header-area > .headers-region > .tab:selected > .tab-container {
   -fx-border-color: none;
+}
+
+/* Remove blue focus ring from tab header area (no border when focused) */
+.tab-pane > .tab-header-area > .headers-region > .tab .focus-indicator {
+  -fx-border-width: 0;
+  -fx-border-color: transparent;
 }
 .tab-pane.classic:bottom > .tab-header-area {
   -fx-padding: 0 0 5px 5px;

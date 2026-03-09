@@ -1,9 +1,6 @@
 package com.dbboys.customnode;
 
 import com.dbboys.app.AppState;
-import com.dbboys.app.Main;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import com.dbboys.ctrl.SqlTabController;
 import com.dbboys.i18n.I18n;
 import com.dbboys.util.AlertUtil;
@@ -11,7 +8,6 @@ import com.dbboys.util.TabpaneUtil;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 
@@ -47,17 +43,6 @@ public class CustomSqlTab extends CustomTab{
         sqlTabController.sqlEditCodeArea.setSaveDisabledSupplier(() -> !isDirty());
 
         I18n.localeProperty().addListener((obs, oldLocale, newLocale) -> refreshTooltip());
-
-        //增加最大化时SQL编辑分隔栏到最底下，addEventHandler不会覆盖父类事件响应，而是累加
-        getTitleLabel().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                if (AppState.getSqlEditCodeAreaIsMax() == 1) {
-                    sqlTabController.sqlSplitPane.setDividerPositions(1);
-                } else {
-                    sqlTabController.sqlSplitPane.setDividerPositions(sqlTabController.sqlSplitPaneDividerPosition);
-                }
-            }
-        });
 
         //关闭窗口事件响应
 
@@ -96,6 +81,18 @@ public class CustomSqlTab extends CustomTab{
         } catch (IOException e) {
            // log.error("Operation failed", e);
             AlertUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
+        }
+    }
+
+    @Override
+    protected void toggleMaximize() {
+        super.toggleMaximize();
+        if (sqlTabController != null && sqlTabController.sqlSplitPane != null) {
+            if (AppState.getSqlEditCodeAreaIsMax() == 1) {
+                sqlTabController.sqlSplitPane.setDividerPositions(1);
+            } else {
+                sqlTabController.sqlSplitPane.setDividerPositions(sqlTabController.sqlSplitPaneDividerPosition);
+            }
         }
     }
 

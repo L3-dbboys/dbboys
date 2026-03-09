@@ -83,11 +83,10 @@ public class TabpaneUtil {
 
         CustomTab newtab = new CustomTab("");
         newtab.setUserData(tabKey);
-        newtab.getTitleLabel().textProperty().bind(Bindings.createStringBinding(
+        newtab.textProperty().bind(Bindings.createStringBinding(
                 () -> I18n.t("tabpane.connects_info_tab.title", "[connectsInfo]%s").formatted(connect.getName()),
                 I18n.localeProperty()
         ));
-        newtab.textProperty().bind(newtab.getTitleLabel().textProperty());
         tabPane().getTabs().add(newtab);
         tabPane().getSelectionModel().select(newtab);
 
