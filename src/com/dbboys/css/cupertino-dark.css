@@ -1653,7 +1653,7 @@ Text {
   -fx-background-color: transparent;
 }
 .menu-bar > .container > .menu-button:hover, .menu-bar > .container > .menu-button:focused, .menu-bar > .container > .menu-button:showing {
-  -fx-background-color: -color-base-6, -color-base-6;
+  -fx-background-color: -color-base-8, -color-base-8;
 }
 
 .menu {
@@ -1698,7 +1698,7 @@ Text {
   -fx-padding: 0 0 0 0.5em;
 }
 .menu-item:focused {
-  -fx-background-color: -color-accent-emphasis, -color-accent-emphasis;
+  -fx-background-color: -color-base-8, -color-base-8;
 }
 .menu-item:focused > .label {
   -fx-text-fill: -color-fg-emphasis;
