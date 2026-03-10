@@ -44,12 +44,16 @@ public final class CustomWindowFrameUtil {
             "-fx-text-fill: white;" +
             "-fx-border-width: 0;" +
             "-fx-background-radius: 0;" +
-            "-fx-padding: 0 12 0 12;";
+            "-fx-padding: 0 12 0 12;" +
+            "-fx-min-height: 28;" +
+            "-fx-pref-height: 28;";
     private static final String WINDOW_BUTTON_STYLE =
             "-fx-background-color: transparent;" +
             "-fx-border-width: 0;" +
             "-fx-background-radius: 0;" +
-            "-fx-padding: 0 12 0 12;";
+            "-fx-padding: 0 12 0 12;" +
+            "-fx-min-height: 28;" +
+            "-fx-pref-height: 28;";
     private static final double RESIZE_MARGIN = 5;
 
     private CustomWindowFrameUtil() {
