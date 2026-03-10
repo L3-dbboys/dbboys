@@ -4641,7 +4641,7 @@ Text {
   -fx-highlight-fill: -color-input-bg-highlight;
   -fx-highlight-text-fill: -color-input-fg-highlight;
   -fx-prompt-text-fill: -color-fg-subtle;
-  -fx-padding: 6px 12px 6px 12px;
+  -fx-padding: 3px 6px 3px 6px;
   -fx-cursor: text;
 }
 .text-input:focused {
