@@ -1679,7 +1679,7 @@ Text {
 
 .menu-item {
   -fx-background-color: -color-bg-default;
-  -fx-padding: 6px 12px 6px 12px;
+  -fx-padding: 4px 2px 4px 2px;
   -fx-background-radius: 5px;
 }
 .menu-item > .graphic-container {
@@ -1751,7 +1751,7 @@ Text {
   -fx-background-insets: 0, 1;
   -fx-padding: 5px 5px 5px 5px;
   -fx-background-radius: 6px, 5px;
-  -fx-effect: dropshadow(three-pass-box, -color-shadow-default, 8px, 0.6, 0, 2);
+  -fx-effect: none;
 }
 .context-menu > .scroll-arrow {
   -fx-padding: 0.5em;
@@ -5106,9 +5106,9 @@ Text {
   -fx-background-color: #ddd;
 }
 
-/* 所有按钮上的 SVG 图标默认使用白色填充 */
-.button .svg-icon {
-  -fx-fill: white;
+/* 所有未显式指定颜色的 SVG 图标默认使用白色填充 */
+.svg-icon {
+  -fx-fill: #fff;
 }
 
 /* SQL 编辑框背景与文字颜色：比主界面稍浅一点的深色，文字默认白色 */

@@ -7,7 +7,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 
 public final class IconFactory {
-    private static final Color MENU_ICON_COLOR = Color.valueOf("#074675");
+    private static final Color MENU_ICON_COLOR = Color.WHITE;
     private static final Color DANGER_ICON_COLOR = Color.valueOf("#9f453c");
     private IconFactory() {}
 

@@ -17,7 +17,7 @@ public class CustomShortcutMenuItem extends CustomMenuItem {
     private static final double DEFAULT_ICON_SLOT_WIDTH = 18;
     private static final double DEFAULT_ICON_TEXT_GAP = 2;  //文字与图标的间距
     private static final double DEFAULT_ICON_LEFT_PADDING = 2; //图标到左边框的间距
-    private static final double SHORTCUT_NUDGE_RIGHT = 20;  //往右平移距离，保证快捷键靠右显示
+    private static final double SHORTCUT_NUDGE_RIGHT = -10;  //往右平移距离，保证快捷键靠右显示
 
     private final StackPane iconSlot = new StackPane();
     private final Label textLabel = new Label();
