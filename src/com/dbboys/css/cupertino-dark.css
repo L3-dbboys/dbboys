@@ -4638,7 +4638,7 @@ Text {
   -color-input-bg-focused: -color-bg-default;
   -color-input-border-focused: -color-accent-emphasis;
   -color-input-bg-readonly: -color-bg-subtle;
-  -color-input-bg-highlight: -color-accent-subtle;
+  -color-input-bg-highlight: -color-base-7;
   -color-input-fg-highlight: -color-fg-default;
   -fx-background-color: -color-input-border, -color-input-bg;
   -fx-background-insets: 0, 1px;
@@ -4710,6 +4710,17 @@ Text {
 }
 .text-input .context-menu .menu-item {
   -fx-cursor: default;
+}
+
+.borderless-text-field,
+.borderless-text-field:focused,
+.borderless-text-field:readonly,
+.borderless-text-field:readonly:focused {
+  -fx-background-color: transparent;
+  -fx-background-insets: 0;
+  -fx-background-radius: 0;
+  -fx-border-color: transparent;
+  -fx-border-width: 0;
 }
 
 .text-field.small {

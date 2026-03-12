@@ -15,6 +15,7 @@ public class CustomLabelTextField extends TextField {
 
     public CustomLabelTextField() {
         super();
+        getStyleClass().add("borderless-text-field");
         setFocusTraversable(false);
         CustomShortcutMenuItem copyMenuItem = MenuItemUtil.createMenuItemI18n(
                 "genericstyled.menu.copy",
