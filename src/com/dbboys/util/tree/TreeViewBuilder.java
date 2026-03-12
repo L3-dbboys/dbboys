@@ -1,15 +1,13 @@
 package com.dbboys.util.tree;
 
-import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
-import com.dbboys.ui.IconPaths;
+import com.dbboys.app.AppState;
 import com.dbboys.db.local.LocalDbRepository;
+import com.dbboys.util.AlertUtil;
 import com.dbboys.vo.*;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
-import javafx.stage.Stage;
 import java.util.Comparator;
 
 
@@ -50,27 +48,24 @@ public class TreeViewBuilder {
 
     //创建连接分类文件夹
     public static void createConnectFolder(TreeView<TreeData> treeView) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(I18n.t("metadata.dialog.create_folder.title", "新建连接分类"));
-        alert.setHeaderText("");
-        alert.setGraphic(null);
-        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert);
-        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
         hbox.getChildren().add(new Label(I18n.t("metadata.dialog.create_folder.name", "请输入连接分类名称  ")));
         hbox.setAlignment(Pos.CENTER_LEFT);
         TextField textField = new TextField();
         textField.setPrefWidth(200);
         hbox.getChildren().add(textField);
-        alert.getDialogPane().setContent(hbox);
 
-        // 自定义按钮
         ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+        AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                I18n.t("metadata.dialog.create_folder.title", "新建连接分类"),
+                hbox,
+                420,
+                180,
+                buttonTypeOk,
+                buttonTypeCancel
+        );
+        Button button = dialog.getButton(buttonTypeOk);
         button.setDisable(true);
         textField.requestFocus();
         textField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -92,7 +87,7 @@ public class TreeViewBuilder {
             }
         });
 
-        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        ButtonType result = dialog.showAndWait();
         if (result == buttonTypeOk) {
             ConnectFolder connectFolder = new ConnectFolder();
             connectFolder.setName(textField.getText());

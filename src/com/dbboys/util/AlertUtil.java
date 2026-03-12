@@ -8,6 +8,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.input.KeyCode;
+import javafx.scene.Node;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -17,29 +18,17 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class AlertUtil {
-    private static final double DIALOG_WIDTH = 460;
+    private static final double DIALOG_WIDTH = 400;
     private static final Insets CONTENT_PADDING = new Insets(10, 20, 10, 20);
     private static final String BODY_STYLE =
-            "-fx-background-color: #151a1f;" +
+            "-fx-background-color: #161616;" +
             "-fx-padding: 16 20 18 20;" +
             "-fx-spacing: 16;";
-    private static final String PRIMARY_BUTTON_STYLE =
-            "-fx-background-color: #2d6f9f;" +
-            "-fx-text-fill: white;" +
-            "-fx-border-color: #2d6f9f;" +
-            "-fx-background-radius: 3;" +
-            "-fx-border-radius: 3;" +
-            "-fx-padding: 6 18 6 18;";
-    private static final String SECONDARY_BUTTON_STYLE =
-            "-fx-background-color: #2b2b2b;" +
-            "-fx-text-fill: #e6e6e6;" +
-            "-fx-border-color: #575757;" +
-            "-fx-background-radius: 3;" +
-            "-fx-border-radius: 3;" +
-            "-fx-padding: 6 18 6 18;";
 
     private AlertUtil() {
     }
@@ -78,10 +67,21 @@ public final class AlertUtil {
     }
 
     private static ButtonType showDialog(String title, String message, ButtonType... buttonTypes) {
+        Text text = new Text(message == null ? "" : message);
+        text.setStyle("-fx-fill: -color-fg-default; -fx-font-size: 12px;");
+        text.setWrappingWidth(DIALOG_WIDTH - 40);
+        return createContentDialog(title, text, DIALOG_WIDTH, 120, buttonTypes).showAndWait();
+    }
+
+    public static ContentDialog createContentDialog(String title, Node content, ButtonType... buttonTypes) {
+        return createContentDialog(title, content, DIALOG_WIDTH, 120, buttonTypes);
+    }
+
+    public static ContentDialog createContentDialog(String title, Node content, double width, double height, ButtonType... buttonTypes) {
         Stage stage = new Stage(StageStyle.UNDECORATED);
         stage.setTitle(title == null ? "" : title);
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setResizable(true);
+        stage.setResizable(false);
         Window owner = AppState.getWindow();
         if (owner != null) {
             stage.initOwner(owner);
@@ -91,40 +91,42 @@ public final class AlertUtil {
         }
 
         AtomicReference<ButtonType> resultRef = new AtomicReference<>();
-        Text text = new Text(message == null ? "" : message);
-        text.setStyle("-fx-fill: #e6e6e6; -fx-font-size: 12px;");
-        text.setWrappingWidth(DIALOG_WIDTH - 40);
+        ButtonType defaultButtonType = findDefaultButton(buttonTypes);
+        ButtonType cancelButtonType = findCancelButton(buttonTypes);
 
         HBox buttonBar = new HBox(10);
         buttonBar.setStyle("-fx-alignment: center-right;");
-        ButtonType defaultButtonType = findDefaultButton(buttonTypes);
-        ButtonType cancelButtonType = findCancelButton(buttonTypes);
+        Map<ButtonType, Button> buttonMap = new LinkedHashMap<>();
         for (ButtonType buttonType : buttonTypes) {
             Button button = new Button(buttonType.getText());
             button.setFocusTraversable(false);
             button.setDefaultButton(buttonType == defaultButtonType);
             button.setCancelButton(buttonType == cancelButtonType);
-            button.setStyle(buttonType == cancelButtonType ? SECONDARY_BUTTON_STYLE : PRIMARY_BUTTON_STYLE);
             button.setOnAction(event -> {
                 resultRef.set(buttonType);
                 stage.close();
             });
+            buttonMap.put(buttonType, button);
             buttonBar.getChildren().add(button);
         }
 
-        VBox body = new VBox(text, buttonBar);
+        VBox body = new VBox(content, buttonBar);
         body.setPadding(CONTENT_PADDING);
         body.setStyle(BODY_STYLE);
-        VBox.setVgrow(text, Priority.ALWAYS);
+        VBox.setVgrow(content, Priority.ALWAYS);
 
         CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(
                 stage,
                 stage.titleProperty(),
                 body,
-                DIALOG_WIDTH,
-                220
+                width,
+                height,
+                null,
+                false,
+                false,
+                false
         );
-        frame.root.setMinWidth(DIALOG_WIDTH);
+        frame.root.setMinWidth(width);
         frame.closeButton.setOnAction(event -> {
             resultRef.set(cancelButtonType != null ? cancelButtonType : defaultButtonType);
             stage.close();
@@ -140,8 +142,7 @@ public final class AlertUtil {
         });
 
         stage.setScene(frame.scene);
-        stage.showAndWait();
-        return resultRef.get();
+        return new ContentDialog(stage, frame, resultRef, buttonMap, defaultButtonType, cancelButtonType);
     }
 
     private static ButtonType findDefaultButton(ButtonType[] buttonTypes) {
@@ -160,5 +161,49 @@ public final class AlertUtil {
             }
         }
         return null;
+    }
+
+    public static final class ContentDialog {
+        private final Stage stage;
+        private final CustomWindowFrameUtil.Frame frame;
+        private final AtomicReference<ButtonType> resultRef;
+        private final Map<ButtonType, Button> buttons;
+        private final ButtonType defaultButtonType;
+        private final ButtonType cancelButtonType;
+
+        private ContentDialog(Stage stage,
+                              CustomWindowFrameUtil.Frame frame,
+                              AtomicReference<ButtonType> resultRef,
+                              Map<ButtonType, Button> buttons,
+                              ButtonType defaultButtonType,
+                              ButtonType cancelButtonType) {
+            this.stage = stage;
+            this.frame = frame;
+            this.resultRef = resultRef;
+            this.buttons = buttons;
+            this.defaultButtonType = defaultButtonType;
+            this.cancelButtonType = cancelButtonType;
+        }
+
+        public Button getButton(ButtonType buttonType) {
+            return buttons.get(buttonType);
+        }
+
+        public Stage getStage() {
+            return stage;
+        }
+
+        public CustomWindowFrameUtil.Frame getFrame() {
+            return frame;
+        }
+
+        public ButtonType showAndWait() {
+            stage.showAndWait();
+            ButtonType result = resultRef.get();
+            if (result != null) {
+                return result;
+            }
+            return cancelButtonType != null ? cancelButtonType : defaultButtonType;
+        }
     }
 }

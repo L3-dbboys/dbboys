@@ -19,14 +19,12 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.input.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -848,14 +846,6 @@ public class TreeContextMenuHandler {
         //右键移动连接点击响应
         moveItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18n.t("metadata.dialog.move_connection.title", "移动数据库连接"));
-            alert.setHeaderText("");
-            alert.setGraphic(null); //避免显示问号
-            //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            AppState.applyAppStylesheet(alert);
-            Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-            alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             HBox hbox = new HBox();
             hbox.getChildren().add(new Label(I18n.t("metadata.dialog.move_connection.target", "请选择移动到  ")));
             hbox.setAlignment(Pos.CENTER_LEFT);
@@ -869,12 +859,17 @@ public class TreeContextMenuHandler {
             choiceBox.setItems(FXCollections.observableArrayList(list));
             choiceBox.getSelectionModel().select(0);
             hbox.getChildren().add(choiceBox);
-            alert.getDialogPane().setContent(hbox);
 
-            // 自定义按钮
             ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
             ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
+            AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                    I18n.t("metadata.dialog.move_connection.title", "移动数据库连接"),
+                    hbox,
+                    430,
+                    180,
+                    buttonTypeOk,
+                    buttonTypeCancel
+            );
             choiceBox.requestFocus();
             choiceBox.setPrefWidth(150);
             Connect connect = (Connect) selectedItem.getValue();
@@ -883,7 +878,7 @@ public class TreeContextMenuHandler {
                 connect.setParentId(((ConnectFolder) newValue).getId());
             });
 
-            ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+            ButtonType result = dialog.showAndWait();
             if (result == buttonTypeOk) {
                 selectedItem.setValue(connect);
                 LocalDbRepository.updateConnect(connect);
@@ -915,14 +910,6 @@ public class TreeContextMenuHandler {
         //右键新建数据库点击响应
         createDatabaseItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18n.t("metadata.dialog.create_database.title", "新建数据库"));
-            alert.setHeaderText("");
-            alert.setGraphic(null); //避免显示问号
-            //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            AppState.applyAppStylesheet(alert);
-            Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-            alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             GridPane grid = new GridPane();
             grid.setHgap(10);
             grid.setVgap(8);
@@ -990,13 +977,18 @@ public class TreeContextMenuHandler {
             grid.add(comboBox, 1, 1);
             grid.add(dbspaceLabel, 0, 2);
             grid.add(comboBox1, 1, 2);
-            alert.getDialogPane().setContent(grid);
 
-            // 自定义按钮
             ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
             ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-            Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+            AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                    I18n.t("metadata.dialog.create_database.title", "新建数据库"),
+                    grid,
+                    460,
+                    250,
+                    buttonTypeOk,
+                    buttonTypeCancel
+            );
+            Button button = dialog.getButton(buttonTypeOk);
             button.setDisable(true);
             textField.requestFocus();
             textField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -1008,7 +1000,7 @@ public class TreeContextMenuHandler {
                 }
             });
 
-            ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+            ButtonType result = dialog.showAndWait();
             if (result == buttonTypeOk) {
                 Connect connect = new Connect((Connect) selectedItem.getParent().getValue());
                 String dbLocale = ((String) comboBox.getValue()).replaceAll("\\([^()]*\\)", "");

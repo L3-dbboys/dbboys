@@ -1,6 +1,5 @@
 package com.dbboys.util;
 
-import com.dbboys.app.AppState;
 import com.dbboys.customnode.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,10 +14,8 @@ import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
-import javafx.scene.image.Image;
 import javafx.scene.input.*;
 import javafx.scene.layout.HBox;
-import javafx.stage.Stage;
 
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
@@ -212,14 +209,6 @@ public class MarkdownUtil {
         renameItem.setOnAction(e -> {
             selectedTreeItem=treeView.getSelectionModel().getSelectedItem();
             File file = selectedTreeItem.getValue().getFile();
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18n.t("markdown.tree.rename.title", "重命名"));
-            alert.setHeaderText("");
-            alert.setGraphic(null); //避免显示问号
-            //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            AppState.applyAppStylesheet(alert);
-            Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-            alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
             HBox hbox = new HBox();
             hbox.getChildren().add(new Label(I18n.t("markdown.tree.rename.input_label", "请输入重命名名称  ")));
             hbox.setAlignment(Pos.CENTER_LEFT);
@@ -228,16 +217,21 @@ public class MarkdownUtil {
             textField.setText(selectedTreeItem.getValue().getName());
             textField.positionCaret(textField.getText().length());
             hbox.getChildren().add(textField);
-            alert.getDialogPane().setContent(hbox);
 
-            // 自定义按钮
             ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
             ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-            Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+            AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                    I18n.t("markdown.tree.rename.title", "重命名"),
+                    hbox,
+                    430,
+                    180,
+                    buttonTypeOk,
+                    buttonTypeCancel
+            );
+            Button button = dialog.getButton(buttonTypeOk);
             button.requestFocus();
             textField.requestFocus();
-            ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+            ButtonType result = dialog.showAndWait();
             String newName=textField.getText();
             if (result == buttonTypeOk) {
                 if (newName.equals(file.getName()) || newName.isBlank()) return;
@@ -563,14 +557,6 @@ public class MarkdownUtil {
     public static void createNewFile(TreeItem<Markdown> treeItem, boolean isFolder) {
         if(treeItem==null) treeItem=treeView.getRoot();
         File parent=treeItem.getValue().getFile();
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(isFolder ? I18n.t("markdown.tree.new_folder.title", "新建文件夹") : I18n.t("markdown.tree.new_file.title", "新建文件"));
-        alert.setHeaderText("");
-        alert.setGraphic(null); //避免显示问号
-        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert);
-        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
         hbox.getChildren().add(new Label(
                 String.format(I18n.t("markdown.tree.new.input_label", "请输入%s名称  "), isFolder ? I18n.t("markdown.tree.new.folder", "文件夹") : I18n.t("markdown.tree.new.file", "文件"))
@@ -581,16 +567,21 @@ public class MarkdownUtil {
         textField.setText(isFolder ? I18n.t("markdown.tree.new.default_folder", "新建文件夹") : I18n.t("markdown.tree.new.default_file", "新建markdown文档.md"));
         textField.positionCaret(textField.getText().length());
         hbox.getChildren().add(textField);
-        alert.getDialogPane().setContent(hbox);
 
-        // 自定义按钮
         ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+        AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                isFolder ? I18n.t("markdown.tree.new_folder.title", "新建文件夹") : I18n.t("markdown.tree.new_file.title", "新建文件"),
+                hbox,
+                460,
+                180,
+                buttonTypeOk,
+                buttonTypeCancel
+        );
+        Button button = dialog.getButton(buttonTypeOk);
         button.requestFocus();
         textField.requestFocus();
-        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        ButtonType result = dialog.showAndWait();
         if (result == buttonTypeOk) {
             try {
                 Path newPath = parent.toPath().resolve(textField.getText());
@@ -735,4 +726,3 @@ public class MarkdownUtil {
 
 
 }
-

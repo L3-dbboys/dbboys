@@ -526,21 +526,16 @@ public class CreateConnectController {
                 File file = new File("extlib/"+dbTypeChoiceBox.getValue()+"/"+currItem);
                 if(LocalDbRepository.checkDriverInUse(currItem)){
                     //如果正在使用，提示是否确认要删除
-                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                    alert.setTitle(I18n.t("createconnect.confirm.delete_driver.title"));
-                    alert.setHeaderText("");
-                    alert.setContentText(I18n.t("createconnect.confirm.delete_driver.content"));
-                    alert.setGraphic(null); //避免显示问号
-                    //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-                    AppState.applyAppStylesheet(alert);
-                    Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-                    alterstage.getIcons().add(new Image("file:images/logo.png"));
-
-                    // 自定义按钮
                     ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
                     ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-                    alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-                    ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+                    ButtonType result = AlertUtil.createContentDialog(
+                            I18n.t("createconnect.confirm.delete_driver.title"),
+                            new Label(I18n.t("createconnect.confirm.delete_driver.content")),
+                            430,
+                            180,
+                            buttonTypeOk,
+                            buttonTypeCancel
+                    ).showAndWait();
                     if (result == buttonTypeOk) {
                         if(file.delete()) {
                             driverChoiceBox.getItems().remove(currItem);
@@ -616,27 +611,21 @@ public class CreateConnectController {
         tableView.getItems().clear();
         tableView.getItems().addAll(datalist);
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(I18n.t("createconnect.dialog.edit_props.title"));
-        alert.setHeaderText("");
-        alert.setGraphic(null); //避免显示问号
-        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert);
-        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image("file:images/logo.png"));
         HBox hbox = new HBox();
         hbox.setId("modifyProps");
         hbox.setAlignment(Pos.CENTER_LEFT);
         hbox.getChildren().add(tableView);
-        alert.getDialogPane().setContent(hbox);
 
-        // 自定义按钮
         ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        ButtonType result = AlertUtil.createContentDialog(
+                I18n.t("createconnect.dialog.edit_props.title"),
+                hbox,
+                420,
+                600,
+                buttonTypeOk,
+                buttonTypeCancel
+        ).showAndWait();
         if (result == buttonTypeOk) {
             lastdata = datalist;
         }else {
@@ -656,14 +645,6 @@ public class CreateConnectController {
     //编辑组信息
     public void modifyGroupProps(){
     
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(I18n.t("createconnect.dialog.edit_group.title"));
-        alert.setHeaderText("");
-        alert.setGraphic(null); //避免显示问号
-        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert);
-        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image("file:images/logo.png"));
         HBox hbox = new HBox();
         hbox.setId("modifyProps");
         hbox.setAlignment(Pos.CENTER_LEFT);
@@ -688,13 +669,17 @@ public class CreateConnectController {
         codeArea.setPrefHeight(100);
         codeArea.setEditable(true);
         codeArea.replaceText(content);
-        alert.getDialogPane().setContent(hbox);
 
-        // 自定义按钮
         ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("createconnect.button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        ButtonType result = AlertUtil.createContentDialog(
+                I18n.t("createconnect.dialog.edit_group.title"),
+                hbox,
+                460,
+                240,
+                buttonTypeOk,
+                buttonTypeCancel
+        ).showAndWait();
         if (result == buttonTypeOk) {
             try {
                 Files.writeString(file, codeArea.getText(), StandardCharsets.UTF_8);
@@ -837,6 +822,7 @@ public class CreateConnectController {
 
             cancelButton.setOnAction(event -> {
                 task.cancel();
+                closeWindow();
             });
             connectingStopButton.setOnAction(event1 -> {
                 //TreeViewUtil.testConnThread.interrupt();
@@ -855,5 +841,3 @@ public class CreateConnectController {
 
     }
 }
-
-

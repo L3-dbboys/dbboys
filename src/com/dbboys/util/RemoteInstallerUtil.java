@@ -223,7 +223,7 @@ public class RemoteInstallerUtil {
         stopButton.setTooltip(stopTooltip);
         runningLabel=new Label("");
         HBox imageHBox = new HBox(imageView, runningLabel, stopButton);
-        imageHBox.setStyle("-fx-background-color: white;-fx-background-radius: 2;-fx-padding: 0 0 0 5");
+        imageHBox.setStyle("-fx-background-color: rgb(58, 58, 60);-fx-background-radius: 2;-fx-padding: 0 0 0 5");
         imageHBox.setAlignment(Pos.CENTER);
         imageHBox.setMaxHeight(15);
         //imageHBox.setMaxWidth(100);
@@ -366,26 +366,26 @@ public class RemoteInstallerUtil {
                                             systemInfoArea.replaceText("");
 
                                             systemInfoArea.append(I18n.t("remote.install.info.machine", "服务器型号") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(machineInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(machineInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             // 省略其他信息的显示代码（与原逻辑相同）
                                             systemInfoArea.append(I18n.t("remote.install.info.os", "操作系统版本") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(osInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(osInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             systemInfoArea.append(I18n.t("remote.install.info.kernel", "内核版本") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(kernelInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(kernelInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             systemInfoArea.append(I18n.t("remote.install.info.cpu", "CPU信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(cpuInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(cpuInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             systemInfoArea.append(I18n.t("remote.install.info.memory", "内存信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(memInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(memInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             systemInfoArea.append(I18n.t("remote.install.info.disk", "磁盘信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(diskInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(diskInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             systemInfoArea.append(I18n.t("remote.install.info.filesystem", "文件系统信息") + "\n","-fx-fill: #074675;-fx-font-weight: bold;-fx-font-family:system;");
-                                            systemInfoArea.append(fileSystemInfo + "\n\n","-fx-fill: #000; -fx-font-weight: normal;-fx-font-family:Courier New;");
+                                            systemInfoArea.append(fileSystemInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
 
 
@@ -434,6 +434,7 @@ public class RemoteInstallerUtil {
                                 if (session != null && session.isConnected()) {
                                     session.disconnect();
                                 }
+                                mainDialog.close();
                             });
 
                         });
@@ -462,6 +463,7 @@ public class RemoteInstallerUtil {
                             if (session != null && session.isConnected()) {
                                 session.disconnect();
                             }
+                            mainDialog.close();
                         });
                     }
                     runningLabel.setText(" " + I18n.t("remote.install.status.connecting", "正在连接..."));
@@ -555,6 +557,7 @@ public class RemoteInstallerUtil {
                                 if (session != null && session.isConnected()) {
                                     session.disconnect();
                                 }
+                                mainDialog.close();
                             });
 
 
@@ -1865,6 +1868,7 @@ GBASEEOF
                         if (session != null && session.isConnected()) {
                             session.disconnect();
                         }
+                        mainDialog.close();
                     });
                     break;
                 default:
@@ -2516,29 +2520,25 @@ GBASEEOF
         tableView.getItems().addAll(datalist);
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.titleProperty().bind(I18n.bind("remote.install.modifyenv.title", "自定义配置"));
-        alert.setHeaderText("");
-        alert.setGraphic(null); //避免显示问号
-        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert);
-        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image("file:images/logo.png"));
         HBox hbox = new HBox();
         hbox.setAlignment(Pos.CENTER_LEFT);
         hbox.getChildren().add(tableView);
-        alert.getDialogPane().setContent(hbox);
 
-        // 自定义按钮
         ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
-        Button cancelButton = (Button) alert.getDialogPane().lookupButton(buttonTypeCancel);
+        AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                I18n.t("remote.install.modifyenv.title", "自定义配置"),
+                hbox,
+                760,
+                360,
+                buttonTypeOk,
+                buttonTypeCancel
+        );
+        Button button = dialog.getButton(buttonTypeOk);
+        Button cancelButton = dialog.getButton(buttonTypeCancel);
         button.textProperty().bind(I18n.bind("common.confirm", "确认"));
         cancelButton.textProperty().bind(I18n.bind("common.cancel", "取消"));
-        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        ButtonType result = dialog.showAndWait();
         if (result == buttonTypeOk) {
             installConfigItems.setAll(datalist.stream().map(InstallConfigItem::new).toList());
             refreshLegacyConfigListFromItems();

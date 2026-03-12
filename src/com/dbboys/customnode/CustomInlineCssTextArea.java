@@ -19,6 +19,7 @@ public class CustomInlineCssTextArea extends InlineCssTextArea {
     public CustomInlineCssTextArea() {
         super();
         setEditable(false);
+        getStyleClass().add("code-area");
         copyItem = MenuItemUtil.createMenuItemI18n(
                 "genericstyled.menu.copy",
                 "Ctrl+C",

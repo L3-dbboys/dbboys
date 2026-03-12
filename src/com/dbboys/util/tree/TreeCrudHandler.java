@@ -1,23 +1,20 @@
 package com.dbboys.util.tree;
 
-import com.dbboys.app.AppState;
 import com.dbboys.app.AppErrorHandler;
+import com.dbboys.app.AppState;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
-import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,15 +28,7 @@ public class TreeCrudHandler {
     //重命名节点
     public static void renameTreeItem(TreeView<TreeData> treeView) {
         TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         String title = buildRenameTitle(selectedItem.getValue());
-        alert.setTitle(title);
-        alert.setHeaderText("");
-        alert.setGraphic(null); //避免显示问号
-        //alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-        AppState.applyAppStylesheet(alert);
-        Stage alterstage = (Stage) alert.getDialogPane().getScene().getWindow();
-        alterstage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         HBox hbox = new HBox();
         hbox.getChildren().add(new Label(I18n.t("metadata.dialog.rename.input", "请输入重命名名称  ")));
         hbox.setAlignment(Pos.CENTER_LEFT);
@@ -48,13 +37,11 @@ public class TreeCrudHandler {
         textField.setText(selectedItem.getValue().getName());
         textField.positionCaret(textField.getText().length());
         hbox.getChildren().add(textField);
-        alert.getDialogPane().setContent(hbox);
 
-        // 自定义按钮
         ButtonType buttonTypeOk = new ButtonType(I18n.t("common.confirm", "确认"), ButtonBar.ButtonData.OK_DONE);
         ButtonType buttonTypeCancel = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonTypeOk, buttonTypeCancel);
-        Button button = (Button) alert.getDialogPane().lookupButton(buttonTypeOk);
+        AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(title, hbox, 430, 180, buttonTypeOk, buttonTypeCancel);
+        Button button = dialog.getButton(buttonTypeOk);
         button.setDisable(true);
         textField.requestFocus();
         textField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -88,7 +75,7 @@ public class TreeCrudHandler {
             }
         });
 
-        ButtonType result = alert.showAndWait().orElse(buttonTypeCancel);
+        ButtonType result = dialog.showAndWait();
         if (result == buttonTypeOk) {
             String newName = textField.getText();
             TreeData treeData = selectedItem.getValue();
