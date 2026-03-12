@@ -11,6 +11,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.Node;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
@@ -35,6 +36,9 @@ public final class AlertUtil {
             "-fx-background-color: #161616;" +
             "-fx-padding: 16 20 18 20;" +
             "-fx-spacing: 16;";
+    private static final String TEXT_CONTENT_STYLE =
+            "-fx-background-color: -color-base-6;" +
+            "-fx-alignment: center-left;";
 
     private AlertUtil() {
     }
@@ -133,6 +137,11 @@ public final class AlertUtil {
                 false
         );
         frame.root.setMinWidth(width);
+        frame.root.setStyle(frame.root.getStyle() +
+                "-fx-border-color: -color-fg-default;" +
+                "-fx-border-width: 1;" +
+                "-fx-padding: 1;");
+        frame.root.setPadding(new Insets(1));
         frame.titleBar.setStyle(ALERT_TITLE_STYLE);
         frame.closeButton.setOnAction(event -> {
             resultRef.set(cancelButtonType != null ? cancelButtonType : defaultButtonType);
