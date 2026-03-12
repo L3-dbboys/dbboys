@@ -101,7 +101,7 @@ public class RemoteCheckEnvUtil {
         imageHBox.setAlignment(Pos.CENTER);
         imageHBox.setMaxHeight(15);
         stopButton.setFocusTraversable(false);
-        stopButton.getStyleClass().add("little-custom-button");
+        stopButton.getStyleClass().add("small");
         backgroundHBox = new HBox(imageHBox);
         backgroundHBox.setAlignment(Pos.CENTER);
         backgroundHBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");

@@ -52,7 +52,7 @@
   -color-danger-8: #8c2620;
   -color-danger-9: #661c17;
   /*-color-fg-default: rgb(255, 255, 255);*/
-  -color-fg-default: rgb(200, 200, 200);
+  -color-fg-default: rgb(220, 220, 220);
 
   -color-fg-muted: #aeaeb2;
   -color-fg-subtle: rgb(141, 141, 147);
@@ -411,10 +411,10 @@ Text {
 }
 
 .button {
-  -color-button-bg: rgb(28, 28, 30);
+  -color-button-bg: -color-bg-default;
   -color-button-fg: -color-fg-default;
   -color-button-border: -color-border-default;
-  -color-button-bg-hover: -color-base-6;
+  -color-button-bg-hover: -color-base-7;
   -color-button-fg-hover: -color-button-fg;
   -color-button-border-hover: -color-button-border;
   -color-button-bg-focused: -color-button-bg;
@@ -424,14 +424,14 @@ Text {
   -color-button-fg-pressed: -color-button-fg;
   -color-button-border-pressed: transparent;
   -color-button-shadow: -color-shadow-default;
-  -fx-background-color: -color-button-border, -color-button-bg;
-  -fx-background-insets: 0, 1px;
-  -fx-background-radius: 6px, 5px;
+  -fx-background-color: none,none;
+  -fx-background-insets: 0, 0px;
+  -fx-background-radius: 3px, 2px;
   -fx-graphic-text-gap: 6px;
   -fx-text-fill: -color-button-fg;
   -fx-alignment: CENTER;
   -fx-effect: dropshadow(gaussian, -color-button-shadow, 3px, -2, 0, 1);
-  -fx-padding: 6px 12px 6px 12px;
+  -fx-padding: 4px 8px 4px 8px;
 }
 .button .font-icon, .button .ikonli-font-icon {
   -fx-icon-color: -color-button-fg;
@@ -479,7 +479,7 @@ Text {
   -fx-background-insets: 0, 1px;
 }
 .button:hover {
-  -fx-background-color: -color-button-border-hover, -color-button-bg-hover;
+  -fx-background-color:  -color-button-bg-hover;
   -fx-text-fill: -color-button-fg-hover;
   -fx-opacity: 0.9;
 }
@@ -603,7 +603,7 @@ Text {
   -fx-underline: true;
 }
 .button.small {
-  -fx-padding: 4.2857142857px 8.5714285714px 4.2857142857px 8.5714285714px;
+  -fx-padding: 2px 4px 2px 4px;
   -fx-font-size: 0.8em;
 }
 .button.large {
@@ -1090,7 +1090,7 @@ Text {
   -fx-background-color: -color-accent-muted;
 }
 .table-view .placeholder > .label {
-  -fx-font-size: 1.25em;
+  -fx-font-size: 1em;
 }
 .table-view.bordered .table-row-cell > .table-cell {
   -fx-border-color: -color-border-default;
@@ -1657,7 +1657,7 @@ Text {
   -fx-background-color: transparent;
 }
 .menu-bar > .container > .menu-button:hover, .menu-bar > .container > .menu-button:focused, .menu-bar > .container > .menu-button:showing {
-  -fx-background-color: -color-base-8, -color-base-8;
+  -fx-background-color: -color-base-7, -color-base-7;
 }
 
 .menu {
@@ -1702,7 +1702,7 @@ Text {
   -fx-padding: 0 0 0 0.5em;
 }
 .menu-item:focused {
-  -fx-background-color: -color-base-8, -color-base-8;
+  -fx-background-color: -color-base-7, -color-base-7;
 }
 .menu-item:focused > .label {
   -fx-text-fill: -color-fg-emphasis;
@@ -4713,7 +4713,7 @@ Text {
 }
 
 .text-field.small {
-  -fx-padding: 4.2857142857px 8.5714285714px 4.2857142857px 8.5714285714px;
+  -fx-padding: 2px 4px 2px 4px;
   -fx-font-size: 0.8em;
 }
 .text-field.large {
@@ -5083,34 +5083,6 @@ Text {
   -fx-border-color: #274b68;
 }
 
-/* 按下时的样式 */
-.custom-button:pressed ,.little-custom-button:pressed,.codearea-camera-button:pressed{
-  -fx-effect: innershadow(two-pass-box, rgba(0, 0, 0, 0.3), 5, 0, 0, 1);  /* 按下时的内阴影效果 */
-}
-.custom-button{
-  -fx-background-color: none;
-  -fx-border-color: none;
-  -fx-border-width: 0;
-}
-.little-custom-button{
-  -fx-font-size: 9; /*控制按钮高度*/
-  -fx-background-radius: 2;
-  /*
-  -fx-background-insets: 3;
-  -fx-padding:  5; */
-  -fx-border-width: 0;
-  -fx-border-color: none;
-  -fx-background-color: none;
-}
-.little-custom-button:hover{
-  -fx-background-radius: 2;
-  /*
-  -fx-background-insets: 3;
-  -fx-padding: 5;*/
-  -fx-border-width: 0;
-  -fx-border-color: none;
-  -fx-background-color: #ddd;
-}
 
 /* 所有未显式指定颜色的 SVG 图标默认使用白色填充 */
 .svg-icon {

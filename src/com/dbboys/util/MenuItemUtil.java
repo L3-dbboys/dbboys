@@ -44,7 +44,7 @@ public class MenuItemUtil {
         Tooltip tooltip = new Tooltip(tooltipText);
         button.setTooltip(tooltip);
         button.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.4, Color.valueOf(DEFAULT_COLOR)));
-        button.getStyleClass().add("little-custom-button");
+        button.getStyleClass().add("small");
         button.setStyle("-fx-padding: 1 3 1 3");
         button.setFocusTraversable(false);
         return button;

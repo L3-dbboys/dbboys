@@ -149,15 +149,15 @@ class DownloadTaskWrapper {
         });
 
         resumeButton.setGraphic(IconFactory.group(IconPaths.DOWNLOAD_RESUME, 0.5));
-        resumeButton.getStyleClass().add("little-custom-button");
+        resumeButton.getStyleClass().add("small");
         resumeButton.setFocusTraversable(false);
 
         pauseButton.setGraphic(IconFactory.group(IconPaths.DOWNLOAD_PAUSE, 0.6));
-        pauseButton.getStyleClass().add("little-custom-button");
+        pauseButton.getStyleClass().add("small");
         pauseButton.setFocusTraversable(false);
 
         stopButton.setGraphic(IconFactory.group(IconPaths.SQL_STOP, 0.5, IconFactory.dangerColor()));
-        stopButton.getStyleClass().add("little-custom-button");
+        stopButton.getStyleClass().add("small");
         stopButton.setFocusTraversable(false);
         stopButton.setOnAction(e -> cancelDownload());
         if (source instanceof String) {

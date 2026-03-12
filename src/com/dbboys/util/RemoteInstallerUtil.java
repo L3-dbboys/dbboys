@@ -219,7 +219,7 @@ public class RemoteInstallerUtil {
         imageHBox.setMaxHeight(15);
         //imageHBox.setMaxWidth(100);
         stopButton.setFocusTraversable(false);
-        stopButton.getStyleClass().add("little-custom-button");
+        stopButton.getStyleClass().add("small");
         backgroundHBox = new HBox(imageHBox);
         backgroundHBox.setAlignment(Pos.CENTER);
         backgroundHBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");
@@ -1976,7 +1976,7 @@ GBASEEOF
 
         Button browseButton = new Button("");
         browseButton.setGraphic(IconFactory.group(BROWSE_ICON_PATH, 0.6, 0.6));
-        browseButton.getStyleClass().add("little-custom-button");
+        browseButton.getStyleClass().add("small");
         browseButton.setFocusTraversable(false);
         Tooltip browseTooltip = new Tooltip();
         browseTooltip.textProperty().bind(I18n.bind("remote.install.tooltip.browse_package", "浏览安装包"));
@@ -1984,7 +1984,7 @@ GBASEEOF
 
         Button downloadButton = new Button("");
         downloadButton.setGraphic(IconFactory.group(DOWNLOAD_ICON_PATH, 0.6, 0.6));
-        downloadButton.getStyleClass().add("little-custom-button");
+        downloadButton.getStyleClass().add("small");
         downloadButton.setFocusTraversable(false);
         Tooltip downloadTooltip = new Tooltip();
         downloadTooltip.textProperty().bind(I18n.bind("remote.install.tooltip.download_package", "下载安装包"));

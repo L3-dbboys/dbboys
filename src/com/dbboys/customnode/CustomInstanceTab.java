@@ -390,7 +390,7 @@ public class CustomInstanceTab extends CustomTab {
                 imageHBox.setMaxHeight(15);
                 //imageHBox.setMaxWidth(100);
                 processStopButton.setFocusTraversable(false);
-                processStopButton.getStyleClass().add("little-custom-button");
+                processStopButton.getStyleClass().add("small");
                 HBox backgroupHbox=new HBox(imageHBox);
                 backgroupHbox.setAlignment(Pos.CENTER);
                 backgroupHbox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");
@@ -1969,6 +1969,5 @@ public class CustomInstanceTab extends CustomTab {
         return errorPane;
     }
 }
-
 
 

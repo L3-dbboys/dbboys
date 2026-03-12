@@ -107,7 +107,7 @@
                 <ImageView fx:id="connectingLoadingImageView" fitHeight="12" fitWidth="12">
                 </ImageView>
                     <Label fx:id="connectingStatusLabel" text="%createconnect.status.connecting"></Label>
-                <Button fx:id="connectingStopButton" styleClass="little-custom-button" focusTraversable="false">
+                <Button fx:id="connectingStopButton" styleClass="small" focusTraversable="false">
                     <tooltip>
                         <Tooltip text="%createconnect.tooltip.stop_connecting"/>
                     </tooltip>

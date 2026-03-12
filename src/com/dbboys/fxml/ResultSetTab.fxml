@@ -12,10 +12,10 @@
 <?import com.dbboys.customnode.CustomResultsetTableView?>
 <VBox fx:id="resultSetVBox"  fx:controller="com.dbboys.ctrl.ResultSetTabController" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
     <HBox alignment="CENTER_LEFT" style="-fx-background-color: #1c1c1e;">
-        <Button fx:id="lastSqlCopyButton" styleClass="little-custom-button" focusTraversable="false" />
+        <Button fx:id="lastSqlCopyButton" styleClass="small" focusTraversable="false" />
         <CustomLabelTextField fx:id="lastSqlTextField" text="" focusTraversable="false" />
         <Region HBox.hgrow="ALWAYS"></Region>
-        <Button fx:id="lastSqlRefreshButton" styleClass="little-custom-button" focusTraversable="false" />
+        <Button fx:id="lastSqlRefreshButton" styleClass="small" focusTraversable="false" />
     </HBox>
     <StackPane>
         <VBox>
@@ -35,20 +35,20 @@
                 </CustomUserTextField>
 
                 <Label fx:id="resultSetLabelBetweenNext" />
-                <Button fx:id="resultSetNextPageButton" styleClass="little-custom-button" focusTraversable="false" />
+                <Button fx:id="resultSetNextPageButton" styleClass="small" focusTraversable="false" />
                 <Label fx:id="resultSetLabelBetweenAll" />
-                <Button fx:id="resultSetAllRowsButton" styleClass="little-custom-button" focusTraversable="false" />
+                <Button fx:id="resultSetAllRowsButton" styleClass="small" focusTraversable="false" />
 
                 <Label fx:id="resultSetLabelFetchedPrefix" />
                 <Label fx:id="resultSetFetchedRowsLabel">?</Label>
                 <Label fx:id="resultSetLabelFetchedSuffix" />
-                <Button fx:id="resultSetCountButton" styleClass="little-custom-button" focusTraversable="false" />
+                <Button fx:id="resultSetCountButton" styleClass="small" focusTraversable="false" />
                 <Label fx:id="resultSetLabelTotalPrefix" />
                 <Label fx:id="resultSetTotalRowsLabel">?</Label>
                 <Label fx:id="resultSetLabelTotalSuffix" />
                 <Label fx:id="sqlUsedTimeLabel">?</Label>
                 <Label fx:id="resultSetLabelTimeSuffix" />
-                <Button fx:id="resultSetExportButton" styleClass="little-custom-button" focusTraversable="false" />
+                <Button fx:id="resultSetExportButton" styleClass="small" focusTraversable="false" />
                 <Label fx:id="resultSetLabelEnd" />
             </HBox>
         </VBox>

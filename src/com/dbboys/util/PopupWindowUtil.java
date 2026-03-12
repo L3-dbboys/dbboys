@@ -292,7 +292,7 @@ public class PopupWindowUtil {
                         setGraphic(null);
                         if(!empty) {
                             Button status_sqlStopButton = new Button("");
-                            status_sqlStopButton.getStyleClass().add("little-custom-button");
+                            status_sqlStopButton.getStyleClass().add("small");
                             Tooltip stopTooltip = new Tooltip();
                             stopTooltip.textProperty().bind(stopTaskTooltipBinding);
                             status_sqlStopButton.setTooltip(stopTooltip);

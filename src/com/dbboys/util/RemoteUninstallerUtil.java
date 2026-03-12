@@ -121,7 +121,7 @@ public class RemoteUninstallerUtil {
         imageHBox.setMaxHeight(15);
         //imageHBox.setMaxWidth(100);
         stopButton.setFocusTraversable(false);
-        stopButton.getStyleClass().add("little-custom-button");
+        stopButton.getStyleClass().add("small");
         backgroundHBox = new HBox(imageHBox);
         backgroundHBox.setAlignment(Pos.CENTER);
         backgroundHBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");

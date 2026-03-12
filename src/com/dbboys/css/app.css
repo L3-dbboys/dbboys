@@ -481,7 +481,7 @@
 }
 
 /* 按下时的样式 */
-.custom-button:pressed ,.little-custom-button:pressed,.codearea-camera-button:pressed{
+.custom-button:pressed ,.button.small:pressed,.codearea-camera-button:pressed{
     -fx-effect: innershadow(two-pass-box, rgba(0, 0, 0, 0.3), 5, 0, 0, 1);  /* 按下时的内阴影效果 */
 }
 .custom-button{
@@ -489,7 +489,7 @@
     -fx-border-color: none;
     -fx-border-width: 0;
 }
-.little-custom-button{
+.button.small{
     -fx-font-size: 9; /*控制按钮高度*/
     -fx-background-radius: 2;
     /*
@@ -499,7 +499,7 @@
     -fx-border-color: none;
     -fx-background-color: none;
 }
-.little-custom-button:hover{
+.button.small:hover{
     -fx-background-radius: 2;
     /*
     -fx-background-insets: 3;

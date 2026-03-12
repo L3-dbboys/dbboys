@@ -92,7 +92,7 @@ public class CustomSearchReplaceVbox extends VBox {
         StackPane buttonPane = new StackPane();
         tobottomBtn.setFocusTraversable(false);
         tobottomBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_TOGGLE_DOWN, 0.6, 0.6));
-        tobottomBtn.getStyleClass().add("little-custom-button");
+        tobottomBtn.getStyleClass().add("small");
         buttonPane.getChildren().add(tobottomBtn);
         findField.setStyle("-fx-padding: 1 1 1 5");
         findBox.getChildren().addAll(buttonPane, findField);
@@ -100,7 +100,7 @@ public class CustomSearchReplaceVbox extends VBox {
 
         totopBtn.setFocusTraversable(false);
         totopBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_TOGGLE_UP, 0.6, 0.6));
-        totopBtn.getStyleClass().add("little-custom-button");
+        totopBtn.getStyleClass().add("small");
         buttonPane.getChildren().add(totopBtn);
 
         caseToggle.setFocusTraversable(false);
@@ -114,7 +114,7 @@ public class CustomSearchReplaceVbox extends VBox {
         Button findPrevBtn = new Button("");
         findPrevBtn.setFocusTraversable(false);
         findPrevBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_PREVIOUS, 0.4, 0.4));
-        findPrevBtn.getStyleClass().add("little-custom-button");
+        findPrevBtn.getStyleClass().add("small");
         findPrevBtn.setTooltip(new Tooltip());
         findPrevBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.prev.tooltip", "上一个"));
         findBox.getChildren().add(findPrevBtn);
@@ -122,7 +122,7 @@ public class CustomSearchReplaceVbox extends VBox {
         Button findNextBtn = new Button("");
         findNextBtn.setFocusTraversable(false);
         findNextBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_NEXT, 0.4, 0.4));
-        findNextBtn.getStyleClass().add("little-custom-button");
+        findNextBtn.getStyleClass().add("small");
         findNextBtn.setTooltip(new Tooltip());
         findNextBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.next.tooltip", "下一个"));
         findBox.getChildren().add(findNextBtn);
@@ -147,14 +147,14 @@ public class CustomSearchReplaceVbox extends VBox {
         Button replaceBtn = new Button();
         replaceBtn.setFocusTraversable(false);
         replaceBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_ONE, 0.6, 0.6));
-        replaceBtn.getStyleClass().add("little-custom-button");
+        replaceBtn.getStyleClass().add("small");
         replaceBtn.setTooltip(new Tooltip());
         replaceBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.replace.tooltip", "替换"));
 
         Button replaceAllBtn = new Button();
         replaceAllBtn.setFocusTraversable(false);
         replaceAllBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_ALL, 0.6, 0.6));
-        replaceAllBtn.getStyleClass().add("little-custom-button");
+        replaceAllBtn.getStyleClass().add("small");
         replaceAllBtn.setTooltip(new Tooltip());
         replaceAllBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.replace_all.tooltip", "全部替换"));
 
@@ -479,4 +479,3 @@ public class CustomSearchReplaceVbox extends VBox {
 
 
 }
-
