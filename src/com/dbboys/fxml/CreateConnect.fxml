@@ -25,19 +25,19 @@
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label fx:id="connectFolderLabel" text="%createconnect.label.folder" prefWidth="100">
                 </Label>
-                <ChoiceBox fx:id="connectFolderChoiceBox" focusTraversable="false">
+                <ChoiceBox fx:id="connectFolderChoiceBox" focusTraversable="false" styleClass="choice-box-with-border">
                 </ChoiceBox>
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label fx:id="dbTypeLabel" text="%createconnect.label.db_type" prefWidth="100">
                 </Label>
-                <ChoiceBox fx:id="dbTypeChoiceBox" focusTraversable="false">
+                <ChoiceBox fx:id="dbTypeChoiceBox" focusTraversable="false" styleClass="choice-box-with-border">
                 </ChoiceBox>
             </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label fx:id="driverLabel" text="%createconnect.label.driver" prefWidth="100">
                 </Label>
-                <ChoiceBox fx:id="driverChoiceBox" focusTraversable="false">
+                <ChoiceBox fx:id="driverChoiceBox" focusTraversable="false" styleClass="choice-box-with-border" style="-fx-pref-width: 282px;">
                 </ChoiceBox>
                 <Label text=" "></Label>
                 <Button fx:id="addDriverButton" focusTraversable="false" maxHeight="14" maxWidth="14" onAction="#addDriverClicked" styleClass="custom-button-with-radius">
@@ -68,7 +68,7 @@
                     </Label>
                     <CustomUserTextField fx:id="portTextField" promptText="%createconnect.prompt.port" prefWidth="48"></CustomUserTextField>
                 </HBox>
-                <HBox fx:id="groupHbox" prefHeight="30" alignment="CENTER_LEFT" style="-fx-background-color: #f5f5f5" visible="false">
+                <HBox fx:id="groupHbox" prefHeight="30" alignment="CENTER_LEFT" style="-fx-background-color: #161616" visible="false">
                     <Label fx:id="groupLabel" text="%createconnect.label.group" prefWidth="100">
                     </Label>
                     <CustomUserTextField fx:id="groupTextField" text="db_group" promptText="%createconnect.prompt.group" prefWidth="200"></CustomUserTextField>

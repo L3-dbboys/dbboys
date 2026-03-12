@@ -278,6 +278,7 @@ public class RemoteInstallerUtil {
             }
             event.consume();
         });
+        cancelBtn.setOnAction(event -> mainDialog.close());
 
         progress.addListener((obs, old, val) -> {
             int percentage = (int) (val.doubleValue() * 100);

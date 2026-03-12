@@ -286,7 +286,7 @@ public class TreeNavigator {
             stage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
 
             dialogPane.setHeader(null);
-            int dialogW = 520;
+            int dialogW = 500;
             int dialogH = 320;
             int titleBarHeight = 28;
             int contentH = dialogH - titleBarHeight;
