@@ -42,7 +42,7 @@ public final class CustomWindowFrameUtil {
             "-fx-padding: 0 0 0 6;" +
             "-fx-min-height: 28;" +
             "-fx-pref-height: 28;" +
-            "-fx-alignment: center-left;";
+            "-fx-alignment: center-left;-fx-border-width: 0.5 0.5 0 0.5;-fx-border-color: -color-fg-default;";
     private static final String ROOT_STYLE =
             "-fx-background-color: " + BODY_BG + ";";
     private static final String POPUP_ROOT_STYLE =
@@ -117,7 +117,7 @@ public final class CustomWindowFrameUtil {
         titleLabel.setMaxHeight(Double.MAX_VALUE);
         titleLabel.setStyle(
                 "-fx-text-fill: -color-fg-default;" +
-                "-fx-font-size: 12px; -fx-font-weight: bold;" +
+                "-fx-font-weight: bold;" +
                 "-fx-alignment: center-left;"
         );
 
@@ -156,10 +156,10 @@ public final class CustomWindowFrameUtil {
 
         StackPane root = new StackPane(pane);
         // 主界面不需要边框，弹出框（通常没有最小化/最大化按钮）使用 0.5px 主题边框
-        String borderWidth = (!showMinButton && !showMaxButton) ? "1" : "0";
+        String borderWidth = (!showMinButton && !showMaxButton) ? "0.5" : "0";
         root.setStyle((popupStyle ? POPUP_ROOT_STYLE : ROOT_STYLE) +
                 "-fx-border-color: " + BORDER_COLOR + ";" +
-                "-fx-border-width: " + borderWidth + ";");
+                "-fx-border-width: " + borderWidth + ";-fx-padding: 0;");
         root.setPrefSize(width, height);
         root.setMinSize(320, 180);
 

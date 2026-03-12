@@ -78,8 +78,7 @@ public final class AlertUtil {
 
     private static ButtonType showDialog(String title, String message, ButtonType... buttonTypes) {
         Text text = new Text(message == null ? "" : message);
-        text.setStyle("-fx-fill: -color-fg-default;");
-        text.setWrappingWidth(DIALOG_WIDTH - 40);
+        //text.setWrappingWidth(DIALOG_WIDTH - 40);
         return createContentDialog(title, text, DIALOG_WIDTH, 120, buttonTypes).showAndWait();
     }
 
@@ -137,10 +136,6 @@ public final class AlertUtil {
                 false
         );
         frame.root.setMinWidth(width);
-        frame.root.setStyle(frame.root.getStyle() +
-                "-fx-border-color: -color-fg-default;" +
-                "-fx-border-width: 1;" +
-                "-fx-padding: 1;");
         frame.root.setPadding(new Insets(1));
         frame.titleBar.setStyle(ALERT_TITLE_STYLE);
         frame.closeButton.setOnAction(event -> {
