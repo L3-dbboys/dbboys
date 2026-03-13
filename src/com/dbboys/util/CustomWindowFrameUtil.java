@@ -71,6 +71,17 @@ public final class CustomWindowFrameUtil {
     private CustomWindowFrameUtil() {
     }
 
+    private static String toCssColor(Color color) {
+        int red = (int) Math.round(color.getRed() * 255);
+        int green = (int) Math.round(color.getGreen() * 255);
+        int blue = (int) Math.round(color.getBlue() * 255);
+        double opacity = color.getOpacity();
+        if (opacity >= 0.999) {
+            return String.format("#%02x%02x%02x", red, green, blue);
+        }
+        return String.format("rgba(%d,%d,%d,%.3f)", red, green, blue, opacity);
+    }
+
     public static Frame create(Stage stage,
                                ObservableValue<String> titleBinding,
                                Node content,
@@ -164,7 +175,7 @@ public final class CustomWindowFrameUtil {
         closeButton.setFocusTraversable(false);
         closeButton.setStyle(CLOSE_STYLE);
         closeButton.setOnMouseEntered(event ->
-                closeButton.setStyle(CLOSE_STYLE + "-fx-background-color: #a63f3a;"));
+                closeButton.setStyle(CLOSE_STYLE + "-fx-background-color: " + toCssColor(IconFactory.stopColor()) + ";"));
         closeButton.setOnMouseExited(event -> closeButton.setStyle(CLOSE_STYLE));
 
         HBox titleBar = new HBox(titleLabel, dragRegion);

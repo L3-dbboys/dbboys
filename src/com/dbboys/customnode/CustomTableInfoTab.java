@@ -510,7 +510,7 @@ public class CustomTableInfoTab extends CustomTab {
         mainTabPane.getTabs().addAll(colsTab, ddlTab);
 
         
-        mainTabPane.setStyle("-fx-background-color: #fff;");
+        mainTabPane.setStyle("-fx-background-color: -color-bg-default;");
         StackPane  stackPane=new StackPane(mainTabPane, refreshButton);
         StackPane.setAlignment(refreshButton, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(refreshButton, new Insets(0, 15, 20, 0));
@@ -721,7 +721,7 @@ public class CustomTableInfoTab extends CustomTab {
                 Label tableCommentLabel = new Label();
                 tableCommentLabel.textProperty().bind(I18n.bind("tableinfo.table_comment", "表描述"));
                 HBox tableInfoBox = new HBox(8, tableNameLabel, tableNameField, tableCommentLabel, tableCommentField);
-                tableInfoBox.setStyle("-fx-background-color: #f0f0f0;");
+                tableInfoBox.setStyle("-fx-background-color:-color-bg-default;");
                 tableInfoBox.setAlignment(Pos.CENTER_LEFT);
                 tableInfoBox.setPadding(new Insets(8, 10, 6, 10));
 
@@ -730,7 +730,7 @@ public class CustomTableInfoTab extends CustomTab {
                 colsStackPane = new StackPane(colsTableView, buttonBox);
                 StackPane.setAlignment(buttonBox, Pos.BOTTOM_RIGHT);
                 StackPane.setMargin(buttonBox, new Insets(0, 38, -1, 0));
-                colsStackPane.setStyle("-fx-background-color: #f0f0f0;");
+                colsStackPane.setStyle("-fx-background-color: -color-bg-default;");
 
                 VBox colsRoot = new VBox(tableInfoBox, colsStackPane);
                 VBox.setVgrow(colsStackPane, javafx.scene.layout.Priority.ALWAYS);
@@ -816,7 +816,7 @@ public class CustomTableInfoTab extends CustomTab {
             Label tableCommentLabel = new Label();
             tableCommentLabel.textProperty().bind(I18n.bind("tableinfo.table_comment", "表描述"));
             HBox tableInfoBox = new HBox(8, tableNameLabel, tableNameField, tableCommentLabel, tableCommentField);
-            tableInfoBox.setStyle("-fx-background-color: #f0f0f0;");
+            tableInfoBox.setStyle("-fx-background-color: -color-bg-default;");
             tableInfoBox.setAlignment(Pos.CENTER_LEFT);
             tableInfoBox.setPadding(new Insets(8, 10, 6, 10));
  
@@ -829,7 +829,7 @@ public class CustomTableInfoTab extends CustomTab {
             StackPane.setAlignment(buttonBox, Pos.BOTTOM_RIGHT);
             //buttonBox.setPadding(new Insets(5, 15, 5, 5));
             StackPane.setMargin(buttonBox, new Insets(0, 38, -1, 0));
-            colsStackPane.setStyle("-fx-background-color: #f0f0f0;");
+            colsStackPane.setStyle("-fx-background-color: -color-bg-default;");
             
             // 显示表格和按钮
             VBox colsRoot = new VBox(tableInfoBox, colsStackPane);

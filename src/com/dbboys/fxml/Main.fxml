@@ -102,14 +102,14 @@
             </Label>
         </HBox>
         -->
-        <SplitPane fx:id="mainSplitPane" style="-fx-border-width:0.5 0 0.5 0; -fx-border-color: -color-border-default">
+        <SplitPane fx:id="mainSplitPane" style="-fx-border-width:0.5 0 0.5 0; -fx-border-color: -color-border-default;">
             <VBox alignment="TOP_LEFT" >
                 <StackPane prefHeight="2000">
                     <TabPane fx:id="treeviewTabPane" side="LEFT" minWidth="35" tabClosingPolicy="UNAVAILABLE">
-                        <CustomTreeviewTab fx:id="connectTab" closable="false" >
+                        <CustomTreeviewTab fx:id="connectTab" closable="false">
                             <VBox>
                                 <HBox minHeight="30" alignment="CENTER_LEFT">
-                                    <Button fx:id="create_connect"  focusTraversable="false" styleClass="small" onAction="#createConnectLeaf">
+                                    <Button fx:id="create_connect"  focusTraversable="false"  onAction="#createConnectLeaf">
                                         <tooltip>
                                             <Tooltip style="-fx-font-size: 10"/>
                                         </tooltip>

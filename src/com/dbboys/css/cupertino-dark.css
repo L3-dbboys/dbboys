@@ -854,8 +854,8 @@ Text {
     -fx-scale-shape: false;
     -fx-background-color: -color-accent-fg;
     -fx-padding: 0.24em 0.18em 0.24em 0.18em;
-    -fx-scale-x: 0.95;
-    -fx-scale-y: 0.95;
+    -fx-scale-x: 0.76;
+    -fx-scale-y: 0.76;
   }
 .choice-box:success > .label {
   -fx-text-fill: -color-success-fg;
@@ -1216,6 +1216,7 @@ Text {
   -fx-border-width: 0;
   -fx-border-radius: 0;
   -fx-padding: 0;
+  -fx-background-color: -color-bg-default;
 }
 
 .tree-view:focused {
@@ -1270,8 +1271,10 @@ Text {
 }
 
 .tree-cell > .tree-disclosure-node {
-  -fx-padding: 0.35em 0.5em 0 0.5em;
+  -fx-padding: 0.5em 0.7em 0.5em 0.7em;
   -fx-background-color: transparent;
+  -fx-background-insets: 0;
+  -fx-background-radius: 3px;
 }
 
 .tree-cell > .tree-disclosure-node > .arrow,
@@ -1303,6 +1306,11 @@ Text {
 
 .tree-cell:leaf-node > .tree-disclosure-node > .arrow {
   -fx-background-color: -color-fg-muted;
+}
+
+.tree-cell > .tree-disclosure-node:hover {
+  -fx-background-color:-color-base-7;
+  -fx-background-radius: 1px;
 }
 
 
