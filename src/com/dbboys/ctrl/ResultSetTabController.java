@@ -189,14 +189,14 @@ public class ResultSetTabController {
     }
 
     private void setupIcons() {
-        lastSqlCopyButton.setGraphic(IconFactory.group(IconPaths.COPY, 0.6, Color.valueOf("#074675")));
-        lastSqlRefreshButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.6, Color.valueOf("#074675")));
-        resultSetEditableEnabledLabel.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6, Color.valueOf("#074675")));
+        lastSqlCopyButton.setGraphic(IconFactory.group(IconPaths.COPY, 0.6));
+        lastSqlRefreshButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.6));
+        resultSetEditableEnabledLabel.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6));
         resultSetEditableDisabledLabel.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE_DISABLED, 0.45, Color.valueOf("#9f453c")));
-        resultSetNextPageButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_NEXT_PAGE, 0.6, Color.valueOf("#074675")));
-        resultSetAllRowsButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_ALL_ROWS, 0.5, Color.valueOf("#074675")));
-        resultSetCountButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_COUNT, 0.5, Color.valueOf("#074675")));
-        resultSetExportButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.5, Color.valueOf("#074675")));
+        resultSetNextPageButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_NEXT_PAGE, 0.6));
+        resultSetAllRowsButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_ALL_ROWS, 0.5));
+        resultSetCountButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_COUNT, 0.5));
+        resultSetExportButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.5));
     }
 
     private void bindText(Labeled labeled, String key) {
@@ -616,4 +616,3 @@ public class ResultSetTabController {
         return I18n.t("customtablecell.null", "[NULL]");
     }
 }
-

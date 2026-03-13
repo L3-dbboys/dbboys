@@ -29,8 +29,8 @@ public final class CustomWindowFrameUtil {
     private static final String TITLE_BG = "-color-bg-default";
     private static final String BODY_BG = "-color-bg-default";
     private static final String BORDER_COLOR = "-color-fg-default";
-    private static final String POPUP_TITLE_BG = "derive(-color-bg-default, 6%)";
-    private static final String POPUP_BODY_BG = "derive(-color-bg-default, 6%)";
+    private static final String POPUP_TITLE_BG = "-color-bg-default";
+    private static final String POPUP_BODY_BG = "-color-bg-default";
     private static final String TITLE_STYLE =
             "-fx-background-color: " + TITLE_BG + ";" +
             "-fx-padding: 0 0 0 6;" +
@@ -180,7 +180,7 @@ public final class CustomWindowFrameUtil {
         Button button = new Button();
         button.setFocusTraversable(false);
         button.setStyle(WINDOW_BUTTON_STYLE);
-        button.setGraphic(IconFactory.group(iconPath, scale, Color.WHITE));
+        button.setGraphic(IconFactory.group(iconPath, scale));
         button.setOnMouseEntered(event ->
                 button.setStyle(WINDOW_BUTTON_STYLE + "-fx-background-color: #314150;"));
         button.setOnMouseExited(event -> button.setStyle(WINDOW_BUTTON_STYLE));
@@ -234,7 +234,7 @@ public final class CustomWindowFrameUtil {
 
     private static void toggleMaximize(Stage stage, Button maxButton, WindowState state) {
         if (state.maximized) {
-            maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MAXIMIZE, 0.55, Color.WHITE));
+            maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MAXIMIZE, 0.55));
             stage.setX(state.prevX);
             stage.setY(state.prevY);
             stage.setWidth(state.prevWidth);
@@ -250,7 +250,7 @@ public final class CustomWindowFrameUtil {
             stage.setY(visualBounds.getMinY());
             stage.setWidth(visualBounds.getWidth());
             stage.setHeight(visualBounds.getHeight());
-            maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4, Color.WHITE));
+            maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
         }
         state.maximized = !state.maximized;
         stage.getProperties().put(MAXIMIZED_KEY, state.maximized);
@@ -269,7 +269,7 @@ public final class CustomWindowFrameUtil {
         stage.setY(visualBounds.getMinY());
         stage.setWidth(visualBounds.getWidth());
         stage.setHeight(visualBounds.getHeight());
-        frame.maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4, Color.WHITE));
+        frame.maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
         frame.state.maximized = true;
         stage.getProperties().put(MAXIMIZED_KEY, true);
     }

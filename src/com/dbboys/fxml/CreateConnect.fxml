@@ -68,7 +68,7 @@
                     </Label>
                     <CustomUserTextField fx:id="portTextField" promptText="%createconnect.prompt.port" prefWidth="48"></CustomUserTextField>
                 </HBox>
-                <HBox fx:id="groupHbox" prefHeight="30" alignment="CENTER_LEFT" style="-fx-background-color: #161616" visible="false">
+                <HBox fx:id="groupHbox" prefHeight="30" alignment="CENTER_LEFT" style="-fx-background-color: -color-bg-default" visible="false">
                     <Label fx:id="groupLabel" text="%createconnect.label.group" prefWidth="100">
                     </Label>
                     <CustomUserTextField fx:id="groupTextField" text="db_group" promptText="%createconnect.prompt.group" prefWidth="200"></CustomUserTextField>
@@ -102,7 +102,7 @@
                 </CheckBox>
             </HBox>
         </VBox>
-            <HBox fx:id="connectingHBox" alignment="CENTER" style="-fx-background-color: rgba(0, 0, 0, 0.5);-fx-background-radius: 2;" visible="false">
+            <HBox fx:id="connectingHBox" alignment="CENTER" style="-fx-background-color: rgba(0, 0, 0, 0.3);-fx-background-radius: 2;" visible="false">
                 <HBox maxWidth="100" maxHeight="15" style="-fx-background-color: rgb(58, 58, 60);-fx-background-radius: 2;-fx-padding: 0 0 0 5" alignment="CENTER">
                 <ImageView fx:id="connectingLoadingImageView" fitHeight="12" fitWidth="12">
                 </ImageView>

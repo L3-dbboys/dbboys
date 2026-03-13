@@ -404,26 +404,23 @@ public class CreateConnectController {
     }
 
     private void setupIcons() {
-        Color common = Color.valueOf("#888");
-        Color primary = Color.valueOf("#074675");
-        Color danger = Color.valueOf("#9f453c");
 
-        connectNameLabel.setGraphic(IconFactory.group(IconPaths.CONNECTION_LINK, 0.5, common));
-        connectFolderLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_FOLDER, 0.4, common));
-        dbTypeLabel.setGraphic(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, common));
-        driverLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_DRIVER, 0.05, common));
-        ipAddressLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_IP, 0.6, common));
-        portLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PORT, 0.45, common));
-        groupLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_GROUP, 0.55, common));
-        usernameLabel.setGraphic(IconFactory.group(IconPaths.SQL_USER, 0.5, common));
-        passwordLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PASSWORD, 0.5, common));
-        readOnlyCheckBox.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, common));
+        connectNameLabel.setGraphic(IconFactory.group(IconPaths.CONNECTION_LINK, 0.5));
+        connectFolderLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_FOLDER, 0.4));
+        dbTypeLabel.setGraphic(IconFactory.group(IconPaths.SQL_DATABASE, 0.4));
+        driverLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_DRIVER, 0.05));
+        ipAddressLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_IP, 0.6));
+        portLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PORT, 0.45));
+        groupLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_GROUP, 0.55));
+        usernameLabel.setGraphic(IconFactory.group(IconPaths.SQL_USER, 0.5));
+        passwordLabel.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_PASSWORD, 0.5));
+        readOnlyCheckBox.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5));
 
-        addDriverButton.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_ADD_DRIVER, 0.7, primary));
-        deleteDriverButton.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_REMOVE_DRIVER, 0.6, primary));
-        modifyDriverButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6, primary));
-        modifyGroupButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6, primary));
-        switchGroupOrIP.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.7, primary));
+        addDriverButton.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_ADD_DRIVER, 0.7));
+        deleteDriverButton.setGraphic(IconFactory.group(IconPaths.CREATE_CONNECT_REMOVE_DRIVER, 0.6));
+        modifyDriverButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6));
+        modifyGroupButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.6));
+        switchGroupOrIP.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.7));
 
         connectingLoadingImageView.setImage(new Image(IconPaths.LOADING_GIF));
         connectingStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));

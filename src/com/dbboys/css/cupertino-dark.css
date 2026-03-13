@@ -110,6 +110,8 @@
   -color-chart-6-alpha20: rgba(154, 66, 200, 0.2);
   -color-chart-7-alpha20: rgba(200, 65, 100, 0.2);
   -color-chart-8-alpha20: rgba(136, 136, 136, 0.2);
+  -color-button-default: -color-fg-default;
+  -color-button-danger: -color-danger-7;
   -fx-background-color: -color-bg-default;
   -fx-font-size: 11px;
   -fx-background-radius: inherit;
@@ -430,7 +432,7 @@ Text {
   -fx-graphic-text-gap: 6px;
   -fx-text-fill: -color-button-fg;
   -fx-alignment: CENTER;
-  -fx-effect: dropshadow(gaussian, -color-button-shadow, 3px, -2, 0, 1);
+  /*-fx-effect: dropshadow(gaussian, -color-button-shadow, 3px, -2, 0, 1);*/
   -fx-padding: 4px 8px 4px 8px;
 }
 .button .font-icon, .button .ikonli-font-icon {
@@ -3530,7 +3532,7 @@ Text {
 }
 
 .dialog-pane {
-  -fx-background-color:#161616;
+  -fx-background-color:-color-bg-default;
   -fx-background-insets: 0;
   -fx-border-color: -color-fg-default;
   -fx-border-width: 0 0.5 0.5 0.5;
@@ -5187,11 +5189,6 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 }
 
 
-/* 所有未显式指定颜色的 SVG 图标默认使用白色填充 */
-.svg-icon {
-  -fx-fill: -color-fg-default;
-}
-
 /* ========== CodeArea / SQL 编辑器暗色高亮 ========== */
 
 /* SQL 编辑框背景与字体：比主界面稍浅一点的深色 */
@@ -5297,15 +5294,16 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 
 /* 默认文本颜色（未加样式的代码） */
 .code-area .text {
-  -fx-font-weight:bold;
   -fx-fill: -color-fg-default;
 }
 
 /* 关键字、函数、数字、字符串、注释等语法高亮颜色 */
 .code-area .text.keyword {
+  -fx-font-weight:bold;
   -fx-fill: #569cd6;
 }
 .code-area .text.function {
+  -fx-font-weight:bold;
   -fx-fill: #dcdcaa;
 }
 .code-area .text.number {

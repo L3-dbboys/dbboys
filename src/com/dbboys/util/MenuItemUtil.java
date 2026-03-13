@@ -10,12 +10,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-
 public class MenuItemUtil {
-    private static final String DEFAULT_COLOR = "#074675";
-
-
     public MenuItemUtil() {}
 
 
@@ -43,7 +38,7 @@ public class MenuItemUtil {
         Button button = new Button();
         Tooltip tooltip = new Tooltip(tooltipText);
         button.setTooltip(tooltip);
-        button.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.4, Color.valueOf(DEFAULT_COLOR)));
+        button.setGraphic(IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.4));
         button.getStyleClass().add("small");
         button.setStyle("-fx-padding: 1 3 1 3");
         button.setFocusTraversable(false);

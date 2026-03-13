@@ -27,13 +27,13 @@ public final class AlertUtil {
     private static final double DIALOG_WIDTH = 400;
     private static final Insets CONTENT_PADDING = new Insets(10, 20, 10, 20);
     private static final String ALERT_TITLE_STYLE =
-            "-fx-background-color: #b33029;" +
+            "-fx-background-color: -color-bg-default;" +
             "-fx-padding: 0 0 0 6;" +
             "-fx-min-height: 28;" +
             "-fx-pref-height: 28;" +
             "-fx-alignment: center-left;";
     private static final String BODY_STYLE =
-            "-fx-background-color: #161616;" +
+            "-fx-background-color: -color-bg-default;" +
             "-fx-padding: 16 20 18 20;" +
             "-fx-spacing: 16;";
     private static final String TEXT_CONTENT_STYLE =

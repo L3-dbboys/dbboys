@@ -228,31 +228,31 @@ public class MainController {
 
     private void setupMainIcons() {
         appLogoLabel.setGraphic(IconFactory.imageView(IconPaths.MAIN_LOGO, 18, 18, false));
-        menuFileAddFolder.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_ADD_FOLDER, 0.65, Color.valueOf("#074675")));
-        menuFileNewConnection.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_CONNECTION, 0.65, Color.valueOf("#074675")));
-        menuFileDisconnectAll.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_DISCONNECT_ALL, 0.6, Color.valueOf("#074675")));
-        newSqlFileMenuItem.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_SQL, 0.55, Color.valueOf("#074675")));
-        menuFileOpenSql.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_OPEN_SQL, 0.62, Color.valueOf("#074675")));
-        menuConfigCheckEnv.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_CHECK_ENV, 0.5, Color.valueOf("#074675")));
-        menuConfigInstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#074675")));
+        menuFileAddFolder.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_ADD_FOLDER, 0.65));
+        menuFileNewConnection.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_CONNECTION, 0.65));
+        menuFileDisconnectAll.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_DISCONNECT_ALL, 0.6));
+        newSqlFileMenuItem.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_SQL, 0.55));
+        menuFileOpenSql.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_OPEN_SQL, 0.62));
+        menuConfigCheckEnv.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_CHECK_ENV, 0.5));
+        menuConfigInstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22));
         menuConfigUninstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#9f453c")));
-        menuSettingsLanguage.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_LANGUAGE, 0.68, Color.valueOf("#074675")));
-        menuSettingsReset.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_RESET, 0.6, Color.valueOf("#074675")));
-        menuHelpAbout.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HELP, 0.6, Color.valueOf("#074675")));
-        menuHelpCommunity.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_COMMUNITY, 0.5, Color.valueOf("#074675")));
-        menuHelpCheckUpdate.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HOME, 0.5, Color.valueOf("#074675")));
+        menuSettingsLanguage.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_LANGUAGE, 0.68));
+        menuSettingsReset.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_RESET, 0.6));
+        menuHelpAbout.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HELP, 0.6));
+        menuHelpCommunity.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_COMMUNITY, 0.5));
+        menuHelpCheckUpdate.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HOME, 0.5));
 
-        create_connect.setGraphic(IconFactory.group(IconPaths.MAIN_ADD_CONNECT, 0.65, Color.valueOf("#074675")));
-        connectSearchButton.setGraphic(IconFactory.group(IconPaths.MAIN_SEARCH, 0.65, Color.valueOf("#074675")));
-        rebuildMarkdownIndexButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.65, Color.valueOf("#074675")));
-        markdownSearchButton.setGraphic(IconFactory.group(IconPaths.MAIN_SEARCH, 0.65, Color.valueOf("#074675")));
+        create_connect.setGraphic(IconFactory.group(IconPaths.MAIN_ADD_CONNECT, 0.65));
+        connectSearchButton.setGraphic(IconFactory.group(IconPaths.MAIN_SEARCH, 0.65));
+        rebuildMarkdownIndexButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.65));
+        markdownSearchButton.setGraphic(IconFactory.group(IconPaths.MAIN_SEARCH, 0.65));
         statusBackSqlStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.5, IconFactory.stopColor()));
-        statusBackSqlListButton.setGraphic(IconFactory.group(IconPaths.MAIN_STATUS_LIST, 0.45, Color.valueOf("#074675")));
+        statusBackSqlListButton.setGraphic(IconFactory.group(IconPaths.MAIN_STATUS_LIST, 0.45));
         statusBackSqlProgress.setImage(new Image(IconPaths.LOADING_GIF));
         statusBackSqlProgress.setFitWidth(10);
         statusBackSqlProgress.setFitHeight(10);
         statusBackSqlProgress.setPreserveRatio(true);
-        snapshotRootButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35, Color.valueOf("#074675")));
+        snapshotRootButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35));
     }
 
     private void initSqlTabInteractions() {
@@ -743,8 +743,8 @@ public class MainController {
         });
 
         //窗口最大化按钮
-        windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4, Color.valueOf("#000")));
-        windowMinimizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MINIMIZE, 0.45, Color.valueOf("#000")));
+        windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
+        windowMinimizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MINIMIZE, 0.45));
         windowMinimizeButton.setOnAction(event->{
             Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             primaryStage.setIconified(true);
@@ -754,7 +754,7 @@ public class MainController {
             if (windowMaximized) {
                 // 还原
 
-                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MAXIMIZE, 0.55, Color.valueOf("#000")));
+                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MAXIMIZE, 0.55));
                 primaryStage.setX(windowMaxPrevX);
                 primaryStage.setY(windowMaxPrevY);
                 primaryStage.setWidth(windowMaxPrevWidth);
@@ -763,7 +763,7 @@ public class MainController {
             } else {
                 // 记录原始位置和大小
 
-                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4, Color.valueOf("#000")));
+                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
 
                 windowMaxPrevX = primaryStage.getX();
                 windowMaxPrevY = primaryStage.getY();
@@ -970,6 +970,7 @@ public class MainController {
             SVGPath stopIcon = new SVGPath();
             stopIcon.setContent("M3.7656 3.7812 Q7.1719 0.375 12 0.375 Q16.8281 0.375 20.2188 3.7812 Q23.625 7.1719 23.625 12 Q23.625 16.8281 20.2188 20.2344 Q16.8281 23.625 12 23.625 Q7.1719 23.625 3.7656 20.2344 Q0.375 16.8281 0.375 12 Q0.375 7.1719 3.7656 3.7812 ZM16.5 15.75 L16.5 8.25 Q16.5 7.9219 16.2812 7.7188 Q16.0781 7.5 15.75 7.5 L8.25 7.5 Q7.9219 7.5 7.7031 7.7188 Q7.5 7.9219 7.5 8.25 L7.5 15.75 Q7.5 16.0781 7.7031 16.2969 Q7.9219 16.5 8.25 16.5 L15.75 16.5 Q16.0781 16.5 16.2812 16.2969 Q16.5 16.0781 16.5 15.75 Z");
             stopIcon.setFill(Color.valueOf("#b23b3b"));
+            IconFactory.applyDangerStyle(stopIcon);
             stopIcon.setScaleX(0.8);
             stopIcon.setScaleY(0.8);
             aiSendButton.setGraphic(stopIcon);
@@ -977,6 +978,7 @@ public class MainController {
             SVGPath sendIcon = new SVGPath();
             sendIcon.setContent("M24 12 Q24 8.7188 22.3906 5.9688 Q20.7969 3.2031 18.0312 1.6094 Q15.2812 0 12 0 Q8.7188 0 5.9531 1.6094 Q3.2031 3.2031 1.5938 5.9688 Q0 8.7188 0 12 Q0 15.2812 1.5938 18.0469 Q3.2031 20.7969 5.9531 22.4062 Q8.7188 24 12 24 Q15.2812 24 18.0312 22.4062 Q20.7969 20.7969 22.3906 18.0469 Q24 15.2812 24 12 ZM12.7188 17.2812 Q12.7188 17.5938 12.5156 17.7969 Q12.3125 18 12 18 Q11.6875 18 11.4844 17.7969 Q11.2812 17.5938 11.2812 17.2812 L11.2812 8.5625 L8 11.7656 Q7.8438 12 7.5156 12 Q7.2031 12 6.9531 11.7969 Q6.7188 11.5938 6.7188 11.2812 Q6.7188 10.9531 6.9531 10.7188 L11.4375 6.2344 Q11.6875 6 12 6 Q12.3125 6 12.5625 6.2344 L17.0469 10.7188 Q17.2812 10.9531 17.2812 11.2812 Q17.2812 11.5938 17.0312 11.7969 Q16.7969 12 16.4688 12 Q16.1562 12 16 11.7656 L12.7188 8.5625 L12.7188 17.2812 Z");
             sendIcon.setFill(Color.valueOf("#074675"));
+            IconFactory.applyDefaultStyle(sendIcon);
             sendIcon.setScaleX(0.8);
             sendIcon.setScaleY(0.8);
             aiSendButton.setGraphic(sendIcon);
