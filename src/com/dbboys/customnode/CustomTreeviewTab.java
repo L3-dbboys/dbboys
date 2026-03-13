@@ -23,7 +23,7 @@ import com.dbboys.ui.IconPaths;
 public class CustomTreeviewTab extends Tab {
     private static final Logger log = LogManager.getLogger(CustomTreeviewTab.class);
     private static final Color DEFAULT_ICON_COLOR = Color.valueOf("#666");
-    private static final Color ACTIVE_ICON_COLOR = Color.WHITE;
+    private static final String ACTIVE_ICON_STYLE = "-fx-fill: -color-fg-default;";
 
     public ToggleButton titleToggle = new ToggleButton();
     public ContextMenu contextMenu=new ContextMenu();
@@ -37,8 +37,7 @@ public class CustomTreeviewTab extends Tab {
         //header.setStyle("-fx-background-color: red");
         
         // 默认灰色图标；移除 svg-icon 样式类，避免被全局 SVG 白色规则覆盖
-        titleToggleIcon = IconFactory.create(IconPaths.DATABASE_CONNECT_TOGGLE, 0.7, DEFAULT_ICON_COLOR);
-        titleToggleIcon.getStyleClass().remove("svg-icon");
+        titleToggleIcon = IconFactory.create(IconPaths.DATABASE_CONNECT_TOGGLE, 0.6, DEFAULT_ICON_COLOR);
         titleToggle.setGraphic(new Group(titleToggleIcon));
         titleToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         // 仅图标，无背景无边框
@@ -182,8 +181,13 @@ public class CustomTreeviewTab extends Tab {
 
     private void updateTitleToggleIconColor() {
         boolean active = titleToggle.isSelected() || titleToggle.isHover();
-        titleToggleIcon.setFill(active ? ACTIVE_ICON_COLOR : DEFAULT_ICON_COLOR);
+        if (active) {
+            titleToggleIcon.setStyle(ACTIVE_ICON_STYLE);
+            titleToggleIcon.setFill(null);
+        } else {
+            titleToggleIcon.setStyle("");
+            titleToggleIcon.setFill(DEFAULT_ICON_COLOR);
+        }
     }
 
 }
-
