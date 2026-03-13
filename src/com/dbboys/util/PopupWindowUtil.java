@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PopupWindowUtil {
     private static final String POPUP_FRAME_BORDER_STYLE =
             "-fx-border-color: -color-fg-default;" +
-            "-fx-border-width: 1px;";
+            "-fx-border-width: 0.5px;";
     private static final String PRIMARY_BUTTON_STYLE =
             "-fx-background-color: #2d6f9f;" +
             "-fx-text-fill: white;" +
@@ -181,6 +181,7 @@ public class PopupWindowUtil {
         sqlHistoryPopupStage.getIcons().add(sqlHistoryPopupStageIcon);
         sqlHistoryPopupStage.setScene(sqlHistoryPopupStageScene);
         sqlHistoryPopupStage.titleProperty().bind(sqlHistoryTitleBinding);
+        sqlHistoryTableView.setStyle("-fx-background-insets: 0;");
 
         //sql_his_tableview.getSelectionModel().setCellSelectionEnabled(true);
         //sql_his_tableview.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
