@@ -215,7 +215,7 @@ public class CustomInstanceTab extends CustomTab {
         checkStackPane.getChildren().add(checkTableView);
         ((TableColumn<?, ?>) checkTableView.getColumns().get(0)).setMaxWidth(30);
         ((TableColumn<?, ?>) checkTableView.getColumns().get(0)).setMinWidth(30);
-        checkStackPane.setStyle("-fx-background-color: #f0f0f0;");
+        checkStackPane.setStyle("-fx-background-color: -color-bg-content;");
         Button checkshotButton= new Button();
         checkshotButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35));
         checkshotButton.setFocusTraversable(false);
@@ -315,7 +315,7 @@ public class CustomInstanceTab extends CustomTab {
         configStackPane.getChildren().add(configTableView);
         ((TableColumn<?, ?>) configTableView.getColumns().get(0)).setMaxWidth(30);
         ((TableColumn<?, ?>) configTableView.getColumns().get(0)).setMinWidth(30);
-        configStackPane.setStyle("-fx-background-color: #f0f0f0;");
+        configStackPane.setStyle("-fx-background-color:-color-bg-content;");
         Button configshotButton= new Button();
         configshotButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35));
         configshotButton.setFocusTraversable(false);
@@ -357,13 +357,13 @@ public class CustomInstanceTab extends CustomTab {
         tabChartVbox.setAlignment(Pos.CENTER);
         VBox charts=new VBox(50,dbspaceChartVbox,chunkChartVbox,databaseChartVbox,tabChartVbox);
         charts.setAlignment(Pos.CENTER);
-        charts.setStyle("-fx-background-color: #fff;");
+        charts.setStyle("-fx-background-color: -color-bg-content;");
         ScrollPane scrollPane = new ScrollPane(charts);
         dbspaceStackPane=new StackPane(scrollPane);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
-        scrollPane.setStyle("-fx-padding: 0;-fx-background-color: #f2f2f2");
-        dbspaceStackPane.setStyle("-fx-background-color: #f0f0f0;");
+        scrollPane.setStyle("-fx-padding: 0;-fx-background-color:-color-bg-content;");
+        dbspaceStackPane.setStyle("-fx-background-color: -color-bg-content;");
         dbspaceStackPane.setAlignment(Pos.CENTER);
         Button spaceshotButton= new Button();
         spaceshotButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35));
@@ -385,7 +385,7 @@ public class CustomInstanceTab extends CustomTab {
                 processStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));
                 Label runningLabel=new Label(I18n.t("instance.dialog.init.progress", " 正在初始化...0.00%"));
                 HBox imageHBox = new HBox(imageView, runningLabel, processStopButton);
-                imageHBox.setStyle("-fx-background-color: white;-fx-background-radius: 2;-fx-padding: 0 0 0 5");
+                imageHBox.setStyle("-fx-background-color: rgb(58, 58, 60);-fx-background-radius: 2;-fx-padding: 0 0 0 5");
                 imageHBox.setAlignment(Pos.CENTER);
                 imageHBox.setMaxHeight(15);
                 //imageHBox.setMaxWidth(100);
@@ -393,7 +393,7 @@ public class CustomInstanceTab extends CustomTab {
                 processStopButton.getStyleClass().add("small");
                 HBox backgroupHbox=new HBox(imageHBox);
                 backgroupHbox.setAlignment(Pos.CENTER);
-                backgroupHbox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.1);-fx-background-radius: 2;");
+                backgroupHbox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.3);-fx-background-radius: 2;");
                 backgroupHbox.setVisible(false);
 
                 Dialog<ButtonType> dialog=new Dialog<>();
@@ -1044,7 +1044,7 @@ public class CustomInstanceTab extends CustomTab {
         }
         //去掉实例信息子 tab 页头的右键菜单（改为整个 mainTabPane 不显示菜单）
         mainTabPane.setContextMenu(null);
-        mainTabPane.setStyle("-fx-background-color: #fff;");
+        mainTabPane.setStyle("-fx-background-color: -color-bg-content;");
         StackPane  stackPane=new StackPane(mainTabPane,refreshButton,instanceInfoLabel);
         StackPane.setAlignment(refreshButton,Pos.BOTTOM_RIGHT);
         StackPane.setAlignment(instanceInfoLabel,Pos.BOTTOM_RIGHT);

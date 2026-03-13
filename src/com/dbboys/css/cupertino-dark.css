@@ -61,6 +61,9 @@
   -color-bg-overlay: rgb(28, 28, 30);
   -color-bg-subtle: rgb(44, 44, 46);
   -color-bg-inset: #0b0b0c;
+  -color-bg-content:#1f1f21;
+  /*-color-bg-content:#1d1d1d;*/
+
   /*-color-border-default: rgb(72, 72, 74);*/
   -color-border-default: rgb(40, 40, 42);
   -color-border-muted: rgb(58, 58, 60);
@@ -5198,7 +5201,7 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 
 /* SQL 编辑框背景与字体：比主界面稍浅一点的深色 */
 .code-area {
-  -fx-background-color: #1d1d1d;
+  -fx-background-color: -color-bg-content;
   -fx-font-size: 12; /* sql编辑框字体大小，有自己的默认字体，与系统字体不一样 */
 }
 
@@ -5259,13 +5262,13 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 /*当前行号*/
 .paragraph-box:has-caret .lineno {
  /* -fx-font-weight: bold;*/
-  -fx-background-color: #1d1d1d;
+  -fx-background-color: -color-bg-content;
   /*-fx-text-fill: white;*/
 }
 /*codearea行号css*/
 .lineno{
   -fx-alignment: center-right; /* 垂直居中 */
-  -fx-background-color: #1d1d1d;
+  -fx-background-color: -color-bg-content;
   -fx-padding: 0;
 }
 

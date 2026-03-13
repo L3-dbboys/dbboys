@@ -80,7 +80,7 @@ public class CustomSpaceChart extends BarChart<Number, String> {
     private static final String COLOR_NORMAL = "#42b983";
     private static final String COLOR_WARNING = "#fcc30b";
     private static final String COLOR_DANGER = "#e84a43";
-    private static final String COLOR_UNUSED = "#e0e0e0";
+    private static final String COLOR_UNUSED = "rgb(220, 220, 220)";
     private static final String COLOR_EXTENDABLE = "#3f80b0";
 
     /* ===================== 缩放相关配置 ===================== */
@@ -237,7 +237,7 @@ public class CustomSpaceChart extends BarChart<Number, String> {
         //设置柱子区域背景色
         Node plot = lookup(".chart-plot-background");
         if (plot != null) {
-            plot.setStyle("-fx-background-color: white;");
+            plot.setStyle("-fx-background-color: -color-bg-content;");
         }
         layout();
         refreshAllBars(data);
