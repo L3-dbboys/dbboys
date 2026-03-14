@@ -23,14 +23,11 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import com.jcraft.jsch.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -180,11 +177,7 @@ public class RemoteInstallerUtil {
 
     // 初始化主对话框
     private static void initMainDialog(Stage parent) {
-        mainDialog = new Stage(StageStyle.UNDECORATED);
-        mainDialog.initModality(Modality.APPLICATION_MODAL);
-        mainDialog.initOwner(parent);
-        mainDialog.setResizable(false);
-        mainDialog.getIcons().add(new Image(IconPaths.MAIN_LOGO));
+        mainDialog = new Stage();
         mainDialogTitle = new SimpleStringProperty();
         mainDialogTitle.bind(Bindings.createStringBinding(
                 () -> I18n.t("remote.install.title.format", "远程安装向导 - 步骤 %d/%d")
@@ -256,18 +249,15 @@ public class RemoteInstallerUtil {
 
         // 设置对话框内容
         mainDialogPane.setContent(contentStack);
-        CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(
+        CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.createModalPopup(
                 mainDialog,
                 mainDialogTitle,
                 mainDialogPane,
                 DIALOG_WIDTH,
                 DIALOG_HEIGHT,
-                null,
                 false,
-                false,
-                false
+                parent
         );
-        mainDialog.setScene(frame.scene);
         centerDialogToParent(mainDialog, parent);
 
         // 按钮事件

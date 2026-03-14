@@ -28,6 +28,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.apache.logging.log4j.LogManager;
@@ -396,20 +397,11 @@ public class CustomInstanceTab extends CustomTab {
                 backgroupHbox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.3);-fx-background-radius: 2;");
                 backgroupHbox.setVisible(false);
 
-                Dialog<ButtonType> dialog=new Dialog<>();
-
-                dialog.getDialogPane().getButtonTypes().addAll(ButtonType.FINISH, ButtonType.CANCEL);
-                Button commit = (Button) dialog.getDialogPane().lookupButton(ButtonType.FINISH);
-                Button cancelBtn = (Button) dialog.getDialogPane().lookupButton(ButtonType.CANCEL);
-                if(isAddFile){
-                    dialog.setTitle(I18n.t("instance.dialog.add_datafile.title", "增加数据文件"));
-                    commit.setText(I18n.t("instance.dialog.expand", "扩容"));
-                }else{
-                    dialog.setTitle(I18n.t("instance.dialog.create_dbspace.title", "创建数据库空间"));
-                    commit.setText(I18n.t("instance.dialog.create", "创建"));
-                }
-                cancelBtn.setText(I18n.t("common.cancel", "取消"));
-                dialog.initOwner(AppState.getWindow());
+                ButtonType commitButtonType = new ButtonType(
+                        isAddFile ? I18n.t("instance.dialog.expand", "扩容") : I18n.t("instance.dialog.create", "创建"),
+                        ButtonBar.ButtonData.OK_DONE
+                );
+                ButtonType cancelButtonType = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
                 GridPane grid = new GridPane();
                 grid.setHgap(10);
                 grid.setVgap(5);
@@ -504,6 +496,38 @@ public class CustomInstanceTab extends CustomTab {
                     filePathTextField.setText(datafilePath+chunkName);
                 }
 
+                if(isAddFile){
+                    grid.add(nameLabel, 0, 0);
+                    grid.add(nameTextField, 1, 0);
+                    grid.add(filePathLabel, 0, 1);
+                    grid.add(filePathTextField, 1, 1);
+                    grid.add(sizeLabel, 0, 2);
+                    grid.add(sizeTextField, 1, 2);
+                }else {
+                    grid.add(spaceTypeLabel, 0, 0);
+                    grid.add(spaceTypeChoiceBox, 1, 0);
+                    grid.add(nameLabel, 0, 1);
+                    grid.add(nameTextField, 1, 1);
+                    grid.add(filePathLabel, 0, 2);
+                    grid.add(filePathTextField, 1, 2);
+                    grid.add(pagesizeLabel, 0, 3);
+                    grid.add(pagesizeChoiceBox, 1, 3);
+                    grid.add(sizeLabel, 0, 4);
+                    grid.add(sizeTextField, 1, 4);
+                }
+                StackPane stackPane = new StackPane(grid, backgroupHbox);
+                AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                        isAddFile
+                                ? I18n.t("instance.dialog.add_datafile.title", "增加数据文件")
+                                : I18n.t("instance.dialog.create_dbspace.title", "创建数据库空间"),
+                        stackPane,
+                        520,
+                        Region.USE_COMPUTED_SIZE,
+                        commitButtonType,
+                        cancelButtonType
+                );
+                Button commit = dialog.getButton(commitButtonType);
+                Button cancelBtn = dialog.getButton(cancelButtonType);
                 commit.disableProperty().bind(backgroupHbox.visibleProperty());
 
                 commit.addEventFilter(ActionEvent.ACTION, event -> {
@@ -529,8 +553,6 @@ public class CustomInstanceTab extends CustomTab {
                                 return;
                             }
                         }
-                        // 加载指示器
-
 
                         String cmd="";
                         String pagesize="";
@@ -589,12 +611,10 @@ public class CustomInstanceTab extends CustomTab {
                                     Session session=JschUtil.getConnect(connect);
                                     String result = JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+ finalCmd);
                                     JschUtil.disConnect(session);
-                                    //if (result != 0) throw new Exception("创建数据库空间失败，请检查日志错误！");
                                     if(!(result.contains("Space successfully added")||result.contains("Chunk successfully added"))){
                                         throw new Exception(result);
                                     }
                                 } catch (Exception e) {
-                                    //throw new Exception("ssh登录失败，请检查网络！");
                                     throw new RuntimeException(e);
                                 }
                                 return null;
@@ -626,7 +646,6 @@ public class CustomInstanceTab extends CustomTab {
                                     JschUtil.disConnect(session);
 
                                 } catch (Exception e) {
-                                    //throw new Exception("ssh登录失败，请检查网络！");
                                     throw new RuntimeException(e);
                                 }
                                 return null;
@@ -658,17 +677,12 @@ public class CustomInstanceTab extends CustomTab {
                                 protected Void call() throws Exception {
                                     try {
                                         Session session=JschUtil.getConnect(connect);
-                                        //取消操作不删除文件，确保弹窗关闭时触发取消操作导致已添加到空间的数据文件被误删除
-                                        //int result = JschUtil.executeCommandWithExitStatus(session,"ps -ef |grep onspaces|grep -v grep |awk '{print \"kill -9 \"$2}' |sh && rm -rf "+filePathTextField.getText());
                                         int result = JschUtil.executeCommandWithExitStatus(session,"ps -ef |grep onspaces|grep -v grep |awk '{print \"kill -9 \"$2}' |sh ");
-
                                         JschUtil.disConnect(session);
-                                        //if (result != 0) throw new Exception("创建数据库空间失败，请检查日志错误！");
                                         if(result!=0){
                                             throw new Exception(I18n.t("instance.error.stop_create_space_failed", "停止创建空间失败！"));
                                         }
                                     } catch (Exception e) {
-                                        //throw new Exception("ssh登录失败，请检查网络！");
                                         throw new RuntimeException(e);
                                     }
                                     return null;
@@ -676,39 +690,13 @@ public class CustomInstanceTab extends CustomTab {
                             };
                             AppExecutor.runTask(stopTask);
                         });
-                        dialog.setOnCloseRequest(event1 -> {
-                            processStopButton.fire();
-                        });
-                        cancelBtn.setOnAction(event1->{
-                            processStopButton.fire();
-                        });
+                        dialog.getStage().setOnCloseRequest(event1 -> processStopButton.fire());
+                        cancelBtn.addEventFilter(ActionEvent.ACTION, event1 -> processStopButton.fire());
                         backgroupHbox.setVisible(true);
                         AppExecutor.runTask(task);
                         AppExecutor.runTask(processTask);
                     }
                 });
-
-                if(isAddFile){
-                    grid.add(nameLabel, 0, 0);
-                    grid.add(nameTextField, 1, 0);
-                    grid.add(filePathLabel, 0, 1);
-                    grid.add(filePathTextField, 1, 1);
-                    grid.add(sizeLabel, 0, 2);
-                    grid.add(sizeTextField, 1, 2);
-                }else {
-                    grid.add(spaceTypeLabel, 0, 0);
-                    grid.add(spaceTypeChoiceBox, 1, 0);
-                    grid.add(nameLabel, 0, 1);
-                    grid.add(nameTextField, 1, 1);
-                    grid.add(filePathLabel, 0, 2);
-                    grid.add(filePathTextField, 1, 2);
-                    grid.add(pagesizeLabel, 0, 3);
-                    grid.add(pagesizeChoiceBox, 1, 3);
-                    grid.add(sizeLabel, 0, 4);
-                    grid.add(sizeTextField, 1, 4);
-                }
-                StackPane stackPane = new StackPane(grid, backgroupHbox);
-                dialog.getDialogPane().setContent(stackPane);
 
                 dialog.showAndWait();
             }

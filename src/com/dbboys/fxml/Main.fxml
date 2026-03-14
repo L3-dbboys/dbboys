@@ -86,14 +86,6 @@
                     </Menu>
                 </menus>
             </MenuBar>
-            <Region fx:id="windowTitleBlank" HBox.hgrow="ALWAYS">
-            </Region>
-            <Button fx:id="windowMinimizeButton" prefHeight="35" prefWidth="35" styleClass="windowSizeButton">
-            </Button>
-            <Button fx:id="windowMaximizeButton" prefHeight="35" prefWidth="35" styleClass="windowSizeButton">
-            </Button>
-            <Button fx:id="windowCloseButton" prefHeight="35" prefWidth="35" styleClass="windowCloseButton" text="✕">
-            </Button>
         </HBox>
         <!--
         <HBox alignment="CENTER_LEFT" spacing="10" minHeight="26" style="-fx-background-color: linear-gradient(to bottom, #eee, #eee);-fx-border-width: 0.5 0 0 0;-fx-border-color: #aaa" >
@@ -210,12 +202,6 @@
     </VBox>
     <StackPane fx:id="noticePane" maxWidth="360" maxHeight="25" style="-fx-background-color: none;-fx-alignment: center" StackPane.alignment="CENTER" visible="false">
     </StackPane>
-    <Pane fx:id="resizeLayerRight" StackPane.alignment="BOTTOM_RIGHT" style="-fx-background-color: transparent;-fx-max-width: 3"></Pane>
-    <Pane fx:id="resizeLayerLeft" StackPane.alignment="BOTTOM_LEFT" style="-fx-background-color: transparent;-fx-max-width: 3;"></Pane>
-    <Pane fx:id="resizeLayerBottom" StackPane.alignment="BOTTOM_LEFT" style="-fx-background-color: transparent;-fx-max-height: 3"></Pane>
-    <Pane fx:id="resizeLayerTop" StackPane.alignment="TOP_LEFT" style="-fx-background-color: transparent;-fx-max-height: 3"></Pane>
-    <Pane fx:id="resizeLayerBottom_left" StackPane.alignment="BOTTOM_LEFT" style="-fx-background-color: transparent;-fx-max-width: 3;-fx-max-height: 3"></Pane>
-    <Pane fx:id="resizeLayerBottom_right" StackPane.alignment="BOTTOM_RIGHT" style="-fx-background-color: transparent;-fx-max-width: 3;-fx-max-height: 3"></Pane>
 </StackPane>
 
 

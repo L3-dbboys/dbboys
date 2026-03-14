@@ -19,7 +19,6 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.FileChooser;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
@@ -39,26 +38,6 @@ import com.dbboys.ui.IconPaths;
 public class MainController {
     private static final Logger log = LogManager.getLogger(MainController.class);
 
-    @FXML
-    private Region windowTitleBlank;
-    @FXML
-    private Button windowMinimizeButton;
-    @FXML
-    public Button windowMaximizeButton;
-    @FXML
-    private Button windowCloseButton;
-    @FXML
-    private Pane resizeLayerRight;
-    @FXML
-    private Pane resizeLayerLeft;
-    @FXML
-    private Pane resizeLayerBottom;
-    @FXML
-    private Pane resizeLayerTop;
-    @FXML
-    private Pane resizeLayerBottom_left;
-    @FXML
-    private Pane resizeLayerBottom_right;
     @FXML
     private StackPane root;
     @FXML
@@ -169,16 +148,6 @@ public class MainController {
     @FXML
     public StackPane downloadStackPane;
 
-    private Boolean windowMaximized=false;
-    private Double windowMaxPrevX=0.0;
-    private Double windowMaxPrevY=0.0;
-    private Double windowMaxPrevWidth=800.0;
-    private Double windowMaxPrevHeight=600.0;
-    private Double windowX;  //拖动前X坐标
-    private Double windowXPos;  //最大化的时候拖动记录鼠标位置，自动缩小后需要自动设置坐标保持鼠标在相同的相对位置
-    private Double windowY;  //拖动前Y坐标
-
-
     //public Connect sqlConnect=new Connect();
 
     public void initialize() {
@@ -199,7 +168,6 @@ public class MainController {
         initMenuActions();
         Main.loadProgressBar.setProgress(0.7);
         initSplitPaneResizeBehavior();
-        initWindowControls();
         initTreeView();
         initStatusBar();
         Main.loadProgressBar.setProgress(0.8);
@@ -562,242 +530,6 @@ public class MainController {
         });
     }
 
-    private void initWindowControls() {
-        windowTitleBlank.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
-                windowMaximizeButton.fire();
-                // 你可以在这里执行最大化窗口、缩放等操作
-            }
-        });
-
-        windowTitleBlank.setOnMousePressed(event -> {
-            Stage stage = (Stage) windowTitleBlank.getScene().getWindow();
-            windowX = event.getScreenX() - stage.getX();
-            windowY = event.getScreenY() - stage.getY();
-            windowXPos=event.getScreenX()/stage.getWidth();
-        });
-
-        windowTitleBlank.setOnMouseDragged(event -> {
-            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            if(windowMaximized){
-                windowMaximizeButton.fire();
-                stage.setX(event.getScreenX()-stage.getWidth()*windowXPos);
-                windowX = event.getScreenX() - stage.getX();
-                //windowY = event.getScreenY() - stage.getY();
-            }
-            else {
-                stage.setX(event.getScreenX() - windowX);
-                stage.setY(event.getScreenY() - windowY);
-            }
-        });
-
-        //上下左右隐藏拖动边框事件
-        resizeLayerRight.prefHeightProperty().bind(root.heightProperty());
-        resizeLayerRight.setOnMouseDragged(event -> {
-            if(!windowMaximized) {
-                resizeLayerRight.setCursor(Cursor.E_RESIZE);
-                Stage stage = (Stage) root.getScene().getWindow();
-                double newWidth = event.getSceneX();
-                if (newWidth > stage.getMinWidth()) {
-                    stage.setWidth(newWidth);
-                }
-            }
-        });
-
-        resizeLayerRight.setOnMouseMoved(event -> {
-            if(!windowMaximized) {
-                resizeLayerRight.setCursor(Cursor.E_RESIZE);
-            }
-        });
-
-        resizeLayerRight.setOnMouseExited(event -> {
-            resizeLayerRight.setCursor(Cursor.DEFAULT);
-        });
-
-        resizeLayerBottom.prefWidthProperty().bind(root.widthProperty());
-        resizeLayerBottom.setOnMouseDragged(event -> {
-            if(!windowMaximized) {
-                resizeLayerBottom.setCursor(Cursor.S_RESIZE);
-                Stage stage = (Stage) root.getScene().getWindow();
-                double newHeight = event.getSceneY();
-                //拖动不超过任务栏
-                if (newHeight > stage.getMinHeight()&&(event.getSceneY()+stage.getY()<Screen.getPrimary().getVisualBounds().getHeight())) {
-                    stage.setHeight(newHeight);
-                }
-            }
-        });
-
-        resizeLayerBottom.setOnMouseMoved(event -> {
-            if(!windowMaximized) {
-                resizeLayerBottom.setCursor(Cursor.S_RESIZE);
-            }
-        });
-
-        resizeLayerBottom.setOnMouseExited(event -> {
-            resizeLayerBottom.setCursor(Cursor.DEFAULT);
-        });
-
-        resizeLayerLeft.prefHeightProperty().bind(root.heightProperty());
-        resizeLayerLeft.setOnMouseDragged(event -> {
-            if(!windowMaximized) {
-                resizeLayerLeft.setCursor(Cursor.W_RESIZE);
-                Stage stage = (Stage) root.getScene().getWindow();
-                double deltaX = event.getScreenX() - stage.getX();
-                double newWidth = stage.getWidth() - deltaX; // 新宽度，保持右边界不变
-
-                if (newWidth > stage.getMinWidth()) {
-                    stage.setWidth(newWidth);  // 设置新的宽度
-                    stage.setX(event.getScreenX()); // 调整窗口位置，保持左边界与鼠标对齐
-                }
-            }
-        });
-
-        resizeLayerLeft.setOnMouseMoved(event -> {
-            if(!windowMaximized) {
-                resizeLayerLeft.setCursor(Cursor.W_RESIZE);
-            }
-        });
-
-        resizeLayerLeft.setOnMouseExited(event -> {
-            resizeLayerLeft.setCursor(Cursor.DEFAULT);
-        });
-
-        resizeLayerTop.prefWidthProperty().bind(root.widthProperty());
-        resizeLayerTop.setOnMouseDragged(event -> {
-            if(!windowMaximized) {
-                resizeLayerTop.setCursor(Cursor.N_RESIZE);
-                Stage stage = (Stage) root.getScene().getWindow();
-                double deltaY = event.getScreenY() - stage.getY();
-                double newHeight = stage.getHeight() - deltaY; // 新宽度，保持右边界不变
-                if (newHeight > stage.getMinHeight()) {
-                    stage.setHeight(newHeight);  // 设置新的宽度
-                    stage.setY(event.getScreenY()); // 调整窗口位置，保持左边界与鼠标对齐
-                }
-
-            }
-        });
-
-        resizeLayerTop.setOnMouseMoved(event -> {
-            if(!windowMaximized) {
-                resizeLayerTop.setCursor(Cursor.N_RESIZE);
-            }
-        });
-
-        resizeLayerTop.setOnMouseExited(event -> {
-            resizeLayerTop.setCursor(Cursor.DEFAULT);
-        });
-
-        resizeLayerBottom_left.setOnMouseDragged(event -> {
-            if(!windowMaximized) {
-                resizeLayerBottom_left.setCursor(Cursor.SW_RESIZE);
-                Stage stage = (Stage) root.getScene().getWindow();
-                double newHeight = event.getSceneY();
-                //拖动不超过任务栏
-                if (newHeight > stage.getMinHeight()&&(event.getSceneY()+stage.getY()<Screen.getPrimary().getVisualBounds().getHeight())) {
-                    stage.setHeight(newHeight);
-                }
-                double deltaX = event.getScreenX() - stage.getX();
-                double newWidth = stage.getWidth() - deltaX; // 新宽度，保持右边界不变
-
-                if (newWidth > stage.getMinWidth()) {
-                    stage.setWidth(newWidth);  // 设置新的宽度
-                    stage.setX(event.getScreenX()); // 调整窗口位置，保持左边界与鼠标对齐
-                }
-            }
-        });
-
-        resizeLayerBottom_left.setOnMouseMoved(event -> {
-            if(!windowMaximized) {
-                resizeLayerBottom_left.setCursor(Cursor.SW_RESIZE);
-            }
-        });
-
-        resizeLayerBottom_left.setOnMouseExited(event -> {
-            resizeLayerBottom_left.setCursor(Cursor.DEFAULT);
-        });
-
-        resizeLayerBottom_right.setOnMouseDragged(event -> {
-            if(!windowMaximized) {
-                resizeLayerBottom_right.setCursor(Cursor.SE_RESIZE);
-                Stage stage = (Stage) root.getScene().getWindow();
-                double newHeight = event.getSceneY();
-                //拖动不超过任务栏
-                if (newHeight > stage.getMinHeight()&&(event.getSceneY()+stage.getY()<Screen.getPrimary().getVisualBounds().getHeight())) {
-                    stage.setHeight(newHeight);
-                }
-                double newWidth = event.getSceneX();
-                if (newWidth > stage.getMinWidth()) {
-                    stage.setWidth(newWidth);
-                }
-            }
-        });
-
-        resizeLayerBottom_right.setOnMouseMoved(event -> {
-            if(!windowMaximized) {
-                resizeLayerBottom_right.setCursor(Cursor.SE_RESIZE);
-            }
-        });
-
-        resizeLayerBottom_right.setOnMouseExited(event -> {
-            resizeLayerBottom_right.setCursor(Cursor.DEFAULT);
-        });
-
-        //窗口最大化按钮
-        windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
-        windowMinimizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MINIMIZE, 0.45));
-        windowMinimizeButton.setOnAction(event->{
-            Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            primaryStage.setIconified(true);
-        });
-        windowMaximizeButton.setOnAction(event -> {
-            Stage primaryStage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            if (windowMaximized) {
-                // 还原
-
-                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_MAXIMIZE, 0.55));
-                primaryStage.setX(windowMaxPrevX);
-                primaryStage.setY(windowMaxPrevY);
-                primaryStage.setWidth(windowMaxPrevWidth);
-                primaryStage.setHeight(windowMaxPrevHeight);
-
-            } else {
-                // 记录原始位置和大小
-
-                windowMaximizeButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
-
-                windowMaxPrevX = primaryStage.getX();
-                windowMaxPrevY = primaryStage.getY();
-                windowMaxPrevWidth = primaryStage.getWidth();
-                windowMaxPrevHeight = primaryStage.getHeight();
-
-                // 最大化为屏幕尺寸
-                primaryStage.setX(0);
-                primaryStage.setY(0);
-                primaryStage.setWidth(Screen.getPrimary().getVisualBounds().getWidth());
-                primaryStage.setHeight(Screen.getPrimary().getVisualBounds().getHeight());
-
-            }
-            windowMaximized = !windowMaximized;
-        });
-
-        //窗口关闭按钮
-
-        windowCloseButton.setOnAction(event->{
-            if (requestClose()) {
-                performCloseAndExit();
-            }
-        });
-    }
-
-    /** Removes the legacy resize layer panes from root when using CustomWindowFrameUtil (frame provides resize). */
-    public void removeCustomFrameResizeLayersFromRoot() {
-        if (root != null) {
-            root.getChildren().removeAll(
-                    resizeLayerRight, resizeLayerLeft, resizeLayerBottom,
-                    resizeLayerTop, resizeLayerBottom_left, resizeLayerBottom_right);
-        }
-    }
-
     /** Returns true if the window can close (e.g. user confirmed when there are unsaved SQL tabs). */
     public boolean requestClose() {
         for (Tab tab : sqlTabPane.getTabs()) {
@@ -1032,7 +764,7 @@ public class MainController {
     public void openSqlFile(){
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.t("main.filechooser.select_sql"));
-        File selectedFile = fileChooser.showOpenDialog(windowCloseButton.getScene().getWindow());
+        File selectedFile = fileChooser.showOpenDialog(AppState.getWindow());
         if (selectedFile != null) {
             String tabName = selectedFile.getName();
             Boolean isOpened = false;

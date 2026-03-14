@@ -39,6 +39,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.fxmisc.flowless.VirtualizedScrollPane;
@@ -474,7 +475,10 @@ public class CreateConnectController {
                 new FileChooser.ExtensionFilter("Jar Files", "*.jar")
             );
             fileChooser.setInitialDirectory(new File(System.getProperty("user.home") + "/Desktop"));
-            File selectedFile = fileChooser.showOpenDialog(new Stage());
+            Window owner = dialogPane != null && dialogPane.getScene() != null
+                    ? dialogPane.getScene().getWindow()
+                    : AppState.getWindow();
+            File selectedFile = fileChooser.showOpenDialog(owner);
             if (selectedFile != null) {
                 // 处理选中的文件
                 ObservableList<String> items = driverChoiceBox.getItems();

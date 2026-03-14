@@ -201,8 +201,6 @@ public class Main extends Application {
                 titleBarLeft.setStyle("-fx-background-color: transparent;");
                 mainVBox.getChildren().remove(0);
 
-                mainController.removeCustomFrameResizeLayersFromRoot();
-
                 // 自定义窗口标题栏不显示文字，仅显示左侧 logo + 菜单
                 SimpleStringProperty titleProp = new SimpleStringProperty("");
                 CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(

@@ -307,6 +307,9 @@ public class PopupWindowUtil {
         );
         ddlPopupStageScene = ddlFrame.scene;
         ddlPopupStage.titleProperty().bind(ddlTitleBinding);
+        ddlPopupStage.setResizable(true);
+        ddlPopupStage.setMinWidth(400);
+        ddlPopupStage.setMinHeight(300);
         ddlPopupStageStackPane.showNoticeInMain=false;
         ImageView loadingImage = new ImageView(new Image(IconPaths.LOADING_GIF));
         loadingImage.setFitWidth(13);

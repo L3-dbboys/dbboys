@@ -6,17 +6,13 @@ import com.dbboys.ctrl.CreateConnectController;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
-import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -280,10 +276,7 @@ public class TreeNavigator {
             DialogPane dialogPane = loader.load();
             CreateConnectController controller = loader.getController();
 
-            Stage stage = new Stage(StageStyle.UNDECORATED);
-            stage.initModality(Modality.APPLICATION_MODAL);
-            if (AppState.getWindow() != null) stage.initOwner(AppState.getWindow());
-            stage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
+            Stage stage = new Stage();
 
             dialogPane.setHeader(null);
             int dialogW = 500;
@@ -296,18 +289,14 @@ public class TreeNavigator {
             dialogPane.setMaxSize(dialogW, contentH);
 
             SimpleStringProperty titleProp = new SimpleStringProperty(I18n.t("createconnect.dialog.title"));
-            CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.create(
+            CustomWindowFrameUtil.Frame frame = CustomWindowFrameUtil.createModalPopup(
                     stage,
                     titleProp,
                     dialogPane,
                     dialogW,
                     dialogH,
-                    null,
-                    false,
-                    false,
                     false
             );
-            stage.setScene(frame.scene);
             stage.setResizable(false);
             stage.sizeToScene();
 

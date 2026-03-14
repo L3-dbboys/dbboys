@@ -22,6 +22,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.FileChooser;
@@ -517,16 +518,6 @@ public class TreeContextMenuHandler {
         //创建用户
         addUserItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            Dialog<ButtonType> dialog=new Dialog<>();
-            dialog.setTitle(I18n.t("metadata.dialog.create_user.title", "创建用户"));
-            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.FINISH, ButtonType.CANCEL);
-            Button commit = (Button) dialog.getDialogPane().lookupButton(ButtonType.FINISH);
-            Button cancelBtn = (Button) dialog.getDialogPane().lookupButton(ButtonType.CANCEL);
-            commit.setText(I18n.t("metadata.button.create", "创建"));
-            cancelBtn.setText(I18n.t("common.cancel", "取消"));
-            dialog.initOwner(AppState.getWindow());
-
-
             GridPane grid = new GridPane();
             grid.setHgap(10);
             grid.setVgap(5);
@@ -555,7 +546,18 @@ public class TreeContextMenuHandler {
             grid.add(passwordField1, 1, 1);
             grid.add(confirmPasswordLabel, 0, 2);
             grid.add(passwordField2, 1, 2);
-            dialog.getDialogPane().setContent(grid);
+
+            ButtonType createButtonType = new ButtonType(I18n.t("metadata.button.create", "创建"), ButtonBar.ButtonData.OK_DONE);
+            ButtonType cancelButtonType = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
+            AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                    I18n.t("metadata.dialog.create_user.title", "创建用户"),
+                    grid,
+                    420,
+                    Region.USE_COMPUTED_SIZE,
+                    createButtonType,
+                    cancelButtonType
+            );
+            Button commit = dialog.getButton(createButtonType);
 
 
             commit.addEventFilter(ActionEvent.ACTION, event1 -> {
@@ -582,7 +584,7 @@ public class TreeContextMenuHandler {
                         NotificationUtil.showMainNotification(
                                 I18n.t("metadata.success.create_user", "用户创建成功！")
                         );
-                        dialog.close();
+                        dialog.getStage().close();
                     }
                 );
                 }
@@ -596,16 +598,6 @@ public class TreeContextMenuHandler {
         //创建用户
         modifyUserItem.setOnAction(event -> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
-            Dialog<ButtonType> dialog=new Dialog<>();
-            dialog.setTitle(I18n.t("metadata.dialog.reset_password.title", "重置密码"));
-            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.FINISH, ButtonType.CANCEL);
-            Button commit = (Button) dialog.getDialogPane().lookupButton(ButtonType.FINISH);
-            Button cancelBtn = (Button) dialog.getDialogPane().lookupButton(ButtonType.CANCEL);
-            commit.setText(I18n.t("metadata.button.reset", "重置"));
-            cancelBtn.setText(I18n.t("common.cancel", "取消"));
-            dialog.initOwner(AppState.getWindow());
-
-
             GridPane grid = new GridPane();
             grid.setHgap(10);
             grid.setVgap(5);
@@ -629,7 +621,18 @@ public class TreeContextMenuHandler {
             grid.add(passwordField1, 1, 0);
             grid.add(confirmPasswordLabel, 0, 1);
             grid.add(passwordField2, 1, 1);
-            dialog.getDialogPane().setContent(grid);
+
+            ButtonType resetButtonType = new ButtonType(I18n.t("metadata.button.reset", "重置"), ButtonBar.ButtonData.OK_DONE);
+            ButtonType cancelButtonType = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
+            AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                    I18n.t("metadata.dialog.reset_password.title", "重置密码"),
+                    grid,
+                    420,
+                    Region.USE_COMPUTED_SIZE,
+                    resetButtonType,
+                    cancelButtonType
+            );
+            Button commit = dialog.getButton(resetButtonType);
 
 
             commit.addEventFilter(ActionEvent.ACTION, event1 -> {
@@ -653,7 +656,7 @@ public class TreeContextMenuHandler {
                                         I18n.t("backsql.notice.user_password_reset", "用户\"%s\"密码已重置！")
                                                 .formatted(selectedItem.getValue().getName())
                                 );
-                                dialog.close();
+                                dialog.getStage().close();
                             }
                     );
                 }

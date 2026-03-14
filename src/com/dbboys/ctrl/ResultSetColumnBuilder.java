@@ -4,7 +4,6 @@ import com.dbboys.customnode.CustomInfoCodeArea;
 import com.dbboys.customnode.CustomInfoStackPane;
 import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.i18n.I18n;
-import com.dbboys.ui.IconPaths;
 import com.dbboys.util.AlertUtil;
 import com.dbboys.util.CustomWindowFrameUtil;
 import javafx.application.Platform;
@@ -12,16 +11,12 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -104,6 +99,7 @@ public class ResultSetColumnBuilder {
                 private void buildLobPopup(int colIdx, String typeName,
                                            SimpleStringProperty txText, ChoiceBox<?> cm) {
                     Stage lobDataPopupStage = new Stage();
+                    lobDataPopupStage.setTitle(typeName.toUpperCase());
                     CustomInfoCodeArea customInfoCodeArea = new CustomInfoCodeArea();
                     CustomInfoStackPane customInfoStackPane = new CustomInfoStackPane(customInfoCodeArea);
                     customInfoCodeArea.setWrapText(false);
@@ -133,22 +129,15 @@ public class ResultSetColumnBuilder {
                         root.getChildren().add(saveBtn);
                     }
                     root.setPrefHeight(Double.MAX_VALUE);
-                    Image lobIcon = new Image(IconPaths.MAIN_LOGO);
-                    lobDataPopupStage.initStyle(StageStyle.UNDECORATED);
-                    lobDataPopupStage.setResizable(true);
-                    Scene lobScene = CustomWindowFrameUtil.create(
+                    CustomWindowFrameUtil.createModalPopup(
                             lobDataPopupStage,
                             lobDataPopupStage.titleProperty(),
                             root,
                             800,
-                            400
-                    ).scene;
-                    lobDataPopupStage.setScene(lobScene);
-                    lobDataPopupStage.getIcons().add(lobIcon);
-                    lobDataPopupStage.initModality(Modality.APPLICATION_MODAL);
-                    lobDataPopupStage.show();
+                            400,
+                            true
+                    );
                     customInfoCodeArea.replaceText(getItem().toString());
-                    lobDataPopupStage.setOnCloseRequest(event -> lobDataPopupStage.close());
                     lobDataPopupStage.showAndWait();
                 }
             });

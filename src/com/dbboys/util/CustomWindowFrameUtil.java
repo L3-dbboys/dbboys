@@ -42,8 +42,9 @@ public final class CustomWindowFrameUtil {
             "-fx-background-color: " + BODY_BG + ";" +
             "-fx-padding: 0;";
     private static final String POPUP_FRAME_STYLE =
-            "-fx-background-color: " + BORDER_COLOR + ";" +
-            "-fx-padding: 0.5;";
+            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-width: 0.5;" +
+            "-fx-padding: 0;";
     private static final String CONTENT_STYLE =
             "-fx-background-color: " + BODY_BG + ";";
     private static final String TITLE_SEPARATOR_STYLE =
@@ -116,7 +117,7 @@ public final class CustomWindowFrameUtil {
             stage.getIcons().add(new Image(IconPaths.MAIN_LOGO));
         }
 
-        Frame frame = create(stage, titleBinding, content, width, height, null, resizable, false, false);
+        Frame frame = create(stage, titleBinding, content, width, height, null, resizable, resizable, resizable);
         stage.setScene(frame.scene);
         return frame;
     }
@@ -206,9 +207,11 @@ public final class CustomWindowFrameUtil {
         root.setMinSize(320, 180);
 
         Scene scene = new Scene(root, width, height);
+        stage.setMinWidth(Math.max(320, width));
+        stage.setMinHeight(Math.max(180, height));
         AppState.applyAppStylesheet(scene);
         if (enableResize) {
-            enableResize(stage, root, scene);
+            installResizeHandles(stage, root, scene);
         }
 
         WindowState state = new WindowState();
@@ -326,89 +329,167 @@ public final class CustomWindowFrameUtil {
         return screen.getVisualBounds();
     }
 
-    private static void enableResize(Stage stage, StackPane root, Scene scene) {
-        final ResizeDirection[] direction = new ResizeDirection[]{ResizeDirection.NONE};
-        final DragResizeState[] dragState = new DragResizeState[]{new DragResizeState()};
-        final boolean[] resizeActive = new boolean[]{false};
+    private static void installResizeHandles(Stage stage, StackPane root, Scene scene) {
+        addEdgeResizeHandle(stage, scene, root, ResizeDirection.N);
+        addEdgeResizeHandle(stage, scene, root, ResizeDirection.S);
+        addEdgeResizeHandle(stage, scene, root, ResizeDirection.W);
+        addEdgeResizeHandle(stage, scene, root, ResizeDirection.E);
 
-        scene.addEventFilter(MouseEvent.ANY, event -> {
-            double w = root.getWidth() > 0 ? root.getWidth() : stage.getWidth();
-            double h = root.getHeight() > 0 ? root.getHeight() : stage.getHeight();
-            double sx = event.getSceneX();
-            double sy = event.getSceneY();
+        addCornerResizeHandle(stage, scene, root, ResizeDirection.NW);
+        addCornerResizeHandle(stage, scene, root, ResizeDirection.NE);
+        addCornerResizeHandle(stage, scene, root, ResizeDirection.SW);
+        addCornerResizeHandle(stage, scene, root, ResizeDirection.SE);
 
-            if (event.getEventType() == MouseEvent.MOUSE_MOVED) {
-                direction[0] = detectResizeDirection(w, h, sx, sy);
-                scene.setCursor(direction[0].cursor);
-                return;
+        root.addEventHandler(MouseEvent.MOUSE_MOVED, event -> {
+            if (event.getTarget() == root) {
+                scene.setCursor(Cursor.DEFAULT);
             }
-            if (event.getEventType() == MouseEvent.MOUSE_EXITED) {
-                if (!event.isPrimaryButtonDown()) {
-                    direction[0] = ResizeDirection.NONE;
-                    resizeActive[0] = false;
-                    scene.setCursor(Cursor.DEFAULT);
-                }
-                return;
+        });
+        root.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
+            if (event.getTarget() == root && !event.isPrimaryButtonDown()) {
+                scene.setCursor(Cursor.DEFAULT);
             }
-            if (event.getEventType() == MouseEvent.MOUSE_PRESSED) {
-                dragState[0] = new DragResizeState(
-                        stage.getX(),
-                        stage.getY(),
-                        stage.getWidth(),
-                        stage.getHeight(),
-                        event.getScreenX(),
-                        event.getScreenY()
-                );
-                direction[0] = detectResizeDirection(w, h, sx, sy);
-                resizeActive[0] = direction[0] != ResizeDirection.NONE;
-                if (resizeActive[0]) {
-                    event.consume();
-                }
-                scene.setCursor(direction[0].cursor);
-                return;
+        });
+        root.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+            if (event.getTarget() == root) {
+                scene.setCursor(Cursor.DEFAULT);
             }
-            if (event.getEventType() == MouseEvent.MOUSE_DRAGGED) {
-                if (resizeActive[0] && isResizable(stage)) {
-                    applyResize(stage, direction[0], dragState[0], event.getScreenX(), event.getScreenY());
-                    event.consume();
-                    scene.setCursor(direction[0].cursor);
-                } else if (!isResizable(stage)) {
-                    scene.setCursor(Cursor.DEFAULT);
-                }
-                return;
+        });
+        scene.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+            if (!isPointerOnResizeHandle(root, event.getSceneX(), event.getSceneY())) {
+                scene.setCursor(Cursor.DEFAULT);
             }
-            if (event.getEventType() == MouseEvent.MOUSE_RELEASED) {
-                if (resizeActive[0]) {
-                    event.consume();
-                }
-                resizeActive[0] = false;
-                direction[0] = detectResizeDirection(w, h, event.getSceneX(), event.getSceneY());
-                scene.setCursor(direction[0].cursor);
+        });
+        scene.addEventHandler(MouseEvent.MOUSE_EXITED, event -> {
+            if (!event.isPrimaryButtonDown()) {
+                scene.setCursor(Cursor.DEFAULT);
             }
         });
     }
 
-    private static boolean isResizable(Stage stage) {
-        return stage.isResizable() && !Boolean.TRUE.equals(stage.getProperties().get(MAXIMIZED_KEY));
+    private static void addEdgeResizeHandle(Stage stage,
+                                            Scene scene,
+                                            StackPane root,
+                                            ResizeDirection direction) {
+        Region handle = createResizeHandle(stage, scene, direction);
+        root.getChildren().add(handle);
+        root.widthProperty().addListener((obs, oldVal, newVal) -> layoutEdgeResizeHandle(handle, root, direction));
+        root.heightProperty().addListener((obs, oldVal, newVal) -> layoutEdgeResizeHandle(handle, root, direction));
+        layoutEdgeResizeHandle(handle, root, direction);
     }
 
-    /** 使用宽高和场景坐标检测边缘，避免依赖 root 的 layout 和事件目标。 */
-    private static ResizeDirection detectResizeDirection(double width, double height, double x, double y) {
-        if (width <= 0 || height <= 0) return ResizeDirection.NONE;
-        boolean left = x >= 0 && x <= RESIZE_MARGIN;
-        boolean right = x >= width - RESIZE_MARGIN && x <= width;
-        boolean top = y >= 0 && y <= RESIZE_MARGIN;
-        boolean bottom = y >= height - RESIZE_MARGIN && y <= height;
+    private static void addCornerResizeHandle(Stage stage,
+                                              Scene scene,
+                                              StackPane root,
+                                              ResizeDirection direction) {
+        Region handle = createResizeHandle(stage, scene, direction);
+        root.getChildren().add(handle);
+        root.widthProperty().addListener((obs, oldVal, newVal) -> layoutCornerResizeHandle(handle, root, direction));
+        root.heightProperty().addListener((obs, oldVal, newVal) -> layoutCornerResizeHandle(handle, root, direction));
+        layoutCornerResizeHandle(handle, root, direction);
+    }
 
-        if (top && left) return ResizeDirection.NW;
-        if (top && right) return ResizeDirection.NE;
-        if (bottom && left) return ResizeDirection.SW;
-        if (bottom && right) return ResizeDirection.SE;
-        if (top) return ResizeDirection.N;
-        if (bottom) return ResizeDirection.S;
-        if (left) return ResizeDirection.W;
-        if (right) return ResizeDirection.E;
-        return ResizeDirection.NONE;
+    private static Region createResizeHandle(Stage stage,
+                                             Scene scene,
+                                             ResizeDirection direction) {
+        Region handle = new Region();
+        handle.setManaged(false);
+        handle.setStyle("-fx-background-color: transparent;");
+        handle.setCursor(direction.cursor);
+        final DragResizeState[] dragState = new DragResizeState[]{new DragResizeState()};
+        handle.addEventHandler(MouseEvent.MOUSE_ENTERED, event -> {
+            if (isResizable(stage)) {
+                scene.setCursor(direction.cursor);
+            }
+        });
+        handle.addEventHandler(MouseEvent.MOUSE_EXITED, event -> {
+            if (!event.isPrimaryButtonDown()) {
+                scene.setCursor(Cursor.DEFAULT);
+            }
+        });
+        handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!isResizable(stage)) {
+                return;
+            }
+            dragState[0] = new DragResizeState(
+                    stage.getX(),
+                    stage.getY(),
+                    stage.getWidth(),
+                    stage.getHeight(),
+                    event.getScreenX(),
+                    event.getScreenY()
+            );
+            scene.setCursor(direction.cursor);
+            event.consume();
+        });
+        handle.addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> {
+            if (!isResizable(stage)) {
+                scene.setCursor(Cursor.DEFAULT);
+                return;
+            }
+            applyResize(stage, direction, dragState[0], event.getScreenX(), event.getScreenY());
+            scene.setCursor(direction.cursor);
+            event.consume();
+        });
+        handle.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+            if (!isPointerOnResizeHandle((StackPane) scene.getRoot(), event.getSceneX(), event.getSceneY())) {
+                scene.setCursor(Cursor.DEFAULT);
+            } else {
+                scene.setCursor(direction.cursor);
+            }
+            event.consume();
+        });
+        return handle;
+    }
+
+    private static boolean isPointerOnResizeHandle(StackPane root, double sceneX, double sceneY) {
+        for (Node node : root.getChildren()) {
+            if (!(node instanceof Region handle) || handle.isManaged()) {
+                continue;
+            }
+            double minX = handle.getLayoutX();
+            double minY = handle.getLayoutY();
+            double maxX = minX + handle.getWidth();
+            double maxY = minY + handle.getHeight();
+            if (sceneX >= minX && sceneX <= maxX && sceneY >= minY && sceneY <= maxY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void layoutEdgeResizeHandle(Region handle,
+                                               StackPane root,
+                                               ResizeDirection direction) {
+        double width = root.getWidth();
+        double height = root.getHeight();
+        switch (direction) {
+            case N -> handle.resizeRelocate(RESIZE_MARGIN, 0, Math.max(0, width - RESIZE_MARGIN * 2), RESIZE_MARGIN);
+            case S -> handle.resizeRelocate(RESIZE_MARGIN, Math.max(0, height - RESIZE_MARGIN), Math.max(0, width - RESIZE_MARGIN * 2), RESIZE_MARGIN);
+            case W -> handle.resizeRelocate(0, RESIZE_MARGIN, RESIZE_MARGIN, Math.max(0, height - RESIZE_MARGIN * 2));
+            case E -> handle.resizeRelocate(Math.max(0, width - RESIZE_MARGIN), RESIZE_MARGIN, RESIZE_MARGIN, Math.max(0, height - RESIZE_MARGIN * 2));
+            default -> {
+            }
+        }
+    }
+
+    private static void layoutCornerResizeHandle(Region handle,
+                                                 StackPane root,
+                                                 ResizeDirection direction) {
+        double width = root.getWidth();
+        double height = root.getHeight();
+        switch (direction) {
+            case NW -> handle.resizeRelocate(0, 0, RESIZE_MARGIN, RESIZE_MARGIN);
+            case NE -> handle.resizeRelocate(Math.max(0, width - RESIZE_MARGIN), 0, RESIZE_MARGIN, RESIZE_MARGIN);
+            case SW -> handle.resizeRelocate(0, Math.max(0, height - RESIZE_MARGIN), RESIZE_MARGIN, RESIZE_MARGIN);
+            case SE -> handle.resizeRelocate(Math.max(0, width - RESIZE_MARGIN), Math.max(0, height - RESIZE_MARGIN), RESIZE_MARGIN, RESIZE_MARGIN);
+            default -> {
+            }
+        }
+    }
+
+    private static boolean isResizable(Stage stage) {
+        return stage.isResizable() && !Boolean.TRUE.equals(stage.getProperties().get(MAXIMIZED_KEY));
     }
 
     private static void applyResize(Stage stage,
