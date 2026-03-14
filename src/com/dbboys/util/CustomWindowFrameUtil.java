@@ -47,7 +47,7 @@ public final class CustomWindowFrameUtil {
             "-fx-padding: 0;";
     private static final String CONTENT_STYLE =
             "-fx-background-color: " + BODY_BG + ";";
-    private static final String TITLE_SEPARATOR_STYLE =
+    private static final String DIALOG_TITLE_BORDER_STYLE =
             "-fx-border-width: 0.5 0.5 0 0.5;" +
             "-fx-border-color: " + BORDER_COLOR + ";";
     private static final String CLOSE_STYLE =
@@ -195,7 +195,7 @@ public final class CustomWindowFrameUtil {
         }
         titleBar.getChildren().add(closeButton);
         titleBar.setAlignment(Pos.CENTER_LEFT);
-        titleBar.setStyle(TITLE_STYLE + (mainWindow ? "" : TITLE_SEPARATOR_STYLE));
+        titleBar.setStyle(TITLE_STYLE + resolveTitleStyle(mainWindow, content));
 
         BorderPane pane = new BorderPane(content);
         pane.setTop(titleBar);
@@ -223,6 +223,13 @@ public final class CustomWindowFrameUtil {
 
     private static boolean isMainWindowFrame(Node titleBarLeft, boolean showMinButton, boolean showMaxButton) {
         return titleBarLeft != null && showMinButton && showMaxButton;
+    }
+
+    private static String resolveTitleStyle(boolean mainWindow, Node content) {
+        if (mainWindow || !(content instanceof javafx.scene.control.DialogPane)) {
+            return "";
+        }
+        return DIALOG_TITLE_BORDER_STYLE;
     }
 
     private static Button createWindowButton(String iconPath, double scale) {
