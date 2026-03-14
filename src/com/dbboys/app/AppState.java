@@ -121,10 +121,6 @@ public final class AppState {
         return getMainController() == null ? null : getMainController().rebuildMarkdownIndexButton;
     }
 
-    public static Button getWindowMaximizeButton() {
-        return getMainController() == null ? null : getMainController().windowMaximizeButton;
-    }
-
     public static HBox getStatusHBox() {
         return getMainController() == null ? null : getMainController().statusHBox;
     }
