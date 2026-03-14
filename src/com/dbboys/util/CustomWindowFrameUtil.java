@@ -29,28 +29,26 @@ import java.util.List;
 
 public final class CustomWindowFrameUtil {
     private static final String MAXIMIZED_KEY = "customWindowMaximized";
-    // Use theme variables so title bar / tabs / window border share the same colors
     private static final String TITLE_BG = "-color-bg-default";
     private static final String BODY_BG = "-color-bg-default";
     private static final String BORDER_COLOR = "-color-fg-default";
-    private static final String POPUP_TITLE_BG = "-color-bg-default";
-    private static final String POPUP_BODY_BG = "-color-bg-default";
     private static final String TITLE_STYLE =
             "-fx-background-color: " + TITLE_BG + ";" +
             "-fx-padding: 0 0 0 6;" +
             "-fx-min-height: 28;" +
             "-fx-pref-height: 28;" +
             "-fx-alignment: center-left;";
-    private static final String POPUP_TITLE_STYLE =
-            "-fx-background-color: " + POPUP_TITLE_BG + ";" +
-            "-fx-padding: 0 0 0 6;" +
-            "-fx-min-height: 28;" +
-            "-fx-pref-height: 28;" +
-            "-fx-alignment: center-left;-fx-border-width: 0.5 0.5 0 0.5;-fx-border-color: -color-fg-default;";
     private static final String ROOT_STYLE =
+            "-fx-background-color: " + BODY_BG + ";" +
+            "-fx-padding: 0;";
+    private static final String POPUP_FRAME_STYLE =
+            "-fx-background-color: " + BORDER_COLOR + ";" +
+            "-fx-padding: 0.5;";
+    private static final String CONTENT_STYLE =
             "-fx-background-color: " + BODY_BG + ";";
-    private static final String POPUP_ROOT_STYLE =
-            "-fx-background-color: " + POPUP_BODY_BG + ";";
+    private static final String TITLE_SEPARATOR_STYLE =
+            "-fx-border-width: 0.5 0.5 0 0.5;" +
+            "-fx-border-color: " + BORDER_COLOR + ";";
     private static final String CLOSE_STYLE =
             "-fx-background-color: transparent;" +
             "-fx-text-fill: white;" +
@@ -156,7 +154,7 @@ public final class CustomWindowFrameUtil {
                                boolean enableResize,
                                boolean showMinButton,
                                boolean showMaxButton) {
-        boolean popupStyle = titleBarLeft == null && !showMinButton && !showMaxButton;
+        boolean mainWindow = isMainWindowFrame(titleBarLeft, showMinButton, showMaxButton);
         Region dragRegion = new Region();
         HBox.setHgrow(dragRegion, Priority.ALWAYS);
 
@@ -196,18 +194,14 @@ public final class CustomWindowFrameUtil {
         }
         titleBar.getChildren().add(closeButton);
         titleBar.setAlignment(Pos.CENTER_LEFT);
-        titleBar.setStyle(popupStyle ? POPUP_TITLE_STYLE : TITLE_STYLE);
+        titleBar.setStyle(TITLE_STYLE + (mainWindow ? "" : TITLE_SEPARATOR_STYLE));
 
         BorderPane pane = new BorderPane(content);
         pane.setTop(titleBar);
-        pane.setStyle(popupStyle ? POPUP_ROOT_STYLE : ROOT_STYLE);
+        pane.setStyle(CONTENT_STYLE);
 
         StackPane root = new StackPane(pane);
-        // 主界面不需要边框，弹出框（通常没有最小化/最大化按钮）使用 0.5px 主题边框
-        String borderWidth = (!showMinButton && !showMaxButton) ? "0.5" : "0";
-        root.setStyle((popupStyle ? POPUP_ROOT_STYLE : ROOT_STYLE) +
-                "-fx-border-color: " + BORDER_COLOR + ";" +
-                "-fx-border-width: " + borderWidth + ";");
+        root.setStyle(mainWindow ? ROOT_STYLE : POPUP_FRAME_STYLE);
         root.setPrefSize(width, height);
         root.setMinSize(320, 180);
 
@@ -222,6 +216,10 @@ public final class CustomWindowFrameUtil {
         configureButtons(stage, minButton, maxButton, closeButton, state, showMinButton, showMaxButton);
 
         return new Frame(scene, root, titleBar, minButton, maxButton, closeButton, state);
+    }
+
+    private static boolean isMainWindowFrame(Node titleBarLeft, boolean showMinButton, boolean showMaxButton) {
+        return titleBarLeft != null && showMinButton && showMaxButton;
     }
 
     private static Button createWindowButton(String iconPath, double scale) {
