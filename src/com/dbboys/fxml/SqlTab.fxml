@@ -81,7 +81,7 @@
                     <Button fx:id="transactionCommitButton"  focusTraversable="false" styleClass="commit-btn">
                     </Button>
                     <Label text=" "></Label>
-                    <Button fx:id="transactionRollbackButton"  focusTraversable="false" styleClass="commit-btn">
+                    <Button fx:id="transactionRollbackButton"  focusTraversable="false" styleClass="rollback-btn">
                     </Button>
                 </HBox>
             </StackPane>

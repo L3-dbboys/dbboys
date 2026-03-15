@@ -5399,3 +5399,37 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-padding: 0 10 0 10;
   -fx-font-size: 9;
 }
+
+
+/*提交回滚按钮*/
+.commit-btn {
+  -fx-background-color: -color-base-7;
+  -fx-padding: 0;
+  -fx-pref-width: 50;
+  -fx-border-width: 0;
+}
+
+.commit-btn:hover {
+  -fx-background-color:  -color-accent-emphasis;
+}
+
+.rollback-btn {
+  -fx-background-color: -color-base-7;
+  -fx-padding: 0;
+  -fx-pref-width: 50;
+  -fx-border-width: 0;
+}
+.rollback-btn:hover {
+  -fx-background-color:  -color-danger-7;
+}
+
+/*执行结果颜色*/
+.execute_result_error{
+  -fx-text-fill: -color-danger-7;
+}
+.execute_result_ignore{
+  -fx-text-fill: -color-fg-muted;
+}
+.execute_result_success{
+  -fx-text-fill: -color-fg-default;
+}
