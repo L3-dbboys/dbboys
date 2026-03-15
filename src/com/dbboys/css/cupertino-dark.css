@@ -1067,7 +1067,7 @@ Text {
 }
 .table-view > .column-header-background .column-header .label {
   -fx-text-fill: -color-header-fg;
-  -fx-alignment: CENTER_LEFT;
+  -fx-alignment: CENTER;
   -fx-padding: 0 0.5em 0 0.5em;
 }
 .table-view > .column-header-background .column-header GridPane {
@@ -1162,7 +1162,7 @@ Text {
   -fx-padding: 0 0.5em 0 0.5em;
   -fx-text-fill: -color-cell-fg;
   -fx-alignment: BASELINE_LEFT;
-  -fx-border-width: 0.5px;
+  -fx-border-width: 0 0.5px 0.5px 0;
   -fx-border-color: -color-border-default;
 }
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled:focused {
@@ -1198,6 +1198,16 @@ Text {
 .table-view .table-row-cell > .table-cell.font-icon-table-cell,
 .tree-table-view .tree-table-row-cell > .tree-table-cell.check-box-tree-table-cell {
   -fx-alignment: BASELINE_LEFT;
+}
+
+.table-row-cell:filled:hover {
+  -fx-background-color: -color-base-8;
+}
+.table-row-cell:filled:selected {
+  -fx-background-color: -color-base-7;
+}
+.table-cell:filled:hover {
+  -fx-background-color: -color-base-8; /* 选中单元格的背景色 */
 }
 
 .tree-view {
@@ -1267,7 +1277,7 @@ Text {
 }
 
 .tree-cell:filled:hover {
-  -fx-background-color: #2a2d2e;
+  -fx-background-color: -color-base-8;
 }
 
 .tree-cell > .tree-disclosure-node {
