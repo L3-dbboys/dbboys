@@ -19,6 +19,8 @@ import javafx.scene.Group;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeItem;
+import javafx.scene.paint.Color;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -305,6 +307,11 @@ public class SqlConnectionHandler {
         ctrl.transactionBox.visibleProperty().bind(
                 Bindings.notEqual("", ctrl.sqlTransactionText)
         );
+        ctrl.sqlConnectChoiceBoxIconStackPane.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
+        /*这两个disable绑定无效，改用透明度设置，删除绑定 
+        ctrl.sqlDbIconPane.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
+        ctrl.sqlUserIconPane.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
+        */
         ctrl.sqlDbChoiceBox.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
         ctrl.sqlSqlModeChoiceBox.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
         ctrl.sqlCommitModeChoiceBox.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());

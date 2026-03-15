@@ -1172,7 +1172,8 @@ Text {
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled > .table-cell:focused {
   -fx-background-color: transparent;
   -fx-background-insets: 0;
-  -fx-text-fill: -color-cell-fg;
+  /*-fx-text-fill: -color-cell-fg;
+  */
 }
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled > .table-cell:selected:focused {
   -fx-background-color: -color-cell-border, -color-cell-bg-selected-focused;
@@ -5424,12 +5425,15 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 }
 
 /*执行结果颜色*/
-.execute_result_error{
-  -fx-text-fill: -color-danger-7;
+.table-view .table-row-cell > .table-cell.execute_result_error,
+.tree-table-view .tree-table-row-cell > .tree-table-cell.execute_result_error {
+  -fx-text-fill: -color-danger-5;
 }
-.execute_result_ignore{
+.table-view .table-row-cell > .table-cell.execute_result_ignore,
+.tree-table-view .tree-table-row-cell > .tree-table-cell.execute_result_ignore {
   -fx-text-fill: -color-fg-muted;
 }
-.execute_result_success{
+.table-view .table-row-cell > .table-cell.execute_result_success,
+.tree-table-view .tree-table-row-cell > .tree-table-cell.execute_result_success {
   -fx-text-fill: -color-fg-default;
 }

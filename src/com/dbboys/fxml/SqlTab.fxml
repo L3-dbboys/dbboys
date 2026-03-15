@@ -34,9 +34,9 @@
         <StackPane fx:id="sqlConnectChoiceBoxIconStackPane"/>
             <ChoiceBox fx:id="sqlConnectChoiceBox" styleClass="custom-connectname-choicebox" focusTraversable="false">
             </ChoiceBox>
-            <StackPane fx:id="sqlDbIconPane"/>
-        <ChoiceBox fx:id="sqlDbChoiceBox"  styleClass="custom-dbname-choicebox" focusTraversable="false">
-        </ChoiceBox>
+        <StackPane fx:id="sqlDbIconPane"/>
+            <ChoiceBox fx:id="sqlDbChoiceBox"  styleClass="custom-dbname-choicebox" focusTraversable="false">
+            </ChoiceBox>
         <StackPane fx:id="sqlUserIconPane"/>
         <CustomLabelTextField fx:id="sqlUserTextField" focusTraversable="false">
         </CustomLabelTextField>

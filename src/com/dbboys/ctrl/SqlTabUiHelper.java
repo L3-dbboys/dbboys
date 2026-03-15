@@ -7,6 +7,7 @@ import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -45,13 +46,19 @@ public class SqlTabUiHelper {
         ctrl.sqlExplainButton.setGraphic(IconFactory.group(IconPaths.SQL_EXPLAIN, 0.45));
         ctrl.sqlStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));
         ctrl.sqlRecordButton.setGraphic(IconFactory.group(IconPaths.SQL_HISTORY, 0.8));
-        ctrl.sqlReadOnlyLabel.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, Color.valueOf("#9f453c")));
+        ctrl.sqlReadOnlyLabel.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, IconFactory.stopColor()));
 
         if (ctrl.sqlDbIconPane != null) {
-            ctrl.sqlDbIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, Color.valueOf("#888")));
+            ctrl.sqlDbIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, Color.valueOf("rgb(220,220,220)")));
+            ctrl.sqlDbIconPane.opacityProperty().bind(
+                    Bindings.when(ctrl.sqlConnectChoiceBox.disableProperty()).then(0.4).otherwise(1.0)
+            );
         }
         if (ctrl.sqlUserIconPane != null) {
-            ctrl.sqlUserIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_USER, 0.55, Color.valueOf("#888")));
+            ctrl.sqlUserIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_USER, 0.55, Color.valueOf("rgb(220,220,220)")));
+            ctrl.sqlUserIconPane.opacityProperty().bind(
+                    Bindings.when(ctrl.sqlConnectChoiceBox.disableProperty()).then(0.4).otherwise(1.0)
+            );
         }
     }
 
@@ -140,6 +147,6 @@ public class SqlTabUiHelper {
         tooltip.setShowDelay(Duration.millis(100));
         ctrl.sqlConnectChoiceBoxLoadingIcon.setTooltip(tooltip);
 
-        ctrl.sqlConnectIconPath.setFill(Paint.valueOf("#888"));
+        ctrl.sqlConnectIconPath.setFill(Paint.valueOf("rgb(220,220,220)"));
     }
 }
