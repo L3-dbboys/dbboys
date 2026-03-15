@@ -207,7 +207,7 @@ public class CustomInstanceInfoTableView extends CustomResultsetTableView {
     ) {
         TableColumn<Connect, String> column = new TableColumn<>();
         column.textProperty().bind(I18n.bind(i18nKey, fallback));
-        column.setGraphic(IconFactory.group(iconPath, iconScale));
+       // column.setGraphic(IconFactory.group(iconPath, iconScale));
         column.setCellValueFactory(new PropertyValueFactory<>(propertyName));
         column.setCellFactory(col -> {
             CustomTableCell<Connect, String> cell = new CustomTableCell<>();

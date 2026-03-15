@@ -30,11 +30,11 @@ public class CustomTab extends Tab {
         setContextMenu(tabMenu);
         CustomShortcutMenuItem closeAllItem = MenuItemUtil.createMenuItemI18n(
                 "customtab.menu.close_all",
-                IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.5, 0.5, Color.web("#e81123"))
+                IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.5, 0.5, Color.valueOf("#b33029"))
         );
         CustomShortcutMenuItem closeOthersItem = MenuItemUtil.createMenuItemI18n(
                 "customtab.menu.close_others",
-                IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.5, 0.5, Color.web("#e81123"))
+                IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.5, 0.5, Color.valueOf("#b33029"))
         );
 
         tabMenu.getItems().addAll(closeOthersItem,closeAllItem);

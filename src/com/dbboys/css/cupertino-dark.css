@@ -1067,7 +1067,7 @@ Text {
 }
 .table-view > .column-header-background .column-header .label {
   -fx-text-fill: -color-header-fg;
-  -fx-alignment: CENTER;
+  -fx-alignment: CENTER-LEFT;
   -fx-padding: 0 0.5em 0 0.5em;
 }
 .table-view > .column-header-background .column-header GridPane {
@@ -2568,11 +2568,14 @@ Text {
 }
 .tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-close-button {
   -fx-background-color: -color-fg-default;
+  -fx-effect: none;
   -fx-shape: "M 0,0 H1 L 4,3 7,0 H8 V1 L 5,4 8,7 V8 H7 L 4,5 1,8 H0 V7 L 3,4 0,1 Z";
   -fx-scale-shape: false;
 }
 .tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-close-button:hover {
   -fx-cursor: hand;
+  -fx-background-color:-color-danger-7;
+  -fx-effect: none;
   -fx-scale-x: 1.1;
   -fx-scale-y: 1.1;
 }
@@ -2593,6 +2596,13 @@ Text {
 .tab-pane > .tab-header-area > .headers-region > .tab:top:selected > .tab-container > .tab-close-button, .tab-pane > .tab-header-area > .headers-region > .tab:bottom:selected > .tab-container > .tab-close-button {
   -fx-background-color: -color-tab-fg-selected;
 }
+.tab-pane > .tab-header-area > .headers-region > .tab:top > .tab-container > .tab-close-button:hover, .tab-pane > .tab-header-area > .headers-region > .tab:bottom > .tab-container > .tab-close-button:hover {
+  -fx-background-color: -color-danger-7;
+  -fx-cursor: hand;
+  -fx-effect: none;
+  -fx-scale-x: 1.1;
+  -fx-scale-y: 1.1;
+}
 .tab-pane > .tab-header-area > .headers-region > .tab:disabled {
   -fx-background-color: -color-border-default, -color-bg-default;
 }
@@ -2610,6 +2620,13 @@ Text {
 }
 .tab-pane > .tab-header-area > .headers-region > .tab:left:hover > .tab-container > .tab-close-button, .tab-pane > .tab-header-area > .headers-region > .tab:right:hover > .tab-container > .tab-close-button {
   -fx-background-color: -color-fg-default;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:left > .tab-container > .tab-close-button:hover, .tab-pane > .tab-header-area > .headers-region > .tab:right > .tab-container > .tab-close-button:hover {
+  -fx-background-color: -color-danger-7;
+  -fx-cursor: hand;
+  -fx-effect: none;
+  -fx-scale-x: 1.1;
+  -fx-scale-y: 1.1;
 }
 .tab-pane > .tab-header-area > .headers-region > .tab:left:selected, .tab-pane > .tab-header-area > .headers-region > .tab:right:selected {
   -fx-background-color: -color-tab-border-selected, -color-tab-bg-selected;
@@ -2690,6 +2707,13 @@ Text {
 }
 .tab-pane.floating > .tab-header-area > .headers-region > .tab:hover > .tab-container > .tab-close-button, .tab-pane.floating > .tab-header-area > .headers-region > .tab:selected > .tab-container > .tab-close-button {
   -fx-background-color: -color-tab-fg-selected;
+}
+.tab-pane.floating > .tab-header-area > .headers-region > .tab > .tab-container > .tab-close-button:hover {
+  -fx-background-color: -color-danger-7;
+  -fx-cursor: hand;
+  -fx-effect: none;
+  -fx-scale-x: 1.1;
+  -fx-scale-y: 1.1;
 }
 .tab-pane.floating.dense > .tab-header-area > .headers-region > .tab {
   -fx-padding: 0.2em 0 0.2em 3px;

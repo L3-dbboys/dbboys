@@ -37,7 +37,7 @@ public class NotificationUtil {
 
         Label label = new Label(text);
         label.setStyle(
-                "-fx-background-color: rgba(70,70,70,0.9);" +
+                "-fx-background-color: rgba(58,58,60,0.9);" +
                         "-fx-text-fill: white;" +
                         "-fx-padding: 6px 9px;" +
                         "-fx-background-radius: 5;"
