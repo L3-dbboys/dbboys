@@ -1792,8 +1792,8 @@ Text {
 
 .context-menu .menu > .right-container > .arrow {
   -fx-padding: 0.34em 0.13em 0.34em 0.13em;
-  -fx-scale-x: 0.8;
-  -fx-scale-y: 0.8;
+  -fx-scale-x: 0.7;
+  -fx-scale-y: 0.7;
 }
 .menu-item:focused {
   -fx-background-color: -color-base-7, -color-base-7;
