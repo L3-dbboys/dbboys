@@ -63,8 +63,8 @@ public class SqlTabUiHelper {
     }
 
     public void setupSearchReplacePanel() {
-        ctrl.searchReplaceBox.setMaxWidth(300);
-        ctrl.searchReplaceBox.setMaxHeight(26);
+        ctrl.searchReplaceBox.setMaxWidth(CustomSearchReplaceVbox.EDIT_PANEL_WIDTH);
+        ctrl.searchReplaceBox.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(ctrl.searchReplaceBox, Pos.TOP_RIGHT);
         StackPane.setMargin(ctrl.searchReplaceBox, new Insets(2, 17, 0, 0));
         ctrl.sqlEditStackPane.getChildren().add(ctrl.searchReplaceBox);

@@ -13,6 +13,7 @@ import javafx.scene.control.IndexRange;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.apache.logging.log4j.LogManager;
@@ -59,8 +60,8 @@ public class CustomMarkdownTab extends CustomTab{
 
 
         // 统一搜索面板（编辑可替换，预览仅查找）
-        searchReplaceBox.setMaxWidth(300);
-        searchReplaceBox.setMaxHeight(26);
+        searchReplaceBox.setMaxWidth(CustomSearchReplaceVbox.EDIT_PANEL_WIDTH);
+        searchReplaceBox.setMaxHeight(Region.USE_PREF_SIZE);
         searchReplaceBox.setCodeArea(customMarkdownEditCodeArea);
         searchReplaceBox.setReplaceEnabled(true);
         StackPane.setAlignment(searchReplaceBox,Pos.TOP_RIGHT);
@@ -83,7 +84,7 @@ public class CustomMarkdownTab extends CustomTab{
         customGenericStyledArea.setOnSearchRequest(() -> {
             searchReplaceBox.setCodeArea(customGenericStyledArea);
             searchReplaceBox.setReplaceEnabled(false);
-            searchReplaceBox.setMaxWidth(280);
+            searchReplaceBox.setMaxWidth(CustomSearchReplaceVbox.SEARCH_ONLY_PANEL_WIDTH);
             searchReplaceBox.showFindPanel();
         });
 
@@ -364,7 +365,7 @@ public class CustomMarkdownTab extends CustomTab{
         customGenericStyledArea.getParent().setVisible(false);
         searchReplaceBox.setCodeArea(customMarkdownEditCodeArea);
         searchReplaceBox.setReplaceEnabled(true);
-        searchReplaceBox.setMaxWidth(300);
+        searchReplaceBox.setMaxWidth(CustomSearchReplaceVbox.EDIT_PANEL_WIDTH);
         searchReplaceBox.toFront();
         editButton.setVisible(false);
         customMarkdownEditCodeArea.requestFocus();
@@ -374,7 +375,7 @@ public class CustomMarkdownTab extends CustomTab{
         customGenericStyledArea.getParent().setVisible(true);
         searchReplaceBox.setCodeArea(customGenericStyledArea);
         searchReplaceBox.setReplaceEnabled(false);
-        searchReplaceBox.setMaxWidth(280);
+        searchReplaceBox.setMaxWidth(CustomSearchReplaceVbox.SEARCH_ONLY_PANEL_WIDTH);
         searchReplaceBox.toFront();
         editButton.setVisible(true);
         customGenericStyledArea.requestFocus();

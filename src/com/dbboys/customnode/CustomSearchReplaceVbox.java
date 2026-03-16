@@ -14,6 +14,12 @@ import org.fxmisc.richtext.GenericStyledArea;
 import java.util.Locale;
 
 public class CustomSearchReplaceVbox extends VBox {
+    public static final double EDIT_PANEL_WIDTH = 328;
+    public static final double SEARCH_ONLY_PANEL_WIDTH = 304;
+    private static final double PANEL_PADDING = 6;
+    private static final double ROW_GAP = 6;
+    private static final double MODE_COLUMN_WIDTH = 24;
+
     private GenericStyledArea<?, ?, ?> codeArea;
     private final CustomUserTextField findField;
     private final CustomUserTextField replaceField;
@@ -76,35 +82,33 @@ public class CustomSearchReplaceVbox extends VBox {
 
     // 初始化UI布局
     private void initUI() {
-        // 基本样式设置
-        //setSpacing(10);
-        setPadding(new Insets(2));
-        setStyle("-fx-background-color: -color-bg-default; -fx-border-color: -color-border-default;-fx-border-width: 0.5");
-        setPrefWidth(300);
+        setMinHeight(Region.USE_PREF_SIZE);
+        setMaxHeight(Region.USE_PREF_SIZE);
+        setSpacing(ROW_GAP);
+        setPadding(new Insets(PANEL_PADDING));
+        setStyle("-fx-background-color: -color-bg-default; -fx-border-color: -color-border-default; -fx-border-width: 0.5; -fx-background-radius: 6; -fx-border-radius: 6;");
+        setPrefWidth(EDIT_PANEL_WIDTH);
         findField.promptTextProperty().bind(I18n.bind("searchreplace.find.prompt", "查找"));
         replaceField.promptTextProperty().bind(I18n.bind("searchreplace.replace.prompt", "替换"));
 
         // 查找区域
-        HBox findBox = new HBox(5);
+        HBox findBox = new HBox(ROW_GAP);
         findBox.setAlignment(Pos.CENTER_LEFT);
+        findBox.setFillHeight(false);
         HBox.setHgrow(findField, Priority.ALWAYS);
 
         StackPane buttonPane = new StackPane();
+        setFixedWidth(buttonPane, MODE_COLUMN_WIDTH);
         tobottomBtn.setFocusTraversable(false);
         tobottomBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_TOGGLE_DOWN, 0.6, 0.6));
         tobottomBtn.getStyleClass().add("small");
         buttonPane.getChildren().add(tobottomBtn);
         findField.setStyle("-fx-padding: 1 1 1 5");
-        findBox.getChildren().addAll(buttonPane, findField);
-
-
         totopBtn.setFocusTraversable(false);
         totopBtn.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_TOGGLE_UP, 0.6, 0.6));
         totopBtn.getStyleClass().add("small");
         buttonPane.getChildren().add(totopBtn);
 
-        caseToggle.setFocusTraversable(false);
-        findBox.getChildren().add(caseToggle);
         caseToggle.setFocusTraversable(false);
         caseToggle.setGraphic(IconFactory.group(IconPaths.SEARCH_REPLACE_CASE_TOGGLE, 0.9, 0.6));
         caseToggle.setTooltip(new Tooltip());
@@ -117,7 +121,6 @@ public class CustomSearchReplaceVbox extends VBox {
         findPrevBtn.getStyleClass().add("small");
         findPrevBtn.setTooltip(new Tooltip());
         findPrevBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.prev.tooltip", "上一个"));
-        findBox.getChildren().add(findPrevBtn);
 
         Button findNextBtn = new Button("");
         findNextBtn.setFocusTraversable(false);
@@ -125,20 +128,26 @@ public class CustomSearchReplaceVbox extends VBox {
         findNextBtn.getStyleClass().add("small");
         findNextBtn.setTooltip(new Tooltip());
         findNextBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.next.tooltip", "下一个"));
-        findBox.getChildren().add(findNextBtn);
 
         Button closeBtn = new Button("✕");
         closeBtn.getStyleClass().add("searchCloseButton");
         closeBtn.setTooltip(new Tooltip());
         closeBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.close.tooltip", "关闭"));
-        findBox.getChildren().add(closeBtn);
+
+        HBox findActionsBox = new HBox(5, caseToggle, findPrevBtn, findNextBtn, closeBtn);
+        findActionsBox.setAlignment(Pos.CENTER_LEFT);
+        findActionsBox.setFillHeight(false);
+        findBox.getChildren().addAll(buttonPane, findField, findActionsBox);
 
         // 替换区域
         replaceBox.setAlignment(Pos.CENTER_LEFT);
-        Label replaceLabel = new Label();
-        replaceLabel.setMinWidth(20);
+        replaceBox.setSpacing(ROW_GAP);
+        replaceBox.setFillHeight(false);
+        Region replaceLeadSpacer = new Region();
+        setFixedWidth(replaceLeadSpacer, MODE_COLUMN_WIDTH);
         replaceField.setStyle("-fx-padding: 1 1 1 5");
-        replaceBox.getChildren().addAll(replaceLabel, replaceField);
+        replaceField.prefWidthProperty().bind(findField.widthProperty());
+        replaceField.maxWidthProperty().bind(findField.widthProperty());
         HBox.setHgrow(replaceField, Priority.ALWAYS);
 
 
@@ -158,7 +167,11 @@ public class CustomSearchReplaceVbox extends VBox {
         replaceAllBtn.setTooltip(new Tooltip());
         replaceAllBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.replace_all.tooltip", "全部替换"));
 
-        replaceBox.getChildren().addAll(replaceBtn,replaceAllBtn);
+        HBox replaceActionsBox = new HBox(5, replaceBtn, replaceAllBtn);
+        replaceActionsBox.setAlignment(Pos.CENTER_LEFT);
+        replaceActionsBox.setFillHeight(false);
+
+        replaceBox.getChildren().addAll(replaceLeadSpacer, replaceField, replaceActionsBox);
         // 组装面板
         getChildren().addAll(findBox, replaceBox);
 
@@ -474,6 +487,12 @@ public class CustomSearchReplaceVbox extends VBox {
         totopBtn.setManaged(replaceMode);
         replaceBox.setVisible(replaceMode);
         replaceBox.setManaged(replaceMode);
+    }
+
+    private void setFixedWidth(Region region, double width) {
+        region.setMinWidth(width);
+        region.setPrefWidth(width);
+        region.setMaxWidth(width);
     }
 
 
