@@ -16,7 +16,10 @@ import java.util.Locale;
 public class CustomSearchReplaceVbox extends VBox {
     public static final double EDIT_PANEL_WIDTH = 328;
     public static final double SEARCH_ONLY_PANEL_WIDTH = 304;
-    private static final double PANEL_PADDING = 6;
+    private static final double PANEL_PADDING_TOP = 6;
+    private static final double PANEL_PADDING_RIGHT = 6;
+    private static final double PANEL_PADDING_BOTTOM = 6;
+    private static final double PANEL_PADDING_LEFT = 6;
     private static final double ROW_GAP = 6;
     private static final double MODE_COLUMN_WIDTH = 24;
 
@@ -85,7 +88,7 @@ public class CustomSearchReplaceVbox extends VBox {
         setMinHeight(Region.USE_PREF_SIZE);
         setMaxHeight(Region.USE_PREF_SIZE);
         setSpacing(ROW_GAP);
-        setPadding(new Insets(PANEL_PADDING));
+        setPadding(new Insets(PANEL_PADDING_TOP, PANEL_PADDING_RIGHT, PANEL_PADDING_BOTTOM, PANEL_PADDING_LEFT));
         setStyle("-fx-background-color: -color-bg-default; -fx-border-color: -color-border-default; -fx-border-width: 0.5; -fx-background-radius: 6; -fx-border-radius: 6;");
         setPrefWidth(EDIT_PANEL_WIDTH);
         findField.promptTextProperty().bind(I18n.bind("searchreplace.find.prompt", "查找"));
@@ -130,7 +133,7 @@ public class CustomSearchReplaceVbox extends VBox {
         findNextBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.next.tooltip", "下一个"));
 
         Button closeBtn = new Button("✕");
-        closeBtn.getStyleClass().add("searchCloseButton");
+        closeBtn.getStyleClass().add("small");
         closeBtn.setTooltip(new Tooltip());
         closeBtn.getTooltip().textProperty().bind(I18n.bind("searchreplace.close.tooltip", "关闭"));
 
