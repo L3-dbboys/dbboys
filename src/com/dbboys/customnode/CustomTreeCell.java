@@ -66,9 +66,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private final Region spacer = new Region();
     private final Label descripLabel = new Label();
     private final Tooltip tooltip = new Tooltip();
-    private String ddlPopupStageDdlSql;
-    private Task<Void> ddlTask;
-
+ 
     public CustomTreeCell() {
         loadingIcon.setFitWidth(iconSize);
         loadingIcon.setFitHeight(iconSize);
@@ -402,12 +400,12 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private void renderConnectFolder(TreeData item, TreeItem<TreeData> treeItem) {
         if (treeItem.isExpanded()) {
             nodeIcon.setContent(IconPaths.TREECELL_CONNECT_FOLDER_OPEN);
-            nodeIcon.setScaleX(0.66);
-            nodeIcon.setScaleY(0.66);
+            nodeIcon.setScaleX(0.62);
+            nodeIcon.setScaleY(0.62);
         } else {
             nodeIcon.setContent(IconPaths.CREATE_CONNECT_FOLDER);
-            nodeIcon.setScaleX(0.56);
-            nodeIcon.setScaleY(0.56);
+            nodeIcon.setScaleX(0.52);
+            nodeIcon.setScaleY(0.52);
         }
                 applyPrimaryIconStyle(nodeIcon);
         bindCellText(item);
