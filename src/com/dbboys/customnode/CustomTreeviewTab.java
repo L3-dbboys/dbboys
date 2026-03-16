@@ -57,13 +57,6 @@ public class CustomTreeviewTab extends Tab {
                     if (idx >= 0) {
                         ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB", String.valueOf(idx));
                     }
-                    if (idx == 2) {
-                        javafx.scene.control.SplitPane mainSplitPane = AppState.getMainSplitPane();
-                        if (mainSplitPane != null) {
-                            Platform.runLater(() -> mainSplitPane.setDividerPositions(1.0));
-                        }
-                    }
-
                 }
                 for (Tab tab : getTabPane().getTabs()) {
                     if (!((CustomTreeviewTab) tab).getTitle().equals(getTitle())) {

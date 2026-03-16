@@ -311,13 +311,7 @@ public class MainController {
             Tab tab = treeviewTabPane.getTabs().get(preferredIndex);
             treeviewTabPane.getSelectionModel().select(tab);
             ((CustomTreeviewTab) tab).titleToggle.setSelected(true);
-            if(tab==aiTab){
-                log.info("aiTab");
-                Platform.runLater(() -> mainSplitPane.setDividerPositions(1.0));
-            }else{
-                log.info("not aiTab");
-                Platform.runLater(() -> mainSplitPane.setDividerPositions(AppState.getSplit1Pos()));
-            }
+            Platform.runLater(() -> mainSplitPane.setDividerPositions(AppState.getSplit1Pos()));
         }
     }
 
@@ -555,22 +549,17 @@ public class MainController {
     private void initSplitPaneResizeBehavior() {
         mainSplitPane.widthProperty().addListener((obs, oldVal, newVal) -> {
             log.info("mainSplitPane.widthProperty() newVal: " + newVal);
-            if(treeviewTabPane.getSelectionModel().getSelectedItem()==aiTab){
-                mainSplitPane.setDividerPositions(1.0);
+            if(AppState.getSqlEditCodeAreaIsMax()==0) {
+                //保留两位小数设置，否则可能因为小数过多而设置不准
+                Platform.runLater(() -> {
+                    mainSplitPane.setDividerPositions(AppState.getSplit1Pos());
+                });
             }else{
-                if(AppState.getSqlEditCodeAreaIsMax()==0) {
-                    //保留两位小数设置，否则可能因为小数过多而设置不准
-                    Platform.runLater(() -> {
-                        mainSplitPane.setDividerPositions(AppState.getSplit1Pos());
-                    });
-                }else{
-                    Platform.runLater(() -> {
-                        mainSplitPane.setDividerPositions(0);
-                    });
-                    
-                }
+                Platform.runLater(() -> {
+                    mainSplitPane.setDividerPositions(0);
+                });
             }
-            
+
         });
     }
 
