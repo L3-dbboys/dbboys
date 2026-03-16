@@ -1842,6 +1842,7 @@ Text {
   -fx-opacity: 0.4;
 }
 
+/*去掉markdown里代码块的边框*/
 .CustomGenericStyledArea .text-area {
   -fx-background-color: -color-bg-subtle;
   -fx-control-inner-background: -color-bg-subtle;
