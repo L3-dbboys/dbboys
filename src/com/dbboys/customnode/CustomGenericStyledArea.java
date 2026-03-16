@@ -272,8 +272,8 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                             return new Text(""); // appendtext("\n")会继承上一个style，空段落不生成 TextArea，解决最后一个如果是```出现一个空白text
                         }
                         TextArea textArea = new TextArea();
-                        textArea.setWrapText(true);
-                        textArea.setMaxHeight(500);
+                        // 代码块：高度完全跟随内容，不需要内部滚动条
+                        textArea.setWrapText(false);
                         textArea.setMinHeight(14);
                         textArea.setEditable(false);
                         ChangeListener<Object> listener = (obs, oldVal, newVal) -> {
@@ -283,9 +283,9 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                         textArea.textProperty().addListener(listener);
                         textArea.widthProperty().addListener(listener);
                         textArea.setText(e.getLeft());
+                        // 宽度撑满父容器（预留一点内边距）
                         textArea.prefWidthProperty().bind(
-                                //Bindings.subtract(customGenericStyledArea.widthProperty(), 27)
-                                Bindings.subtract(AppState.getSqlTabPane().widthProperty(), 37)
+                                Bindings.subtract(AppState.getSqlTabPane().widthProperty(), 8)
                         );
 
                         textArea.focusedProperty().addListener((obs, oldFocus, newFocus) -> {
@@ -328,7 +328,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                             customUserTextField.setText(e.getLeft());
                             customUserTextField.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;-fx-background-color:none;-fx-border-width: 0;-fx-effect:none");
                             customUserTextField.prefWidthProperty().bind(
-                                    Bindings.subtract(AppState.getSqlTabPane().widthProperty(), 36)
+                                    Bindings.subtract(AppState.getSqlTabPane().widthProperty(), 10)
                             );
                             customUserTextField.focusedProperty().addListener((obs, oldFocus, newFocus) -> {
                                 if (!newFocus) {
@@ -785,16 +785,11 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
 
     private static double computeTextHeight(TextArea textArea) {
-        int lines = textArea.getParagraphs().size();
-        //Insets padding = textArea.getInsets();
-        //System.out.println("textArea.getInsets():"+padding.getTop()+" "+padding.getBottom());
-        double lineHeight = 14; // 1.2 行高系数
-        //Insets padding = textArea.getInsets();
-        //double height = lines * lineHeight + padding.getTop() + padding.getBottom();
-        //double minHeight = lineHeight + padding.getTop() + padding.getBottom();
-        //double maxHeight = 300; // 最大高度，可自定义
-        //return Math.min(Math.max(height, minHeight), maxHeight);
-        return lines * lineHeight+8;
+        // 按文本中的换行数估算行数（wrap 关闭，避免受宽度影响）
+        String text = textArea.getText() == null ? "" : textArea.getText();
+        int lines = text.isEmpty() ? 1 : text.split("\\R", -1).length;
+        double lineHeight = 14;
+        return lines * lineHeight + 8;
     }
 
     // 辅助类，用于存储文本段及其样式
@@ -849,7 +844,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         // 创建表格视图
         CustomResultsetTableView<List<String>> tableView = new CustomResultsetTableView<>();
        // tableView.setStyle("-fx-border-color: #dddddd; -fx-border-width: 1px;");
-        tableView.prefWidthProperty().bind(widthProperty().subtract(20)); // 自适应宽度
+        tableView.prefWidthProperty().bind(widthProperty()); // 自适应宽度
 
         // 获取表头行（第一行）
         List<String> headers = tableRows.get(0);
@@ -870,7 +865,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 return new SimpleStringProperty(value);
             });
             // 列宽自适应内容（也可设置固定宽度）
-            column.prefWidthProperty().bind(tableView.widthProperty().subtract(33).divide(headers.size()));
+            column.prefWidthProperty().bind(tableView.widthProperty().divide(headers.size()));
            // double avgColWidth = (tableView.getWidth() - 30) / headers.size();
             //Sstem.out.println("tableView.getWidth():"+tableView.getWidth()
             // ;

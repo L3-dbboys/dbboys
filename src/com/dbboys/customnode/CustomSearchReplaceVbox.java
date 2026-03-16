@@ -475,8 +475,8 @@ public class CustomSearchReplaceVbox extends VBox {
 
     private void updateModeUi() {
         if (!replaceEnabled) {
-            tobottomBtn.setVisible(false);
-            tobottomBtn.setManaged(false);
+            tobottomBtn.setVisible(true);
+            tobottomBtn.setDisable(true);
             totopBtn.setVisible(false);
             totopBtn.setManaged(false);
             replaceBox.setVisible(false);
@@ -484,8 +484,8 @@ public class CustomSearchReplaceVbox extends VBox {
             return;
         }
 
+        tobottomBtn.setDisable(false);
         tobottomBtn.setVisible(!replaceMode);
-        tobottomBtn.setManaged(!replaceMode);
         totopBtn.setVisible(replaceMode);
         totopBtn.setManaged(replaceMode);
         replaceBox.setVisible(replaceMode);

@@ -1842,6 +1842,25 @@ Text {
   -fx-opacity: 0.4;
 }
 
+.CustomGenericStyledArea .text-area {
+  -fx-background-color: -color-bg-subtle;
+  -fx-control-inner-background: -color-bg-subtle;
+  -fx-text-fill: -color-base-5;
+  -fx-background-insets: 0;
+  -fx-background-radius: 4px;
+  -fx-border-color: -color-border-subtle;
+  -fx-border-radius: 4px;
+  -fx-border-width: 0.3px;
+  -fx-effect: none;
+  -fx-padding: 0;
+  -fx-font-family:"SimSun";
+  -fx-font-size: 11;
+}
+.CustomGenericStyledArea .text-area .viewport,
+.CustomGenericStyledArea .text-area .content {
+  -fx-background-color: transparent;
+}
+
 .radio-menu-item:checked > .left-container > .radio,
 .check-menu-item:checked > .left-container > .check {
   -fx-shape: "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
