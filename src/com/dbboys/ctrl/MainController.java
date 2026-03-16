@@ -9,6 +9,7 @@ import com.dbboys.util.tree.TreeViewUtil;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.*;
 import javafx.scene.control.*;
@@ -747,12 +748,46 @@ public class MainController {
     }
 
     private void addUserMarkdownMessage(String content) {
-        com.dbboys.customnode.CustomAiStyledArea area = new com.dbboys.customnode.CustomAiStyledArea();
-        area.parseMarkdownWithStyles(content == null ? "" : content);
-        area.setEditable(false);
-        area.maxWidthProperty().bind(aiChatMessages.widthProperty().subtract(24));
-        area.setStyle(area.getStyle() + ";-fx-padding: 6 10 6 10;");
-        HBox userBox = new HBox(area);
+        String text = content == null ? "" : content;
+
+        TextArea textArea = new TextArea(text);
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+
+        // 让 TextArea 本身透明，仅保留文本颜色和边距，背景由外层气泡承载
+        textArea.setStyle(
+                "-fx-background-color: transparent;" +
+                "-fx-control-inner-background: transparent;" +
+                "-fx-text-fill: -color-fg-emphasis;" +
+                "-fx-faint-focus-color: transparent;" +
+                "-fx-focus-color: transparent;" +
+                "-fx-padding: 2 4 2 4;"
+        );
+
+        textArea.setPrefRowCount(1);
+        textArea.setMinHeight(Region.USE_PREF_SIZE);
+        textArea.setPrefHeight(Region.USE_COMPUTED_SIZE);
+
+        // 外层气泡，负责蓝色背景和圆角
+        StackPane bubble = new StackPane(textArea);
+        bubble.setStyle(
+                "-fx-background-color: -color-accent-emphasis;" +
+                "-fx-background-radius: 10;" +
+                "-fx-padding: 4 8 4 8;"
+        );
+
+        // 宽度与内容匹配，但不超过聊天区域的 70%
+        bubble.maxWidthProperty().bind(aiChatMessages.widthProperty().multiply(0.7));
+
+        // 文本或容器宽度变化时，重新计算高度以适配多行
+        ChangeListener<Object> sizeListener = (obs, o, n) -> {
+            textArea.setPrefHeight(Region.USE_COMPUTED_SIZE);
+            bubble.requestLayout();
+        };
+        textArea.textProperty().addListener(sizeListener);
+        bubble.widthProperty().addListener(sizeListener);
+
+        HBox userBox = new HBox(bubble);
         userBox.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
         userBox.setFillHeight(false);
         aiChatMessages.getChildren().add(userBox);
