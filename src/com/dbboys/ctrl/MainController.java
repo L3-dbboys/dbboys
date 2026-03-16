@@ -725,18 +725,15 @@ public class MainController {
         }
         aiSendButton.setText("");
         if (thinking) {
-            // 使用全局统一的停止图标
+            // AI 对话停止：使用独立的圆形停止图标
             aiSendButton.setGraphic(
-                    IconFactory.create(IconPaths.SQL_STOP, 1.5, IconFactory.stopColor())
+                    IconFactory.groupFixedColor(IconPaths.AI_STOP, 0.72, IconFactory.stopColor())
             );
         } else {
-            SVGPath sendIcon = new SVGPath();
-            sendIcon.setContent("M24 12 Q24 8.7188 22.3906 5.9688 Q20.7969 3.2031 18.0312 1.6094 Q15.2812 0 12 0 Q8.7188 0 5.9531 1.6094 Q3.2031 3.2031 1.5938 5.9688 Q0 8.7188 0 12 Q0 15.2812 1.5938 18.0469 Q3.2031 20.7969 5.9531 22.4062 Q8.7188 24 12 24 Q15.2812 24 18.0312 22.4062 Q20.7969 20.7969 22.3906 18.0469 Q24 15.2812 24 12 ZM12.7188 17.2812 Q12.7188 17.5938 12.5156 17.7969 Q12.3125 18 12 18 Q11.6875 18 11.4844 17.7969 Q11.2812 17.5938 11.2812 17.2812 L11.2812 8.5625 L8 11.7656 Q7.8438 12 7.5156 12 Q7.2031 12 6.9531 11.7969 Q6.7188 11.5938 6.7188 11.2812 Q6.7188 10.9531 6.9531 10.7188 L11.4375 6.2344 Q11.6875 6 12 6 Q12.3125 6 12.5625 6.2344 L17.0469 10.7188 Q17.2812 10.9531 17.2812 11.2812 Q17.2812 11.5938 17.0312 11.7969 Q16.7969 12 16.4688 12 Q16.1562 12 16 11.7656 L12.7188 8.5625 L12.7188 17.2812 Z");
-            sendIcon.setFill(Color.valueOf("#074675"));
-            IconFactory.applyDefaultStyle(sendIcon);
-            sendIcon.setScaleX(0.8);
-            sendIcon.setScaleY(0.8);
-            aiSendButton.setGraphic(sendIcon);
+            // AI 对话发送：使用专用的圆形箭头发送图标
+            aiSendButton.setGraphic(
+                    IconFactory.group(IconPaths.AI_SEND, 0.7)
+            );
         }
     }
 
