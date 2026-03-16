@@ -42,6 +42,10 @@ import javafx.scene.Parent;
  */
 public class CustomAiStyledArea extends CustomGenericStyledArea {
     private static final Logger log = LogManager.getLogger(CustomAiStyledArea.class);
+    /** 专供 AI 区域网络图片使用的右键菜单，避免每次右键重复创建多个菜单实例 */
+    private final javafx.scene.control.ContextMenu aiImageContextMenu = new javafx.scene.control.ContextMenu();
+    private final javafx.scene.control.MenuItem aiImageSaveAsItem =
+            new javafx.scene.control.MenuItem(I18n.t("genericstyled.menu.image_save_as"));
 
     public CustomAiStyledArea() {
         super(new java.io.File("ai-inline.md"));
@@ -51,6 +55,9 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         setStyle("-fx-font-family: system; -fx-font-size: 11px;");
         // AI 对话不需要右键菜单，避免误操作
         setContextMenu(null);
+
+        // 初始化 AI 图片右键菜单：仅包含“图片另存为”
+        aiImageContextMenu.getItems().setAll(aiImageSaveAsItem);
 
         // 关键：高度随内容变化
         setMinHeight(Region.USE_PREF_SIZE);
@@ -194,9 +201,8 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
                         // 网络图片：直接使用 URL 加载，仅提供“另存为”右键菜单，参考通用下载逻辑
                         imgView.setImage(new Image(imgUrl, true));
                         pane.setOnContextMenuRequested(event -> {
-                            javafx.scene.control.MenuItem saveAsItem =
-                                    new javafx.scene.control.MenuItem(I18n.t("genericstyled.menu.image_save_as"));
-                            saveAsItem.setOnAction(event1 -> {
+                            // 复用同一个 ContextMenu，避免多次右键出现多个菜单
+                            aiImageSaveAsItem.setOnAction(event1 -> {
                                 FileChooser fileChooser = new FileChooser();
                                 fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
 
@@ -236,9 +242,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
                                 }
                             });
 
-                            javafx.scene.control.ContextMenu ctx =
-                                    new javafx.scene.control.ContextMenu(saveAsItem);
-                            ctx.show(pane, event.getScreenX(), event.getScreenY());
+                            aiImageContextMenu.show(pane, event.getScreenX(), event.getScreenY());
                             event.consume();
                         });
                     } else {
