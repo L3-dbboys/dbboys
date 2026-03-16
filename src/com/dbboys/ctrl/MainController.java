@@ -40,6 +40,7 @@ public class MainController {
     private static final Logger log = LogManager.getLogger(MainController.class);
     private static final double USER_BUBBLE_MAX_WIDTH_RATIO = 0.7;
     private static final int MESSAGE_BUBBLE_RADIUS = 6;
+    private static final double AI_INPUT_HEIGHT = 90;
 
     @FXML
     private StackPane root;
@@ -396,12 +397,26 @@ public class MainController {
 
         // AI 输入框支持 Ctrl+Enter 发送
         if (aiInputField != null) {
+            aiInputField.setMinHeight(AI_INPUT_HEIGHT);
+            aiInputField.setPrefHeight(AI_INPUT_HEIGHT);
+            aiInputField.setMaxHeight(AI_INPUT_HEIGHT);
             aiInputField.setOnKeyPressed(event -> {
                 if (event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.ENTER) {
                     sendAiMessage();
                     event.consume();
                 }
             });
+            if (aiInputField.getParent() instanceof HBox inputRow) {
+                inputRow.setMinHeight(AI_INPUT_HEIGHT);
+                inputRow.setPrefHeight(AI_INPUT_HEIGHT);
+                inputRow.setMaxHeight(AI_INPUT_HEIGHT);
+                VBox.setVgrow(inputRow, Priority.NEVER);
+            }
+        }
+
+        if (aiChatScrollPane != null) {
+            aiChatScrollPane.setFitToWidth(true);
+            aiChatScrollPane.setFitToHeight(false);
         }
     }
 
@@ -759,7 +774,7 @@ public class MainController {
 
         StackPane bubble = new StackPane(area);
         bubble.setStyle(
-                "-fx-background-color: -color-base-7;" +
+                "-fx-background-color: -color-bg-content;" +
                 "-fx-background-radius: " + MESSAGE_BUBBLE_RADIUS + ";" +
                 "-fx-border-radius: " + MESSAGE_BUBBLE_RADIUS + ";"
         );
@@ -772,6 +787,8 @@ public class MainController {
         messageGroup.setAlignment(Pos.CENTER_LEFT);
         messageGroup.setFillWidth(true);
         aiChatMessages.getChildren().add(messageGroup);
+        keepAiMessageVisible(area, messageGroup);
+        scrollAiChatToBottom();
     }
 
     private void addUserMarkdownMessage(String content) {
@@ -791,7 +808,10 @@ public class MainController {
         );
         bubble.maxWidthProperty().bind(aiChatMessages.widthProperty().multiply(USER_BUBBLE_MAX_WIDTH_RATIO));
         messageLabel.maxWidthProperty().bind(bubble.maxWidthProperty().subtract(20));
-        aiChatMessages.getChildren().add(createMessageRow(bubble, text, Pos.CENTER_RIGHT, Pos.CENTER_RIGHT));
+        HBox messageRow = createMessageRow(bubble, text, Pos.CENTER_RIGHT, Pos.CENTER_RIGHT);
+        aiChatMessages.getChildren().add(messageRow);
+        keepAiMessageVisible(bubble, messageRow);
+        scrollAiChatToBottom();
     }
 
     private HBox createMessageRow(Node messageNode, String text, Pos rowAlignment, Pos buttonAlignment) {
@@ -828,6 +848,17 @@ public class MainController {
         content.putString(text == null ? "" : text);
         clipboard.setContent(content);
         NotificationUtil.showMainNotification(I18n.t("resultset.notice.copied"));
+    }
+
+    private void keepAiMessageVisible(Region messageRegion, Region containerRegion) {
+        if (messageRegion != null) {
+            messageRegion.heightProperty().addListener((obs, oldVal, newVal) -> scrollAiChatToBottom());
+            messageRegion.layoutBoundsProperty().addListener((obs, oldVal, newVal) -> scrollAiChatToBottom());
+        }
+        if (containerRegion != null) {
+            containerRegion.heightProperty().addListener((obs, oldVal, newVal) -> scrollAiChatToBottom());
+            containerRegion.layoutBoundsProperty().addListener((obs, oldVal, newVal) -> scrollAiChatToBottom());
+        }
     }
 
     private void scrollAiChatToBottom() {
