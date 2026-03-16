@@ -5476,3 +5476,22 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 .tree-table-view .tree-table-row-cell > .tree-table-cell.execute_result_success {
   -fx-text-fill: -color-fg-default;
 }
+
+
+/* 查找替换区分大小写按钮 */
+.searchReplaceCaseToggle {
+  -fx-pref-height: 15px;
+  -fx-min-height: 15px;
+  -fx-max-height: 15px;
+  -fx-pref-width: 15px;
+  -fx-min-width: 15px;
+  -fx-max-width: 15px;
+  -fx-border-width: 0px;
+  -fx-effect: none;
+  -fx-background-color: none;
+}
+
+
+.searchReplaceCaseToggle:hover {
+  -fx-background-color: -color-base-7;
+}

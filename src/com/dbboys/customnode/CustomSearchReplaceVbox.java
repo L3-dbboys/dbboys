@@ -79,7 +79,7 @@ public class CustomSearchReplaceVbox extends VBox {
         // 基本样式设置
         //setSpacing(10);
         setPadding(new Insets(2));
-        setStyle("-fx-background-color: #f5f5f5; -fx-border-color: #ddd;-fx-border-width: 0.5");
+        setStyle("-fx-background-color: -color-bg-default; -fx-border-color: -color-border-default;-fx-border-width: 0.5");
         setPrefWidth(300);
         findField.promptTextProperty().bind(I18n.bind("searchreplace.find.prompt", "查找"));
         replaceField.promptTextProperty().bind(I18n.bind("searchreplace.replace.prompt", "替换"));
