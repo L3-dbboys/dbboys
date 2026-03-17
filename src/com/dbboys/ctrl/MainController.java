@@ -92,11 +92,13 @@ public class MainController {
         private final AtomicInteger renderedRevision = new AtomicInteger(-1);
         private final VBox messageGroup;
         private final StackPane bubble;
+        private final HBox buttonRow;
         private final StringBuilder rawContent = new StringBuilder();
 
-        private AiMessageView(VBox messageGroup, StackPane bubble) {
+        private AiMessageView(VBox messageGroup, StackPane bubble, HBox buttonRow) {
             this.messageGroup = messageGroup;
             this.bubble = bubble;
+            this.buttonRow = buttonRow;
         }
 
         private synchronized void appendRaw(String delta) {
@@ -988,6 +990,7 @@ public class MainController {
         AiMessageView[] ref = new AiMessageView[1];
         AiMessageView view = createAiMessageView(() -> sanitizeAiReplyForDisplay(ref[0].getRaw()));
         ref[0] = view;
+        setAiMessageActionsVisible(view, false);
         aiChatMessages.getChildren().add(view.messageGroup);
         keepAiMessageVisible(view.area, view.messageGroup);
         renderAiMessage(view, initialContent, false);
@@ -998,7 +1001,8 @@ public class MainController {
     private AiMessageView createAiMessageView(Supplier<String> textSupplier) {
         VBox messageGroup = new VBox();
         StackPane bubble = new StackPane();
-        AiMessageView view = new AiMessageView(messageGroup, bubble);
+        HBox buttonRow = createMessageButtonRow(textSupplier, Pos.CENTER_LEFT);
+        AiMessageView view = new AiMessageView(messageGroup, bubble, buttonRow);
         configureAiMessageArea(view.area);
         bubble.getChildren().add(view.area);
         bubble.setStyle(
@@ -1010,7 +1014,7 @@ public class MainController {
         bubble.maxWidthProperty().bind(aiChatMessages.widthProperty().subtract(24));
         view.area.prefWidthProperty().bind(bubble.widthProperty());
         view.area.maxWidthProperty().bind(bubble.widthProperty());
-        messageGroup.getChildren().setAll(bubble, createMessageButtonRow(textSupplier, Pos.CENTER_LEFT));
+        messageGroup.getChildren().setAll(bubble, buttonRow);
         messageGroup.setSpacing(4);
         messageGroup.setAlignment(Pos.CENTER_LEFT);
         messageGroup.setFillWidth(true);
@@ -1055,6 +1059,15 @@ public class MainController {
         }
         view.area.clear();
         view.area.parseMarkdownWithStyles(content == null ? "" : content);
+        setAiMessageActionsVisible(view, updateRaw);
+    }
+
+    private void setAiMessageActionsVisible(AiMessageView view, boolean visible) {
+        if (view == null || view.buttonRow == null) {
+            return;
+        }
+        view.buttonRow.setVisible(visible);
+        view.buttonRow.setManaged(visible);
     }
 
     private void addUserMarkdownMessage(String content) {
@@ -1063,7 +1076,7 @@ public class MainController {
         Label messageLabel = new Label(text);
         messageLabel.setWrapText(true);
         messageLabel.setMaxWidth(Double.MAX_VALUE);
-        messageLabel.setStyle("-fx-text-fill: -color-fg-emphasis;");
+        messageLabel.setStyle("-fx-text-fill: -color-fg-emphasis; -fx-font-size: 10px;");
 
         StackPane bubble = new StackPane(messageLabel);
         bubble.setStyle(
