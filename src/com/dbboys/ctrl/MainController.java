@@ -81,12 +81,14 @@ public class MainController {
     private java.util.concurrent.Future<?> aiTaskFuture;
     private AiMessageView aiStreamingMessage;
     private volatile boolean aiCancelled = false;
+    private final AtomicBoolean aiScrollScheduled = new AtomicBoolean(false);
     private final List<AiConversationMessage> aiConversationHistory = new ArrayList<>();
 
     private record AiConversationMessage(String role, String content) {}
 
     private static final class AiMessageView {
         private final CustomAiStyledArea area = new CustomAiStyledArea();
+        private final Label streamingLabel = new Label();
         private final AtomicBoolean renderScheduled = new AtomicBoolean(false);
         private final AtomicInteger revision = new AtomicInteger();
         private final AtomicInteger renderedRevision = new AtomicInteger(-1);
@@ -981,7 +983,7 @@ public class MainController {
     private void addAiMarkdownMessage(String content) {
         AiMessageView view = createAiMessageView(() -> content == null ? "" : content);
         aiChatMessages.getChildren().add(view.messageGroup);
-        keepAiMessageVisible(view.area, view.messageGroup);
+        keepAiMessageVisible(view.bubble, view.messageGroup);
         renderAiMessage(view, content, true);
         scrollAiChatToBottom();
     }
@@ -992,8 +994,8 @@ public class MainController {
         ref[0] = view;
         setAiMessageActionsVisible(view, false);
         aiChatMessages.getChildren().add(view.messageGroup);
-        keepAiMessageVisible(view.area, view.messageGroup);
-        renderAiMessage(view, initialContent, false);
+        keepAiMessageVisible(view.bubble, view.messageGroup);
+        renderStreamingAiMessage(view, initialContent);
         scrollAiChatToBottom();
         return view;
     }
@@ -1004,7 +1006,8 @@ public class MainController {
         HBox buttonRow = createMessageButtonRow(textSupplier, Pos.CENTER_LEFT);
         AiMessageView view = new AiMessageView(messageGroup, bubble, buttonRow);
         configureAiMessageArea(view.area);
-        bubble.getChildren().add(view.area);
+        configureAiStreamingLabel(view.streamingLabel, bubble);
+        bubble.getChildren().addAll(view.streamingLabel, view.area);
         bubble.setStyle(
                 "-fx-background-color: -color-bg-content;" +
                 "-fx-background-radius: " + MESSAGE_BUBBLE_RADIUS + ";" +
@@ -1031,6 +1034,14 @@ public class MainController {
         );
     }
 
+    private void configureAiStreamingLabel(Label label, StackPane bubble) {
+        label.setWrapText(true);
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setStyle("-fx-text-fill: -color-fg-default; -fx-font-size: 10px; -fx-padding: 6 10 6 10;");
+        label.maxWidthProperty().bind(bubble.widthProperty().subtract(20));
+        StackPane.setAlignment(label, Pos.CENTER_LEFT);
+    }
+
     private void scheduleAiMessageRender(AiMessageView view) {
         if (view == null || !view.renderScheduled.compareAndSet(false, true)) {
             return;
@@ -1039,7 +1050,7 @@ public class MainController {
             try {
                 int revision = view.revision.get();
                 String displayContent = sanitizeAiReplyForDisplay(view.getRaw());
-                renderAiMessage(view, displayContent, false);
+                renderStreamingAiMessage(view, displayContent);
                 view.renderedRevision.set(revision);
             } finally {
                 view.renderScheduled.set(false);
@@ -1057,9 +1068,39 @@ public class MainController {
         if (updateRaw) {
             view.setRaw(content);
         }
+        showFinalAiContent(view);
+        view.streamingLabel.setText("");
         view.area.clear();
         view.area.parseMarkdownWithStyles(content == null ? "" : content);
         setAiMessageActionsVisible(view, updateRaw);
+    }
+
+    private void renderStreamingAiMessage(AiMessageView view, String content) {
+        if (view == null) {
+            return;
+        }
+        showStreamingAiContent(view);
+        view.streamingLabel.setText(content == null ? "" : content);
+    }
+
+    private void showStreamingAiContent(AiMessageView view) {
+        if (view == null) {
+            return;
+        }
+        view.streamingLabel.setManaged(true);
+        view.streamingLabel.setVisible(true);
+        view.area.setManaged(false);
+        view.area.setVisible(false);
+    }
+
+    private void showFinalAiContent(AiMessageView view) {
+        if (view == null) {
+            return;
+        }
+        view.area.setManaged(true);
+        view.area.setVisible(true);
+        view.streamingLabel.setManaged(false);
+        view.streamingLabel.setVisible(false);
     }
 
     private void setAiMessageActionsVisible(AiMessageView view, boolean visible) {
@@ -1141,9 +1182,16 @@ public class MainController {
     }
 
     private void scrollAiChatToBottom() {
+        if (aiChatScrollPane == null || !aiScrollScheduled.compareAndSet(false, true)) {
+            return;
+        }
         Platform.runLater(() -> {
-            if (aiChatScrollPane != null) {
-                aiChatScrollPane.setVvalue(1.0);
+            try {
+                if (aiChatScrollPane != null) {
+                    aiChatScrollPane.setVvalue(1.0);
+                }
+            } finally {
+                aiScrollScheduled.set(false);
             }
         });
     }
