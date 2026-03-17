@@ -173,6 +173,11 @@ public class CustomTableCell<S, T> extends TableCell<S, T> {
         if (isEmpty()) {
             return;
         }
+        TableView<S> tableView = getTableView();
+        if (tableView != null && tableView.getSelectionModel().getSelectedCells().size() > 1) {
+            CustomTableView.copySelectionToClipboard(tableView);
+            return;
+        }
         ClipboardContent content = new ClipboardContent();
         content.putString(item == null ? getNullLabel() : item.toString());
         Clipboard.getSystemClipboard().setContent(content);

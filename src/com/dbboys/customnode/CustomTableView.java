@@ -53,13 +53,13 @@ public class CustomTableView<S> extends TableView<S> {
                 "Ctrl+C",
                 IconFactory.group(IconPaths.COPY, 0.7)
         );
-        copyMenuItem.setOnAction(e -> copySelectionToClipboard(this));
+        copyMenuItem.setOnAction(e -> copySelectionToClipboard());
         contextMenu.getItems().add(copyMenuItem);
         setContextMenu(contextMenu);
 
         addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isControlDown() && event.getCode() == KeyCode.C) {
-                copySelectionToClipboard(this);
+                copySelectionToClipboard();
                 event.consume();
             }
         });
@@ -70,7 +70,11 @@ public class CustomTableView<S> extends TableView<S> {
         });
     }
 
-    private <T> void copySelectionToClipboard(TableView<T> table) {
+    public void copySelectionToClipboard() {
+        copySelectionToClipboard(this);
+    }
+
+    static <T> void copySelectionToClipboard(TableView<T> table) {
         ObservableList<TablePosition> selectedCells = table.getSelectionModel().getSelectedCells();
         if (selectedCells.isEmpty()) return;
 
