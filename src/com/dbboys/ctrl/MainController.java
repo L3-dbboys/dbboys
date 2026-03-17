@@ -390,13 +390,13 @@ public class MainController {
     private void initAiPanel() {
         updateAiSendButtonText(false);
 
-        // AI 输入框支持 Ctrl+Enter 发送
+        // AI 输入框支持 Enter 发送，Shift+Enter 换行
         if (aiInputField != null) {
             aiInputField.setMinHeight(AI_INPUT_HEIGHT);
             aiInputField.setPrefHeight(AI_INPUT_HEIGHT);
             aiInputField.setMaxHeight(AI_INPUT_HEIGHT);
             aiInputField.setOnKeyPressed(event -> {
-                if (event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                if (!event.isShiftDown() && event.getCode() == javafx.scene.input.KeyCode.ENTER) {
                     sendAiMessage();
                     event.consume();
                 }
@@ -703,7 +703,12 @@ public class MainController {
         aiTaskFuture = com.dbboys.app.AppExecutor.submit(() -> {
             List<MarkdownSearchUtil.KnowledgeReference> references =
                     MarkdownSearchUtil.searchKnowledgeReferences(text, 3);
-            String reply = com.dbboys.util.AiApiUtil.chat(buildAiPrompt(text, references));
+            String prompt = buildAiPrompt(text, references);
+            log.info("AI request prompt:\n{}", prompt);
+            System.out.println("=== AI request prompt begin ===");
+            System.out.println(prompt);
+            System.out.println("=== AI request prompt end ===");
+            String reply = com.dbboys.util.AiApiUtil.chat(prompt);
             Platform.runLater(() -> {
                 aiChatMessages.getChildren().remove(placeholderBox);
                 aiThinkingPlaceholder = null;
