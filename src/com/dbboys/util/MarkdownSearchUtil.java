@@ -345,6 +345,7 @@ public class MarkdownSearchUtil {
         searchResultPopup.getContent().add(resultList);
         resultList.setFocusTraversable(false);
         resultList.setPrefWidth(480);
+        resultList.getStyleClass().addAll("striped", "search-result-list");
         resultPlaceholderLabel.textProperty().bind(I18n.bind("markdown.search.placeholder", "暂无搜索结果"));
         resultList.setPlaceholder(resultPlaceholderLabel);
     }

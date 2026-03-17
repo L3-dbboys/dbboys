@@ -1020,6 +1020,25 @@ Text {
   -fx-background-color: -color-cell-bg-odd;
 }
 
+.list-view.search-result-list {
+  -color-cell-bg: -color-bg-content;
+  -color-cell-bg-odd: -color-bg-default;
+  -color-cell-bg-selected: -color-bg-content;
+  -color-cell-bg-selected-focused: -color-bg-content;
+  -color-cell-fg-selected: -color-fg-default;
+  -color-cell-fg-selected-focused: -color-fg-default;
+}
+
+.list-view.search-result-list > .virtual-flow > .clipped-container > .sheet > .list-cell {
+  -fx-cell-size: 90px;
+  -fx-background-insets: 0;
+}
+
+.list-view.search-result-list > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:hover {
+  -fx-background-color: -color-base-8;
+  -fx-background-insets: 0;
+}
+
 .table-view {
   -color-cell-bg: -color-bg-default;
   -color-cell-fg: -color-fg-default;
@@ -5526,3 +5545,11 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-font-size: 7;
   -fx-text-fill: -color-fg-muted;
 }
+
+
+/*markdown文件列表树拖动上去效果*/
+.tree-cell-drag-over {
+  -fx-background-color: -color-base-7;
+}
+
+
