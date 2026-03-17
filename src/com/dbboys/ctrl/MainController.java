@@ -29,6 +29,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -47,6 +48,7 @@ public class MainController {
     private static final double USER_BUBBLE_MAX_WIDTH_RATIO = 0.7;
     private static final int MESSAGE_BUBBLE_RADIUS = 6;
     private static final double AI_INPUT_HEIGHT = 90;
+    private static final int AI_HISTORY_TURNS = 5;
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
             "doubao-seed-1-8-251228",
             "doubao-seed-2-0-mini-260215"
@@ -79,6 +81,9 @@ public class MainController {
     private java.util.concurrent.Future<?> aiTaskFuture;
     private AiMessageView aiStreamingMessage;
     private volatile boolean aiCancelled = false;
+    private final List<AiConversationMessage> aiConversationHistory = new ArrayList<>();
+
+    private record AiConversationMessage(String role, String content) {}
 
     private static final class AiMessageView {
         private final CustomAiStyledArea area = new CustomAiStyledArea();
@@ -753,7 +758,8 @@ public class MainController {
         aiTaskFuture = com.dbboys.app.AppExecutor.submit(() -> {
             List<MarkdownSearchUtil.KnowledgeReference> references =
                     MarkdownSearchUtil.searchKnowledgeReferences(text, 3);
-            String prompt = buildAiPrompt(text, references);
+            List<AiConversationMessage> historySnapshot = snapshotAiConversationHistory();
+            String prompt = buildAiPrompt(text, references, historySnapshot);
             log.info("AI request prompt:\n{}", prompt);
             System.out.println("=== AI request prompt begin ===");
             System.out.println(prompt);
@@ -773,6 +779,7 @@ public class MainController {
                     return;
                 }
                 String content = reply != null && !reply.isEmpty() ? reply : I18n.t("ai.notice.api_error");
+                rememberAiConversationTurn(text, sanitizeAiReplyForDisplay(reply));
                 content = appendAiReferences(content, references);
                 renderAiMessage(messageView, content, true);
                 scrollAiChatToBottom();
@@ -783,12 +790,28 @@ public class MainController {
         });
     }
 
-    private String buildAiPrompt(String userQuestion, List<MarkdownSearchUtil.KnowledgeReference> references) {
+    private String buildAiPrompt(String userQuestion,
+                                 List<MarkdownSearchUtil.KnowledgeReference> references,
+                                 List<AiConversationMessage> history) {
         String safeQuestion = userQuestion == null ? "" : userQuestion.trim();
         StringBuilder prompt = new StringBuilder();
         prompt.append("请优先参考下面提供的知识库检索结果回答用户问题。");
         prompt.append("如果检索内容不足以支撑结论，可以结合通用知识或网络信息回答。");
-        prompt.append("\n\n用户问题：\n").append(safeQuestion);
+        if (history != null && !history.isEmpty()) {
+            prompt.append("\n\n最近对话历史（按时间顺序，最多保留最近")
+                    .append(AI_HISTORY_TURNS)
+                    .append("轮）：");
+            for (AiConversationMessage message : history) {
+                if (message == null || message.content() == null || message.content().isBlank()) {
+                    continue;
+                }
+                prompt.append("\n\n[")
+                        .append("assistant".equalsIgnoreCase(message.role()) ? "助手" : "用户")
+                        .append("]\n")
+                        .append(message.content().trim());
+            }
+        }
+        prompt.append("\n\n当前用户问题：\n").append(safeQuestion);
         if (!references.isEmpty()) {
             prompt.append("\n\n知识库检索结果（按相关性排序，最多3条）：");
             for (int i = 0; i < references.size(); i++) {
@@ -894,6 +917,28 @@ public class MainController {
             }
         }
         return tokens;
+    }
+
+    private List<AiConversationMessage> snapshotAiConversationHistory() {
+        synchronized (aiConversationHistory) {
+            return new ArrayList<>(aiConversationHistory);
+        }
+    }
+
+    private void rememberAiConversationTurn(String userText, String assistantText) {
+        String safeUser = userText == null ? "" : userText.trim();
+        String safeAssistant = assistantText == null ? "" : assistantText.trim();
+        if (safeUser.isEmpty() || safeAssistant.isEmpty()) {
+            return;
+        }
+        synchronized (aiConversationHistory) {
+            aiConversationHistory.add(new AiConversationMessage("user", safeUser));
+            aiConversationHistory.add(new AiConversationMessage("assistant", safeAssistant));
+            int maxMessages = AI_HISTORY_TURNS * 2;
+            while (aiConversationHistory.size() > maxMessages) {
+                aiConversationHistory.remove(0);
+            }
+        }
     }
 
     private String sanitizeAiReplyForDisplay(String content) {

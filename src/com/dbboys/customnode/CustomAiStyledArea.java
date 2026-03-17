@@ -55,7 +55,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         getStyleClass().add("CustomAiStyledArea");
         setEditable(false);
         setWrapText(true);
-        setStyle("-fx-font-family: system; -fx-font-size: 11px;");
+        setStyle("-fx-font-family: system; -fx-font-size: 10px;");
         // AI 对话不需要右键菜单，避免误操作
         setContextMenu(null);
 
