@@ -42,6 +42,10 @@ public class MainController {
     private static final double USER_BUBBLE_MAX_WIDTH_RATIO = 0.7;
     private static final int MESSAGE_BUBBLE_RADIUS = 6;
     private static final double AI_INPUT_HEIGHT = 90;
+    private static final List<String> AI_AVAILABLE_MODELS = List.of(
+            "doubao-seed-1-8-251228",
+            "doubao-seed-2-0-mini-260215"
+    );
 
     @FXML
     private StackPane root;
@@ -65,6 +69,8 @@ public class MainController {
     public TextArea aiInputField;
     @FXML
     public Button aiSendButton;
+    @FXML
+    public ChoiceBox<String> aiModelChoiceBox;
     private java.util.concurrent.Future<?> aiTaskFuture;
     private HBox aiThinkingPlaceholder;
     private volatile boolean aiCancelled = false;
@@ -410,6 +416,25 @@ public class MainController {
                 inputContainer.setMaxHeight(AI_INPUT_HEIGHT);
                 VBox.setVgrow(inputContainer, Priority.NEVER);
             }
+        }
+
+        if (aiModelChoiceBox != null) {
+            var modelOptions = new java.util.ArrayList<>(AI_AVAILABLE_MODELS);
+            String currentModel = AiAuthUtil.getModel();
+            if (currentModel != null && !currentModel.isBlank() && !modelOptions.contains(currentModel)) {
+                modelOptions.add(0, currentModel);
+            }
+            aiModelChoiceBox.getItems().setAll(modelOptions);
+            if (currentModel != null && !currentModel.isBlank()) {
+                aiModelChoiceBox.getSelectionModel().select(currentModel);
+            } else if (!modelOptions.isEmpty()) {
+                aiModelChoiceBox.getSelectionModel().selectFirst();
+            }
+            aiModelChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null && !newVal.isBlank()) {
+                    AiAuthUtil.setModel(newVal);
+                }
+            });
         }
 
         if (aiChatScrollPane != null) {

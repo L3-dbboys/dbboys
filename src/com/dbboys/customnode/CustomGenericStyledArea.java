@@ -59,7 +59,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
     public static final Pattern LINK_PATTERN = Pattern.compile("\\[(.*?)\\]\\((.*?)\\)");
     public static final Pattern INLINE_CODE_PATTERN = Pattern.compile("`(.*?)`");
     public static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*([^*]+)\\*\\*");
-    public static final Pattern TABLE_LINE_PATTERN = Pattern.compile("^\\|.*\\|$");
+    public static final Pattern TABLE_LINE_PATTERN = Pattern.compile("^\\s*\\|.*\\|\\s*$");
     public static final Pattern TABLE_SEPARATOR_PATTERN = Pattern.compile("^\\s*\\|(\\s*-+\\s*\\|)+\\s*$");
     // 同时匹配 Markdown 链接、纯 http 链接和粗体
     public static final Pattern COMBINED_PATTERN = Pattern.compile(
