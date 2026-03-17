@@ -42,6 +42,7 @@ public class MainController {
     private static final double USER_BUBBLE_MAX_WIDTH_RATIO = 0.7;
     private static final int MESSAGE_BUBBLE_RADIUS = 6;
     private static final double AI_INPUT_HEIGHT = 90;
+    private static final String AI_NETWORK_REPLY_MARKER = "[[DBBOYS_NETWORK]]";
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
             "doubao-seed-1-8-251228",
             "doubao-seed-2-0-mini-260215"
@@ -759,8 +760,11 @@ public class MainController {
     private String buildAiPrompt(String userQuestion, List<MarkdownSearchUtil.KnowledgeReference> references) {
         String safeQuestion = userQuestion == null ? "" : userQuestion.trim();
         StringBuilder prompt = new StringBuilder();
-        prompt.append("你是数据库助手。请优先参考下面提供的知识库检索结果回答用户问题。");
-        prompt.append("如果检索内容不足以支撑结论，就明确说明不确定，不要编造，不要列参考文档链接。");
+        prompt.append("请优先参考下面提供的知识库检索结果回答用户问题。");
+        prompt.append("如果检索内容不足以支撑结论，可以结合通用知识或网络信息回答，");
+        prompt.append("并在回答最后单独追加 ").append(AI_NETWORK_REPLY_MARKER).append("。");
+        prompt.append("不要解释这个标记，也不要在正文中提及它。");
+        prompt.append("如果回答主要依据下面的知识库内容，则不要输出这个标记。");
         prompt.append("\n\n用户问题：\n").append(safeQuestion);
         if (!references.isEmpty()) {
             prompt.append("\n\n知识库检索结果（按相关性排序，最多3条）：");
@@ -778,8 +782,10 @@ public class MainController {
     }
 
     private String appendAiReferences(String reply, List<MarkdownSearchUtil.KnowledgeReference> references) {
-        String content = reply == null ? "" : reply.trim();
-        if (references == null || references.isEmpty()) {
+        String rawContent = reply == null ? "" : reply.trim();
+        boolean networkBased = isNetworkBasedReply(rawContent);
+        String content = stripAiReplyMarker(rawContent);
+        if (references == null || references.isEmpty() || networkBased) {
             return content;
         }
         StringBuilder builder = new StringBuilder(content);
@@ -799,6 +805,17 @@ public class MainController {
                     .append(")\n");
         }
         return builder.toString().trim();
+    }
+
+    private boolean isNetworkBasedReply(String content) {
+        return content != null && content.contains(AI_NETWORK_REPLY_MARKER);
+    }
+
+    private String stripAiReplyMarker(String content) {
+        if (content == null || content.isEmpty()) {
+            return "";
+        }
+        return content.replace(AI_NETWORK_REPLY_MARKER, "").trim();
     }
 
     private void cancelAiRequest() {
