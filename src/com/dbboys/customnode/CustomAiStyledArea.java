@@ -124,7 +124,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
             }
 
             // 处理代码块
-            if (line.startsWith("```")) {
+            if (line.trim().startsWith("```")) {
 
                 // 结束上一个未完成的 table
                 if (inTable) {

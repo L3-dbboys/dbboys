@@ -396,7 +396,10 @@ public class MainController {
             aiInputField.setPrefHeight(AI_INPUT_HEIGHT);
             aiInputField.setMaxHeight(AI_INPUT_HEIGHT);
             aiInputField.setOnKeyPressed(event -> {
-                if (!event.isShiftDown() && event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                if (event.isShiftDown() && event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                    aiInputField.replaceSelection(System.lineSeparator());
+                    event.consume();
+                } else if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
                     sendAiMessage();
                     event.consume();
                 }

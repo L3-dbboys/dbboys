@@ -467,7 +467,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 continue;
             }
             // 处理代码块
-            if (line.startsWith("```")) {
+            if (line.trim().startsWith("```")) {
 
                 //结束上一个未完成的table
                 if (inTable) {

@@ -164,6 +164,12 @@ class LuceneIndexer {
 
 class LuceneSearcher {
     private static final Logger log = LogManager.getLogger(LuceneSearcher.class);
+    private static final int DEFAULT_SNIPPET_CONTEXT_CHARS = 30;
+    private static final int DEFAULT_FALLBACK_SNIPPET_CHARS = 120;
+    private static final int DEFAULT_BOUNDARY_WINDOW_CHARS = 50;
+    private static final int AI_SNIPPET_CONTEXT_CHARS = DEFAULT_SNIPPET_CONTEXT_CHARS * 2;
+    private static final int AI_FALLBACK_SNIPPET_CHARS = DEFAULT_FALLBACK_SNIPPET_CHARS * 2;
+    private static final int AI_BOUNDARY_WINDOW_CHARS = DEFAULT_BOUNDARY_WINDOW_CHARS * 2;
     private final Path indexDir;
     private final Analyzer analyzer = new SmartChineseAnalyzer();
 
@@ -172,6 +178,18 @@ class LuceneSearcher {
     }
 
     public List<LuceneSearcher.SearchResult> search(String keyword, int limit) throws Exception {
+        return search(keyword, limit, DEFAULT_SNIPPET_CONTEXT_CHARS, DEFAULT_FALLBACK_SNIPPET_CHARS, DEFAULT_BOUNDARY_WINDOW_CHARS);
+    }
+
+    public List<LuceneSearcher.SearchResult> searchForAi(String keyword, int limit) throws Exception {
+        return search(keyword, limit, AI_SNIPPET_CONTEXT_CHARS, AI_FALLBACK_SNIPPET_CHARS, AI_BOUNDARY_WINDOW_CHARS);
+    }
+
+    private List<LuceneSearcher.SearchResult> search(String keyword,
+                                                     int limit,
+                                                     int contextChars,
+                                                     int fallbackSnippetChars,
+                                                     int boundaryWindowChars) throws Exception {
         try (Directory dir = FSDirectory.open(indexDir);
              DirectoryReader reader = DirectoryReader.open(dir)) {
             IndexSearcher searcher = new IndexSearcher(reader);
@@ -213,15 +231,14 @@ class LuceneSearcher {
             // --------- 2) 收集所有匹配区间（去重） ----------
             String lowerContent = content.toLowerCase();
             List<int[]> positions = new ArrayList<>();
-            int context = 30; // 每个匹配点前后扩展的字符数，可调整
 
             for (String token : tokens) {
                 if (token == null || token.isBlank()) continue;
                 String lowerToken = token.toLowerCase();
                 int idx = 0;
                 while ((idx = lowerContent.indexOf(lowerToken, idx)) >= 0) {
-                    int start = Math.max(0, idx - context);
-                    int end = Math.min(content.length(), idx + lowerToken.length() + context);
+                    int start = Math.max(0, idx - contextChars);
+                    int end = Math.min(content.length(), idx + lowerToken.length() + contextChars);
                     positions.add(new int[]{start, end});
                     idx = idx + Math.max(1, lowerToken.length()); // 避免无限循环
                 }
@@ -229,7 +246,9 @@ class LuceneSearcher {
 
             // 如果没有找到任何位置，则给出文首一小段作为 snippet
             if (positions.isEmpty()) {
-                String fallback = content.length() > 120 ? content.substring(0, 120) + " ... " : content;
+                String fallback = content.length() > fallbackSnippetChars
+                        ? content.substring(0, fallbackSnippetChars) + " ... "
+                        : content;
                 results.add(new LuceneSearcher.SearchResult(path, sd.score, fallback));
                 continue;
             }
@@ -262,10 +281,10 @@ class LuceneSearcher {
                 int e = range[1];
                 // 向前扩展到上一句结束（可选）
                 int prevNL = content.lastIndexOf('\n', s);
-                if (prevNL != -1 && s - prevNL < 50) s = Math.max(0, prevNL + 1);
+                if (prevNL != -1 && s - prevNL < boundaryWindowChars) s = Math.max(0, prevNL + 1);
                 // 向后延到句子结束（可选）
                 int nextNL = content.indexOf('\n', e);
-                if (nextNL != -1 && nextNL - e < 50) e = nextNL;
+                if (nextNL != -1 && nextNL - e < boundaryWindowChars) e = nextNL;
 
                 snippetBuilder.append(content, s, e).append(" ... ");
             }
@@ -590,7 +609,7 @@ public class MarkdownSearchUtil {
         }
         try {
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
-            List<LuceneSearcher.SearchResult> results = searcher.search(keyword.trim(), limit);
+            List<LuceneSearcher.SearchResult> results = searcher.searchForAi(keyword.trim(), limit);
             List<KnowledgeReference> references = new ArrayList<>();
             for (LuceneSearcher.SearchResult item : results) {
                 String path = item.path == null ? "" : item.path.trim();
