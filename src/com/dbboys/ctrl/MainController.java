@@ -48,7 +48,9 @@ public class MainController {
     private static final double USER_BUBBLE_MAX_WIDTH_RATIO = 0.7;
     private static final int MESSAGE_BUBBLE_RADIUS = 6;
     private static final double AI_INPUT_HEIGHT = 90;
-    private static final int AI_HISTORY_TURNS = 5;
+    private static final int AI_HISTORY_TURNS = 3;
+    private static final int AI_REFERENCE_LIMIT = 5;
+    private static final int AI_REFERENCE_DISPLAY_LIMIT = 3;
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
             "doubao-seed-1-8-251228",
             "doubao-seed-2-0-mini-260215"
@@ -761,7 +763,7 @@ public class MainController {
 
         aiTaskFuture = com.dbboys.app.AppExecutor.submit(() -> {
             List<MarkdownSearchUtil.KnowledgeReference> references =
-                    MarkdownSearchUtil.searchKnowledgeReferences(text, 3);
+                    MarkdownSearchUtil.searchKnowledgeReferences(text, AI_REFERENCE_LIMIT);
             List<AiConversationMessage> historySnapshot = snapshotAiConversationHistory();
             String prompt = buildAiPrompt(text, references, historySnapshot);
             log.info("AI request prompt:\n{}", prompt);
@@ -817,7 +819,9 @@ public class MainController {
         }
         prompt.append("\n\n当前用户问题：\n").append(safeQuestion);
         if (!references.isEmpty()) {
-            prompt.append("\n\n知识库检索结果（按相关性排序，最多3条）：");
+            prompt.append("\n\n知识库检索结果（按相关性排序，最多")
+                    .append(AI_REFERENCE_LIMIT)
+                    .append("条）：");
             for (int i = 0; i < references.size(); i++) {
                 MarkdownSearchUtil.KnowledgeReference ref = references.get(i);
                 prompt.append("\n\n[").append(i + 1).append("]");
@@ -841,7 +845,8 @@ public class MainController {
             builder.append("\n\n");
         }
         builder.append("参考文档：\n");
-        for (int i = 0; i < references.size(); i++) {
+        int displayCount = Math.min(references.size(), AI_REFERENCE_DISPLAY_LIMIT);
+        for (int i = 0; i < displayCount; i++) {
             MarkdownSearchUtil.KnowledgeReference ref = references.get(i);
             String linkTarget = ref.path().replace('\\', '/');
             String title = ref.title() == null || ref.title().isBlank() ? linkTarget : ref.title();
