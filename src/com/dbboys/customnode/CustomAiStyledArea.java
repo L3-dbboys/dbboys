@@ -229,7 +229,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
 
         // 统一设置段落行距
         for (int i = 0; i < getParagraphs().size(); i++) {
-            setParagraphStyle(i, "-fx-line-spacing: 10px");
+            setParagraphStyle(i, "-fx-line-spacing: 6px");
         }
 
         // 解析完成后，延迟一帧做最终高度对齐（避免布局顺序导致高度偶发不匹配）
