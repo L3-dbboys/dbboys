@@ -22,6 +22,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.Parent;
@@ -38,6 +39,7 @@ import org.reactfx.util.Either;
 
 import javax.swing.filechooser.FileSystemView;
 import java.io.File;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
@@ -390,11 +392,23 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         updateCodeBlockHeight(codeArea);
         bindCodeBlockWidth(codeArea);
         bindCodeBlockScroll(codeArea);
+        // 右键点击代码块时保留焦点与选中；其它失焦再清理选中
+        AtomicBoolean suppressClearOnFocusLoss = new AtomicBoolean(false);
+        codeArea.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
+            if (e.getButton() == MouseButton.SECONDARY) {
+                suppressClearOnFocusLoss.set(true);
+            } else {
+                suppressClearOnFocusLoss.set(false);
+            }
+        });
         codeArea.focusedProperty().addListener((obs, oldFocus, newFocus) -> {
             if (newFocus) {
                 deselect();
-            }else{
-                codeArea.deselect();
+            } else {
+                if (!suppressClearOnFocusLoss.get()) {
+                    codeArea.deselect();
+                }
+                suppressClearOnFocusLoss.set(false);
             }
         });
         return codeArea;

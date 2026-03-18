@@ -382,7 +382,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
 
     @Override
     protected void bindCodeBlockWidth(CustomInfoCodeArea codeArea) {
-        codeArea.prefWidthProperty().bind(widthProperty().subtract(27));
+        codeArea.prefWidthProperty().bind(widthProperty().subtract(22));
     }
 
     @Override
