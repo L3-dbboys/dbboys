@@ -41,6 +41,9 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         contextMenu.getItems().setAll(copyItem);
         setContextMenu(contextMenu);
         addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
+            if (isEmbeddedContextMenuTarget(event.getTarget(), this)) {
+                return;
+            }
             if (getSelectedText().isEmpty()) {
                 contextMenu.hide();
                 event.consume();

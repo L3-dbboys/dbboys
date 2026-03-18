@@ -57,6 +57,7 @@ import java.util.regex.Pattern;
 
 public class CustomGenericStyledArea extends GenericStyledArea {
     private static final Logger log = LogManager.getLogger(CustomGenericStyledArea.class);
+    private static final String EMBEDDED_CONTEXT_MENU_NODE_KEY = "custom.embeddedContextMenuNode";
     public static final Pattern IMG_PATTERN = Pattern.compile("!\\[.*?]\\((.*?)\\)");
     public static final Pattern LINK_PATTERN = Pattern.compile("\\[(.*?)\\]\\((.*?)\\)");
     public static final Pattern INLINE_CODE_PATTERN = Pattern.compile("`(.*?)`");
@@ -373,6 +374,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
     protected CustomInfoCodeArea createCodeBlockArea(String code) {
         CustomInfoCodeArea codeArea = new CustomInfoCodeArea();
+        markEmbeddedContextMenuNode(codeArea);
         codeArea.replaceText(code == null ? "" : code);
         codeArea.setWrapText(false);
         codeArea.setEditable(false);
@@ -440,6 +442,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         imgView.setPreserveRatio(true);
         imgView.setFitWidth(500);
         StackPane pane = new StackPane(imgView);
+        markEmbeddedContextMenuNode(pane);
         pane.prefWidthProperty().bind(widthProperty());
         try {
             if (isHttpUrl(imgUrl)) {
@@ -885,6 +888,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
      */
     public Node createTableView(List<List<String>> tableRows) {
         CustomTableView<List<String>> tableView = new CustomTableView<>();
+        markEmbeddedContextMenuNode(tableView);
         tableView.getStyleClass().add("MarkdownTableView");
         tableView.setTableMenuButtonVisible(false);
 
@@ -959,6 +963,26 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         });
 
         return tableView;
+    }
+
+    protected static void markEmbeddedContextMenuNode(Node node) {
+        if (node != null) {
+            node.getProperties().put(EMBEDDED_CONTEXT_MENU_NODE_KEY, Boolean.TRUE);
+        }
+    }
+
+    protected static boolean isEmbeddedContextMenuTarget(Object target, Node host) {
+        if (!(target instanceof Node node)) {
+            return false;
+        }
+        Node current = node;
+        while (current != null && current != host) {
+            if (Boolean.TRUE.equals(current.getProperties().get(EMBEDDED_CONTEXT_MENU_NODE_KEY))) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     /** Markdown 表格：行号列 + 数据列按内容宽度布局，超出宿主宽度时等比压缩，避免内部滚动条。 */

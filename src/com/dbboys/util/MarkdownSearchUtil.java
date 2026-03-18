@@ -36,6 +36,7 @@ import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.io.IOException;
+import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -91,7 +92,8 @@ class LuceneIndexer {
         try (IndexWriter writer = new IndexWriter(dir, config);
              Stream<Path> stream = Files.walk(markdownFolder)) {
 
-            stream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".md"))
+            stream.filter(Files::isRegularFile)
+                    .filter(DocumentIndexTextExtractor::isSupported)
                     .forEach(p -> {
                         try {
                             if (progress != null) progress.accept(p.toString());
@@ -115,8 +117,7 @@ class LuceneIndexer {
      */
     private static void indexFile(IndexWriter writer, Path file) throws IOException {
 
-        String content = Files.readString(file);
-        //content=MarkdownUtil.getMarkdownText(content);
+        String content = DocumentIndexTextExtractor.extractText(file);
         long modified = Files.getLastModifiedTime(file).toMillis();
 
         Document doc = new Document();
@@ -353,8 +354,7 @@ public class MarkdownSearchUtil {
                     setOnMouseClicked(event -> {
                         if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1) {
                             LuceneSearcher.SearchResult clickedItem = getItem();
-                            //UtilclickedItem.path
-                            TabpaneUtil.addCustomMarkdownTab(new File(clickedItem.path),false);
+                            openSearchResult(clickedItem.path);
                             searchResultPopup.hide();
                         }
                     });
@@ -629,6 +629,28 @@ public class MarkdownSearchUtil {
         } catch (Exception e) {
             log.warn("Knowledge search for AI failed: {}", keyword, e);
             return Collections.emptyList();
+        }
+    }
+
+    private static void openSearchResult(String path) {
+        if (path == null || path.isBlank()) {
+            return;
+        }
+        File file = new File(path);
+        if (!file.exists()) {
+            AlertUtil.CustomAlert(errorTitleBinding.get(), I18n.t("tabpane.error.file_not_exists", "文件不存在！"));
+            return;
+        }
+        String lowerPath = path.toLowerCase();
+        if (lowerPath.endsWith(".md") || lowerPath.endsWith(".markdown")) {
+            TabpaneUtil.addCustomMarkdownTab(file, false);
+            return;
+        }
+        try {
+            Desktop.getDesktop().open(file);
+        } catch (Exception ex) {
+            AlertUtil.CustomAlert(errorTitleBinding.get(), ex.getMessage());
+            log.error("Failed to open indexed file: {}", path, ex);
         }
     }
 
