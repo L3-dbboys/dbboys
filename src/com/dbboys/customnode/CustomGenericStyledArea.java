@@ -905,7 +905,8 @@ public class CustomGenericStyledArea extends GenericStyledArea {
 
         int dataRowCount = tableView.getItems().size();
         double headerBand = 26;
-        double totalHeight = headerBand + dataRowCount * fixedCellSize + 8;
+        // 比表头+行高略收 5px，避免视觉/布局上偏高
+        double totalHeight = headerBand + dataRowCount * fixedCellSize +4;
         tableView.setPrefHeight(totalHeight);
         tableView.setMaxHeight(totalHeight);
         tableView.setMinHeight(totalHeight);
@@ -953,8 +954,9 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         if (pw <= 0) {
             pw = 640;
         }
-        double maxTable = Math.max(200, pw - 16);
-        double dataBudget = Math.max(120, maxTable - rowNumW - 12);
+        // 宽度贴合宿主：减少额外预留，避免左右多出几像素
+        double maxTable = Math.max(200, pw - 8);
+        double dataBudget = Math.max(120, maxTable - rowNumW);
         double scale = sumNatural > dataBudget && sumNatural > 0 ? dataBudget / sumNatural : 1.0;
 
         double dataSum = 0;
@@ -965,7 +967,8 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             col.setMinWidth(32);
             dataSum += w;
         }
-        double totalW = Math.min(rowNumW + dataSum + 10, maxTable);
+        // 去掉额外 +10，宽度与内容和宿主宽度更贴合
+        double totalW = Math.min(rowNumW + dataSum, maxTable);
         tableView.setPrefWidth(totalW);
         tableView.setMinWidth(totalW);
         tableView.setMaxWidth(totalW);
