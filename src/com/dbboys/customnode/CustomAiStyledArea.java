@@ -7,7 +7,6 @@ import java.util.regex.Matcher;
 import org.reactfx.util.Either;
 
 import javafx.scene.Node;
-import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Region;
@@ -20,7 +19,6 @@ import java.io.IOException;
 import java.net.URL;
 
 import javafx.stage.FileChooser;
-import javafx.beans.value.ChangeListener;
 
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
@@ -147,7 +145,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
                     inCodeBlock = false;
 
                     if (codeBlock.length() > 0) {
-                        TextArea codeArea = createCodeBlockArea(codeBlock.toString().trim());
+                        CustomInfoCodeArea codeArea = createCodeBlockArea(codeBlock.toString().trim());
                         append(Either.right(codeArea), "");
                         appendText("\n");
                     }
@@ -360,7 +358,7 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
 
         // 收尾：末尾未结束的代码块
         if (inCodeBlock && codeBlock.length() > 0) {
-            TextArea codeArea = createCodeBlockArea(codeBlock.toString().trim());
+            CustomInfoCodeArea codeArea = createCodeBlockArea(codeBlock.toString().trim());
             append(Either.right(codeArea), "");
         }
 
@@ -382,38 +380,37 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         scheduleHeightUpdate();
     }
 
-    /** 创建用于显示代码块的 TextArea，宽度随当前区域变化，高度随内容自适应。 */
-    private TextArea createCodeBlockArea(String code) {
-        TextArea textArea = new TextArea(code);
-        textArea.setWrapText(true);
-        textArea.setEditable(false);
-        textArea.setMaxHeight(500);
-        textArea.setMinHeight(14);
-
-        // 先根据当前内容计算一次高度，避免初始出现多余空白
-        double initHeight = computeTextHeightForCode(textArea);
-        textArea.setPrefHeight(initHeight);
-
-        // 高度根据内容/宽度变化自适应
-        ChangeListener<Object> listener = (obs, oldVal, newVal) -> {
-            double textHeight = computeTextHeightForCode(textArea);
-            textArea.setPrefHeight(textHeight);
-        };
-        textArea.textProperty().addListener(listener);
-        textArea.widthProperty().addListener(listener);
-        installCodeBlockContextMenu(textArea, this::deselect);
+    /** 创建用于显示代码块的 CustomInfoCodeArea。 */
+    private CustomInfoCodeArea createCodeBlockArea(String code) {
+        CustomInfoCodeArea codeArea = new CustomInfoCodeArea();
+        codeArea.replaceText(code == null ? "" : code);
+        codeArea.setWrapText(false);
+        codeArea.setEditable(false);
+        codeArea.setParagraphGraphicFactory(null);
+        codeArea.setStyle(
+                "-fx-background-color: -color-bg-subtle;" +
+                "-fx-background-radius: 4px;" +
+                "-fx-border-color: -color-border-subtle;" +
+                "-fx-border-radius: 4px;" +
+                "-fx-padding: 0;" +
+                "-fx-font-size: 10px;"
+        );
+        updateCodeBlockHeight(codeArea);
 
         // 宽度填满 CustomAiStyledArea（预留一点内边距）
-        textArea.prefWidthProperty().bind(widthProperty().subtract(27));
+        codeArea.prefWidthProperty().bind(widthProperty().subtract(27));
 
-        return textArea;
+        return codeArea;
     }
 
-    /** 计算代码块 TextArea 的高度（简单按行数估算）。 */
-    private static double computeTextHeightForCode(TextArea textArea) {
-        int lines = textArea.getParagraphs().size();
-        double lineHeight = 14;
-        return lines * lineHeight + 8;
+    /** 用固定行高按段落数收紧代码块，避免额外监听。 */
+    private static void updateCodeBlockHeight(CustomInfoCodeArea codeArea) {
+        int lines = Math.max(codeArea.getParagraphs().size(), 1);
+        double lineHeight = 12;
+        double height = Math.max(16, Math.ceil(lines * lineHeight + 4));
+        codeArea.setPrefHeight(height);
+        codeArea.setMinHeight(height);
+        codeArea.setMaxHeight(height);
     }
 
     @Override
