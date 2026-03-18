@@ -2,6 +2,8 @@ package com.dbboys.util;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.poi.sl.extractor.SlideShowExtractor;
+import org.apache.poi.sl.usermodel.SlideShowFactory;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.pdfbox.Loader;
@@ -31,7 +33,11 @@ import java.util.zip.ZipFile;
 
 final class DocumentIndexTextExtractor {
     private static final Logger log = LogManager.getLogger(DocumentIndexTextExtractor.class);
-    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of("md", "markdown", "pdf", "docx", "docm", "doc");
+    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(
+            "md", "markdown",
+            "pdf",
+            "docx", "docm", "doc",
+            "pptx", "pptm", "ppt");
     private static final Pattern PDF_STREAM_PATTERN =
             Pattern.compile("(?s)(<<.*?>>)\\s*stream\\r?\\n(.*?)\\r?\\nendstream");
     private static final Pattern PDF_TEXT_BLOCK_PATTERN = Pattern.compile("(?s)BT(.*?)ET");
@@ -52,6 +58,7 @@ final class DocumentIndexTextExtractor {
             case "docx", "docm" -> extractDocxText(file);
             case "doc" -> extractLegacyWordText(file);
             case "pdf" -> extractPdfText(file);
+            case "pptx", "pptm", "ppt" -> extractPowerPointText(file);
             default -> "";
         };
         return limitLength(normalizeExtractedText(text));
@@ -156,6 +163,21 @@ final class DocumentIndexTextExtractor {
             stripper.setSuppressDuplicateOverlappingText(true);
             stripper.setAddMoreFormatting(true);
             return stripper.getText(document);
+        }
+    }
+
+    private static String extractPowerPointText(Path file) throws IOException {
+        try (var slideShow = SlideShowFactory.create(file.toFile());
+             SlideShowExtractor<?, ?> extractor = new SlideShowExtractor<>(slideShow)) {
+            extractor.setSlidesByDefault(true);
+            extractor.setNotesByDefault(false);
+            extractor.setCommentsByDefault(false);
+            extractor.setMasterByDefault(false);
+            return extractor.getText();
+        } catch (IOException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IOException("POI PowerPoint extraction failed for " + file, ex);
         }
     }
 
