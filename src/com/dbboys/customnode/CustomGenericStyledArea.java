@@ -84,9 +84,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
     public  ContextMenu contextMenu = new ContextMenu();
     public  CustomShortcutMenuItem modifyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.modify", "Ctrl+Enter", IconFactory.group(IconPaths.RESULTSET_EDITABLE, 0.65));
     public  CustomShortcutMenuItem copyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy", "Ctrl+C", IconFactory.group(IconPaths.COPY, 0.7));
-    public  CustomShortcutMenuItem imageCopyItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy_image", IconFactory.group(IconPaths.COPY, 0.7));
-    public  ContextMenu imageContextMenu = new ContextMenu();
-    public CustomShortcutMenuItem imageSaveAsItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.image_save_as", IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.6));
     public File markdownFile;
 
     /** 便捷构造：无文件上下文时使用临时占位文件名。 */
@@ -349,7 +346,6 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             }
         });
         contextMenu.getItems().addAll(modifyItem,codeAreaSearchItem,copyItem);
-        imageContextMenu.getItems().addAll(imageSaveAsItem,imageCopyItem);
         //正文内容邮件后，在textarea右键，正文右键菜单不会自动隐藏，加此监听
         focusedProperty().addListener((obs, oldFocus, newFocus) -> {
             if (!newFocus) {
@@ -437,6 +433,114 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 event.consume();
             }
         });
+    }
+
+    protected Node createImageNode(String imgUrl) {
+        ImageView imgView = new ImageView(new Image("file:images/failed.png"));
+        imgView.setPreserveRatio(true);
+        imgView.setFitWidth(500);
+        StackPane pane = new StackPane(imgView);
+        pane.prefWidthProperty().bind(widthProperty());
+        try {
+            if (isHttpUrl(imgUrl)) {
+                Image netImage = new Image(imgUrl, true);
+                imgView.setImage(netImage);
+                bindImageLoadCallback(netImage);
+                installNetworkImageContextMenu(pane, imgUrl);
+            } else {
+                Path path = getAbsPath(markdownFile, imgUrl);
+                if (Files.exists(path)) {
+                    Image localImage = new Image("file:" + path);
+                    imgView.setImage(localImage);
+                    bindImageLoadCallback(localImage);
+                    installLocalImageContextMenu(pane, imgView, path);
+                }
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+        return pane;
+    }
+
+    protected void onImageLoaded() {
+    }
+
+    private void bindImageLoadCallback(Image image) {
+        if (image == null) {
+            return;
+        }
+        if (image.getProgress() >= 1.0) {
+            onImageLoaded();
+            return;
+        }
+        image.progressProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal.doubleValue() >= 1.0) {
+                onImageLoaded();
+            }
+        });
+    }
+
+    private void installNetworkImageContextMenu(StackPane pane, String imgUrl) {
+        CustomShortcutMenuItem saveAsItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.image_save_as", IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.6));
+        CustomShortcutMenuItem copyLinkItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy_link", IconFactory.group(IconPaths.COPY, 0.7));
+        ContextMenu contextMenu = new ContextMenu(saveAsItem, copyLinkItem);
+        saveAsItem.setOnAction(event -> saveImageAs(imgUrl, true));
+        copyLinkItem.setOnAction(event -> {
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putString(imgUrl);
+            clipboard.setContent(content);
+            NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.link_copied"));
+        });
+        pane.setOnContextMenuRequested(event -> {
+            contextMenu.show(pane, event.getScreenX(), event.getScreenY());
+            event.consume();
+        });
+    }
+
+    private void installLocalImageContextMenu(StackPane pane, ImageView imgView, Path path) {
+        CustomShortcutMenuItem saveAsItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.image_save_as", IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.6));
+        CustomShortcutMenuItem copyImageItem = MenuItemUtil.createMenuItemI18n("genericstyled.menu.copy_image", IconFactory.group(IconPaths.COPY, 0.7));
+        ContextMenu contextMenu = new ContextMenu(saveAsItem, copyImageItem);
+        saveAsItem.setOnAction(event -> saveImageAs(path.toString(), false));
+        copyImageItem.setOnAction(event -> {
+            Image image = imgView.getImage();
+            if (image == null) {
+                return;
+            }
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putImage(image);
+            clipboard.setContent(content);
+            NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_copied"));
+        });
+        pane.setOnContextMenuRequested(event -> {
+            contextMenu.show(pane, event.getScreenX(), event.getScreenY());
+            event.consume();
+        });
+    }
+
+    private void saveImageAs(String source, boolean isHttpLink) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
+        try {
+            fileChooser.setInitialFileName(resolveDownloadFileName(source, isHttpLink));
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+            AlertUtil.CustomAlert(I18n.t("genericstyled.alert.download_error"), ex.getMessage());
+            return;
+        }
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.image_files"), "*.png", "*.jpg", "*.jpeg", "*.gif"),
+                new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
+        );
+        File file = fileChooser.showSaveDialog(AppState.getWindow());
+        if (file != null) {
+            if (file.exists()) {
+                file.delete();
+            }
+            DownloadManagerUtil.addDownload(source, file, true, null);
+        }
     }
 
     public void setOnSearchRequest(Runnable onSearchRequest) {
@@ -595,73 +699,8 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 Matcher imgMatcher = IMG_PATTERN.matcher(line);
                 if (imgMatcher.find()) {
                     String imgUrl = imgMatcher.group(1).trim();
-
-                    ImageView imgView = new ImageView(new Image("file:images/failed.png"));
-                    imgView.setPreserveRatio(true);
-                    imgView.setFitWidth(500);
-                    StackPane pane = new StackPane(imgView);
-                    pane.prefWidthProperty().bind(widthProperty());
-                    try {
-                        if (imgUrl.startsWith("http://") || imgUrl.startsWith("https://")) {
-                            // 网络图片：直接使用 URL 加载
-                            imgView.setImage(new Image(imgUrl, true));
-                        } else {
-                            // 本地图片：按照原有逻辑解析相对路径
-                            Path path = getAbsPath(markdownFile, imgUrl);
-
-                            if (Files.exists(path)) {
-                                imgView.setImage(new Image("file:" + path));
-                            }
-                            Image image = imgView.getImage();
-                            if (Files.exists(path)) {
-                                pane.setOnContextMenuRequested(event -> {
-                                    imageSaveAsItem.setOnAction(event1 -> {
-                                        FileChooser fileChooser = new FileChooser();
-                                        fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
-
-                                        String originalFileName = new File(path.toUri()).getName();
-                                        fileChooser.setInitialFileName(originalFileName);
-                                        fileChooser.getExtensionFilters().addAll(
-                                                new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.image_files"), "*.png", "*.jpg", "*.jpeg", "*.gif"),
-                                                new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
-                                        );
-
-                                        File targetFile = fileChooser.showSaveDialog(AppState.getWindow());
-                                        if (targetFile == null) {
-                                            return;
-                                        }
-
-                                        try {
-                                            Files.copy(
-                                                    path,
-                                                    targetFile.toPath(),
-                                                    StandardCopyOption.REPLACE_EXISTING
-                                            );
-                                            NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_saved"));
-                                        } catch (IOException e) {
-                                            log.error("Operation failed", e);
-                                        }
-                                    });
-                                    imageCopyItem.setOnAction(event1 -> {
-                                        Clipboard clipboard = Clipboard.getSystemClipboard();
-                                        ClipboardContent content = new ClipboardContent();
-                                        content.putImage(image);
-                                        clipboard.setContent(content);
-                                        NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_copied"));
-
-                                    });
-                                    imageContextMenu.show(pane, event.getScreenX(), event.getScreenY());
-                                    event.consume();
-                                });
-                            }
-                        }
-                        append(Either.right(pane), "");
-                        appendText("\n");
-                    } catch (Exception e) {
-                        log.error(e.getMessage(), e);
-                        append(Either.right(pane), "");
-                        appendText("\n");
-                    }
+                    append(Either.right(createImageNode(imgUrl)), "");
+                    appendText("\n");
                 }
                 continue;
             }
@@ -1037,7 +1076,19 @@ public class CustomGenericStyledArea extends GenericStyledArea {
     private static String resolveDownloadFileName(String url, boolean isHttpLink) throws Exception {
         if (isHttpLink) {
             String name = DownloadManagerUtil.getRealFileNameFromRedirect(url);
-            return (name == null || name.isEmpty()) ? "downloaded.file" : name;
+            if (name != null && !name.isEmpty()) {
+                return name;
+            }
+            try {
+                URL parsedUrl = new URL(url);
+                String path = parsedUrl.getPath();
+                int slash = path.lastIndexOf('/');
+                if (slash >= 0 && slash < path.length() - 1) {
+                    return path.substring(slash + 1);
+                }
+            } catch (Exception ignored) {
+            }
+            return "downloaded.file";
         }
 
         int slash = Math.max(url.lastIndexOf('/'), url.lastIndexOf('\\'));

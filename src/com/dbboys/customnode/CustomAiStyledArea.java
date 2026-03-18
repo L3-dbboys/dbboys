@@ -7,28 +7,15 @@ import java.util.regex.Matcher;
 import org.reactfx.util.Either;
 
 import javafx.scene.Node;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-
-import javafx.stage.FileChooser;
 
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
-import com.dbboys.util.NotificationUtil;
-import com.dbboys.util.DownloadManagerUtil;
 import com.dbboys.util.AlertUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.Parent;
 import javafx.application.Platform;
@@ -41,10 +28,6 @@ import javafx.application.Platform;
  */
 public class CustomAiStyledArea extends CustomGenericStyledArea {
     private static final Logger log = LogManager.getLogger(CustomAiStyledArea.class);
-    /** 专供 AI 区域网络图片使用的右键菜单，避免每次右键重复创建多个菜单实例 */
-    private final javafx.scene.control.ContextMenu aiImageContextMenu = new javafx.scene.control.ContextMenu();
-    private final javafx.scene.control.MenuItem aiImageSaveAsItem =
-            new javafx.scene.control.MenuItem(I18n.t("genericstyled.menu.image_save_as"));
 
     private volatile boolean heightUpdateScheduled = false;
 
@@ -56,9 +39,6 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
         setStyle("-fx-font-family: system; -fx-font-size: 10px;");
         // AI 对话不需要右键菜单，避免误操作
         setContextMenu(null);
-
-        // 初始化 AI 图片右键菜单：仅包含“图片另存为”
-        aiImageContextMenu.getItems().setAll(aiImageSaveAsItem);
 
         // 关键：高度随内容变化
         setMinHeight(Region.USE_PREF_SIZE);
@@ -208,133 +188,9 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
             Matcher imgMatcher = IMG_PATTERN.matcher(line);
             if (imgMatcher.find()) {
                 String imgUrl = imgMatcher.group(1).trim();
-
-                ImageView imgView = new ImageView(new Image("file:images/failed.png"));
-                imgView.setPreserveRatio(true);
-                imgView.setFitWidth(500);
-                StackPane pane = new StackPane(imgView);
-                pane.prefWidthProperty().bind(widthProperty());
-                try {
-                    if (imgUrl.startsWith("http://") || imgUrl.startsWith("https://")) {
-                        // 网络图片：直接使用 URL 加载，仅提供“另存为”右键菜单，参考通用下载逻辑
-                        Image netImage = new Image(imgUrl, true);
-                        imgView.setImage(netImage);
-                        // 网络图片异步加载完成后，高度可能变化，触发一次刷新
-                        netImage.progressProperty().addListener((o, ov, nv) -> {
-                            if (nv != null && nv.doubleValue() >= 1.0) {
-                                scheduleHeightUpdate();
-                            }
-                        });
-                        pane.setOnContextMenuRequested(event -> {
-                            // 复用同一个 ContextMenu，避免多次右键出现多个菜单
-                            aiImageSaveAsItem.setOnAction(event1 -> {
-                                FileChooser fileChooser = new FileChooser();
-                                fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
-
-                                // 默认文件名：先尝试通过重定向获取真实文件名，失败则从 URL path 猜
-                                String defaultName = "image";
-                                try {
-                                    String name = DownloadManagerUtil.getRealFileNameFromRedirect(imgUrl);
-                                    if (name != null && !name.isEmpty()) {
-                                        defaultName = name;
-                                    } else {
-                                        URL u = new URL(imgUrl);
-                                        String path = u.getPath();
-                                        int slash = path.lastIndexOf('/');
-                                        if (slash >= 0 && slash < path.length() - 1) {
-                                            defaultName = path.substring(slash + 1);
-                                        }
-                                    }
-                                } catch (Exception ex) {
-                                    log.error(ex.getMessage(), ex);
-                                    AlertUtil.CustomAlert(I18n.t("genericstyled.alert.download_error"), ex.getMessage());
-                                    return;
-                                }
-
-                                fileChooser.setInitialFileName(defaultName);
-                                fileChooser.getExtensionFilters().addAll(
-                                        new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.image_files"), "*.png", "*.jpg", "*.jpeg", "*.gif"),
-                                        new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
-                                );
-
-                                File file = fileChooser.showSaveDialog(AppState.getWindow());
-                                if (file != null) {
-                                    if (file.exists()) {
-                                        file.delete();
-                                    }
-                                    // 使用下载管理器处理网络图片下载
-                                    DownloadManagerUtil.addDownload(imgUrl, file, true, null);
-                                }
-                            });
-
-                            aiImageContextMenu.show(pane, event.getScreenX(), event.getScreenY());
-                            event.consume();
-                        });
-                    } else {
-                        // 本地图片：按照原有逻辑解析相对路径
-                        Path path = getAbsPath(markdownFile, imgUrl);
-
-                        if (Files.exists(path)) {
-                            Image localImage = new Image("file:" + path);
-                            imgView.setImage(localImage);
-                            localImage.progressProperty().addListener((o, ov, nv) -> {
-                                if (nv != null && nv.doubleValue() >= 1.0) {
-                                    scheduleHeightUpdate();
-                                }
-                            });
-                        }
-                        Image image = imgView.getImage();
-                        if (Files.exists(path)) {
-                            pane.setOnContextMenuRequested(event -> {
-                                imageSaveAsItem.setOnAction(event1 -> {
-                                    FileChooser fileChooser = new FileChooser();
-                                    fileChooser.setTitle(I18n.t("genericstyled.filechooser.image_save_as"));
-
-                                    String originalFileName = new File(path.toUri()).getName();
-                                    fileChooser.setInitialFileName(originalFileName);
-                                    fileChooser.getExtensionFilters().addAll(
-                                            new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.image_files"), "*.png", "*.jpg", "*.jpeg", "*.gif"),
-                                            new FileChooser.ExtensionFilter(I18n.t("genericstyled.filechooser.all_files"), "*.*")
-                                    );
-
-                                    File targetFile = fileChooser.showSaveDialog(AppState.getWindow());
-                                    if (targetFile == null) {
-                                        return;
-                                    }
-
-                                    try {
-                                        Files.copy(
-                                                path,
-                                                targetFile.toPath(),
-                                                StandardCopyOption.REPLACE_EXISTING
-                                        );
-                                        NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_saved"));
-                                    } catch (IOException e) {
-                                        log.error("Operation failed", e);
-                                    }
-                                });
-                                imageCopyItem.setOnAction(event1 -> {
-                                    Clipboard clipboard = Clipboard.getSystemClipboard();
-                                    ClipboardContent content = new ClipboardContent();
-                                    content.putImage(image);
-                                    clipboard.setContent(content);
-                                    NotificationUtil.showMainNotification(I18n.t("genericstyled.notice.image_copied"));
-
-                                });
-                                imageContextMenu.show(pane, event.getScreenX(), event.getScreenY());
-                                event.consume();
-                            });
-                        }
-                    }
-                    append(Either.right(pane), "");
-                    appendText("\n");
-                    scheduleHeightUpdate();
-                } catch (Exception e) {
-                    log.error(e.getMessage(), e);
-                    append(Either.right(pane), "");
-                    appendText("\n");
-                    scheduleHeightUpdate();
-                }
+                append(Either.right(createImageNode(imgUrl)), "");
+                appendText("\n");
+                scheduleHeightUpdate();
             }
             continue;
         }
@@ -383,6 +239,11 @@ public class CustomAiStyledArea extends CustomGenericStyledArea {
     @Override
     protected void bindCodeBlockWidth(CustomInfoCodeArea codeArea) {
         codeArea.prefWidthProperty().bind(widthProperty().subtract(22));
+    }
+
+    @Override
+    protected void onImageLoaded() {
+        scheduleHeightUpdate();
     }
 
     @Override
