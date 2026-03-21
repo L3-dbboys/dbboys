@@ -1021,7 +1021,6 @@ public class MainController {
     }
 
     private String buildApiKeyGuideMessage() {
-        String currentModel = AiAuthUtil.getModel();
         return String.join("\n",
                 I18n.t("ai.reply.api_key_guide.title"),
                 "",
@@ -1031,7 +1030,7 @@ public class MainController {
                 I18n.t("ai.reply.api_key_guide.step3"),
                 I18n.t("ai.reply.api_key_guide.step4"),
                 "",
-                I18n.t("ai.reply.api_key_guide.current_model") + " `" + currentModel + "`"
+                I18n.t("ai.reply.api_key_guide.model_reason")
         );
     }
 

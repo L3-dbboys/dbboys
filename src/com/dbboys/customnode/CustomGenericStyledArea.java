@@ -1067,6 +1067,12 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             return;
         }
 
+        if (shouldSkipStrictHttpValidation(url)) {
+            LINK_CHECK_CACHE.remove(url);
+            LINK_CHECK_IN_FLIGHT.remove(url);
+            return;
+        }
+
         Boolean cached = LINK_CHECK_CACHE.get(url);
         if (cached != null) {
             if (!cached) {
@@ -1080,7 +1086,7 @@ public class CustomGenericStyledArea extends GenericStyledArea {
         }
 
         AppExecutor.runAsync(() -> {
-            boolean valid = false;
+            Boolean valid = null;
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setRequestMethod("HEAD");
@@ -1088,18 +1094,34 @@ public class CustomGenericStyledArea extends GenericStyledArea {
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(5000);
                 int code = conn.getResponseCode();
-                valid = (code >= 200 && code < 400);
+                valid = isAcceptableHttpLinkStatus(code);
             } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
+                log.warn("Skip invalidating link because validation request failed: {}", url, ex);
             } finally {
-                LINK_CHECK_CACHE.put(url, valid);
                 LINK_CHECK_IN_FLIGHT.remove(url);
+                if (valid != null) {
+                    LINK_CHECK_CACHE.put(url, valid);
+                }
             }
 
-            if (!valid) {
+            if (Boolean.FALSE.equals(valid)) {
                 Platform.runLater(() -> textNode.setStyle(INVALID_LINK_STYLE));
             }
         });
+    }
+
+    private static boolean isAcceptableHttpLinkStatus(int code) {
+        return (code >= 200 && code < 400) || code == HttpURLConnection.HTTP_UNAUTHORIZED
+                || code == HttpURLConnection.HTTP_FORBIDDEN || code == HttpURLConnection.HTTP_BAD_METHOD;
+    }
+
+    private static boolean shouldSkipStrictHttpValidation(String url) {
+        try {
+            String host = new URL(url).getHost().toLowerCase(Locale.ROOT);
+            return "console.volcengine.com".equals(host);
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private static String resolveDownloadFileName(String url, boolean isHttpLink) throws Exception {
