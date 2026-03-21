@@ -58,11 +58,13 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 final class MarkdownSearchNormalizer {
-    private static final Pattern ASCII_HAN_BOUNDARY_1 = Pattern.compile("(?<=[A-Za-z0-9])(?=\\p{IsHan})");
-    private static final Pattern ASCII_HAN_BOUNDARY_2 = Pattern.compile("(?<=\\p{IsHan})(?=[A-Za-z0-9])");
-    private static final Pattern ASCII_TOKEN_SPACES = Pattern.compile("(?<=[A-Za-z0-9])\\s+(?=[A-Za-z0-9])");
+    private static final Pattern ASCII_HAN_BOUNDARY_1 = Pattern.compile("(?<=[A-Za-z0-9_])(?=\\p{IsHan})");
+    private static final Pattern ASCII_HAN_BOUNDARY_2 = Pattern.compile("(?<=\\p{IsHan})(?=[A-Za-z0-9_])");
+    private static final Pattern ASCII_TOKEN_SPACES = Pattern.compile("(?<=[A-Za-z0-9_])\\s+(?=[A-Za-z0-9_])");
     private static final Pattern MULTI_SPACE = Pattern.compile("\\s+");
-    private static final Pattern QUERY_CONCEPT_PATTERN = Pattern.compile("[A-Za-z0-9]+|\\p{IsHan}+");
+    private static final Pattern QUERY_CONCEPT_PATTERN = Pattern.compile("[A-Za-z0-9_]+|\\p{IsHan}+");
+    private static final Pattern EXACT_IDENTIFIER_PATTERN =
+            Pattern.compile("(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+)(?![A-Za-z0-9_])");
     private static final List<String> QUERY_NOISE_PHRASES = List.of(
             "麻烦帮我看一下", "麻烦帮我查一下", "麻烦帮我搜一下", "麻烦帮我找一下",
             "请帮我看一下", "请帮我查一下", "请帮我搜一下", "请帮我找一下",
@@ -128,7 +130,19 @@ final class MarkdownSearchNormalizer {
     }
 
     static List<String> extractQueryConcepts(String keyword, List<String> analyzedTokens) {
+        return extractQueryConcepts(keyword, analyzedTokens, Collections.emptyList());
+    }
+
+    static List<String> extractQueryConcepts(String keyword, List<String> analyzedTokens, List<String> exactIdentifiers) {
         LinkedHashSet<String> concepts = new LinkedHashSet<>();
+        if (exactIdentifiers != null) {
+            for (String identifier : exactIdentifiers) {
+                String normalizedIdentifier = normalizeConcept(identifier);
+                if (!normalizedIdentifier.isBlank()) {
+                    concepts.add(normalizedIdentifier);
+                }
+            }
+        }
         if (analyzedTokens != null) {
             for (String token : analyzedTokens) {
                 String normalizedToken = normalizeConcept(token);
@@ -153,6 +167,21 @@ final class MarkdownSearchNormalizer {
             }
         }
         return new ArrayList<>(concepts);
+    }
+
+    static List<String> extractExactIdentifiers(String text) {
+        if (text == null || text.isBlank()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> identifiers = new LinkedHashSet<>();
+        Matcher matcher = EXACT_IDENTIFIER_PATTERN.matcher(text);
+        while (matcher.find()) {
+            String identifier = normalizeConcept(matcher.group(1));
+            if (!identifier.isBlank()) {
+                identifiers.add(identifier);
+            }
+        }
+        return new ArrayList<>(identifiers);
     }
 
     private static String stripQueryNoisePhrases(String text) {
@@ -219,6 +248,7 @@ class LuceneIndexer {
     static final String FIELD_TITLE_TEXT = "title_text";
     static final String FIELD_CONTENT = "content";
     static final String FIELD_CONTENT_PREVIEW = "content_preview";
+    static final String FIELD_IDENTIFIER_EXACT = "identifier_exact";
     static final String FIELD_MODIFIED = "modified";
     static final String FIELD_MODIFIED_STORED = "modified_stored";
     private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("(?m)^#{1,6}\\s+(.+?)\\s*$");
@@ -315,6 +345,10 @@ class LuceneIndexer {
         // content: 仅用于分词检索，不存整篇正文，避免搜索命中后把大文档整篇读回内存。
         doc.add(new org.apache.lucene.document.TextField(FIELD_CONTENT, content, Field.Store.NO));
         doc.add(new StoredField(FIELD_CONTENT_PREVIEW, contentPreview));
+        addExactIdentifierFields(doc, rawPath);
+        addExactIdentifierFields(doc, fileName);
+        addExactIdentifierFields(doc, titleText);
+        addExactIdentifierFields(doc, content);
 
         // modified 时间：用于排序或权重
         doc.add(new LongPoint(FIELD_MODIFIED, modified));
@@ -324,6 +358,15 @@ class LuceneIndexer {
         // 增量更新：删除已存在的同 path 文档后添加新文档
         // 这保证了 path 的唯一性（避免重复）
         writer.updateDocument(new Term(FIELD_PATH_RAW, rawPath), doc);
+    }
+
+    private static void addExactIdentifierFields(Document doc, String text) {
+        if (doc == null || text == null || text.isBlank()) {
+            return;
+        }
+        for (String identifier : MarkdownSearchNormalizer.extractExactIdentifiers(text)) {
+            doc.add(new StringField(FIELD_IDENTIFIER_EXACT, identifier, Field.Store.NO));
+        }
     }
 
     private static String buildTitleText(Path file, String content, String fileStem) {
@@ -425,9 +468,10 @@ class LuceneSearcher {
                                                      int boundaryWindowChars,
                                                      boolean strict) throws Exception {
         String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(keyword);
+        List<String> exactIdentifiers = MarkdownSearchNormalizer.extractExactIdentifiers(keyword);
         List<String> tokens = analyzeQueryTerms(normalizedKeyword);
-        List<String> queryConcepts = MarkdownSearchNormalizer.extractQueryConcepts(normalizedKeyword, tokens);
-        Query query = buildQuery(normalizedKeyword, tokens, strict);
+        List<String> queryConcepts = MarkdownSearchNormalizer.extractQueryConcepts(normalizedKeyword, tokens, exactIdentifiers);
+        Query query = buildQuery(keyword, tokens, exactIdentifiers, strict);
         if (query instanceof MatchNoDocsQuery) {
             return Collections.emptyList();
         }
@@ -454,7 +498,9 @@ class LuceneSearcher {
             String lowerContent = scanSlice.toLowerCase();
             List<int[]> positions = new ArrayList<>();
 
-            for (String token : tokens) {
+            LinkedHashSet<String> snippetTerms = new LinkedHashSet<>(exactIdentifiers);
+            snippetTerms.addAll(tokens);
+            for (String token : snippetTerms) {
                 if (token == null || token.isBlank()) continue;
                 String lowerToken = token.toLowerCase();
                 int idx = 0;
@@ -528,11 +574,12 @@ class LuceneSearcher {
         return results;
     }
 
-    private Query buildQuery(String keyword, List<String> tokens, boolean strict) {
+    private Query buildQuery(String keyword, List<String> tokens, List<String> exactIdentifiers, boolean strict) {
         BooleanQuery.Builder root = new BooleanQuery.Builder();
         root.setMinimumNumberShouldMatch(1);
 
         addQuery(root, buildExactNameQuery(keyword), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactIdentifiers), BooleanClause.Occur.SHOULD);
         addQuery(root, buildHanIntentQuery(tokens, strict), BooleanClause.Occur.SHOULD);
         if (tokens != null && tokens.size() > 1) {
             int allTerms = tokens.size();
@@ -652,6 +699,29 @@ class LuceneSearcher {
                 BooleanClause.Occur.SHOULD);
         BooleanQuery built = builder.build();
         return built.clauses().isEmpty() ? null : built;
+    }
+
+    private Query buildExactIdentifierQuery(List<String> exactIdentifiers) {
+        if (exactIdentifiers == null || exactIdentifiers.isEmpty()) {
+            return null;
+        }
+        BooleanQuery.Builder builder = new BooleanQuery.Builder();
+        int added = 0;
+        for (String identifier : exactIdentifiers) {
+            if (identifier == null || identifier.isBlank()) {
+                continue;
+            }
+            builder.add(new BoostQuery(new TermQuery(new Term(LuceneIndexer.FIELD_IDENTIFIER_EXACT, identifier)), 15.0f),
+                    BooleanClause.Occur.SHOULD);
+            added++;
+        }
+        if (added == 0) {
+            return null;
+        }
+        if (added > 1) {
+            builder.setMinimumNumberShouldMatch(added);
+        }
+        return builder.build();
     }
 
     private float averageTokenBoost(String field, List<String> tokens) {
@@ -997,19 +1067,21 @@ public class MarkdownSearchUtil {
         }
 
         // ====== 分词提取 ======
-        List<String> tokens = new ArrayList<>();
+        LinkedHashSet<String> tokenSet = new LinkedHashSet<>(MarkdownSearchNormalizer.extractExactIdentifiers(normalizedKeyword));
         try (Analyzer analyzer = new SmartChineseAnalyzer();
              TokenStream ts = analyzer.tokenStream("content", normalizedKeyword)) {
             ts.reset();
             while (ts.incrementToken()) {
                 String term = ts.getAttribute(org.apache.lucene.analysis.tokenattributes.CharTermAttribute.class).toString();
-                if (!term.isBlank()) tokens.add(term);
+                if (!term.isBlank()) tokenSet.add(term);
             }
             ts.end();
         } catch (Exception e) {
             log.debug("Tokenizer failed, falling back to raw keyword", e);
         }
 
+        List<String> tokens = new ArrayList<>(tokenSet);
+        tokens.sort(Comparator.comparingInt(String::length).reversed());
         if (tokens.isEmpty()) {
             tokens.add(normalizedKeyword);
         }
@@ -1132,16 +1204,17 @@ public class MarkdownSearchUtil {
         if (searchText.isEmpty()) {
             return;
         }
-        keywordField = MarkdownSearchNormalizer.normalizeQuery(searchText);
-        if (keywordField.isBlank()) {
+        String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(searchText);
+        if (normalizedKeyword.isBlank()) {
             searchResultPopup.hide();
             return;
         }
+        keywordField = searchText.trim();
         // 在后台线程执行 Lucene 检索与摘要生成，避免阻塞 JavaFX 线程导致界面卡顿
         AppExecutor.runAsync(() -> {
         try {
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
-            List<LuceneSearcher.SearchResult> results = searcher.search(keywordField, SEARCH_UI_FETCH_LIMIT);
+            List<LuceneSearcher.SearchResult> results = searcher.search(searchText, SEARCH_UI_FETCH_LIMIT);
             Platform.runLater(()->{
                 Stage mainStage = (Stage) AppState.getWindow();
                 if (!popupListenersAdded) {
@@ -1224,9 +1297,9 @@ public class MarkdownSearchUtil {
 
     public static void warmUpIndex() {
         try  {
-            keywordField = MarkdownSearchNormalizer.normalizeQuery(warmUpKeywordBinding.get());
+            keywordField = warmUpKeywordBinding.get();
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
-            searcher.search(keywordField, SEARCH_UI_FETCH_LIMIT);
+            searcher.search(warmUpKeywordBinding.get(), SEARCH_UI_FETCH_LIMIT);
         } catch (Exception e) {
             log.debug("Index warm-up failed", e);
         }
@@ -1245,7 +1318,7 @@ public class MarkdownSearchUtil {
         try {
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
             int fetchSize = Math.max(AI_PROMPT_SNIPPET_COUNT, SEARCH_UI_FETCH_LIMIT);
-            List<LuceneSearcher.SearchResult> results = searcher.searchForAi(normalizedKeyword, fetchSize);
+            List<LuceneSearcher.SearchResult> results = searcher.searchForAi(keyword, fetchSize);
             List<KnowledgeReference> references = new ArrayList<>();
             for (LuceneSearcher.SearchResult item : results) {
                 if (references.size() >= AI_PROMPT_SNIPPET_COUNT) {
