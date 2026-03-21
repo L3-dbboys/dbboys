@@ -815,7 +815,7 @@ public class MainController {
         scrollAiChatToBottom();
 
         if (!com.dbboys.util.AiAuthUtil.hasConfiguredApi()) {
-            NotificationUtil.showMainNotification(I18n.t("ai.notice.api_key_required"));
+            addAiMarkdownMessage(buildApiKeyGuideMessage());
             return;
         }
 
@@ -1018,6 +1018,21 @@ public class MainController {
             return "";
         }
         return content;
+    }
+
+    private String buildApiKeyGuideMessage() {
+        String currentModel = AiAuthUtil.getModel();
+        return String.join("\n",
+                I18n.t("ai.reply.api_key_guide.title"),
+                "",
+                I18n.t("ai.reply.api_key_guide.step1"),
+                I18n.t("ai.reply.api_key_guide.link"),
+                I18n.t("ai.reply.api_key_guide.step2"),
+                I18n.t("ai.reply.api_key_guide.step3"),
+                I18n.t("ai.reply.api_key_guide.step4"),
+                "",
+                I18n.t("ai.reply.api_key_guide.current_model") + " `" + currentModel + "`"
+        );
     }
 
     private void cancelAiRequest() {
