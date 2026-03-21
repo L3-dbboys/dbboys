@@ -9,6 +9,7 @@ import com.dbboys.util.tree.TreeViewUtil;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.*;
@@ -21,6 +22,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -81,6 +83,8 @@ public class MainController {
     public Button aiSendButton;
     @FXML
     public ChoiceBox<String> aiModelChoiceBox;
+    @FXML
+    public Button aiSettingsButton;
     private java.util.concurrent.Future<?> aiTaskFuture;
     private AiMessageView aiStreamingMessage;
     private volatile boolean aiCancelled = false;
@@ -280,6 +284,10 @@ public class MainController {
         statusBackSqlProgress.setFitHeight(10);
         statusBackSqlProgress.setPreserveRatio(true);
         snapshotRootButton.setGraphic(IconFactory.group(IconPaths.MAIN_SNAPSHOT, 0.35));
+        if (aiSettingsButton != null) {
+            aiSettingsButton.setText("");
+            aiSettingsButton.setGraphic(IconFactory.group(IconPaths.METADATA_ONCONFIG_ITEM, 0.416));
+        }
     }
 
     private void initSqlTabInteractions() {
@@ -485,9 +493,62 @@ public class MainController {
             });
         }
 
+        if (aiSettingsButton != null) {
+            aiSettingsButton.setOnAction(event -> showAiApiKeyDialog());
+        }
+
         if (aiChatScrollPane != null) {
             aiChatScrollPane.setFitToWidth(true);
             aiChatScrollPane.setFitToHeight(false);
+        }
+    }
+
+    private void showAiApiKeyDialog() {
+        ButtonType confirmType = new ButtonType(I18n.t("common.confirm"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelType = new ButtonType(I18n.t("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        Label promptLabel = new Label(I18n.t("ai.dialog.api_key.prompt"));
+        PasswordField keyField = new PasswordField();
+        keyField.setPromptText(I18n.t("ai.dialog.api_key.prompt"));
+        keyField.setText(AiAuthUtil.getApiToken());
+
+        Label hintLabel = new Label(I18n.t("ai.dialog.api_key.hint") + "\n" + AiAuthUtil.getApiTokenStoragePath());
+        hintLabel.setWrapText(true);
+        hintLabel.setStyle("-fx-font-size: 10px; -fx-opacity: 0.75;");
+
+        VBox content = new VBox(8, promptLabel, keyField, hintLabel);
+        AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                I18n.t("ai.dialog.api_key.title"),
+                content,
+                420,
+                Region.USE_COMPUTED_SIZE,
+                confirmType,
+                cancelType
+        );
+        EventHandler<WindowEvent> originalOnShown = dialog.getStage().getOnShown();
+        dialog.getStage().setOnShown(event -> {
+            if (originalOnShown != null) {
+                originalOnShown.handle(event);
+            }
+            Platform.runLater(() -> {
+                keyField.requestFocus();
+                keyField.positionCaret(keyField.getText().length());
+            });
+        });
+
+        ButtonType result = dialog.showAndWait();
+        if (result != confirmType) {
+            return;
+        }
+
+        try {
+            String token = keyField.getText() == null ? "" : keyField.getText().trim();
+            AiAuthUtil.setApiToken(token);
+            NotificationUtil.showMainNotification(
+                    token.isEmpty() ? I18n.t("ai.notice.api_key_cleared") : I18n.t("ai.notice.api_key_saved")
+            );
+        } catch (Exception e) {
+            AlertUtil.CustomAlert(I18n.t("common.error"), e.getMessage());
         }
     }
 
@@ -585,6 +646,7 @@ public class MainController {
         bindTooltip(statusBackSqlListButton, "main.tooltip.view_task_list");
         bindTooltip(snapshotRootButton, "main.tooltip.snapshot_to_clipboard");
         bindPrompt(aiInputField, "main.prompt.ai_input");
+        bindTooltip(aiSettingsButton, "ai.button.api_key");
     }
 
     private void bindText(Labeled labeled, String key) {
@@ -753,7 +815,7 @@ public class MainController {
         scrollAiChatToBottom();
 
         if (!com.dbboys.util.AiAuthUtil.hasConfiguredApi()) {
-            NotificationUtil.showMainNotification(I18n.t("ai.notice.please_login"));
+            NotificationUtil.showMainNotification(I18n.t("ai.notice.api_key_required"));
             return;
         }
 

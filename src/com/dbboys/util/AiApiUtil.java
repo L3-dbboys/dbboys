@@ -13,11 +13,10 @@ import java.io.InterruptedIOException;
 import java.util.function.Consumer;
 
 /**
- * 调用 OpenAI 兼容�?Chat Completions API（用�?AI 对话框）�?
+ * 调用豆包 Responses API（用于 AI 对话框）。
  */
 public final class AiApiUtil {
     private static final Logger log = LogManager.getLogger(AiApiUtil.class);
-    private static final String CHAT_PATH = "/chat/completions";
 
     private AiApiUtil() {}
 
@@ -39,20 +38,9 @@ public final class AiApiUtil {
             return null;
         }
 
-        String provider = AiAuthUtil.getProvider();
         String safeMessage = userMessage == null ? "" : userMessage;
-        String endpoint;
-        String json;
-
-        if (AiAuthUtil.PROVIDER_DOUBAO.equals(provider)) {
-            // 豆包：使�?/responses 接口，body 结构参考官方示�?
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
-            json = buildDoubaoRequestJson(safeMessage, false);
-        } else {
-            // 默认 OpenAI 兼容 chat/completions
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + CHAT_PATH;
-            json = buildOpenAiRequestJson(safeMessage, false);
-        }
+        String endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
+        String json = buildDoubaoRequestJson(safeMessage, false);
 
         HttpURLConnection conn = null;
         try {
@@ -111,18 +99,9 @@ public final class AiApiUtil {
             return null;
         }
 
-        String provider = AiAuthUtil.getProvider();
         String safeMessage = userMessage == null ? "" : userMessage;
-        String endpoint;
-        String json;
-
-        if (AiAuthUtil.PROVIDER_DOUBAO.equals(provider)) {
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
-            json = buildDoubaoRequestJson(safeMessage, true);
-        } else {
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + CHAT_PATH;
-            json = buildOpenAiRequestJson(safeMessage, true);
-        }
+        String endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
+        String json = buildDoubaoRequestJson(safeMessage, true);
 
         HttpURLConnection conn = null;
         try {
@@ -197,18 +176,9 @@ public final class AiApiUtil {
             return "未配置API 地址或密钥";
         }
 
-        String provider = AiAuthUtil.getProvider();
-        String endpoint;
-        String json;
-
         String safeMessage = "ping";
-        if (AiAuthUtil.PROVIDER_DOUBAO.equals(provider)) {
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
-            json = buildDoubaoRequestJson(safeMessage, false);
-        } else {
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + CHAT_PATH;
-            json = buildOpenAiRequestJson(safeMessage, false);
-        }
+        String endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
+        String json = buildDoubaoRequestJson(safeMessage, false);
 
         HttpURLConnection conn = null;
         try {
@@ -311,22 +281,6 @@ public final class AiApiUtil {
                 conn.disconnect();
             }
         }
-    }
-
-    /** OpenAI 兼容 chat/completions 请求�?*/
-    private static String buildOpenAiRequestJson(String userMessage, boolean stream) {
-        JSONObject message = new JSONObject();
-        message.put("role", "user");
-        message.put("content", userMessage);
-        JSONArray messages = new JSONArray();
-        messages.put(message);
-        JSONObject body = new JSONObject();
-        body.put("model", AiAuthUtil.getModel());
-        body.put("messages", messages);
-        if (stream) {
-            body.put("stream", true);
-        }
-        return body.toString();
     }
 
     /** 豆包 Responses API 请求体（仅文本输入，参考官方示例） */
