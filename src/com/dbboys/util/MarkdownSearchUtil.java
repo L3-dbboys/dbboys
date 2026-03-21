@@ -48,8 +48,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -274,6 +276,9 @@ final class MarkdownSearchNormalizer {
  */
 class LuceneIndexer {
     private static final Logger log = LogManager.getLogger(LuceneIndexer.class);
+    private static final String DOC_TYPE_FILE = "file";
+    private static final String DOC_TYPE_AI_CHUNK = "ai_chunk";
+    static final String FIELD_OWNER_PATH_RAW = "owner_path_raw";
     static final String LEGACY_FIELD_PATH = "path";
     static final String LEGACY_FIELD_FILENAME = "filename";
     static final String FIELD_PATH_RAW = "path_raw";
@@ -284,12 +289,25 @@ class LuceneIndexer {
     static final String FIELD_CONTENT = "content";
     static final String FIELD_CONTENT_PREVIEW = "content_preview";
     static final String FIELD_IDENTIFIER_EXACT = "identifier_exact";
+    static final String FIELD_DOC_TYPE = "doc_type";
+    static final String FIELD_AI_SOURCE_PATH_RAW = "ai_source_path_raw";
+    static final String FIELD_AI_PATH_TEXT = "ai_path_text";
+    static final String FIELD_AI_FILENAME_TEXT = "ai_filename_text";
+    static final String FIELD_AI_TITLE_TEXT = "ai_title_text";
+    static final String FIELD_AI_CONTENT = "ai_content";
+    static final String FIELD_AI_CONTENT_PREVIEW = "ai_content_preview";
+    static final String FIELD_AI_HEADING_STORED = "ai_heading_stored";
+    static final String FIELD_AI_IDENTIFIER_EXACT = "ai_identifier_exact";
     static final String FIELD_MODIFIED = "modified";
     static final String FIELD_MODIFIED_STORED = "modified_stored";
     private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("(?m)^#{1,6}\\s+(.+?)\\s*$");
     private static final int MAX_TITLE_PARTS = 8;
     private static final int MAX_TITLE_TEXT_LENGTH = 800;
     private static final int MAX_CONTENT_PREVIEW_CHARS = 20_000;
+    private static final int MAX_AI_CHUNK_CHARS = 1_600;
+    private static final int MIN_AI_CHUNK_CHARS = 280;
+
+    private record AiChunk(String heading, String text, int order) {}
 
     private final Path indexDir;
     private final Analyzer analyzer;
@@ -349,17 +367,37 @@ class LuceneIndexer {
      * 把单个文件添加到索引（若需要实现更新，可先删除同 path 的旧 doc）
      */
     private static void indexFile(IndexWriter writer, Path file) throws IOException {
-
-        String content = DocumentIndexTextExtractor.extractText(file);
+        List<DocumentIndexTextExtractor.PdfPageText> pdfPages = Collections.emptyList();
+        String content;
+        if (isPdfFile(file)) {
+            pdfPages = DocumentIndexTextExtractor.extractPdfPages(file);
+            content = DocumentIndexTextExtractor.joinPdfPageTexts(pdfPages);
+        } else {
+            content = DocumentIndexTextExtractor.extractText(file);
+        }
         String contentPreview = buildContentPreview(content);
         long modified = Files.getLastModifiedTime(file).toMillis();
         String rawPath = file.toString();
         String fileName = file.getFileName().toString();
         String fileStem = stripExtension(fileName);
         String titleText = buildTitleText(file, content, fileStem);
+        List<Document> docs = new ArrayList<>();
+        docs.add(buildFileDocument(rawPath, fileName, fileStem, titleText, content, contentPreview, modified));
+        docs.addAll(buildAiChunkDocuments(file, rawPath, fileName, fileStem, content, pdfPages, modified));
+        writer.deleteDocuments(new Term(FIELD_OWNER_PATH_RAW, rawPath));
+        writer.addDocuments(docs);
+    }
 
+    private static Document buildFileDocument(String rawPath,
+                                              String fileName,
+                                              String fileStem,
+                                              String titleText,
+                                              String content,
+                                              String contentPreview,
+                                              long modified) {
         Document doc = new Document();
-
+        doc.add(new StringField(FIELD_OWNER_PATH_RAW, rawPath, Field.Store.NO));
+        doc.add(new StringField(FIELD_DOC_TYPE, DOC_TYPE_FILE, Field.Store.NO));
         doc.add(new StringField(FIELD_PATH_RAW, rawPath, Field.Store.YES));
         doc.add(new org.apache.lucene.document.TextField(
                 FIELD_PATH_TEXT,
@@ -376,31 +414,69 @@ class LuceneIndexer {
                     MarkdownSearchNormalizer.enrichIndexText(titleText),
                     Field.Store.NO));
         }
-
-        // content: 仅用于分词检索，不存整篇正文，避免搜索命中后把大文档整篇读回内存。
         doc.add(new org.apache.lucene.document.TextField(FIELD_CONTENT, content, Field.Store.NO));
         doc.add(new StoredField(FIELD_CONTENT_PREVIEW, contentPreview));
-        addExactIdentifierFields(doc, rawPath);
-        addExactIdentifierFields(doc, fileName);
-        addExactIdentifierFields(doc, titleText);
-        addExactIdentifierFields(doc, content);
-
-        // modified 时间：用于排序或权重
+        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, rawPath);
+        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, fileName);
+        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, titleText);
+        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, content);
         doc.add(new LongPoint(FIELD_MODIFIED, modified));
-        // 同时存储 modified 以便检索后取得值
         doc.add(new StoredField(FIELD_MODIFIED_STORED, modified));
-
-        // 增量更新：删除已存在的同 path 文档后添加新文档
-        // 这保证了 path 的唯一性（避免重复）
-        writer.updateDocument(new Term(FIELD_PATH_RAW, rawPath), doc);
+        return doc;
     }
 
-    private static void addExactIdentifierFields(Document doc, String text) {
+    private static List<Document> buildAiChunkDocuments(Path file,
+                                                        String rawPath,
+                                                        String fileName,
+                                                        String fileStem,
+                                                        String content,
+                                                        List<DocumentIndexTextExtractor.PdfPageText> pdfPages,
+                                                        long modified) {
+        List<AiChunk> chunks = buildAiChunks(file, content, fileStem, pdfPages);
+        if (chunks.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Document> docs = new ArrayList<>(chunks.size());
+        String enrichedPathText = MarkdownSearchNormalizer.enrichIndexText(rawPath.replace('\\', ' ').replace('/', ' '));
+        String enrichedFileNameText = MarkdownSearchNormalizer.enrichIndexText((fileStem + " " + fileName).trim());
+        for (AiChunk chunk : chunks) {
+            if (chunk == null || chunk.text() == null || chunk.text().isBlank()) {
+                continue;
+            }
+            Document doc = new Document();
+            String heading = chunk.heading() == null ? "" : chunk.heading().trim();
+            String headingText = heading.isBlank() ? fileStem : heading;
+            doc.add(new StringField(FIELD_OWNER_PATH_RAW, rawPath, Field.Store.NO));
+            doc.add(new StringField(FIELD_DOC_TYPE, DOC_TYPE_AI_CHUNK, Field.Store.NO));
+            doc.add(new StoredField(FIELD_AI_SOURCE_PATH_RAW, rawPath));
+            doc.add(new org.apache.lucene.document.TextField(FIELD_AI_PATH_TEXT, enrichedPathText, Field.Store.NO));
+            doc.add(new org.apache.lucene.document.TextField(FIELD_AI_FILENAME_TEXT, enrichedFileNameText, Field.Store.NO));
+            doc.add(new org.apache.lucene.document.TextField(
+                    FIELD_AI_TITLE_TEXT,
+                    MarkdownSearchNormalizer.enrichIndexText((fileStem + "\n" + headingText).trim()),
+                    Field.Store.NO));
+            doc.add(new org.apache.lucene.document.TextField(FIELD_AI_CONTENT, chunk.text(), Field.Store.NO));
+            doc.add(new StoredField(FIELD_AI_CONTENT_PREVIEW, buildChunkPreview(chunk.text())));
+            if (!heading.isBlank()) {
+                doc.add(new StoredField(FIELD_AI_HEADING_STORED, heading));
+            }
+            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, rawPath);
+            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, fileName);
+            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, headingText);
+            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, chunk.text());
+            doc.add(new LongPoint(FIELD_MODIFIED, modified));
+            doc.add(new StoredField(FIELD_MODIFIED_STORED, modified));
+            docs.add(doc);
+        }
+        return docs;
+    }
+
+    private static void addExactIdentifierFields(Document doc, String fieldName, String text) {
         if (doc == null || text == null || text.isBlank()) {
             return;
         }
         for (String identifier : MarkdownSearchNormalizer.extractExactIdentifiers(text)) {
-            doc.add(new StringField(FIELD_IDENTIFIER_EXACT, identifier, Field.Store.NO));
+            doc.add(new StringField(fieldName, identifier, Field.Store.NO));
         }
     }
 
@@ -447,6 +523,211 @@ class LuceneIndexer {
         return content.substring(0, MAX_CONTENT_PREVIEW_CHARS);
     }
 
+    private static String buildChunkPreview(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return text.length() <= MAX_AI_CHUNK_CHARS ? text : text.substring(0, MAX_AI_CHUNK_CHARS);
+    }
+
+    private static List<AiChunk> buildAiChunks(Path file,
+                                               String content,
+                                               String fileStem,
+                                               List<DocumentIndexTextExtractor.PdfPageText> pdfPages) {
+        if (content == null || content.isBlank()) {
+            return Collections.emptyList();
+        }
+        String lowerName = file.getFileName().toString().toLowerCase();
+        if (lowerName.endsWith(".pdf") && pdfPages != null && !pdfPages.isEmpty()) {
+            List<AiChunk> pdfChunks = buildPdfAiChunks(pdfPages);
+            if (!pdfChunks.isEmpty()) {
+                return pdfChunks;
+            }
+        }
+        if (lowerName.endsWith(".md") || lowerName.endsWith(".markdown")) {
+            List<AiChunk> markdownChunks = buildMarkdownAiChunks(content, fileStem);
+            if (!markdownChunks.isEmpty()) {
+                return markdownChunks;
+            }
+        }
+        return buildGenericAiChunks(content, fileStem);
+    }
+
+    private static List<AiChunk> buildPdfAiChunks(List<DocumentIndexTextExtractor.PdfPageText> pdfPages) {
+        if (pdfPages == null || pdfPages.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<AiChunk> chunks = new ArrayList<>();
+        int order = 0;
+        for (DocumentIndexTextExtractor.PdfPageText page : pdfPages) {
+            if (page == null || page.text() == null || page.text().isBlank()) {
+                continue;
+            }
+            String heading = "第" + page.pageNumber() + "页";
+            for (String chunkText : splitIntoAiChunkTexts(page.text())) {
+                if (chunkText.isBlank()) {
+                    continue;
+                }
+                chunks.add(new AiChunk(heading, chunkText, order++));
+            }
+        }
+        return chunks;
+    }
+
+    private static List<AiChunk> buildMarkdownAiChunks(String content, String fileStem) {
+        String source = content == null ? "" : content.replace("\r\n", "\n");
+        if (source.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<AiChunk> chunks = new ArrayList<>();
+        Matcher matcher = MARKDOWN_HEADING_PATTERN.matcher(source);
+        String currentHeading = fileStem == null ? "" : fileStem.trim();
+        int sectionStart = 0;
+        int order = 0;
+        boolean foundHeading = false;
+        while (matcher.find()) {
+            foundHeading = true;
+            String sectionText = source.substring(sectionStart, matcher.start()).trim();
+            order = appendSectionChunks(chunks, currentHeading, sectionText, order);
+            currentHeading = cleanMarkdownHeading(matcher.group(1));
+            sectionStart = matcher.end();
+        }
+        String tailSection = source.substring(Math.min(sectionStart, source.length())).trim();
+        appendSectionChunks(chunks, currentHeading, tailSection, order);
+        if (!foundHeading && chunks.isEmpty()) {
+            return buildGenericAiChunks(source, fileStem);
+        }
+        return chunks;
+    }
+
+    private static int appendSectionChunks(List<AiChunk> chunks, String heading, String sectionText, int startOrder) {
+        if (sectionText == null || sectionText.isBlank()) {
+            return startOrder;
+        }
+        int order = startOrder;
+        for (String chunkText : splitIntoAiChunkTexts(sectionText)) {
+            if (chunkText.isBlank()) {
+                continue;
+            }
+            chunks.add(new AiChunk(heading == null ? "" : heading.trim(), chunkText, order++));
+        }
+        return order;
+    }
+
+    private static List<AiChunk> buildGenericAiChunks(String content, String fileStem) {
+        if (content == null || content.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<AiChunk> chunks = new ArrayList<>();
+        int order = 0;
+        for (String chunkText : splitIntoAiChunkTexts(content)) {
+            if (chunkText.isBlank()) {
+                continue;
+            }
+            chunks.add(new AiChunk(fileStem == null ? "" : fileStem.trim(), chunkText, order++));
+        }
+        return chunks;
+    }
+
+    private static List<String> splitIntoAiChunkTexts(String text) {
+        String normalized = text == null ? "" : text.replace("\r\n", "\n").replace('\r', '\n').trim();
+        if (normalized.isBlank()) {
+            return Collections.emptyList();
+        }
+        String[] paragraphs = normalized.split("\\n\\s*\\n+");
+        List<String> chunks = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (String paragraph : paragraphs) {
+            String unit = paragraph == null ? "" : paragraph.trim();
+            if (unit.isBlank()) {
+                continue;
+            }
+            if (unit.length() > MAX_AI_CHUNK_CHARS) {
+                flushChunk(chunks, current);
+                appendLongTextChunks(chunks, unit);
+                continue;
+            }
+            if (current.length() > 0 && current.length() + 2 + unit.length() > MAX_AI_CHUNK_CHARS) {
+                flushChunk(chunks, current);
+            }
+            if (current.length() > 0) {
+                current.append("\n\n");
+            }
+            current.append(unit);
+        }
+        flushChunk(chunks, current);
+        if (chunks.isEmpty()) {
+            return List.of(normalized);
+        }
+        return chunks;
+    }
+
+    private static void flushChunk(List<String> chunks, StringBuilder current) {
+        if (current == null || current.length() == 0) {
+            return;
+        }
+        String chunk = current.toString().trim();
+        if (!chunk.isBlank()) {
+            chunks.add(chunk);
+        }
+        current.setLength(0);
+    }
+
+    private static void appendLongTextChunks(List<String> chunks, String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        int start = 0;
+        while (start < text.length()) {
+            int end = Math.min(text.length(), start + MAX_AI_CHUNK_CHARS);
+            if (end < text.length()) {
+                int adjusted = findChunkBoundary(text, start, end);
+                if (adjusted > start + MIN_AI_CHUNK_CHARS) {
+                    end = adjusted;
+                }
+            }
+            String chunk = text.substring(start, end).trim();
+            if (!chunk.isBlank()) {
+                chunks.add(chunk);
+            }
+            start = end;
+        }
+    }
+
+    private static int findChunkBoundary(String text, int start, int end) {
+        int[] candidates = new int[]{
+                text.lastIndexOf("\n\n", end),
+                text.lastIndexOf('\n', end),
+                text.lastIndexOf('。', end),
+                text.lastIndexOf('；', end),
+                text.lastIndexOf('！', end),
+                text.lastIndexOf('？', end),
+                text.lastIndexOf('.', end),
+                text.lastIndexOf(';', end),
+                text.lastIndexOf('!', end),
+                text.lastIndexOf('?', end),
+                text.lastIndexOf(' ', end)
+        };
+        int minBoundary = Math.min(text.length(), start + MIN_AI_CHUNK_CHARS);
+        for (int candidate : candidates) {
+            if (candidate >= minBoundary) {
+                return candidate + 1;
+            }
+        }
+        return end;
+    }
+
+    private static String cleanMarkdownHeading(String heading) {
+        return heading == null ? "" : heading.replaceAll("[`*_#>\\[\\]]", "").trim();
+    }
+
+    private static boolean isPdfFile(Path file) {
+        if (file == null || file.getFileName() == null) {
+            return false;
+        }
+        return file.getFileName().toString().toLowerCase().endsWith(".pdf");
+    }
+
     /**
      * 删除索引目录（谨慎使用）
      */
@@ -463,6 +744,11 @@ class LuceneIndexer {
 }
 
 class LuceneSearcher {
+    private enum SearchMode {
+        FILE,
+        AI_CHUNK
+    }
+
     private static final Logger log = LogManager.getLogger(LuceneSearcher.class);
     private static final int DEFAULT_SNIPPET_CONTEXT_CHARS = 30;
     private static final int DEFAULT_FALLBACK_SNIPPET_CHARS = 120;
@@ -479,6 +765,10 @@ class LuceneSearcher {
             LuceneIndexer.LEGACY_FIELD_PATH,
             LuceneIndexer.FIELD_CONTENT_PREVIEW,
             LuceneIndexer.FIELD_CONTENT);
+    private static final Set<String> AI_STORED_SEARCH_FIELDS = Set.of(
+            LuceneIndexer.FIELD_AI_SOURCE_PATH_RAW,
+            LuceneIndexer.FIELD_AI_CONTENT_PREVIEW,
+            LuceneIndexer.FIELD_AI_HEADING_STORED);
     private final Path indexDir;
     private final Analyzer analyzer = new SmartChineseAnalyzer();
 
@@ -488,12 +778,17 @@ class LuceneSearcher {
 
     public List<LuceneSearcher.SearchResult> search(String keyword, int limit) throws Exception {
         return search(keyword, limit, DEFAULT_SNIPPET_CONTEXT_CHARS, DEFAULT_FALLBACK_SNIPPET_CHARS,
-                DEFAULT_BOUNDARY_WINDOW_CHARS, false);
+                DEFAULT_BOUNDARY_WINDOW_CHARS, false, SearchMode.FILE);
     }
 
     public List<LuceneSearcher.SearchResult> searchForAi(String keyword, int limit) throws Exception {
+        List<LuceneSearcher.SearchResult> chunkResults = search(keyword, limit, AI_SNIPPET_CONTEXT_CHARS,
+                AI_FALLBACK_SNIPPET_CHARS, AI_BOUNDARY_WINDOW_CHARS, false, SearchMode.AI_CHUNK);
+        if (!chunkResults.isEmpty()) {
+            return chunkResults;
+        }
         return search(keyword, limit, AI_SNIPPET_CONTEXT_CHARS, AI_FALLBACK_SNIPPET_CHARS,
-                AI_BOUNDARY_WINDOW_CHARS, false);
+                AI_BOUNDARY_WINDOW_CHARS, false, SearchMode.FILE);
     }
 
     private List<LuceneSearcher.SearchResult> search(String keyword,
@@ -501,12 +796,15 @@ class LuceneSearcher {
                                                      int contextChars,
                                                      int fallbackSnippetChars,
                                                      int boundaryWindowChars,
-                                                     boolean strict) throws Exception {
+                                                     boolean strict,
+                                                     SearchMode searchMode) throws Exception {
         String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(keyword);
         List<String> exactIdentifiers = MarkdownSearchNormalizer.extractExactIdentifiers(keyword);
         List<String> tokens = analyzeQueryTerms(normalizedKeyword);
         List<String> queryConcepts = MarkdownSearchNormalizer.extractQueryConcepts(normalizedKeyword, tokens, exactIdentifiers);
-        Query query = buildQuery(keyword, tokens, exactIdentifiers, strict);
+        Query query = searchMode == SearchMode.AI_CHUNK
+                ? buildAiChunkQuery(tokens, exactIdentifiers, strict)
+                : buildQuery(keyword, tokens, exactIdentifiers, strict);
         if (query instanceof MatchNoDocsQuery) {
             return Collections.emptyList();
         }
@@ -515,15 +813,18 @@ class LuceneSearcher {
             List<LuceneSearcher.SearchResult> results = new ArrayList<>();
 
             for (ScoreDoc sd : topDocs.scoreDocs) {
-                Document doc = searcher.storedFields().document(sd.doc, STORED_SEARCH_FIELDS);
-                String path = doc.get(LuceneIndexer.FIELD_PATH_RAW);
-                if (path == null || path.isBlank()) {
+                Document doc = searcher.storedFields().document(sd.doc,
+                        searchMode == SearchMode.AI_CHUNK ? AI_STORED_SEARCH_FIELDS : STORED_SEARCH_FIELDS);
+                String path = searchMode == SearchMode.AI_CHUNK
+                        ? doc.get(LuceneIndexer.FIELD_AI_SOURCE_PATH_RAW)
+                        : doc.get(LuceneIndexer.FIELD_PATH_RAW);
+                if ((path == null || path.isBlank()) && searchMode == SearchMode.FILE) {
                     path = doc.get(LuceneIndexer.LEGACY_FIELD_PATH);
                 }
-                String content = doc.get(LuceneIndexer.FIELD_CONTENT_PREVIEW);
-                if (content == null || content.isBlank()) {
-                    content = doc.get(LuceneIndexer.FIELD_CONTENT);
-                }
+                String content = searchMode == SearchMode.AI_CHUNK
+                        ? doc.get(LuceneIndexer.FIELD_AI_CONTENT_PREVIEW)
+                        : doc.get(LuceneIndexer.FIELD_CONTENT_PREVIEW);
+                String title = searchMode == SearchMode.AI_CHUNK ? doc.get(LuceneIndexer.FIELD_AI_HEADING_STORED) : "";
                 if (content == null) content = "";
 
             // --------- 2) 收集所有匹配区间（去重） ----------
@@ -555,7 +856,7 @@ class LuceneSearcher {
                             ? content.substring(0, fallbackSnippetChars) + " ... "
                             : content;
                 float adjustedScore = sd.score + computeHeuristicBonus(path, content, queryConcepts);
-                results.add(new LuceneSearcher.SearchResult(path, adjustedScore, fallback));
+                results.add(new LuceneSearcher.SearchResult(path, title, adjustedScore, fallback));
                 continue;
             }
 
@@ -602,7 +903,7 @@ class LuceneSearcher {
             // 但注意：你现在的 UI 用 TextFlow 对 snippet 做高亮，这里返回原文更灵活。
 
                 float adjustedScore = sd.score + computeHeuristicBonus(path, content, queryConcepts);
-                results.add(new LuceneSearcher.SearchResult(path, adjustedScore, snippet));
+                results.add(new LuceneSearcher.SearchResult(path, title, adjustedScore, snippet));
             }
 
         results.sort(Comparator.comparingDouble((LuceneSearcher.SearchResult item) -> item.score).reversed());
@@ -637,6 +938,40 @@ class LuceneSearcher {
         addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_CONTENT, tokens, minimumShouldMatch(tokens.size(), strict, false),
                 strict ? 4.5f : 3.5f), BooleanClause.Occur.SHOULD);
         addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_PATH_TEXT, tokens, 1, strict ? 0.3f : 0.5f), BooleanClause.Occur.SHOULD);
+
+        BooleanQuery built = root.build();
+        if (built.clauses().isEmpty()) {
+            return new MatchNoDocsQuery();
+        }
+        return built;
+    }
+
+    private Query buildAiChunkQuery(List<String> tokens, List<String> exactIdentifiers, boolean strict) {
+        BooleanQuery.Builder root = new BooleanQuery.Builder();
+        root.setMinimumNumberShouldMatch(1);
+
+        addQuery(root, buildExactIdentifierQuery(exactIdentifiers, LuceneIndexer.FIELD_AI_IDENTIFIER_EXACT, 17.0f),
+                BooleanClause.Occur.SHOULD);
+        addQuery(root, buildAiHanIntentQuery(tokens, strict), BooleanClause.Occur.SHOULD);
+        if (tokens != null && tokens.size() > 1) {
+            int allTerms = tokens.size();
+            addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_FILENAME_TEXT, tokens, allTerms, strict ? 4.0f : 3.6f),
+                    BooleanClause.Occur.SHOULD);
+            addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_TITLE_TEXT, tokens, allTerms, strict ? 7.0f : 6.0f),
+                    BooleanClause.Occur.SHOULD);
+            addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_PATH_TEXT, tokens, allTerms, strict ? 3.2f : 2.8f),
+                    BooleanClause.Occur.SHOULD);
+            addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_CONTENT, tokens, allTerms, strict ? 9.2f : 7.4f),
+                    BooleanClause.Occur.SHOULD);
+        }
+        addQuery(root, buildPhraseQuery(LuceneIndexer.FIELD_AI_TITLE_TEXT, tokens, strict ? 4.4f : 3.8f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildPhraseQuery(LuceneIndexer.FIELD_AI_CONTENT, tokens, strict ? 7.8f : 6.4f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildPhraseQuery(LuceneIndexer.FIELD_AI_PATH_TEXT, tokens, strict ? 2.6f : 2.1f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_TITLE_TEXT, tokens, minimumShouldMatch(tokens.size(), strict, true),
+                strict ? 2.4f : 2.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_CONTENT, tokens, minimumShouldMatch(tokens.size(), strict, false),
+                strict ? 5.2f : 4.2f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_AI_PATH_TEXT, tokens, 1, strict ? 0.6f : 0.5f), BooleanClause.Occur.SHOULD);
 
         BooleanQuery built = root.build();
         if (built.clauses().isEmpty()) {
@@ -705,6 +1040,41 @@ class LuceneSearcher {
     }
 
     private Query buildHanIntentQuery(List<String> tokens, boolean strict) {
+        return buildHanIntentQuery(tokens,
+                LuceneIndexer.FIELD_TITLE_TEXT,
+                LuceneIndexer.FIELD_PATH_TEXT,
+                LuceneIndexer.FIELD_FILENAME_TEXT,
+                strict ? 12.0f : 10.0f,
+                strict ? 10.0f : 8.5f,
+                strict ? 8.0f : 6.5f,
+                strict ? 7.0f : 6.0f,
+                strict ? 6.0f : 5.0f,
+                strict ? 5.0f : 4.0f);
+    }
+
+    private Query buildAiHanIntentQuery(List<String> tokens, boolean strict) {
+        return buildHanIntentQuery(tokens,
+                LuceneIndexer.FIELD_AI_TITLE_TEXT,
+                LuceneIndexer.FIELD_AI_PATH_TEXT,
+                LuceneIndexer.FIELD_AI_FILENAME_TEXT,
+                strict ? 13.0f : 11.0f,
+                strict ? 11.0f : 9.0f,
+                strict ? 8.5f : 7.0f,
+                strict ? 8.0f : 6.8f,
+                strict ? 6.6f : 5.6f,
+                strict ? 5.5f : 4.5f);
+    }
+
+    private Query buildHanIntentQuery(List<String> tokens,
+                                      String titleField,
+                                      String pathField,
+                                      String filenameField,
+                                      float titleTermBoost,
+                                      float pathTermBoost,
+                                      float filenameTermBoost,
+                                      float titlePhraseBoost,
+                                      float pathPhraseBoost,
+                                      float filenamePhraseBoost) {
         if (tokens == null || tokens.isEmpty()) {
             return null;
         }
@@ -720,23 +1090,21 @@ class LuceneSearcher {
 
         BooleanQuery.Builder builder = new BooleanQuery.Builder();
         int allHanTerms = hanTokens.size();
-        addQuery(builder, buildTermSetQuery(LuceneIndexer.FIELD_TITLE_TEXT, hanTokens, allHanTerms, strict ? 12.0f : 10.0f),
-                BooleanClause.Occur.SHOULD);
-        addQuery(builder, buildTermSetQuery(LuceneIndexer.FIELD_PATH_TEXT, hanTokens, allHanTerms, strict ? 10.0f : 8.5f),
-                BooleanClause.Occur.SHOULD);
-        addQuery(builder, buildTermSetQuery(LuceneIndexer.FIELD_FILENAME_TEXT, hanTokens, allHanTerms, strict ? 8.0f : 6.5f),
-                BooleanClause.Occur.SHOULD);
-        addQuery(builder, buildPhraseQuery(LuceneIndexer.FIELD_TITLE_TEXT, hanTokens, strict ? 7.0f : 6.0f),
-                BooleanClause.Occur.SHOULD);
-        addQuery(builder, buildPhraseQuery(LuceneIndexer.FIELD_PATH_TEXT, hanTokens, strict ? 6.0f : 5.0f),
-                BooleanClause.Occur.SHOULD);
-        addQuery(builder, buildPhraseQuery(LuceneIndexer.FIELD_FILENAME_TEXT, hanTokens, strict ? 5.0f : 4.0f),
-                BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildTermSetQuery(titleField, hanTokens, allHanTerms, titleTermBoost), BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildTermSetQuery(pathField, hanTokens, allHanTerms, pathTermBoost), BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildTermSetQuery(filenameField, hanTokens, allHanTerms, filenameTermBoost), BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildPhraseQuery(titleField, hanTokens, titlePhraseBoost), BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildPhraseQuery(pathField, hanTokens, pathPhraseBoost), BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildPhraseQuery(filenameField, hanTokens, filenamePhraseBoost), BooleanClause.Occur.SHOULD);
         BooleanQuery built = builder.build();
         return built.clauses().isEmpty() ? null : built;
     }
 
     private Query buildExactIdentifierQuery(List<String> exactIdentifiers) {
+        return buildExactIdentifierQuery(exactIdentifiers, LuceneIndexer.FIELD_IDENTIFIER_EXACT, 15.0f);
+    }
+
+    private Query buildExactIdentifierQuery(List<String> exactIdentifiers, String field, float boost) {
         if (exactIdentifiers == null || exactIdentifiers.isEmpty()) {
             return null;
         }
@@ -746,7 +1114,7 @@ class LuceneSearcher {
             if (identifier == null || identifier.isBlank()) {
                 continue;
             }
-            builder.add(new BoostQuery(new TermQuery(new Term(LuceneIndexer.FIELD_IDENTIFIER_EXACT, identifier)), 15.0f),
+            builder.add(new BoostQuery(new TermQuery(new Term(field, identifier)), boost),
                     BooleanClause.Occur.SHOULD);
             added++;
         }
@@ -781,24 +1149,33 @@ class LuceneSearcher {
             return 1f;
         }
         if (containsHanToken(normalizedToken)) {
-            if (LuceneIndexer.FIELD_PATH_TEXT.equals(field)
-                    || LuceneIndexer.FIELD_TITLE_TEXT.equals(field)
-                    || LuceneIndexer.FIELD_FILENAME_TEXT.equals(field)) {
+            if (isPathLikeField(field) || isTitleLikeField(field) || isFilenameLikeField(field)) {
                 return 2.8f;
             }
             return 2.0f;
         }
-        if (normalizedToken.matches("[a-z0-9]+")) {
-            if (LuceneIndexer.FIELD_PATH_TEXT.equals(field)) {
+        if (normalizedToken.matches("[a-z0-9_]+")) {
+            if (isPathLikeField(field)) {
                 return 0.35f;
             }
-            if (LuceneIndexer.FIELD_TITLE_TEXT.equals(field)
-                    || LuceneIndexer.FIELD_FILENAME_TEXT.equals(field)) {
+            if (isTitleLikeField(field) || isFilenameLikeField(field)) {
                 return 0.65f;
             }
             return 0.85f;
         }
         return 1.1f;
+    }
+
+    private boolean isPathLikeField(String field) {
+        return LuceneIndexer.FIELD_PATH_TEXT.equals(field) || LuceneIndexer.FIELD_AI_PATH_TEXT.equals(field);
+    }
+
+    private boolean isTitleLikeField(String field) {
+        return LuceneIndexer.FIELD_TITLE_TEXT.equals(field) || LuceneIndexer.FIELD_AI_TITLE_TEXT.equals(field);
+    }
+
+    private boolean isFilenameLikeField(String field) {
+        return LuceneIndexer.FIELD_FILENAME_TEXT.equals(field) || LuceneIndexer.FIELD_AI_FILENAME_TEXT.equals(field);
     }
 
     private List<String> analyzeQueryTerms(String keyword) {
@@ -907,7 +1284,7 @@ class LuceneSearcher {
         if (containsHanToken(concept)) {
             return 2.4f;
         }
-        if (concept.matches("[a-z0-9]+")) {
+        if (concept.matches("[a-z0-9_]+")) {
             return 0.8f;
         }
         return 1.1f;
@@ -924,7 +1301,7 @@ class LuceneSearcher {
         if (text.contains(concept)) {
             return true;
         }
-        return concept.matches("[a-z0-9]+") && compactText.contains(concept);
+        return concept.matches("[a-z0-9_]+") && compactText.contains(concept);
     }
 
     private boolean looksLikeExactNameQuery(String keyword) {
@@ -948,15 +1325,20 @@ class LuceneSearcher {
 
     public static class SearchResult {
         public final String path;
+        public final String title;
         public final float score;
         public final String snippet;
-        public SearchResult(String path, float score, String snippet) {
+        public SearchResult(String path, String title, float score, String snippet) {
             this.path = path;
+            this.title = title;
             this.score = score;
             this.snippet = snippet;
         }
+        public SearchResult(String path, float score, String snippet) {
+            this(path, "", score, snippet);
+        }
         public SearchResult(String path, float score) {
-            this(path, score, "");
+            this(path, "", score, "");
         }
     }
 }
@@ -974,10 +1356,11 @@ public class MarkdownSearchUtil {
     public static final int SEARCH_UI_FETCH_LIMIT = 50;
 
     /** 发给大模型的知识库片段条数（与侧边栏「搜索」同一套 {@link LuceneSearcher#search(String, int)} 排序与摘要） */
-    public static final int AI_PROMPT_SNIPPET_COUNT = 5;
+    public static final int AI_PROMPT_SNIPPET_COUNT = 10;
 
     /** AI 回复末尾「参考文档」展示的链接条数（取 {@link #loadAiKnowledgeFromSearch(String)} 结果的前若干条） */
     public static final int AI_UI_REFERENCE_LINK_COUNT = 3;
+    private static final int AI_MAX_CHUNKS_PER_FILE = 2;
 
     /** 复用 DirectoryReader，避免每次搜索都 FSDirectory.open + DirectoryReader.open（磁盘与 inode 开销大） */
     private static volatile Directory mdSharedDirectory;
@@ -1369,6 +1752,7 @@ public class MarkdownSearchUtil {
             int fetchSize = Math.max(AI_PROMPT_SNIPPET_COUNT, SEARCH_UI_FETCH_LIMIT);
             List<LuceneSearcher.SearchResult> results = searcher.searchForAi(keyword, fetchSize);
             List<KnowledgeReference> references = new ArrayList<>();
+            Map<String, Integer> perPathCount = new HashMap<>();
             for (LuceneSearcher.SearchResult item : results) {
                 if (references.size() >= AI_PROMPT_SNIPPET_COUNT) {
                     break;
@@ -1377,14 +1761,15 @@ public class MarkdownSearchUtil {
                 if (path.isEmpty()) {
                     continue;
                 }
-                String title;
-                try {
-                    title = Paths.get(path).getFileName().toString();
-                } catch (Exception ex) {
-                    title = path;
+                int currentCount = perPathCount.getOrDefault(path, 0);
+                if (currentCount >= AI_MAX_CHUNKS_PER_FILE) {
+                    continue;
                 }
+                String heading = item.title == null ? "" : item.title.trim();
+                String title = heading.isBlank() ? path : path + " · " + heading;
                 String snippet = item.snippet == null ? "" : item.snippet.replace("\r", "").trim();
                 references.add(new KnowledgeReference(path, title, snippet));
+                perPathCount.put(path, currentCount + 1);
             }
             return references;
         } catch (Exception e) {

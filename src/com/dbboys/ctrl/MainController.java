@@ -38,12 +38,15 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 
 
 public class MainController {
     private static final Logger log = LogManager.getLogger(MainController.class);
+    private static final Pattern AI_REFERENCE_PAGE_PATTERN = Pattern.compile("第\\d+页");
     private static final double USER_BUBBLE_MAX_WIDTH_RATIO = 0.7;
     private static final int MESSAGE_BUBBLE_RADIUS = 6;
     private static final double AI_INPUT_HEIGHT = 90;
@@ -875,6 +878,9 @@ public class MainController {
             for (int i = 0; i < references.size(); i++) {
                 MarkdownSearchUtil.KnowledgeReference ref = references.get(i);
                 prompt.append("\n\n[").append(i + 1).append("]");
+                if (ref.title() != null && !ref.title().isBlank()) {
+                    prompt.append("\n来源：").append(ref.title());
+                }
                 if (ref.snippet() != null && !ref.snippet().isBlank()) {
                     prompt.append("\n摘要：").append(ref.snippet());
                 }
@@ -895,19 +901,68 @@ public class MainController {
             builder.append("\n\n");
         }
         builder.append("参考文档：\n");
-        int displayCount = Math.min(references.size(), MarkdownSearchUtil.AI_UI_REFERENCE_LINK_COUNT);
-        for (int i = 0; i < displayCount; i++) {
-            MarkdownSearchUtil.KnowledgeReference ref = references.get(i);
-            String linkTarget = ref.path().replace('\\', '/');
-            String title = ref.title() == null || ref.title().isBlank() ? linkTarget : ref.title();
-            builder.append(i + 1)
+        int displayIndex = 1;
+        java.util.LinkedHashMap<String, java.util.LinkedHashSet<String>> shownPaths = new java.util.LinkedHashMap<>();
+        for (MarkdownSearchUtil.KnowledgeReference ref : references) {
+            if (ref == null || ref.path() == null || ref.path().isBlank()) {
+                continue;
+            }
+            java.util.LinkedHashSet<String> pageLabels = shownPaths.get(ref.path());
+            if (pageLabels == null) {
+                if (shownPaths.size() >= MarkdownSearchUtil.AI_UI_REFERENCE_LINK_COUNT) {
+                    continue;
+                }
+                pageLabels = new java.util.LinkedHashSet<>();
+                shownPaths.put(ref.path(), pageLabels);
+            }
+            pageLabels.addAll(extractAiReferencePageLabels(ref.title()));
+        }
+        for (java.util.Map.Entry<String, java.util.LinkedHashSet<String>> entry : shownPaths.entrySet()) {
+            String path = entry.getKey();
+            if (path == null || path.isBlank()) {
+                continue;
+            }
+            String linkTarget = path.replace('\\', '/');
+            String title;
+            try {
+                title = Paths.get(path).getFileName().toString();
+            } catch (Exception ex) {
+                title = linkTarget;
+            }
+            String pageSuffix = formatAiReferencePageSuffix(entry.getValue());
+            builder.append(displayIndex++)
                     .append(". [")
                     .append(title)
+                    .append(pageSuffix)
                     .append("](")
                     .append(linkTarget)
                     .append(")\n");
         }
         return builder.toString().trim();
+    }
+
+    private List<String> extractAiReferencePageLabels(String title) {
+        if (title == null || title.isBlank()) {
+            return List.of();
+        }
+        String detail = title;
+        int splitIndex = detail.indexOf(" · ");
+        if (splitIndex >= 0 && splitIndex + 3 < detail.length()) {
+            detail = detail.substring(splitIndex + 3);
+        }
+        List<String> pageLabels = new ArrayList<>();
+        Matcher matcher = AI_REFERENCE_PAGE_PATTERN.matcher(detail);
+        while (matcher.find()) {
+            pageLabels.add(matcher.group());
+        }
+        return pageLabels;
+    }
+
+    private String formatAiReferencePageSuffix(java.util.LinkedHashSet<String> pageLabels) {
+        if (pageLabels == null || pageLabels.isEmpty()) {
+            return "";
+        }
+        return "（" + String.join("、", pageLabels) + "）";
     }
 
     private List<AiConversationMessage> snapshotAiConversationHistory() {

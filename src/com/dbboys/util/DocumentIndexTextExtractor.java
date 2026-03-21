@@ -44,6 +44,9 @@ final class DocumentIndexTextExtractor {
     private static final int MAX_EXTRACTED_LENGTH = 1_000_000;
     private static final Path PDFBOX_FONT_CACHE_DIR = Path.of("data", "pdfbox-font-cache");
 
+    record PdfPageText(int pageNumber, String text) {
+    }
+
     private DocumentIndexTextExtractor() {
     }
 
@@ -57,11 +60,46 @@ final class DocumentIndexTextExtractor {
             case "md", "markdown" -> Files.readString(file);
             case "docx", "docm" -> extractDocxText(file);
             case "doc" -> extractLegacyWordText(file);
-            case "pdf" -> extractPdfText(file);
+            case "pdf" -> joinPdfPageTexts(extractPdfPages(file));
             case "pptx", "pptm", "ppt" -> extractPowerPointText(file);
             default -> "";
         };
         return limitLength(normalizeExtractedText(text));
+    }
+
+    static List<PdfPageText> extractPdfPages(Path file) throws IOException {
+        initializePdfBoxFontCache();
+        try (PDDocument document = Loader.loadPDF(file.toFile())) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            stripper.setSuppressDuplicateOverlappingText(true);
+            stripper.setAddMoreFormatting(true);
+            int totalPages = document.getNumberOfPages();
+            List<PdfPageText> pages = new ArrayList<>(Math.max(totalPages, 0));
+            for (int pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+                stripper.setStartPage(pageNumber);
+                stripper.setEndPage(pageNumber);
+                String text = normalizeExtractedText(stripper.getText(document));
+                if (!text.isBlank()) {
+                    pages.add(new PdfPageText(pageNumber, text));
+                }
+            }
+            return pages;
+        }
+    }
+
+    static String joinPdfPageTexts(List<PdfPageText> pages) {
+        if (pages == null || pages.isEmpty()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (PdfPageText page : pages) {
+            if (page == null || page.text() == null || page.text().isBlank()) {
+                continue;
+            }
+            appendText(builder, page.text());
+        }
+        return limitLength(builder.toString());
     }
 
     private static String extractDocxText(Path file) throws IOException {
@@ -153,17 +191,6 @@ final class DocumentIndexTextExtractor {
         }
         byte[] bytes = Files.readAllBytes(file);
         return extractBinaryTextRuns(bytes, 4, 6);
-    }
-
-    private static String extractPdfText(Path file) throws IOException {
-        initializePdfBoxFontCache();
-        try (PDDocument document = Loader.loadPDF(file.toFile())) {
-            PDFTextStripper stripper = new PDFTextStripper();
-            stripper.setSortByPosition(true);
-            stripper.setSuppressDuplicateOverlappingText(true);
-            stripper.setAddMoreFormatting(true);
-            return stripper.getText(document);
-        }
     }
 
     private static String extractPowerPointText(Path file) throws IOException {
