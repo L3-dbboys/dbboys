@@ -29,7 +29,7 @@ jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml
 echo Minimized JRE created.
 
 :: Package exe
-jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx512m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml"
+jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx1024m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml"
 echo Packaging finished.
 
 :: Delete temp file sources.txt generated during compile
