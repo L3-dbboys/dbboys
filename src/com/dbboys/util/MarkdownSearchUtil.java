@@ -63,6 +63,31 @@ final class MarkdownSearchNormalizer {
     private static final Pattern ASCII_TOKEN_SPACES = Pattern.compile("(?<=[A-Za-z0-9])\\s+(?=[A-Za-z0-9])");
     private static final Pattern MULTI_SPACE = Pattern.compile("\\s+");
     private static final Pattern QUERY_CONCEPT_PATTERN = Pattern.compile("[A-Za-z0-9]+|\\p{IsHan}+");
+    private static final List<String> QUERY_NOISE_PHRASES = List.of(
+            "麻烦帮我看一下", "麻烦帮我查一下", "麻烦帮我搜一下", "麻烦帮我找一下",
+            "请帮我看一下", "请帮我查一下", "请帮我搜一下", "请帮我找一下",
+            "帮我看一下", "帮我查一下", "帮我搜一下", "帮我找一下",
+            "给我看一下", "给我查一下", "给我搜一下", "给我找一下",
+            "我想问一下", "我想了解一下", "我想咨询一下", "我想请教一下",
+            "想问一下", "想了解一下", "想咨询一下", "想请教一下",
+            "请问一下", "麻烦看一下", "麻烦查一下", "麻烦搜一下", "麻烦找一下",
+            "帮我看下", "帮我查下", "帮我搜下", "帮我找下",
+            "给我看下", "给我查下", "给我搜下", "给我找下",
+            "我想知道", "我想了解", "我想咨询", "我想请教",
+            "想知道", "想了解", "想咨询", "想请教",
+            "请帮我", "帮我", "给我", "麻烦", "请问",
+            "看一下", "查一下", "搜一下", "找一下", "问一下", "说一下", "讲一下",
+            "看下", "查下", "搜下", "找下", "问下", "说下", "讲下",
+            "能不能", "可不可以", "有没有", "怎么", "如何", "怎样");
+    private static final Set<String> QUERY_STOP_WORDS = Set.of(
+            "我", "你", "他", "她", "它", "咱", "咱们",
+            "要", "想", "找", "查", "看", "问", "搜", "说", "讲",
+            "我要", "我想", "想要", "需要", "帮我", "给我", "麻烦", "劳烦",
+            "请问", "请教", "咨询", "了解", "知道", "帮忙", "求助",
+            "怎么", "如何", "怎样", "咋", "啥", "什么", "哪个", "哪里",
+            "有无", "有没有", "是否", "能否", "可否", "能不能", "可不可以",
+            "一下", "一下子", "一下儿", "下",
+            "这边", "这里", "这个", "那个", "就是", "有关", "关于");
 
     private MarkdownSearchNormalizer() {
     }
@@ -72,8 +97,12 @@ final class MarkdownSearchNormalizer {
             return "";
         }
         String normalized = keyword.trim();
+        normalized = stripQueryNoisePhrases(normalized);
         normalized = ASCII_HAN_BOUNDARY_1.matcher(normalized).replaceAll(" ");
         normalized = ASCII_HAN_BOUNDARY_2.matcher(normalized).replaceAll(" ");
+        normalized = stripQueryNoisePhrases(normalized);
+        normalized = MULTI_SPACE.matcher(normalized).replaceAll(" ").trim();
+        normalized = filterStopWordsBeforeSearch(normalized);
         normalized = MULTI_SPACE.matcher(normalized).replaceAll(" ").trim();
         return normalized;
     }
@@ -98,24 +127,76 @@ final class MarkdownSearchNormalizer {
         return ASCII_TOKEN_SPACES.matcher(normalized).replaceAll("");
     }
 
-    static List<String> extractQueryConcepts(String keyword) {
+    static List<String> extractQueryConcepts(String keyword, List<String> analyzedTokens) {
+        LinkedHashSet<String> concepts = new LinkedHashSet<>();
+        if (analyzedTokens != null) {
+            for (String token : analyzedTokens) {
+                String normalizedToken = normalizeConcept(token);
+                if (!normalizedToken.isBlank()) {
+                    concepts.add(normalizedToken);
+                }
+            }
+        }
+        if (!concepts.isEmpty()) {
+            return new ArrayList<>(concepts);
+        }
+
         String normalized = normalizeQuery(keyword).toLowerCase();
         if (normalized.isBlank()) {
             return Collections.emptyList();
         }
-        LinkedHashSet<String> concepts = new LinkedHashSet<>();
         Matcher matcher = QUERY_CONCEPT_PATTERN.matcher(normalized);
         while (matcher.find()) {
-            String concept = matcher.group();
-            if (concept == null || concept.isBlank()) {
-                continue;
+            String concept = normalizeConcept(matcher.group());
+            if (!concept.isBlank()) {
+                concepts.add(concept);
             }
-            if (concept.matches("[a-z0-9]+") && concept.length() <= 1) {
-                continue;
-            }
-            concepts.add(concept);
         }
         return new ArrayList<>(concepts);
+    }
+
+    private static String stripQueryNoisePhrases(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        String normalized = text;
+        for (String phrase : QUERY_NOISE_PHRASES) {
+            normalized = normalized.replace(phrase, " ");
+        }
+        return normalized;
+    }
+
+    private static String normalizeConcept(String token) {
+        return token == null ? "" : token.trim().toLowerCase();
+    }
+
+    private static String filterStopWordsBeforeSearch(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        LinkedHashSet<String> filteredTokens = new LinkedHashSet<>();
+        try (Analyzer analyzer = new SmartChineseAnalyzer();
+             TokenStream ts = analyzer.tokenStream("content", text)) {
+            ts.reset();
+            while (ts.incrementToken()) {
+                String normalizedToken = normalizeConcept(
+                        ts.getAttribute(org.apache.lucene.analysis.tokenattributes.CharTermAttribute.class).toString());
+                if (normalizedToken.isBlank() || QUERY_STOP_WORDS.contains(normalizedToken)) {
+                    continue;
+                }
+                filteredTokens.add(normalizedToken);
+            }
+            ts.end();
+        } catch (Exception ignored) {
+            for (String token : text.split("\\s+")) {
+                String normalizedToken = normalizeConcept(token);
+                if (normalizedToken.isBlank() || QUERY_STOP_WORDS.contains(normalizedToken)) {
+                    continue;
+                }
+                filteredTokens.add(normalizedToken);
+            }
+        }
+        return String.join(" ", filteredTokens);
     }
 }
 
@@ -337,7 +418,7 @@ class LuceneSearcher {
                                                      boolean strict) throws Exception {
         String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(keyword);
         List<String> tokens = analyzeQueryTerms(normalizedKeyword);
-        List<String> queryConcepts = MarkdownSearchNormalizer.extractQueryConcepts(normalizedKeyword);
+        List<String> queryConcepts = MarkdownSearchNormalizer.extractQueryConcepts(normalizedKeyword, tokens);
         Query query = buildQuery(normalizedKeyword, tokens, strict);
         if (query instanceof MatchNoDocsQuery) {
             return Collections.emptyList();
@@ -786,7 +867,7 @@ public class MarkdownSearchUtil {
         TextFlow flow = new TextFlow();
         flow.setLineSpacing(2);
 
-        String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(keyword);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
         if (normalizedKeyword.isBlank()) {
             flow.getChildren().add(new Text(item.path + "\n"));
             return flow;
@@ -806,7 +887,9 @@ public class MarkdownSearchUtil {
             log.debug("Tokenizer failed, falling back to raw keyword", e);
         }
 
-        if (tokens.isEmpty()) tokens.add(normalizedKeyword);
+        if (tokens.isEmpty()) {
+            tokens.add(normalizedKeyword);
+        }
 
         // ====== 高亮路径 ======
         String fullPath = item.path;
@@ -926,7 +1009,11 @@ public class MarkdownSearchUtil {
         if (searchText.isEmpty()) {
             return;
         }
-        keywordField = searchText;
+        keywordField = MarkdownSearchNormalizer.normalizeQuery(searchText);
+        if (keywordField.isBlank()) {
+            searchResultPopup.hide();
+            return;
+        }
         // 在后台线程执行 Lucene 检索与摘要生成，避免阻塞 JavaFX 线程导致界面卡顿
         AppExecutor.runAsync(() -> {
         try {
@@ -1014,7 +1101,7 @@ public class MarkdownSearchUtil {
 
     public static void warmUpIndex() {
         try  {
-            keywordField=warmUpKeywordBinding.get();
+            keywordField = MarkdownSearchNormalizer.normalizeQuery(warmUpKeywordBinding.get());
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
             searcher.search(keywordField, SEARCH_UI_FETCH_LIMIT);
         } catch (Exception e) {
@@ -1028,13 +1115,14 @@ public class MarkdownSearchUtil {
      * 回复中可再只展示前 {@link #AI_UI_REFERENCE_LINK_COUNT} 条文档链接。
      */
     public static List<KnowledgeReference> loadAiKnowledgeFromSearch(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
+        String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(keyword);
+        if (normalizedKeyword.isBlank()) {
             return Collections.emptyList();
         }
         try {
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
             int fetchSize = Math.max(AI_PROMPT_SNIPPET_COUNT, SEARCH_UI_FETCH_LIMIT);
-            List<LuceneSearcher.SearchResult> results = searcher.search(keyword.trim(), fetchSize);
+            List<LuceneSearcher.SearchResult> results = searcher.search(normalizedKeyword, fetchSize);
             List<KnowledgeReference> references = new ArrayList<>();
             for (LuceneSearcher.SearchResult item : results) {
                 if (references.size() >= AI_PROMPT_SNIPPET_COUNT) {
