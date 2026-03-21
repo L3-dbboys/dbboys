@@ -525,6 +525,7 @@ class LuceneSearcher {
         root.setMinimumNumberShouldMatch(1);
 
         addQuery(root, buildExactNameQuery(keyword), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildHanIntentQuery(tokens, strict), BooleanClause.Occur.SHOULD);
         if (tokens != null && tokens.size() > 1) {
             int allTerms = tokens.size();
             addQuery(root, buildTermSetQuery(LuceneIndexer.FIELD_FILENAME_TEXT, tokens, allTerms, strict ? 4.2f : 3.8f),
@@ -587,7 +588,7 @@ class LuceneSearcher {
             }
             query = builder.build();
         }
-        return new BoostQuery(query, boost);
+        return new BoostQuery(query, boost * averageTokenBoost(field, tokens));
     }
 
     private Query buildTermSetQuery(String field, List<String> tokens, int minShouldMatch, float boost) {
@@ -600,7 +601,8 @@ class LuceneSearcher {
             if (token == null || token.isBlank()) {
                 continue;
             }
-            builder.add(new TermQuery(new Term(field, token)), BooleanClause.Occur.SHOULD);
+            builder.add(new BoostQuery(new TermQuery(new Term(field, token)), tokenMatchBoost(field, token)),
+                    BooleanClause.Occur.SHOULD);
             added++;
         }
         if (added == 0) {
@@ -610,6 +612,80 @@ class LuceneSearcher {
             builder.setMinimumNumberShouldMatch(Math.min(Math.max(minShouldMatch, 1), added));
         }
         return new BoostQuery(builder.build(), boost);
+    }
+
+    private Query buildHanIntentQuery(List<String> tokens, boolean strict) {
+        if (tokens == null || tokens.isEmpty()) {
+            return null;
+        }
+        List<String> hanTokens = new ArrayList<>();
+        for (String token : tokens) {
+            if (containsHanToken(token)) {
+                hanTokens.add(token);
+            }
+        }
+        if (hanTokens.isEmpty()) {
+            return null;
+        }
+
+        BooleanQuery.Builder builder = new BooleanQuery.Builder();
+        int allHanTerms = hanTokens.size();
+        addQuery(builder, buildTermSetQuery(LuceneIndexer.FIELD_TITLE_TEXT, hanTokens, allHanTerms, strict ? 12.0f : 10.0f),
+                BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildTermSetQuery(LuceneIndexer.FIELD_PATH_TEXT, hanTokens, allHanTerms, strict ? 10.0f : 8.5f),
+                BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildTermSetQuery(LuceneIndexer.FIELD_FILENAME_TEXT, hanTokens, allHanTerms, strict ? 8.0f : 6.5f),
+                BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildPhraseQuery(LuceneIndexer.FIELD_TITLE_TEXT, hanTokens, strict ? 7.0f : 6.0f),
+                BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildPhraseQuery(LuceneIndexer.FIELD_PATH_TEXT, hanTokens, strict ? 6.0f : 5.0f),
+                BooleanClause.Occur.SHOULD);
+        addQuery(builder, buildPhraseQuery(LuceneIndexer.FIELD_FILENAME_TEXT, hanTokens, strict ? 5.0f : 4.0f),
+                BooleanClause.Occur.SHOULD);
+        BooleanQuery built = builder.build();
+        return built.clauses().isEmpty() ? null : built;
+    }
+
+    private float averageTokenBoost(String field, List<String> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return 1f;
+        }
+        float total = 0f;
+        int count = 0;
+        for (String token : tokens) {
+            if (token == null || token.isBlank()) {
+                continue;
+            }
+            total += tokenMatchBoost(field, token);
+            count++;
+        }
+        return count == 0 ? 1f : total / count;
+    }
+
+    private float tokenMatchBoost(String field, String token) {
+        String normalizedToken = token == null ? "" : token.trim().toLowerCase();
+        if (normalizedToken.isBlank()) {
+            return 1f;
+        }
+        if (containsHanToken(normalizedToken)) {
+            if (LuceneIndexer.FIELD_PATH_TEXT.equals(field)
+                    || LuceneIndexer.FIELD_TITLE_TEXT.equals(field)
+                    || LuceneIndexer.FIELD_FILENAME_TEXT.equals(field)) {
+                return 2.8f;
+            }
+            return 2.0f;
+        }
+        if (normalizedToken.matches("[a-z0-9]+")) {
+            if (LuceneIndexer.FIELD_PATH_TEXT.equals(field)) {
+                return 0.35f;
+            }
+            if (LuceneIndexer.FIELD_TITLE_TEXT.equals(field)
+                    || LuceneIndexer.FIELD_FILENAME_TEXT.equals(field)) {
+                return 0.65f;
+            }
+            return 0.85f;
+        }
+        return 1.1f;
     }
 
     private List<String> analyzeQueryTerms(String keyword) {
@@ -661,32 +737,71 @@ class LuceneSearcher {
         String contentText = raw.toLowerCase();
         String contentCompact = MarkdownSearchNormalizer.compactAsciiText(contentText);
 
-        int pathHits = 0;
-        int contentHits = 0;
+        float totalConceptWeight = 0f;
+        float pathHitsWeight = 0f;
+        float contentHitsWeight = 0f;
+        float chineseConceptWeight = 0f;
+        float chinesePathHitsWeight = 0f;
+        float chineseContentHitsWeight = 0f;
         for (String concept : queryConcepts) {
+            float conceptWeight = conceptWeight(concept);
+            totalConceptWeight += conceptWeight;
+            boolean chineseConcept = containsHanToken(concept);
+            if (chineseConcept) {
+                chineseConceptWeight += conceptWeight;
+            }
             if (containsConcept(pathText, pathCompact, concept)) {
-                pathHits++;
+                pathHitsWeight += conceptWeight;
+                if (chineseConcept) {
+                    chinesePathHitsWeight += conceptWeight;
+                }
             }
             if (containsConcept(contentText, contentCompact, concept)) {
-                contentHits++;
+                contentHitsWeight += conceptWeight;
+                if (chineseConcept) {
+                    chineseContentHitsWeight += conceptWeight;
+                }
             }
         }
 
         float bonus = 0f;
-        if (pathHits == queryConcepts.size()) {
-            bonus += 26f;
-        } else if (pathHits >= Math.max(1, queryConcepts.size() - 1)) {
-            bonus += 10f;
+        float pathHitRatio = totalConceptWeight <= 0f ? 0f : pathHitsWeight / totalConceptWeight;
+        float contentHitRatio = totalConceptWeight <= 0f ? 0f : contentHitsWeight / totalConceptWeight;
+        if (pathHitRatio >= 0.99f) {
+            bonus += 28f;
+        } else if (pathHitRatio >= 0.55f) {
+            bonus += 12f;
         }
-        if (contentHits == queryConcepts.size()) {
-            bonus += 14f;
-        } else if (contentHits >= Math.max(1, queryConcepts.size() - 1)) {
-            bonus += 6f;
+        if (contentHitRatio >= 0.99f) {
+            bonus += 16f;
+        } else if (contentHitRatio >= 0.55f) {
+            bonus += 7f;
+        }
+        if (chineseConceptWeight > 0f) {
+            bonus += 14f * (chinesePathHitsWeight / chineseConceptWeight);
+            bonus += 9f * (chineseContentHitsWeight / chineseConceptWeight);
         }
         if (queryConcepts.contains("安装") && (pathText.contains("安装配置") || pathText.contains("安装"))) {
             bonus += 12f;
         }
         return bonus;
+    }
+
+    private float conceptWeight(String concept) {
+        if (concept == null || concept.isBlank()) {
+            return 0f;
+        }
+        if (containsHanToken(concept)) {
+            return 2.4f;
+        }
+        if (concept.matches("[a-z0-9]+")) {
+            return 0.8f;
+        }
+        return 1.1f;
+    }
+
+    private boolean containsHanToken(String token) {
+        return token != null && token.codePoints().anyMatch(cp -> Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN);
     }
 
     private boolean containsConcept(String text, String compactText, String concept) {
