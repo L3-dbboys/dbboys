@@ -63,9 +63,6 @@ final class MarkdownSearchNormalizer {
     private static final Pattern ASCII_TOKEN_SPACES = Pattern.compile("(?<=[A-Za-z0-9])\\s+(?=[A-Za-z0-9])");
     private static final Pattern MULTI_SPACE = Pattern.compile("\\s+");
     private static final Pattern QUERY_CONCEPT_PATTERN = Pattern.compile("[A-Za-z0-9]+|\\p{IsHan}+");
-    private static final Pattern DATABASE_KEYWORD_PATTERN =
-            Pattern.compile("(?i)[a-z][a-z0-9]*(?:[&._+-][a-z0-9]+)*");
-    private static final int MAX_DATABASE_KEYWORDS_PER_TEXT = 512;
     private static final List<String> QUERY_NOISE_PHRASES = List.of(
             "麻烦帮我看一下", "麻烦帮我查一下", "麻烦帮我搜一下", "麻烦帮我找一下",
             "请帮我看一下", "请帮我查一下", "请帮我搜一下", "请帮我找一下",
@@ -91,41 +88,6 @@ final class MarkdownSearchNormalizer {
             "有无", "有没有", "是否", "能否", "可否", "能不能", "可不可以",
             "一下", "一下子", "一下儿", "下",
             "这边", "这里", "这个", "那个", "就是", "有关", "关于");
-    private static final Set<String> DATABASE_KEYWORD_EXACT = Set.of(
-            "gbase", "gbase8s", "gbasedb", "gbasedbt", "gbasejdbc", "gbasedatastudio", "gbasemtkweb",
-            "dbaccess", "dbexport", "dbimport", "dbschema", "dbspace", "dbspaces", "dbname", "dbhost",
-            "dbexport&dbimport", "load", "unload", "load&unload", "onload", "onunload", "onload&onunload",
-            "onbar", "oncheck", "ondblog", "oninit", "onmode", "onparams", "onspaces", "onstat", "ontape",
-            "onconfig", "sqlhost", "sqlhosts", "onsoctcp", "jdbc", "odbc", "esqlc", "csdk", "gsdk",
-            "hac", "rhac", "ssc", "isql", "pdq", "fet_buf_size", "blobclob", "jaydebeapi", "mybatisplus");
-    private static final Set<String> SQL_KEYWORD_EXACT = Collections.unmodifiableSet(new LinkedHashSet<>(List.of(
-            "select", "insert", "update", "delete", "merge", "replace", "into", "values", "from", "where",
-            "group", "having", "order", "limit", "offset", "distinct", "all", "as", "and", "or", "not",
-            "in", "exists", "between", "like", "escape", "is", "null", "true", "false", "join", "inner",
-            "left", "right", "full", "outer", "cross", "natural", "using", "union", "intersect", "except",
-            "minus", "with", "recursive", "case", "when", "then", "else", "end", "if", "begin", "commit",
-            "rollback", "savepoint", "transaction", "work", "cursor", "open", "fetch", "close", "return",
-            "returns", "returning", "for", "while", "loop", "create", "alter", "alert", "drop", "truncate",
-            "rename", "comment", "grant", "revoke", "lock", "unlock", "analyze", "explain", "describe", "desc",
-            "show", "database", "schema", "table", "view", "index", "trigger", "procedure", "function",
-            "routine", "package", "sequence", "synonym", "role", "user", "profile", "tablespace", "primary",
-            "foreign", "references", "constraint", "check", "default", "unique", "key", "cascade", "restrict",
-            "deferrable", "deferred", "immediate", "temporary", "temp", "global", "local", "char", "character",
-            "varchar", "varchar2", "nvarchar", "nvarchar2", "nchar", "lvarchar", "text", "byte", "blob", "clob",
-            "json", "jsonb", "xml", "smallint", "integer", "int", "int1", "int2", "int4", "int8", "serial",
-            "serial8", "bigserial", "bigint", "decimal", "dec", "numeric", "money", "smallfloat", "float",
-            "real", "double", "precision", "date", "datetime", "timestamp", "interval", "year", "month", "day",
-            "hour", "minute", "second", "boolean", "bool", "count", "sum", "avg", "min", "max", "substr",
-            "substring", "length", "char_length", "octet_length", "upper", "lower", "trim", "ltrim", "rtrim",
-            "replace", "instr", "position", "concat", "decode", "nvl", "nvl2", "coalesce", "nullif", "greatest",
-            "least", "abs", "mod", "power", "sqrt", "round", "floor", "ceil", "ceiling", "trunc", "sign", "exp",
-            "log", "ln", "sin", "cos", "tan", "asin", "acos", "atan", "to_char", "to_date", "to_number", "cast",
-            "convert", "extract", "extend", "mdy", "today", "current", "current_date", "current_time",
-            "current_timestamp", "sysdate", "dbinfo", "rowid", "rownum")));
-    private static final List<String> DATABASE_KEYWORD_PREFIXES = List.of(
-            "gbase", "db", "sqlhost", "sqlhosts", "odbc", "jdbc", "esql", "csdk", "gsdk",
-            "rhac", "hac", "ssc", "onbar", "oncheck", "ondblog", "oninit", "onload",
-            "onmode", "onparams", "onspaces", "onstat", "ontape", "onunload", "onconfig");
 
     private MarkdownSearchNormalizer() {
     }
@@ -190,28 +152,7 @@ final class MarkdownSearchNormalizer {
                 concepts.add(concept);
             }
         }
-        concepts.addAll(extractDatabaseKeywords(keyword));
         return new ArrayList<>(concepts);
-    }
-
-    static List<String> extractDatabaseKeywords(String... texts) {
-        LinkedHashSet<String> keywords = new LinkedHashSet<>();
-        if (texts == null || texts.length == 0) {
-            return Collections.emptyList();
-        }
-        for (String text : texts) {
-            if (text == null || text.isBlank() || keywords.size() >= MAX_DATABASE_KEYWORDS_PER_TEXT) {
-                continue;
-            }
-            Matcher matcher = DATABASE_KEYWORD_PATTERN.matcher(text);
-            while (matcher.find() && keywords.size() < MAX_DATABASE_KEYWORDS_PER_TEXT) {
-                String candidate = normalizeConcept(matcher.group());
-                if (looksLikeDatabaseKeyword(candidate)) {
-                    keywords.add(candidate);
-                }
-            }
-        }
-        return new ArrayList<>(keywords);
     }
 
     private static String stripQueryNoisePhrases(String text) {
@@ -227,31 +168,6 @@ final class MarkdownSearchNormalizer {
 
     private static String normalizeConcept(String token) {
         return token == null ? "" : token.trim().toLowerCase();
-    }
-
-    private static boolean looksLikeDatabaseKeyword(String token) {
-        if (token == null || token.isBlank() || token.length() < 2) {
-            return false;
-        }
-        if (SQL_KEYWORD_EXACT.contains(token)) {
-            return true;
-        }
-        if (DATABASE_KEYWORD_EXACT.contains(token)) {
-            return true;
-        }
-        for (String prefix : DATABASE_KEYWORD_PREFIXES) {
-            if (token.startsWith(prefix)) {
-                return true;
-            }
-        }
-        return (token.matches(".*[0-9].*") || token.matches(".*[&._+-].*"))
-                && (token.startsWith("gbase")
-                || token.startsWith("db")
-                || token.startsWith("sql")
-                || token.startsWith("ha")
-                || token.startsWith("cm")
-                || token.startsWith("odbc")
-                || token.startsWith("jdbc"));
     }
 
     private static String filterStopWordsBeforeSearch(String text) {
@@ -303,7 +219,6 @@ class LuceneIndexer {
     static final String FIELD_TITLE_TEXT = "title_text";
     static final String FIELD_CONTENT = "content";
     static final String FIELD_CONTENT_PREVIEW = "content_preview";
-    static final String FIELD_DATABASE_KEYWORD = "db_keyword";
     static final String FIELD_MODIFIED = "modified";
     static final String FIELD_MODIFIED_STORED = "modified_stored";
     private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("(?m)^#{1,6}\\s+(.+?)\\s*$");
@@ -395,9 +310,6 @@ class LuceneIndexer {
                     FIELD_TITLE_TEXT,
                     MarkdownSearchNormalizer.enrichIndexText(titleText),
                     Field.Store.NO));
-        }
-        for (String keyword : MarkdownSearchNormalizer.extractDatabaseKeywords(rawPath, fileName, fileStem, titleText, content)) {
-            doc.add(new StringField(FIELD_DATABASE_KEYWORD, keyword, Field.Store.NO));
         }
 
         // content: 仅用于分词检索，不存整篇正文，避免搜索命中后把大文档整篇读回内存。
@@ -621,7 +533,6 @@ class LuceneSearcher {
         root.setMinimumNumberShouldMatch(1);
 
         addQuery(root, buildExactNameQuery(keyword), BooleanClause.Occur.SHOULD);
-        addQuery(root, buildDatabaseKeywordQuery(keyword, strict), BooleanClause.Occur.SHOULD);
         addQuery(root, buildHanIntentQuery(tokens, strict), BooleanClause.Occur.SHOULD);
         if (tokens != null && tokens.size() > 1) {
             int allTerms = tokens.size();
@@ -741,51 +652,6 @@ class LuceneSearcher {
                 BooleanClause.Occur.SHOULD);
         BooleanQuery built = builder.build();
         return built.clauses().isEmpty() ? null : built;
-    }
-
-    private Query buildDatabaseKeywordQuery(String keyword, boolean strict) {
-        List<String> databaseKeywords = MarkdownSearchNormalizer.extractDatabaseKeywords(keyword);
-        if (databaseKeywords.isEmpty()) {
-            return null;
-        }
-        BooleanQuery.Builder builder = new BooleanQuery.Builder();
-        addQuery(builder, buildDatabaseKeywordSetQuery(databaseKeywords, strict ? 24.0f : 20.0f),
-                BooleanClause.Occur.SHOULD);
-        for (String dbKeyword : databaseKeywords) {
-            if (dbKeyword == null || dbKeyword.isBlank()) {
-                continue;
-            }
-            float boost = strict ? 18.0f : 15.0f;
-            builder.add(new BoostQuery(
-                            new TermQuery(new Term(LuceneIndexer.FIELD_DATABASE_KEYWORD, dbKeyword)),
-                            boost),
-                    BooleanClause.Occur.SHOULD);
-        }
-        BooleanQuery built = builder.build();
-        return built.clauses().isEmpty() ? null : built;
-    }
-
-    private Query buildDatabaseKeywordSetQuery(List<String> keywords, float boost) {
-        if (keywords == null || keywords.isEmpty()) {
-            return null;
-        }
-        BooleanQuery.Builder builder = new BooleanQuery.Builder();
-        int added = 0;
-        for (String keyword : keywords) {
-            if (keyword == null || keyword.isBlank()) {
-                continue;
-            }
-            builder.add(new TermQuery(new Term(LuceneIndexer.FIELD_DATABASE_KEYWORD, keyword)),
-                    BooleanClause.Occur.SHOULD);
-            added++;
-        }
-        if (added == 0) {
-            return null;
-        }
-        if (added > 1) {
-            builder.setMinimumNumberShouldMatch(added);
-        }
-        return new BoostQuery(builder.build(), boost);
     }
 
     private float averageTokenBoost(String field, List<String> tokens) {
