@@ -855,7 +855,7 @@ public class MainController {
         String safeQuestion = userQuestion == null ? "" : userQuestion.trim();
         StringBuilder prompt = new StringBuilder();
         prompt.append("请优先参考下面提供的知识库检索结果回答用户问题。");
-        prompt.append("如果检索内容不足以支撑结论，可以结合通用知识或网络信息回答。");
+        prompt.append("如果检索内容不足以支撑结论，结合通用知识或网络信息补充完整。");
         if (history != null && !history.isEmpty()) {
             prompt.append("\n\n最近对话历史（按时间顺序，最多保留最近")
                     .append(AI_HISTORY_TURNS)

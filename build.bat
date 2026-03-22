@@ -19,13 +19,18 @@ echo Source compilation completed.
 :: Copy fxml and css folders to bin
 xcopy /e /h /y /q "src\com\dbboys\fxml\*" "bin\com\dbboys\fxml\"
 xcopy /e /h /y /q "src\com\dbboys\css\*" "bin\com\dbboys\css\"
+copy /y "src\IKAnalyzer.cfg.xml" "bin\" >nul
+copy /y "src\ik-domain-commands.dic" "bin\" >nul
+copy /y "src\ik-domain-envvars.dic" "bin\" >nul
+copy /y "src\ik-domain-system-objects.dic" "bin\" >nul
+copy /y "src\ik-stopwords.dic" "bin\" >nul
 
 :: Build jar file
 jar --create --file lib/lib_nonmodular/dbboys.jar --main-class com.dbboys.app.Main -C bin .
 echo dbboys.jar created.
 
 :: Create minimized JRE
-jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.analysis.smartcn,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core  --output jre-min --strip-debug --no-man-pages  --no-header-files
+jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core  --output jre-min --strip-debug --no-man-pages  --no-header-files
 echo Minimized JRE created.
 
 :: Package exe

@@ -20,7 +20,6 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.cn.smart.SmartChineseAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -38,10 +37,15 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.wltea.analyzer.lucene.IKAnalyzer;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.awt.Desktop;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -50,6 +54,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -57,7 +62,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+final class MarkdownSearchAnalyzers {
+    private static final boolean IK_USE_SMART = true;
+
+    private MarkdownSearchAnalyzers() {
+    }
+
+    static Analyzer createAnalyzer() {
+        return new IKAnalyzer(IK_USE_SMART);
+    }
+}
+
 final class MarkdownSearchNormalizer {
+    private static final Logger log = LogManager.getLogger(MarkdownSearchNormalizer.class);
     private static final Pattern ASCII_HAN_BOUNDARY_1 = Pattern.compile("(?<=[A-Za-z0-9_])(?=\\p{IsHan})");
     private static final Pattern ASCII_HAN_BOUNDARY_2 = Pattern.compile("(?<=\\p{IsHan})(?=[A-Za-z0-9_])");
     private static final Pattern ASCII_TOKEN_SPACES = Pattern.compile("(?<=[A-Za-z0-9_])\\s+(?=[A-Za-z0-9_])");
@@ -65,6 +82,35 @@ final class MarkdownSearchNormalizer {
     private static final Pattern QUERY_CONCEPT_PATTERN = Pattern.compile("[A-Za-z0-9_]+|\\p{IsHan}+");
     private static final Pattern EXACT_IDENTIFIER_PATTERN =
             Pattern.compile("(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+)(?![A-Za-z0-9_])");
+    private static final Pattern ASCII_EXACT_TOKEN_PATTERN =
+            Pattern.compile("(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*)(?![A-Za-z0-9_])");
+    private static final Pattern ERROR_CODE_PATTERN =
+            Pattern.compile("(?<![A-Za-z0-9])(-\\d{3,6}|\\d{5,6})(?![A-Za-z0-9])");
+    private static final Pattern QUALIFIED_SYSTEM_OBJECT_PATTERN =
+            Pattern.compile("(?i)(?<![A-Za-z0-9_])([A-Za-z0-9_]+@[A-Za-z0-9_]+:[A-Za-z0-9_]+|[A-Za-z0-9_]+:[A-Za-z0-9_]+)(?![A-Za-z0-9_])");
+    private static final Pattern SYSTEM_OBJECT_PATTERN =
+            Pattern.compile("(?i)(?<![A-Za-z0-9_])(sys[a-z0-9_]{2,})(?![A-Za-z0-9_])");
+    private static final Set<String> DEFAULT_KNOWN_COMMANDS = Set.of(
+            "onstat", "onmode", "onbar", "ontape", "oninit", "oncheck", "onspaces", "ondblog",
+            "onparams", "onload", "onunload", "dbaccess", "dbexport", "dbimport", "dbschema",
+            "tbmode", "xctl");
+    private static final Set<String> KNOWN_COMMANDS =
+            loadNormalizedDictionary("ik-domain-commands.dic", DEFAULT_KNOWN_COMMANDS);
+    private static final Map<String, String> COMMAND_ALIASES = Map.of(
+            "db-access", "dbaccess"
+    );
+    private static final Set<String> DEFAULT_KNOWN_ENV_VARS = Set.of(
+            "gbasedbtserver", "gbasedbtdir", "gbasedbtsqlhosts", "db_locale", "client_locale",
+            "server_locale", "dblang", "lang", "onconfig", "dbservername", "dbserveraliases",
+            "ifx_lock_mode_wait", "ifx_isolation_level", "ifx_trimtrailingspaces",
+            "allow_newline", "auto_reprepare", "ltapedev", "msgpath");
+    private static final Set<String> KNOWN_ENV_VARS =
+            loadNormalizedDictionary("ik-domain-envvars.dic", DEFAULT_KNOWN_ENV_VARS);
+    private static final Set<String> DEFAULT_KNOWN_SYSTEM_OBJECTS = Set.of(
+            "sysmaster", "systables", "sysindexes", "syscolumns", "sysdatabases", "sysdbslocale",
+            "syssynonyms", "sysnewdepend", "sysuser", "sysusers", "sysadmin", "dual");
+    private static final Set<String> KNOWN_SYSTEM_OBJECTS =
+            loadNormalizedDictionary("ik-domain-system-objects.dic", DEFAULT_KNOWN_SYSTEM_OBJECTS);
     private static final List<String> QUERY_NOISE_PHRASES = List.of(
             "麻烦帮我看一下", "麻烦帮我查一下", "麻烦帮我搜一下", "麻烦帮我找一下",
             "请帮我看一下", "请帮我查一下", "请帮我搜一下", "请帮我找一下",
@@ -81,15 +127,17 @@ final class MarkdownSearchNormalizer {
             "看一下", "查一下", "搜一下", "找一下", "问一下", "说一下", "讲一下",
             "看下", "查下", "搜下", "找下", "问下", "说下", "讲下",
             "能不能", "可不可以", "有没有", "怎么", "如何", "怎样");
-    private static final Set<String> QUERY_STOP_WORDS = Set.of(
-            "我", "你", "他", "她", "它", "咱", "咱们",
-            "要", "想", "找", "查", "看", "问", "搜", "说", "讲",
-            "我要", "我想", "想要", "需要", "帮我", "给我", "麻烦", "劳烦",
-            "请问", "请教", "咨询", "了解", "知道", "帮忙", "求助",
-            "怎么", "如何", "怎样", "咋", "啥", "什么", "哪个", "哪里",
-            "有无", "有没有", "是否", "能否", "可否", "能不能", "可不可以",
-            "一下", "一下子", "一下儿", "下",
-            "这边", "这里", "这个", "那个", "就是", "有关", "关于");
+
+    record ExactMatchTerms(List<String> allIdentifiers,
+                           List<String> errorCodes,
+                           List<String> commands,
+                           List<String> environmentVariables,
+                           List<String> systemObjects) {
+        static ExactMatchTerms empty() {
+            return new ExactMatchTerms(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
+                    Collections.emptyList(), Collections.emptyList());
+        }
+    }
 
     private MarkdownSearchNormalizer() {
     }
@@ -170,18 +218,66 @@ final class MarkdownSearchNormalizer {
     }
 
     static List<String> extractExactIdentifiers(String text) {
+        return extractExactMatchTerms(text).allIdentifiers();
+    }
+
+    static ExactMatchTerms extractExactMatchTerms(String text) {
         if (text == null || text.isBlank()) {
-            return Collections.emptyList();
+            return ExactMatchTerms.empty();
         }
         LinkedHashSet<String> identifiers = new LinkedHashSet<>();
+        LinkedHashSet<String> errorCodes = new LinkedHashSet<>();
+        LinkedHashSet<String> commands = new LinkedHashSet<>();
+        LinkedHashSet<String> environmentVariables = new LinkedHashSet<>();
+        LinkedHashSet<String> systemObjects = new LinkedHashSet<>();
+
+        collectPatternMatches(ERROR_CODE_PATTERN, text, errorCodes);
+        identifiers.addAll(errorCodes);
+
         Matcher matcher = EXACT_IDENTIFIER_PATTERN.matcher(text);
         while (matcher.find()) {
-            String identifier = normalizeConcept(matcher.group(1));
-            if (!identifier.isBlank()) {
-                identifiers.add(identifier);
+            addNormalizedToken(identifiers, matcher.group(1));
+        }
+
+        collectPatternMatches(QUALIFIED_SYSTEM_OBJECT_PATTERN, text, systemObjects);
+        collectPatternMatches(SYSTEM_OBJECT_PATTERN, text, systemObjects);
+        identifiers.addAll(systemObjects);
+
+        Matcher asciiTokenMatcher = ASCII_EXACT_TOKEN_PATTERN.matcher(text);
+        while (asciiTokenMatcher.find()) {
+            String rawToken = asciiTokenMatcher.group(1);
+            String normalizedToken = normalizeConcept(rawToken);
+            if (normalizedToken.isBlank()) {
+                continue;
+            }
+            if (rawToken.indexOf('_') >= 0 || looksLikeStrongHyphenatedIdentifier(rawToken)) {
+                identifiers.add(normalizedToken);
+            }
+
+            String canonicalCommand = canonicalCommand(normalizedToken);
+            if (canonicalCommand != null) {
+                commands.add(canonicalCommand);
+                identifiers.add(canonicalCommand);
+                identifiers.add(normalizedToken);
+            }
+
+            if (isEnvironmentVariableCandidate(rawToken, normalizedToken)) {
+                environmentVariables.add(normalizedToken);
+                identifiers.add(normalizedToken);
+            }
+
+            if (isBareSystemObjectCandidate(normalizedToken)) {
+                systemObjects.add(normalizedToken);
+                identifiers.add(normalizedToken);
             }
         }
-        return new ArrayList<>(identifiers);
+
+        return new ExactMatchTerms(
+                new ArrayList<>(identifiers),
+                new ArrayList<>(errorCodes),
+                new ArrayList<>(commands),
+                new ArrayList<>(environmentVariables),
+                new ArrayList<>(systemObjects));
     }
 
     private static String stripQueryNoisePhrases(String text) {
@@ -197,6 +293,106 @@ final class MarkdownSearchNormalizer {
 
     private static String normalizeConcept(String token) {
         return token == null ? "" : token.trim().toLowerCase();
+    }
+
+    private static Set<String> loadNormalizedDictionary(String resourceName, Set<String> fallbackValues) {
+        LinkedHashSet<String> loadedValues = new LinkedHashSet<>();
+        if (resourceName != null && !resourceName.isBlank()) {
+            try (InputStream inputStream = MarkdownSearchNormalizer.class.getClassLoader().getResourceAsStream(resourceName)) {
+                if (inputStream != null) {
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String normalized = normalizeConcept(stripDictionaryComment(line));
+                            if (!normalized.isBlank()) {
+                                loadedValues.add(normalized);
+                            }
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                log.warn("Failed to load dictionary resource: {}", resourceName, e);
+            }
+        }
+        if (!loadedValues.isEmpty()) {
+            return Collections.unmodifiableSet(loadedValues);
+        }
+        if (fallbackValues == null || fallbackValues.isEmpty()) {
+            return Collections.emptySet();
+        }
+        LinkedHashSet<String> normalizedFallback = new LinkedHashSet<>();
+        for (String fallbackValue : fallbackValues) {
+            String normalized = normalizeConcept(fallbackValue);
+            if (!normalized.isBlank()) {
+                normalizedFallback.add(normalized);
+            }
+        }
+        return Collections.unmodifiableSet(normalizedFallback);
+    }
+
+    private static String stripDictionaryComment(String line) {
+        if (line == null || line.isBlank()) {
+            return "";
+        }
+        int commentIndex = line.indexOf('#');
+        String effective = commentIndex >= 0 ? line.substring(0, commentIndex) : line;
+        return effective.trim();
+    }
+
+    private static void collectPatternMatches(Pattern pattern, String text, LinkedHashSet<String> target) {
+        if (pattern == null || text == null || text.isBlank() || target == null) {
+            return;
+        }
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            addNormalizedToken(target, matcher.group(1));
+        }
+    }
+
+    private static void addNormalizedToken(LinkedHashSet<String> target, String token) {
+        String normalizedToken = normalizeConcept(token);
+        if (!normalizedToken.isBlank()) {
+            target.add(normalizedToken);
+        }
+    }
+
+    private static boolean looksLikeStrongHyphenatedIdentifier(String token) {
+        if (token == null || token.isBlank() || token.indexOf('-') < 0) {
+            return false;
+        }
+        String normalized = normalizeConcept(token);
+        return normalized.startsWith("db")
+                || normalized.startsWith("gbase")
+                || normalized.endsWith("admin")
+                || token.chars().anyMatch(Character::isUpperCase)
+                || token.chars().anyMatch(Character::isDigit);
+    }
+
+    private static String canonicalCommand(String normalizedToken) {
+        if (normalizedToken == null || normalizedToken.isBlank()) {
+            return null;
+        }
+        String alias = COMMAND_ALIASES.get(normalizedToken);
+        if (alias != null) {
+            return alias;
+        }
+        return KNOWN_COMMANDS.contains(normalizedToken) ? normalizedToken : null;
+    }
+
+    private static boolean isEnvironmentVariableCandidate(String rawToken, String normalizedToken) {
+        if (rawToken == null || rawToken.isBlank() || normalizedToken == null || normalizedToken.isBlank()) {
+            return false;
+        }
+        if (rawToken.indexOf('_') >= 0) {
+            return rawToken.equals(rawToken.toUpperCase());
+        }
+        return KNOWN_ENV_VARS.contains(normalizedToken);
+    }
+
+    private static boolean isBareSystemObjectCandidate(String normalizedToken) {
+        return normalizedToken != null
+                && ((normalizedToken.startsWith("sys") && normalizedToken.length() > 4)
+                || KNOWN_SYSTEM_OBJECTS.contains(normalizedToken));
     }
 
     static List<String> pruneShortQueryTokens(List<String> tokens) {
@@ -239,13 +435,13 @@ final class MarkdownSearchNormalizer {
             return "";
         }
         LinkedHashSet<String> filteredTokens = new LinkedHashSet<>();
-        try (Analyzer analyzer = new SmartChineseAnalyzer();
+        try (Analyzer analyzer = MarkdownSearchAnalyzers.createAnalyzer();
              TokenStream ts = analyzer.tokenStream("content", text)) {
             ts.reset();
             while (ts.incrementToken()) {
                 String normalizedToken = normalizeConcept(
                         ts.getAttribute(org.apache.lucene.analysis.tokenattributes.CharTermAttribute.class).toString());
-                if (normalizedToken.isBlank() || QUERY_STOP_WORDS.contains(normalizedToken)) {
+                if (normalizedToken.isBlank()) {
                     continue;
                 }
                 filteredTokens.add(normalizedToken);
@@ -254,7 +450,7 @@ final class MarkdownSearchNormalizer {
         } catch (Exception ignored) {
             for (String token : text.split("\\s+")) {
                 String normalizedToken = normalizeConcept(token);
-                if (normalizedToken.isBlank() || QUERY_STOP_WORDS.contains(normalizedToken)) {
+                if (normalizedToken.isBlank()) {
                     continue;
                 }
                 filteredTokens.add(normalizedToken);
@@ -287,6 +483,10 @@ class LuceneIndexer {
     static final String FIELD_CONTENT = "content";
     static final String FIELD_CONTENT_PREVIEW = "content_preview";
     static final String FIELD_IDENTIFIER_EXACT = "identifier_exact";
+    static final String FIELD_ERROR_CODE_EXACT = "error_code_exact";
+    static final String FIELD_COMMAND_EXACT = "command_exact";
+    static final String FIELD_ENV_VAR_EXACT = "env_var_exact";
+    static final String FIELD_SYSTEM_OBJECT_EXACT = "system_object_exact";
     static final String FIELD_DOC_TYPE = "doc_type";
     static final String FIELD_AI_SOURCE_PATH_RAW = "ai_source_path_raw";
     static final String FIELD_AI_PATH_TEXT = "ai_path_text";
@@ -296,6 +496,10 @@ class LuceneIndexer {
     static final String FIELD_AI_CONTENT_PREVIEW = "ai_content_preview";
     static final String FIELD_AI_HEADING_STORED = "ai_heading_stored";
     static final String FIELD_AI_IDENTIFIER_EXACT = "ai_identifier_exact";
+    static final String FIELD_AI_ERROR_CODE_EXACT = "ai_error_code_exact";
+    static final String FIELD_AI_COMMAND_EXACT = "ai_command_exact";
+    static final String FIELD_AI_ENV_VAR_EXACT = "ai_env_var_exact";
+    static final String FIELD_AI_SYSTEM_OBJECT_EXACT = "ai_system_object_exact";
     static final String FIELD_MODIFIED = "modified";
     static final String FIELD_MODIFIED_STORED = "modified_stored";
     private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("(?m)^#{1,6}\\s+(.+?)\\s*$");
@@ -316,7 +520,7 @@ class LuceneIndexer {
 
     public LuceneIndexer(Path indexDir) {
         this.indexDir = indexDir;
-        this.analyzer = new SmartChineseAnalyzer(); // 中文分词器
+        this.analyzer = MarkdownSearchAnalyzers.createAnalyzer();
     }
 
     /**
@@ -416,10 +620,14 @@ class LuceneIndexer {
         }
         doc.add(new org.apache.lucene.document.TextField(FIELD_CONTENT, content, Field.Store.NO));
         doc.add(new StoredField(FIELD_CONTENT_PREVIEW, contentPreview));
-        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, rawPath);
-        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, fileName);
-        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, titleText);
-        addExactIdentifierFields(doc, FIELD_IDENTIFIER_EXACT, content);
+        addDomainExactFields(doc, FIELD_IDENTIFIER_EXACT, FIELD_ERROR_CODE_EXACT, FIELD_COMMAND_EXACT,
+                FIELD_ENV_VAR_EXACT, FIELD_SYSTEM_OBJECT_EXACT, rawPath);
+        addDomainExactFields(doc, FIELD_IDENTIFIER_EXACT, FIELD_ERROR_CODE_EXACT, FIELD_COMMAND_EXACT,
+                FIELD_ENV_VAR_EXACT, FIELD_SYSTEM_OBJECT_EXACT, fileName);
+        addDomainExactFields(doc, FIELD_IDENTIFIER_EXACT, FIELD_ERROR_CODE_EXACT, FIELD_COMMAND_EXACT,
+                FIELD_ENV_VAR_EXACT, FIELD_SYSTEM_OBJECT_EXACT, titleText);
+        addDomainExactFields(doc, FIELD_IDENTIFIER_EXACT, FIELD_ERROR_CODE_EXACT, FIELD_COMMAND_EXACT,
+                FIELD_ENV_VAR_EXACT, FIELD_SYSTEM_OBJECT_EXACT, content);
         doc.add(new LongPoint(FIELD_MODIFIED, modified));
         doc.add(new StoredField(FIELD_MODIFIED_STORED, modified));
         return doc;
@@ -460,10 +668,14 @@ class LuceneIndexer {
             if (!heading.isBlank()) {
                 doc.add(new StoredField(FIELD_AI_HEADING_STORED, heading));
             }
-            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, rawPath);
-            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, fileName);
-            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, headingText);
-            addExactIdentifierFields(doc, FIELD_AI_IDENTIFIER_EXACT, chunk.text());
+            addDomainExactFields(doc, FIELD_AI_IDENTIFIER_EXACT, FIELD_AI_ERROR_CODE_EXACT, FIELD_AI_COMMAND_EXACT,
+                    FIELD_AI_ENV_VAR_EXACT, FIELD_AI_SYSTEM_OBJECT_EXACT, rawPath);
+            addDomainExactFields(doc, FIELD_AI_IDENTIFIER_EXACT, FIELD_AI_ERROR_CODE_EXACT, FIELD_AI_COMMAND_EXACT,
+                    FIELD_AI_ENV_VAR_EXACT, FIELD_AI_SYSTEM_OBJECT_EXACT, fileName);
+            addDomainExactFields(doc, FIELD_AI_IDENTIFIER_EXACT, FIELD_AI_ERROR_CODE_EXACT, FIELD_AI_COMMAND_EXACT,
+                    FIELD_AI_ENV_VAR_EXACT, FIELD_AI_SYSTEM_OBJECT_EXACT, headingText);
+            addDomainExactFields(doc, FIELD_AI_IDENTIFIER_EXACT, FIELD_AI_ERROR_CODE_EXACT, FIELD_AI_COMMAND_EXACT,
+                    FIELD_AI_ENV_VAR_EXACT, FIELD_AI_SYSTEM_OBJECT_EXACT, chunk.text());
             doc.add(new LongPoint(FIELD_MODIFIED, modified));
             doc.add(new StoredField(FIELD_MODIFIED_STORED, modified));
             docs.add(doc);
@@ -471,12 +683,33 @@ class LuceneIndexer {
         return docs;
     }
 
-    private static void addExactIdentifierFields(Document doc, String fieldName, String text) {
+    private static void addDomainExactFields(Document doc,
+                                             String identifierField,
+                                             String errorCodeField,
+                                             String commandField,
+                                             String envVarField,
+                                             String systemObjectField,
+                                             String text) {
         if (doc == null || text == null || text.isBlank()) {
             return;
         }
-        for (String identifier : MarkdownSearchNormalizer.extractExactIdentifiers(text)) {
-            doc.add(new StringField(fieldName, identifier, Field.Store.NO));
+        MarkdownSearchNormalizer.ExactMatchTerms exactTerms = MarkdownSearchNormalizer.extractExactMatchTerms(text);
+        addExactStringFields(doc, identifierField, exactTerms.allIdentifiers());
+        addExactStringFields(doc, errorCodeField, exactTerms.errorCodes());
+        addExactStringFields(doc, commandField, exactTerms.commands());
+        addExactStringFields(doc, envVarField, exactTerms.environmentVariables());
+        addExactStringFields(doc, systemObjectField, exactTerms.systemObjects());
+    }
+
+    private static void addExactStringFields(Document doc, String fieldName, List<String> values) {
+        if (doc == null || fieldName == null || fieldName.isBlank() || values == null || values.isEmpty()) {
+            return;
+        }
+        for (String value : values) {
+            if (value == null || value.isBlank()) {
+                continue;
+            }
+            doc.add(new StringField(fieldName, value, Field.Store.NO));
         }
     }
 
@@ -839,6 +1072,29 @@ class LuceneSearcher {
         AI_CHUNK
     }
 
+    private record AiIntentProfile(boolean enabled,
+                                   boolean exactErrorCode,
+                                   boolean errorHandling,
+                                   boolean installConfig,
+                                   boolean development,
+                                   boolean monitoring,
+                                   boolean operations,
+                                   boolean migration,
+                                   boolean architecture,
+                                   boolean reference,
+                                   boolean commandQuery,
+                                   boolean environmentQuery,
+                                   boolean systemObjectQuery) {
+        static AiIntentProfile disabled() {
+            return new AiIntentProfile(false, false, false, false, false, false, false,
+                    false, false, false, false, false, false);
+        }
+
+        boolean prefersConciseDocs() {
+            return enabled && !reference && !exactErrorCode;
+        }
+    }
+
     private static final Logger log = LogManager.getLogger(LuceneSearcher.class);
     private static final int DEFAULT_SNIPPET_CONTEXT_CHARS = 30;
     private static final int DEFAULT_FALLBACK_SNIPPET_CHARS = 120;
@@ -860,7 +1116,7 @@ class LuceneSearcher {
             LuceneIndexer.FIELD_AI_CONTENT_PREVIEW,
             LuceneIndexer.FIELD_AI_HEADING_STORED);
     private final Path indexDir;
-    private final Analyzer analyzer = new SmartChineseAnalyzer();
+    private final Analyzer analyzer = MarkdownSearchAnalyzers.createAnalyzer();
 
     public LuceneSearcher(Path indexDir) {
         this.indexDir = indexDir;
@@ -868,17 +1124,17 @@ class LuceneSearcher {
 
     public List<LuceneSearcher.SearchResult> search(String keyword, int limit) throws Exception {
         return search(keyword, limit, DEFAULT_SNIPPET_CONTEXT_CHARS, DEFAULT_FALLBACK_SNIPPET_CHARS,
-                DEFAULT_BOUNDARY_WINDOW_CHARS, false, SearchMode.FILE);
+                DEFAULT_BOUNDARY_WINDOW_CHARS, false, SearchMode.FILE, false);
     }
 
     public List<LuceneSearcher.SearchResult> searchForAi(String keyword, int limit) throws Exception {
         List<LuceneSearcher.SearchResult> chunkResults = search(keyword, limit, AI_SNIPPET_CONTEXT_CHARS,
-                AI_FALLBACK_SNIPPET_CHARS, AI_BOUNDARY_WINDOW_CHARS, false, SearchMode.AI_CHUNK);
+                AI_FALLBACK_SNIPPET_CHARS, AI_BOUNDARY_WINDOW_CHARS, false, SearchMode.AI_CHUNK, true);
         if (!chunkResults.isEmpty()) {
             return chunkResults;
         }
         return search(keyword, limit, AI_SNIPPET_CONTEXT_CHARS, AI_FALLBACK_SNIPPET_CHARS,
-                AI_BOUNDARY_WINDOW_CHARS, false, SearchMode.FILE);
+                AI_BOUNDARY_WINDOW_CHARS, false, SearchMode.FILE, true);
     }
 
     private List<LuceneSearcher.SearchResult> search(String keyword,
@@ -887,14 +1143,17 @@ class LuceneSearcher {
                                                      int fallbackSnippetChars,
                                                      int boundaryWindowChars,
                                                      boolean strict,
-                                                     SearchMode searchMode) throws Exception {
+                                                     SearchMode searchMode,
+                                                     boolean aiRanking) throws Exception {
         String normalizedKeyword = MarkdownSearchNormalizer.normalizeQuery(keyword);
-        List<String> exactIdentifiers = MarkdownSearchNormalizer.extractExactIdentifiers(keyword);
+        MarkdownSearchNormalizer.ExactMatchTerms exactMatchTerms = MarkdownSearchNormalizer.extractExactMatchTerms(keyword);
+        List<String> exactIdentifiers = exactMatchTerms.allIdentifiers();
         List<String> tokens = analyzeQueryTerms(normalizedKeyword);
         List<String> queryConcepts = MarkdownSearchNormalizer.extractQueryConcepts(normalizedKeyword, tokens, exactIdentifiers);
+        AiIntentProfile aiIntent = detectAiIntent(keyword, normalizedKeyword, tokens, queryConcepts, exactMatchTerms, aiRanking);
         Query query = searchMode == SearchMode.AI_CHUNK
-                ? buildAiChunkQuery(tokens, exactIdentifiers, strict)
-                : buildQuery(keyword, tokens, exactIdentifiers, strict);
+                ? buildAiChunkQuery(tokens, exactMatchTerms, strict)
+                : buildQuery(keyword, tokens, exactMatchTerms, strict);
         if (query instanceof MatchNoDocsQuery) {
             return Collections.emptyList();
         }
@@ -945,7 +1204,7 @@ class LuceneSearcher {
                     String fallback = content.length() > fallbackSnippetChars
                             ? content.substring(0, fallbackSnippetChars) + " ... "
                             : content;
-                float adjustedScore = sd.score + computeHeuristicBonus(path, content, queryConcepts);
+                float adjustedScore = sd.score + computeHeuristicBonus(path, title, content, queryConcepts, aiIntent);
                 results.add(new LuceneSearcher.SearchResult(path, title, adjustedScore, fallback));
                 continue;
             }
@@ -992,7 +1251,7 @@ class LuceneSearcher {
             // 如果你想返回带 <mark> 的 snippet，可以在此用正则替换 token 为 <mark>xxx</mark>
             // 但注意：你现在的 UI 用 TextFlow 对 snippet 做高亮，这里返回原文更灵活。
 
-                float adjustedScore = sd.score + computeHeuristicBonus(path, content, queryConcepts);
+                float adjustedScore = sd.score + computeHeuristicBonus(path, title, content, queryConcepts, aiIntent);
                 results.add(new LuceneSearcher.SearchResult(path, title, adjustedScore, snippet));
             }
 
@@ -1000,12 +1259,23 @@ class LuceneSearcher {
         return results;
     }
 
-    private Query buildQuery(String keyword, List<String> tokens, List<String> exactIdentifiers, boolean strict) {
+    private Query buildQuery(String keyword,
+                             List<String> tokens,
+                             MarkdownSearchNormalizer.ExactMatchTerms exactMatchTerms,
+                             boolean strict) {
         BooleanQuery.Builder root = new BooleanQuery.Builder();
         root.setMinimumNumberShouldMatch(1);
 
         addQuery(root, buildExactNameQuery(keyword), BooleanClause.Occur.SHOULD);
-        addQuery(root, buildExactIdentifierQuery(exactIdentifiers), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.allIdentifiers()), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.errorCodes(),
+                LuceneIndexer.FIELD_ERROR_CODE_EXACT, strict ? 24.0f : 21.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.commands(),
+                LuceneIndexer.FIELD_COMMAND_EXACT, strict ? 19.0f : 17.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.environmentVariables(),
+                LuceneIndexer.FIELD_ENV_VAR_EXACT, strict ? 21.0f : 18.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.systemObjects(),
+                LuceneIndexer.FIELD_SYSTEM_OBJECT_EXACT, strict ? 20.0f : 18.0f), BooleanClause.Occur.SHOULD);
         addQuery(root, buildHanIntentQuery(tokens, strict), BooleanClause.Occur.SHOULD);
         if (tokens != null && tokens.size() > 1) {
             int allTerms = tokens.size();
@@ -1036,12 +1306,23 @@ class LuceneSearcher {
         return built;
     }
 
-    private Query buildAiChunkQuery(List<String> tokens, List<String> exactIdentifiers, boolean strict) {
+    private Query buildAiChunkQuery(List<String> tokens,
+                                    MarkdownSearchNormalizer.ExactMatchTerms exactMatchTerms,
+                                    boolean strict) {
         BooleanQuery.Builder root = new BooleanQuery.Builder();
         root.setMinimumNumberShouldMatch(1);
 
-        addQuery(root, buildExactIdentifierQuery(exactIdentifiers, LuceneIndexer.FIELD_AI_IDENTIFIER_EXACT, 17.0f),
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.allIdentifiers(),
+                LuceneIndexer.FIELD_AI_IDENTIFIER_EXACT, 17.0f),
                 BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.errorCodes(),
+                LuceneIndexer.FIELD_AI_ERROR_CODE_EXACT, strict ? 28.0f : 25.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.commands(),
+                LuceneIndexer.FIELD_AI_COMMAND_EXACT, strict ? 22.0f : 19.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.environmentVariables(),
+                LuceneIndexer.FIELD_AI_ENV_VAR_EXACT, strict ? 24.0f : 20.0f), BooleanClause.Occur.SHOULD);
+        addQuery(root, buildExactIdentifierQuery(exactMatchTerms.systemObjects(),
+                LuceneIndexer.FIELD_AI_SYSTEM_OBJECT_EXACT, strict ? 24.0f : 21.0f), BooleanClause.Occur.SHOULD);
         addQuery(root, buildAiHanIntentQuery(tokens, strict), BooleanClause.Occur.SHOULD);
         if (tokens != null && tokens.size() > 1) {
             int allTerms = tokens.size();
@@ -1217,6 +1498,95 @@ class LuceneSearcher {
         return builder.build();
     }
 
+    private AiIntentProfile detectAiIntent(String rawKeyword,
+                                           String normalizedKeyword,
+                                           List<String> tokens,
+                                           List<String> queryConcepts,
+                                           MarkdownSearchNormalizer.ExactMatchTerms exactMatchTerms,
+                                           boolean enabled) {
+        if (!enabled) {
+            return AiIntentProfile.disabled();
+        }
+
+        String combinedText = combineQuerySignals(rawKeyword, normalizedKeyword, tokens, queryConcepts,
+                exactMatchTerms == null ? Collections.emptyList() : exactMatchTerms.allIdentifiers());
+        boolean exactErrorCode = exactMatchTerms != null && !exactMatchTerms.errorCodes().isEmpty();
+        boolean commandQuery = exactMatchTerms != null && !exactMatchTerms.commands().isEmpty();
+        boolean environmentQuery = exactMatchTerms != null && !exactMatchTerms.environmentVariables().isEmpty();
+        boolean systemObjectQuery = exactMatchTerms != null && !exactMatchTerms.systemObjects().isEmpty();
+
+        boolean errorHandling = exactErrorCode
+                || containsAnyText(combinedText, "错误", "报错", "异常", "故障", "失败", "告警", "error", "sqlcode", "errno", "排查", "修复");
+        boolean installConfig = environmentQuery
+                || containsAnyText(combinedText, "安装", "部署", "配置", "初始化", "环境变量", "字符集", "实例", "sqlhosts", "onconfig");
+        boolean development = containsAnyText(combinedText, "jdbc", "odbc", "esql", "gcci", "mybatis", "mybatisplus",
+                "sqlalchemy", "jaydebeapi", "pyodbc", "pdo_gbasedbt")
+                || (containsAnyText(combinedText, "java", "python", "php", "c++", "c#", "c-sharp")
+                && containsAnyText(combinedText, "连接", "示例", "驱动", "调用"));
+        boolean monitoring = systemObjectQuery
+                || containsAnyText(combinedText, "监控", "巡检", "性能", "会话", "锁表", "锁等待", "空间", "日志",
+                "sysmaster", "systables", "sysindexes", "online.log");
+        boolean migration = containsAnyText(combinedText, "迁移", "导出", "导入", "dbexport", "dbimport",
+                "load", "unload", "备份", "恢复", "onbar", "ontape");
+        boolean architecture = containsAnyText(combinedText, "内部架构", "内部", "架构", "存储结构", "页头",
+                "bitmap", "tblspace", "chunk", "page", "rootdbs");
+        boolean reference = containsAnyText(combinedText, "手册", "指南", "参考", "语法", "manual",
+                "reference", "pdf", "官方文档", "参数说明");
+        boolean operations = commandQuery
+                || containsAnyText(combinedText, "命令", "脚本", "运维", "启动", "关闭", "重启", "状态", "巡检", "参数");
+
+        return new AiIntentProfile(true, exactErrorCode, errorHandling, installConfig, development, monitoring,
+                operations, migration, architecture, reference, commandQuery, environmentQuery, systemObjectQuery);
+    }
+
+    private String combineQuerySignals(String rawKeyword,
+                                       String normalizedKeyword,
+                                       List<String> tokens,
+                                       List<String> queryConcepts,
+                                       List<String> exactIdentifiers) {
+        StringBuilder builder = new StringBuilder();
+        appendQuerySignal(builder, rawKeyword);
+        appendQuerySignal(builder, normalizedKeyword);
+        if (tokens != null) {
+            for (String token : tokens) {
+                appendQuerySignal(builder, token);
+            }
+        }
+        if (queryConcepts != null) {
+            for (String concept : queryConcepts) {
+                appendQuerySignal(builder, concept);
+            }
+        }
+        if (exactIdentifiers != null) {
+            for (String identifier : exactIdentifiers) {
+                appendQuerySignal(builder, identifier);
+            }
+        }
+        return builder.toString();
+    }
+
+    private void appendQuerySignal(StringBuilder builder, String value) {
+        if (builder == null || value == null || value.isBlank()) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+        builder.append(value.toLowerCase());
+    }
+
+    private boolean containsAnyText(String text, String... keywords) {
+        if (text == null || text.isBlank() || keywords == null || keywords.length == 0) {
+            return false;
+        }
+        for (String keyword : keywords) {
+            if (keyword != null && !keyword.isBlank() && text.contains(keyword.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private float averageTokenBoost(String field, List<String> tokens) {
         if (tokens == null || tokens.isEmpty()) {
             return 1f;
@@ -1304,12 +1674,18 @@ class LuceneSearcher {
         return Math.min(tokenCount, Math.max(1, (int) Math.ceil(tokenCount * 0.5)));
     }
 
-    private float computeHeuristicBonus(String path, String content, List<String> queryConcepts) {
+    private float computeHeuristicBonus(String path,
+                                        String title,
+                                        String content,
+                                        List<String> queryConcepts,
+                                        AiIntentProfile aiIntent) {
         if (queryConcepts == null || queryConcepts.isEmpty()) {
-            return 0f;
+            return computeAiIntentBonus(path, aiIntent);
         }
         String pathText = path == null ? "" : path.toLowerCase();
         String pathCompact = MarkdownSearchNormalizer.compactAsciiText(pathText);
+        String titleText = title == null ? "" : title.toLowerCase();
+        String titleCompact = MarkdownSearchNormalizer.compactAsciiText(titleText);
         String raw = content == null ? "" : content;
         if (raw.length() > MAX_CONTENT_SCAN_CHARS) {
             raw = raw.substring(0, MAX_CONTENT_SCAN_CHARS);
@@ -1319,9 +1695,11 @@ class LuceneSearcher {
 
         float totalConceptWeight = 0f;
         float pathHitsWeight = 0f;
+        float titleHitsWeight = 0f;
         float contentHitsWeight = 0f;
         float chineseConceptWeight = 0f;
         float chinesePathHitsWeight = 0f;
+        float chineseTitleHitsWeight = 0f;
         float chineseContentHitsWeight = 0f;
         for (String concept : queryConcepts) {
             float conceptWeight = conceptWeight(concept);
@@ -1336,6 +1714,12 @@ class LuceneSearcher {
                     chinesePathHitsWeight += conceptWeight;
                 }
             }
+            if (containsConcept(titleText, titleCompact, concept)) {
+                titleHitsWeight += conceptWeight;
+                if (chineseConcept) {
+                    chineseTitleHitsWeight += conceptWeight;
+                }
+            }
             if (containsConcept(contentText, contentCompact, concept)) {
                 contentHitsWeight += conceptWeight;
                 if (chineseConcept) {
@@ -1346,11 +1730,17 @@ class LuceneSearcher {
 
         float bonus = 0f;
         float pathHitRatio = totalConceptWeight <= 0f ? 0f : pathHitsWeight / totalConceptWeight;
+        float titleHitRatio = totalConceptWeight <= 0f ? 0f : titleHitsWeight / totalConceptWeight;
         float contentHitRatio = totalConceptWeight <= 0f ? 0f : contentHitsWeight / totalConceptWeight;
         if (pathHitRatio >= 0.99f) {
             bonus += 28f;
         } else if (pathHitRatio >= 0.55f) {
             bonus += 12f;
+        }
+        if (titleHitRatio >= 0.99f) {
+            bonus += 18f;
+        } else if (titleHitRatio >= 0.55f) {
+            bonus += 8f;
         }
         if (contentHitRatio >= 0.99f) {
             bonus += 16f;
@@ -1359,12 +1749,136 @@ class LuceneSearcher {
         }
         if (chineseConceptWeight > 0f) {
             bonus += 14f * (chinesePathHitsWeight / chineseConceptWeight);
+            bonus += 8f * (chineseTitleHitsWeight / chineseConceptWeight);
             bonus += 9f * (chineseContentHitsWeight / chineseConceptWeight);
         }
         if (queryConcepts.contains("安装") && (pathText.contains("安装配置") || pathText.contains("安装"))) {
             bonus += 12f;
         }
-        return bonus;
+        return bonus + computeAiIntentBonus(pathText, aiIntent);
+    }
+
+    private float computeAiIntentBonus(String path, AiIntentProfile aiIntent) {
+        if (aiIntent == null || !aiIntent.enabled() || path == null || path.isBlank()) {
+            return 0f;
+        }
+        String normalizedPath = path.toLowerCase().replace('/', '\\');
+        float bonus = 0f;
+
+        boolean isPdf = normalizedPath.contains("\\pdf\\") || normalizedPath.endsWith(".pdf");
+        boolean isWordDoc = normalizedPath.contains("\\word\\")
+                || normalizedPath.endsWith(".doc") || normalizedPath.endsWith(".docx")
+                || normalizedPath.endsWith(".ppt") || normalizedPath.endsWith(".pptx");
+        boolean isGenericErrorCompendium = normalizedPath.contains("\\12-错误说明\\error-")
+                || normalizedPath.contains("\\12-错误说明\\erro-")
+                || normalizedPath.contains("\\12-错误说明\\error0")
+                || normalizedPath.contains("\\12-错误说明\\error-other");
+        boolean isErrorMessagePdf = normalizedPath.contains("错误消息.pdf");
+
+        if (aiIntent.exactErrorCode()) {
+            if (normalizedPath.contains("\\10-错误处理\\")) {
+                bonus += 24f;
+            }
+            if (normalizedPath.contains("\\12-错误说明\\")) {
+                bonus += 18f;
+            }
+            if (normalizedPath.contains("\\09-应急处理\\")) {
+                bonus += 8f;
+            }
+            if (isErrorMessagePdf) {
+                bonus += 6f;
+            }
+        } else if (aiIntent.errorHandling()) {
+            if (normalizedPath.contains("\\10-错误处理\\")) {
+                bonus += 18f;
+            }
+            if (normalizedPath.contains("\\09-应急处理\\")) {
+                bonus += 12f;
+            }
+            if (normalizedPath.contains("\\12-错误说明\\")) {
+                bonus += 8f;
+            }
+        }
+
+        if (aiIntent.installConfig()) {
+            if (normalizedPath.contains("\\02-安装配置\\")) {
+                bonus += 18f;
+            }
+            if (normalizedPath.contains("\\01-快速入门\\")) {
+                bonus += 10f;
+            }
+        }
+
+        if (aiIntent.development()) {
+            if (normalizedPath.contains("\\03-开发示例\\")) {
+                bonus += 20f;
+            }
+            if (aiIntent.reference() && (normalizedPath.contains("jdbc driver 程序员指南.pdf")
+                    || normalizedPath.contains("odbc driver 程序员指南.pdf")
+                    || normalizedPath.contains("esqlc 编程指南.pdf"))) {
+                bonus += 10f;
+            }
+        }
+
+        if (aiIntent.monitoring() || aiIntent.commandQuery() || aiIntent.systemObjectQuery()) {
+            if (normalizedPath.contains("\\07-监控巡检\\")) {
+                bonus += 18f;
+            }
+            if (normalizedPath.contains("\\06-常用脚本\\")) {
+                bonus += 16f;
+            }
+            if (normalizedPath.contains("\\04-运维管理\\")) {
+                bonus += 8f;
+            }
+        }
+
+        if (aiIntent.migration()) {
+            if (normalizedPath.contains("\\05-数据迁移\\")) {
+                bonus += 18f;
+            }
+            if (aiIntent.reference() && normalizedPath.contains("备份与恢复指南.pdf")) {
+                bonus += 9f;
+            }
+        }
+
+        if (aiIntent.architecture() && normalizedPath.contains("\\11-内部架构\\")) {
+            bonus += 20f;
+        }
+
+        if (aiIntent.operations()) {
+            if (normalizedPath.contains("\\04-运维管理\\")) {
+                bonus += 12f;
+            }
+            if (aiIntent.reference() && normalizedPath.contains("管理员参考.pdf")) {
+                bonus += 10f;
+            }
+        }
+
+        if (aiIntent.reference()) {
+            if (isPdf) {
+                bonus += 6f;
+            }
+            if (normalizedPath.contains("sql 指南：参考.pdf") || normalizedPath.contains("sql 指南：语法.pdf")) {
+                bonus += 8f;
+            }
+        }
+
+        if (aiIntent.prefersConciseDocs()) {
+            if (isPdf) {
+                bonus -= 10f;
+            }
+            if (isWordDoc) {
+                bonus -= 6f;
+            }
+            if (isGenericErrorCompendium) {
+                bonus -= 12f;
+            }
+            if (!aiIntent.errorHandling() && isErrorMessagePdf) {
+                bonus -= 6f;
+            }
+        }
+
+        return Math.max(-18f, Math.min(38f, bonus));
     }
 
     private float conceptWeight(String concept) {
@@ -1441,7 +1955,7 @@ public class MarkdownSearchUtil {
 
     /**
      * 与 {@link #performSearch(String)} 从 Lucene 拉取的候选条数一致。
-     * 检索在候选集上会做启发式重排；若只拉前几条再重排，前几位会与侧边栏（50 条候选）不一致。
+     * 侧边栏与 AI 都基于同一套 chunk/file 检索链路；若只拉前几条再重排，前几位会与最终展示不一致。
      */
     public static final int SEARCH_UI_FETCH_LIMIT = 50;
 
@@ -1569,13 +2083,13 @@ public class MarkdownSearchUtil {
 
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         if (normalizedKeyword.isBlank()) {
-            flow.getChildren().add(new Text(item.path + "\n"));
+            flow.getChildren().add(new Text(formatSearchResultHeader(item) + "\n"));
             return flow;
         }
 
         // ====== 分词提取 ======
         LinkedHashSet<String> tokenSet = new LinkedHashSet<>(MarkdownSearchNormalizer.extractExactIdentifiers(normalizedKeyword));
-        try (Analyzer analyzer = new SmartChineseAnalyzer();
+        try (Analyzer analyzer = MarkdownSearchAnalyzers.createAnalyzer();
              TokenStream ts = analyzer.tokenStream("content", normalizedKeyword)) {
             ts.reset();
             while (ts.incrementToken()) {
@@ -1593,32 +2107,26 @@ public class MarkdownSearchUtil {
             tokens.add(normalizedKeyword);
         }
 
-        // ====== 高亮路径 ======
-        String fullPath = item.path;
+        // ====== 高亮结果头部（路径 + chunk 标题） ======
         String tokenPattern = tokens.stream()
                 .map(Pattern::quote)
                 .reduce((a, b) -> a + "|" + b)
                 .orElse(Pattern.quote(normalizedKeyword));
-        Pattern pathPattern = Pattern.compile(tokenPattern, Pattern.CASE_INSENSITIVE);
-        Matcher pathMatcher = pathPattern.matcher(fullPath);
-
-        int last = 0;
-        while (pathMatcher.find()) {
-            if (pathMatcher.start() > last) {
-                Text normal = new Text(fullPath.substring(last, pathMatcher.start()));
-                normal.setFont(Font.font("System", FontWeight.BOLD, 10));
-                flow.getChildren().add(normal);
-            }
-            Text match = new Text(fullPath.substring(pathMatcher.start(), pathMatcher.end()));
-            match.setStyle("-fx-fill: -color-danger-7;");
-            match.setFont(Font.font("System", FontWeight.BOLD, 10));
-            flow.getChildren().add(match);
-            last = pathMatcher.end();
-        }
-        if (last < fullPath.length()) {
-            Text tail = new Text(fullPath.substring(last));
-            tail.setFont(Font.font("System", FontWeight.BOLD, 10));
-            flow.getChildren().add(tail);
+        Pattern highlightPattern = Pattern.compile(tokenPattern, Pattern.CASE_INSENSITIVE);
+        appendHighlightedText(flow,
+                item.path == null ? "" : item.path,
+                highlightPattern,
+                Font.font("System", FontWeight.BOLD, 10),
+                null,
+                "-fx-fill: -color-danger-7;");
+        if (item.title != null && !item.title.isBlank()) {
+            flow.getChildren().add(new Text("\n"));
+            appendHighlightedText(flow,
+                    item.title,
+                    highlightPattern,
+                    Font.font("System", FontWeight.SEMI_BOLD, 9),
+                    "-fx-fill: #5f6672;",
+                    "-fx-fill: -color-danger-7;");
         }
 
         flow.getChildren().add(new Text("\n"));
@@ -1635,29 +2143,74 @@ public class MarkdownSearchUtil {
         }
         if (lines.length > 5) limitedSnippet.append("...");
 
-        Matcher snippetMatcher = pathPattern.matcher(limitedSnippet.toString());
-        last = 0;
-        while (snippetMatcher.find()) {
-            if (snippetMatcher.start() > last) {
-                Text normal = new Text(limitedSnippet.substring(last, snippetMatcher.start()));
-                normal.setStyle("-fx-fill: #8a8f98;");
-                normal.setFont(Font.font("System", FontWeight.NORMAL, 8));
-                flow.getChildren().add(normal);
-            }
-            Text match = new Text(limitedSnippet.substring(snippetMatcher.start(), snippetMatcher.end()));
-            match.setStyle("-fx-fill: -color-danger-7;");
-            match.setFont(Font.font("System", FontWeight.NORMAL, 8));
-            flow.getChildren().add(match);
-            last = snippetMatcher.end();
-        }
-        if (last < limitedSnippet.length()) {
-            Text tail = new Text(limitedSnippet.substring(last));
-            tail.setStyle("-fx-fill: #8a8f98;");
-            tail.setFont(Font.font("System", FontWeight.NORMAL, 8));
-            flow.getChildren().add(tail);
-        }
+        appendHighlightedText(flow,
+                limitedSnippet.toString(),
+                highlightPattern,
+                Font.font("System", FontWeight.NORMAL, 8),
+                "-fx-fill: #8a8f98;",
+                "-fx-fill: -color-danger-7;");
 
         return flow;
+    }
+
+    private static String formatSearchResultHeader(LuceneSearcher.SearchResult item) {
+        if (item == null) {
+            return "";
+        }
+        String path = item.path == null ? "" : item.path;
+        String title = item.title == null ? "" : item.title.trim();
+        if (title.isBlank()) {
+            return path;
+        }
+        return path + "\n" + title;
+    }
+
+    private static void appendHighlightedText(TextFlow flow,
+                                              String source,
+                                              Pattern pattern,
+                                              Font font,
+                                              String normalStyle,
+                                              String matchStyle) {
+        if (flow == null || source == null || source.isEmpty()) {
+            return;
+        }
+        if (pattern == null) {
+            Text text = new Text(source);
+            text.setFont(font);
+            if (normalStyle != null && !normalStyle.isBlank()) {
+                text.setStyle(normalStyle);
+            }
+            flow.getChildren().add(text);
+            return;
+        }
+
+        Matcher matcher = pattern.matcher(source);
+        int last = 0;
+        while (matcher.find()) {
+            if (matcher.start() > last) {
+                Text normal = new Text(source.substring(last, matcher.start()));
+                normal.setFont(font);
+                if (normalStyle != null && !normalStyle.isBlank()) {
+                    normal.setStyle(normalStyle);
+                }
+                flow.getChildren().add(normal);
+            }
+            Text match = new Text(source.substring(matcher.start(), matcher.end()));
+            match.setFont(font);
+            if (matchStyle != null && !matchStyle.isBlank()) {
+                match.setStyle(matchStyle);
+            }
+            flow.getChildren().add(match);
+            last = matcher.end();
+        }
+        if (last < source.length()) {
+            Text tail = new Text(source.substring(last));
+            tail.setFont(font);
+            if (normalStyle != null && !normalStyle.isBlank()) {
+                tail.setStyle(normalStyle);
+            }
+            flow.getChildren().add(tail);
+        }
     }
 
 
@@ -1733,7 +2286,7 @@ public class MarkdownSearchUtil {
         AppExecutor.runAsync(() -> {
         try {
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
-            List<LuceneSearcher.SearchResult> results = searcher.search(searchText, SEARCH_UI_FETCH_LIMIT);
+            List<LuceneSearcher.SearchResult> results = searcher.searchForAi(searchText, SEARCH_UI_FETCH_LIMIT);
             Platform.runLater(()->{
                 Stage mainStage = (Stage) AppState.getWindow();
                 if (!popupListenersAdded) {
@@ -1820,7 +2373,7 @@ public class MarkdownSearchUtil {
         try  {
             keywordField = warmUpKeywordBinding.get();
             LuceneSearcher searcher = new LuceneSearcher(indexDir);
-            searcher.search(warmUpKeywordBinding.get(), SEARCH_UI_FETCH_LIMIT);
+            searcher.searchForAi(warmUpKeywordBinding.get(), SEARCH_UI_FETCH_LIMIT);
         } catch (Exception e) {
             log.debug("Index warm-up failed", e);
         }
