@@ -285,6 +285,7 @@ public class Main extends Application {
                         CustomWindowFrameUtil.requestMaximize(frame);
                         //ResizeHelper.addResizeListener(primaryStage);
                         log.info("dbboys已启动。");
+                        UpgradeUtil.checkVersionOnStartup();
 
                     }
                 });

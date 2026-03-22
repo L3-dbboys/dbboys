@@ -30,6 +30,16 @@ public class UpgradeUtil {
     private static final String LINUX_AMD64_VERSION_URL = "https://www.dbboys.com/dl/dbboys/linux/amd64/version.txt";
     private static final String LINUX_AARCH64_VERSION_URL = "https://www.dbboys.com/dl/dbboys/linux/aarch64/version.txt";
 
+    private record VersionCheckResult(Path softDir, Path downloadedPackage, Version latestVersion, String versionDownloadUrl) {
+        private boolean hasDownloadedPackage() {
+            return downloadedPackage != null;
+        }
+
+        private boolean hasNewVersion() {
+            return latestVersion != null && latestVersion.getBuild() > Main.VERSION.getBuild();
+        }
+    }
+
     private UpgradeUtil() {
     }
 
@@ -62,12 +72,58 @@ public class UpgradeUtil {
     }
 
     public static void checkVersion() {
-        checkLatestVersion();
+        triggerVersionCheck(true, true);
+    }
+
+    public static void checkVersionOnStartup() {
+        triggerVersionCheck(false, false);
     }
 
     public static void checkLatestVersion() {
+        triggerVersionCheck(true, true);
+    }
+
+    private static void triggerVersionCheck(boolean notifyLatest, boolean alertOnError) {
+        AppExecutor.runAsync(() -> {
+            try {
+                VersionCheckResult result = resolveVersionCheckResult();
+                Platform.runLater(() -> handleVersionCheckResult(result, notifyLatest));
+            } catch (Exception e) {
+                log.error("Check latest version failed.", e);
+                if (alertOnError) {
+                    Platform.runLater(() -> AlertUtil.CustomAlert(
+                            I18n.t("common.error", "错误"),
+                            e.getMessage()
+                    ));
+                }
+            }
+        });
+    }
+
+    private static VersionCheckResult resolveVersionCheckResult() throws Exception {
+        Path softDir = Path.of(System.getProperty("user.dir"));
+        Path downloadedPackage = findDownloadedUpgradePackage(softDir);
+        if (downloadedPackage != null) {
+            return new VersionCheckResult(softDir, downloadedPackage, null, "");
+        }
+
+        String versionCheckUrl = resolveVersionCheckUrl();
+        URL url = new URL(versionCheckUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setConnectTimeout(2000);
+        conn.setReadTimeout(2000);
+
+        String json;
+        try (InputStream in = conn.getInputStream()) {
+            json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        JSONObject jsonObject = new JSONObject(json);
+        Version lastVersion = new Version(jsonObject);
+        return new VersionCheckResult(softDir, null, lastVersion, lastVersion.getUrl());
+    }
+
+    private static String resolveVersionCheckUrl() {
         String versionCheckUrl = WINDOWS_VERSION_URL;
-        String versionDownloadUrl = "";
         String osName = System.getProperty("os.name");
         String cpuArch = System.getProperty("os.arch");
         if (!osName.contains("Windows")) {
@@ -77,60 +133,61 @@ public class UpgradeUtil {
                 versionCheckUrl = LINUX_AARCH64_VERSION_URL;
             }
         }
-        try {
-            //获取版本信息
-            URL url = new URL(versionCheckUrl);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(2000);
-            conn.setReadTimeout(2000);
+        return versionCheckUrl;
+    }
 
-            String json;
-            try (InputStream in = conn.getInputStream()) {
-                json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            }
-            JSONObject jsonObject = new JSONObject(json);
-            Version lastVersion = new Version(jsonObject);
-            Path softDir = Path.of(System.getProperty("user.dir"));
+    private static Path findDownloadedUpgradePackage(Path softDir) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(softDir, "dbboys.upgrade.*.zip")) {
+            Iterator<Path> it = stream.iterator();
+            return it.hasNext() ? it.next() : null;
+        }
+    }
 
-            //获取upgrade.bat
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(softDir, "dbboys.upgrade.*.zip")) {
-                Iterator<Path> it = stream.iterator();
-                if (it.hasNext()) {
-                    Path file = it.next();
-                    if (AlertUtil.CustomAlertConfirm(
-                            I18n.t("upgrade.confirm.version.title", "版本更新"),
-                            I18n.t("upgrade.confirm.downloaded_package", "升级包\"%s\"已完成下载，确定要升级软件吗？").formatted(file.toAbsolutePath())
-                    )) {
-                        log.info("Start upgrade package: {}", new File(file.toUri()).getName());
-                        runWindowsUpdaterScript(softDir.resolve("app").resolve("upgrade.bat"), softDir);
-                    }
-                    return;
-                }
-            }
-
-            if (lastVersion.getBuild() > Main.VERSION.getBuild()) {
-                versionDownloadUrl = lastVersion.getUrl();
-                if (AlertUtil.CustomAlertConfirm(
-                        I18n.t("upgrade.confirm.version.title", "版本更新"),
-                        I18n.t("upgrade.confirm.new_version_found", "检查到新版本\"%s\"，确定要升级软件吗？").formatted(lastVersion.getVersion())
-                )) {
-                    String defaultName = DownloadManagerUtil.getRealFileNameFromRedirect(versionDownloadUrl);
-                    File saveFile = new File(softDir.toString(), defaultName);  // 自动拼接路径
-                    //下载完后会自动检查文件名，如果是升级包自动升级
-                    DownloadManagerUtil.addDownload(versionDownloadUrl, saveFile, true, null);
-                }
-            } else {
-
-                NotificationUtil.showMainNotification(
-                        I18n.t("upgrade.notice.already_latest", "当前已是最新版本，无需更新！")
-                );
-            }
-
-        } catch (Exception e) {
-            AlertUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
-            log.error(e.getMessage(), e);
+    private static void handleVersionCheckResult(VersionCheckResult result, boolean notifyLatest) {
+        if (result == null) {
+            return;
         }
 
+        if (result.hasDownloadedPackage()) {
+            Path file = result.downloadedPackage();
+            if (AlertUtil.CustomAlertConfirm(
+                    I18n.t("upgrade.confirm.version.title", "版本更新"),
+                    I18n.t("upgrade.confirm.downloaded_package", "升级包\"%s\"已完成下载，确定要升级软件吗？").formatted(file.toAbsolutePath())
+            )) {
+                log.info("Start upgrade package: {}", new File(file.toUri()).getName());
+                try {
+                    runWindowsUpdaterScript(result.softDir().resolve("app").resolve("upgrade.bat"), result.softDir());
+                } catch (IOException e) {
+                    log.error("Run upgrade script failed.", e);
+                    AlertUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
+                }
+            }
+            return;
+        }
+
+        if (result.hasNewVersion()) {
+            Version lastVersion = result.latestVersion();
+            if (AlertUtil.CustomAlertConfirm(
+                    I18n.t("upgrade.confirm.version.title", "版本更新"),
+                    I18n.t("upgrade.confirm.new_version_found", "检查到新版本\"%s\"，确定要升级软件吗？").formatted(lastVersion.getVersion())
+            )) {
+                try {
+                    String defaultName = DownloadManagerUtil.getRealFileNameFromRedirect(result.versionDownloadUrl());
+                    File saveFile = new File(result.softDir().toString(), defaultName);
+                    DownloadManagerUtil.addDownload(result.versionDownloadUrl(), saveFile, true, null);
+                } catch (Exception e) {
+                    log.error("Prepare upgrade download failed.", e);
+                    AlertUtil.CustomAlert(I18n.t("common.error", "错误"), e.getMessage());
+                }
+            }
+            return;
+        }
+
+        if (notifyLatest) {
+            NotificationUtil.showMainNotification(
+                    I18n.t("upgrade.notice.already_latest", "当前已是最新版本，无需更新！")
+            );
+        }
     }
 
     public static void launchBatUpdater(Path batFile, Path appDir) throws IOException {
