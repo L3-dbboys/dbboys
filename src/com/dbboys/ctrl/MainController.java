@@ -52,10 +52,8 @@ public class MainController {
     private static final double AI_INPUT_HEIGHT = 90;
     private static final int AI_HISTORY_TURNS = 3;
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
-           // "doubao-seed-1-8-251228",
             "doubao-seed-2-0-mini-260215"
-          //  "doubao-seed-2-0-pro-260215",
-         //   "doubao-1-5-pro-32k-250115"
+            // "kimi-k2.5"
     );
 
     @FXML
@@ -77,7 +75,7 @@ public class MainController {
     @FXML
     public VBox aiChatMessages;
     @FXML
-    public TextArea aiInputField;
+    public CustomUserTextarea aiInputField;
     @FXML
     public Button aiSendButton;
     @FXML
@@ -497,7 +495,7 @@ public class MainController {
         ButtonType cancelType = new ButtonType(I18n.t("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
 
         Label promptLabel = new Label(I18n.t("ai.dialog.api_key.prompt"));
-        PasswordField keyField = new PasswordField();
+        CustomPasswordField keyField = new CustomPasswordField();
         keyField.setPromptText(I18n.t("ai.dialog.api_key.prompt"));
         keyField.setText(AiAuthUtil.getApiToken());
 
@@ -995,16 +993,17 @@ public class MainController {
     }
 
     private String buildApiKeyGuideMessage() {
+        String provider = AiAuthUtil.getCurrentProviderKey();
         return String.join("\n",
                 I18n.t("ai.reply.api_key_guide.title"),
                 "",
                 I18n.t("ai.reply.api_key_guide.step1"),
-                I18n.t("ai.reply.api_key_guide.link"),
-                I18n.t("ai.reply.api_key_guide.step2"),
+                I18n.t("ai.reply.api_key_guide." + provider + ".link", I18n.t("ai.reply.api_key_guide.link")),
+                I18n.t("ai.reply.api_key_guide." + provider + ".step2", I18n.t("ai.reply.api_key_guide.step2")),
                 I18n.t("ai.reply.api_key_guide.step3"),
                 I18n.t("ai.reply.api_key_guide.step4"),
                 "",
-                I18n.t("ai.reply.api_key_guide.model_reason")
+                I18n.t("ai.reply.api_key_guide." + provider + ".model_reason", I18n.t("ai.reply.api_key_guide.model_reason"))
         );
     }
 

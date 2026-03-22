@@ -16,9 +16,14 @@ import java.nio.file.StandardOpenOption;
 public final class AiAuthUtil {
     private static final Logger log = LogManager.getLogger(AiAuthUtil.class);
 
+    private static final String PROVIDER_DOUBAO = "doubao";
+    private static final String PROVIDER_KIMI = "kimi";
     private static final String DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
+    private static final String KIMI_BASE_URL = "https://api.moonshot.cn/v1";
     // 默认豆包模型，参考官方示例中的 doubao-seed-1-8-251228
     private static final String DOUBAO_DEFAULT_MODEL = "doubao-seed-1-8-251228";
+    private static final String KIMI_DEFAULT_MODEL = "kimi-k2.5";
+    private static final String KIMI_LEGACY_MODEL = "kimi-latest";
     private static final String API_TOKEN_DIR_NAME = "dbboys";
     private static final String LEGACY_API_TOKEN_FILE_PREFIX = "ai-api-token-";
 
@@ -26,10 +31,10 @@ public final class AiAuthUtil {
 
     /**
      * 获取当前保存的 API Base URL。
-     * 统一使用豆包官方地址。
+     * 根据当前选择的模型返回对应官方地址。
      */
     public static String getApiBaseUrl() {
-        return DOUBAO_BASE_URL;
+        return isKimiModel() ? KIMI_BASE_URL : DOUBAO_BASE_URL;
     }
 
     /**
@@ -41,6 +46,18 @@ public final class AiAuthUtil {
             return DOUBAO_DEFAULT_MODEL;
         }
         return model;
+    }
+
+    public static String getCurrentProviderKey() {
+        return detectProvider(getModel());
+    }
+
+    public static boolean isKimiModel() {
+        return PROVIDER_KIMI.equals(getCurrentProviderKey());
+    }
+
+    public static boolean isDoubaoModel() {
+        return PROVIDER_DOUBAO.equals(getCurrentProviderKey());
     }
 
     /**
@@ -124,11 +141,27 @@ public final class AiAuthUtil {
         return safeModel.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
 
+    private static String detectProvider(String model) {
+        String normalized = model == null ? "" : model.trim().toLowerCase();
+        if (normalized.isEmpty()) {
+            return PROVIDER_DOUBAO;
+        }
+        if (normalized.startsWith("kimi-") || normalized.startsWith("moonshot-")) {
+            return PROVIDER_KIMI;
+        }
+        return PROVIDER_DOUBAO;
+    }
+
     private static String readApiToken(String model) {
         Path tokenPath = resolveApiTokenPath(model);
         String token = readTokenFile(tokenPath);
         if (!token.isEmpty()) {
             return token;
+        }
+
+        String migratedKimiToken = migrateLegacyKimiToken(model);
+        if (!migratedKimiToken.isEmpty()) {
+            return migratedKimiToken;
         }
 
         Path legacyTokenPath = resolveLegacyApiTokenPath();
@@ -144,6 +177,31 @@ public final class AiAuthUtil {
             log.warn("Migrate AI API token failed: {} -> {}", legacyTokenPath, tokenPath, e);
         }
         return legacyToken;
+    }
+
+    private static String migrateLegacyKimiToken(String model) {
+        if (!PROVIDER_KIMI.equals(detectProvider(model))) {
+            return "";
+        }
+
+        String normalizedModel = model == null ? "" : model.trim();
+        if (normalizedModel.equalsIgnoreCase(KIMI_LEGACY_MODEL)) {
+            return "";
+        }
+
+        Path legacyKimiTokenPath = resolveApiTokenPath(KIMI_LEGACY_MODEL);
+        String legacyKimiToken = readTokenFile(legacyKimiTokenPath);
+        if (legacyKimiToken.isEmpty()) {
+            return "";
+        }
+
+        try {
+            writeApiToken(model, legacyKimiToken);
+            Files.deleteIfExists(legacyKimiTokenPath);
+        } catch (IOException e) {
+            log.warn("Migrate Kimi API token failed: {} -> {}", legacyKimiTokenPath, resolveApiTokenPath(model), e);
+        }
+        return legacyKimiToken;
     }
 
     private static String readTokenFile(Path tokenPath) {

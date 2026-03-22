@@ -41,7 +41,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private static final String CONNECTED_TEXT_STYLE = "-fx-fill: -color-fg-default;";
     private static final String DISCONNECTED_TEXT_STYLE = "-fx-text-fill:#666;";
     private static final String PRIMARY_ICON_STYLE = "-fx-fill: -color-fg-default;";
-    private static final String WARN_ICON_STYLE = "-fx-fill: #9f453c;";
+    private static final String WARN_ICON_STYLE = "-fx-fill: -color-danger-7;";
     private static final String INACTIVE_ICON_STYLE = "-fx-fill: #666;";
     private static final Pattern COUNT_INFO_PATTERN = Pattern.compile("^\\s*(\\d+)\\s*[个個](?:\\s*/\\s*(.+))?\\s*$");
     private static final Set<String> SYSTEM_DATABASES = Set.of(

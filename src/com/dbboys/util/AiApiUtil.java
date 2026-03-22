@@ -13,10 +13,15 @@ import java.io.InterruptedIOException;
 import java.util.function.Consumer;
 
 /**
- * 调用豆包 Responses API（用于 AI 对话框）。
+ * 调用 AI 对话接口（当前支持豆包 Responses API 和 Kimi OpenAI 兼容接口）。
  */
 public final class AiApiUtil {
     private static final Logger log = LogManager.getLogger(AiApiUtil.class);
+    private static final String KIMI_SYSTEM_PROMPT =
+            "你是 Kimi，由 Moonshot AI 提供的人工智能助手，你更擅长中文和英文的对话。"
+                    + "你会为用户提供安全，有帮助，准确的回答。"
+                    + "同时，你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。"
+                    + "Moonshot AI 为专有名词，不可翻译成其他语言。";
 
     private AiApiUtil() {}
 
@@ -39,8 +44,8 @@ public final class AiApiUtil {
         }
 
         String safeMessage = userMessage == null ? "" : userMessage;
-        String endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
-        String json = buildDoubaoRequestJson(safeMessage, false);
+        String endpoint = buildChatEndpoint(baseUrl);
+        String json = buildChatRequestJson(safeMessage, false);
 
         HttpURLConnection conn = null;
         try {
@@ -100,8 +105,8 @@ public final class AiApiUtil {
         }
 
         String safeMessage = userMessage == null ? "" : userMessage;
-        String endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
-        String json = buildDoubaoRequestJson(safeMessage, true);
+        String endpoint = buildChatEndpoint(baseUrl);
+        String json = buildChatRequestJson(safeMessage, true);
 
         HttpURLConnection conn = null;
         try {
@@ -177,8 +182,8 @@ public final class AiApiUtil {
         }
 
         String safeMessage = "ping";
-        String endpoint = baseUrl.endsWith("/") ? baseUrl + "responses" : baseUrl + "/responses";
-        String json = buildDoubaoRequestJson(safeMessage, false);
+        String endpoint = buildChatEndpoint(baseUrl);
+        String json = buildChatRequestJson(safeMessage, false);
 
         HttpURLConnection conn = null;
         try {
@@ -283,6 +288,24 @@ public final class AiApiUtil {
         }
     }
 
+    private static String buildChatRequestJson(String userMessage, boolean stream) {
+        if (AiAuthUtil.isKimiModel()) {
+            return buildKimiRequestJson(userMessage, stream);
+        }
+        return buildDoubaoRequestJson(userMessage, stream);
+    }
+
+    private static String buildChatEndpoint(String baseUrl) {
+        if (AiAuthUtil.isKimiModel()) {
+            return appendPath(baseUrl, "chat/completions");
+        }
+        return appendPath(baseUrl, "responses");
+    }
+
+    private static String appendPath(String baseUrl, String path) {
+        return baseUrl.endsWith("/") ? baseUrl + path : baseUrl + "/" + path;
+    }
+
     /** 豆包 Responses API 请求体（仅文本输入，参考官方示例） */
     private static String buildDoubaoRequestJson(String userMessage, boolean stream) {
         JSONObject textContent = new JSONObject();
@@ -302,6 +325,29 @@ public final class AiApiUtil {
         JSONObject body = new JSONObject();
         body.put("model", AiAuthUtil.getModel());
         body.put("input", inputArray);
+        if (stream) {
+            body.put("stream", true);
+        }
+        return body.toString();
+    }
+
+    /** Kimi OpenAI 兼容请求体。 */
+    private static String buildKimiRequestJson(String userMessage, boolean stream) {
+        JSONObject systemInput = new JSONObject();
+        systemInput.put("role", "system");
+        systemInput.put("content", KIMI_SYSTEM_PROMPT);
+
+        JSONObject userInput = new JSONObject();
+        userInput.put("role", "user");
+        userInput.put("content", userMessage);
+
+        JSONArray messages = new JSONArray();
+        messages.put(systemInput);
+        messages.put(userInput);
+
+        JSONObject body = new JSONObject();
+        body.put("model", AiAuthUtil.getModel());
+        body.put("messages", messages);
         if (stream) {
             body.put("stream", true);
         }
@@ -572,5 +618,3 @@ public final class AiApiUtil {
         return null;
     }
 }
-
-

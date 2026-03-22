@@ -11,6 +11,7 @@
 <!--xmlns用于声明默认命名空间，这里的声明随着你安装的Java JDK版本号的不同可以不同，但是最好不要比你安装的JDK版本高-->
 <?import com.dbboys.customnode.CustomLabelTextField?>
 <?import com.dbboys.customnode.CustomShortcutMenuItem?>
+<?import com.dbboys.customnode.CustomUserTextarea?>
 <?import com.dbboys.customnode.CustomUserTextField?>
 <?import com.dbboys.customnode.CustomTreeviewTab?>
 <StackPane fx:controller="com.dbboys.ctrl.MainController" fx:id="root" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
@@ -154,7 +155,7 @@
                                     <VBox fx:id="aiChatMessages" spacing="8" style="-fx-padding: 8"/>
                                 </ScrollPane>
                                 <AnchorPane minHeight="90" prefHeight="90" maxHeight="90" VBox.vgrow="NEVER" pickOnBounds="false">
-                                    <TextArea fx:id="aiInputField" promptText="输入消息..." wrapText="true" prefRowCount="3" prefHeight="90" style="-fx-padding: 6 44 34 6; -fx-font-size: 10px;" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" />
+                                    <CustomUserTextarea fx:id="aiInputField" promptText="输入消息..." wrapText="true" prefRowCount="3" prefHeight="90" style="-fx-padding: 6 44 34 6; -fx-font-size: 10px;" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" />
                                     <HBox alignment="CENTER_LEFT" spacing="4" pickOnBounds="false" AnchorPane.leftAnchor="6.0" AnchorPane.bottomAnchor="6.0">
                                         <ChoiceBox fx:id="aiModelChoiceBox" focusTraversable="false" prefWidth="170" style="-fx-font-size: 9px;"/>
                                         <Button fx:id="aiSettingsButton" styleClass="small" focusTraversable="false"/>
