@@ -132,7 +132,7 @@ public class Main extends Application {
                     "-fx-background-color: -color-bg-default;" +
                     "-fx-background-radius: 14;" +
                     "-fx-border-color: -color-border-default;" +
-                    "-fx-border-radius: 14;" +
+                    "-fx-border-radius: 8;" +
                     "-fx-padding: 18 22 18 22;"
             );
             loadCard.setPrefSize(320, 132);
