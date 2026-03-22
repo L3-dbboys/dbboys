@@ -365,11 +365,13 @@ class LuceneIndexer {
      * 把单个文件添加到索引（若需要实现更新，可先删除同 path 的旧 doc）
      */
     private static void indexFile(IndexWriter writer, Path file) throws IOException {
-        List<DocumentIndexTextExtractor.PdfPageText> pdfPages = Collections.emptyList();
+        List<DocumentIndexTextExtractor.StructuredTextSection> aiSections = Collections.emptyList();
         String content;
-        if (isPdfFile(file)) {
-            pdfPages = DocumentIndexTextExtractor.extractPdfPages(file);
-            content = DocumentIndexTextExtractor.joinPdfPageTexts(pdfPages);
+        if (isAiPagedChunkFile(file)) {
+            aiSections = DocumentIndexTextExtractor.extractAiSections(file);
+            content = aiSections.isEmpty()
+                    ? DocumentIndexTextExtractor.extractText(file)
+                    : DocumentIndexTextExtractor.joinStructuredSectionTexts(aiSections);
         } else {
             content = DocumentIndexTextExtractor.extractText(file);
         }
@@ -381,7 +383,7 @@ class LuceneIndexer {
         String titleText = buildTitleText(file, content, fileStem);
         List<Document> docs = new ArrayList<>();
         docs.add(buildFileDocument(rawPath, fileName, fileStem, titleText, content, contentPreview, modified));
-        docs.addAll(buildAiChunkDocuments(file, rawPath, fileName, fileStem, content, pdfPages, modified));
+        docs.addAll(buildAiChunkDocuments(file, rawPath, fileName, fileStem, content, aiSections, modified));
         writer.deleteDocuments(new Term(FIELD_OWNER_PATH_RAW, rawPath));
         writer.addDocuments(docs);
     }
@@ -428,9 +430,9 @@ class LuceneIndexer {
                                                         String fileName,
                                                         String fileStem,
                                                         String content,
-                                                        List<DocumentIndexTextExtractor.PdfPageText> pdfPages,
+                                                        List<DocumentIndexTextExtractor.StructuredTextSection> aiSections,
                                                         long modified) {
-        List<AiChunk> chunks = buildAiChunks(file, content, fileStem, pdfPages);
+        List<AiChunk> chunks = buildAiChunks(file, content, fileStem, aiSections);
         if (chunks.isEmpty()) {
             return Collections.emptyList();
         }
@@ -531,17 +533,17 @@ class LuceneIndexer {
     private static List<AiChunk> buildAiChunks(Path file,
                                                String content,
                                                String fileStem,
-                                               List<DocumentIndexTextExtractor.PdfPageText> pdfPages) {
+                                               List<DocumentIndexTextExtractor.StructuredTextSection> aiSections) {
         if (content == null || content.isBlank()) {
             return Collections.emptyList();
         }
-        String lowerName = file.getFileName().toString().toLowerCase();
-        if (lowerName.endsWith(".pdf") && pdfPages != null && !pdfPages.isEmpty()) {
-            List<AiChunk> pdfChunks = buildPdfAiChunks(pdfPages);
-            if (!pdfChunks.isEmpty()) {
-                return pdfChunks;
+        if (aiSections != null && !aiSections.isEmpty()) {
+            List<AiChunk> pagedChunks = buildPagedAiChunks(aiSections);
+            if (!pagedChunks.isEmpty()) {
+                return pagedChunks;
             }
         }
+        String lowerName = file.getFileName().toString().toLowerCase();
         if (lowerName.endsWith(".md") || lowerName.endsWith(".markdown")) {
             List<AiChunk> markdownChunks = buildMarkdownAiChunks(content, fileStem);
             if (!markdownChunks.isEmpty()) {
@@ -551,18 +553,18 @@ class LuceneIndexer {
         return buildGenericAiChunks(content, fileStem);
     }
 
-    private static List<AiChunk> buildPdfAiChunks(List<DocumentIndexTextExtractor.PdfPageText> pdfPages) {
-        if (pdfPages == null || pdfPages.isEmpty()) {
+    private static List<AiChunk> buildPagedAiChunks(List<DocumentIndexTextExtractor.StructuredTextSection> aiSections) {
+        if (aiSections == null || aiSections.isEmpty()) {
             return Collections.emptyList();
         }
         List<AiChunk> chunks = new ArrayList<>();
         int order = 0;
-        for (DocumentIndexTextExtractor.PdfPageText page : pdfPages) {
-            if (page == null || page.text() == null || page.text().isBlank()) {
+        for (DocumentIndexTextExtractor.StructuredTextSection section : aiSections) {
+            if (section == null || section.text() == null || section.text().isBlank()) {
                 continue;
             }
-            String heading = "第" + page.pageNumber() + "页";
-            for (String chunkText : splitIntoAiChunkTexts(page.text())) {
+            String heading = section.heading() == null ? "" : section.heading().trim();
+            for (String chunkText : splitIntoAiChunkTexts(section.text())) {
                 if (chunkText.isBlank()) {
                     continue;
                 }
@@ -802,11 +804,18 @@ class LuceneIndexer {
         return lines;
     }
 
-    private static boolean isPdfFile(Path file) {
+    private static boolean isAiPagedChunkFile(Path file) {
         if (file == null || file.getFileName() == null) {
             return false;
         }
-        return file.getFileName().toString().toLowerCase().endsWith(".pdf");
+        String lowerName = file.getFileName().toString().toLowerCase();
+        return lowerName.endsWith(".pdf")
+                || lowerName.endsWith(".doc")
+                || lowerName.endsWith(".docx")
+                || lowerName.endsWith(".docm")
+                || lowerName.endsWith(".ppt")
+                || lowerName.endsWith(".pptx")
+                || lowerName.endsWith(".pptm");
     }
 
     /**

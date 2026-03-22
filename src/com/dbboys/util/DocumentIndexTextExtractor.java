@@ -3,9 +3,14 @@ package com.dbboys.util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.poi.sl.extractor.SlideShowExtractor;
+import org.apache.poi.sl.usermodel.Slide;
 import org.apache.poi.sl.usermodel.SlideShowFactory;
+import org.apache.poi.xwpf.usermodel.IBodyElement;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -45,6 +50,9 @@ final class DocumentIndexTextExtractor {
     private static final Path PDFBOX_FONT_CACHE_DIR = Path.of("data", "pdfbox-font-cache");
 
     record PdfPageText(int pageNumber, String text) {
+    }
+
+    record StructuredTextSection(String heading, String text) {
     }
 
     private DocumentIndexTextExtractor() {
@@ -88,6 +96,31 @@ final class DocumentIndexTextExtractor {
         }
     }
 
+    static List<StructuredTextSection> extractAiSections(Path file) throws IOException {
+        String extension = getExtension(file);
+        return switch (extension) {
+            case "pdf" -> toStructuredSections(extractPdfPages(file));
+            case "docx", "docm" -> extractDocxSections(file);
+            case "doc" -> extractLegacyWordSections(file);
+            case "pptx", "pptm", "ppt" -> extractPowerPointSections(file);
+            default -> Collections.emptyList();
+        };
+    }
+
+    static String joinStructuredSectionTexts(List<StructuredTextSection> sections) {
+        if (sections == null || sections.isEmpty()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (StructuredTextSection section : sections) {
+            if (section == null || section.text() == null || section.text().isBlank()) {
+                continue;
+            }
+            appendText(builder, section.text());
+        }
+        return limitLength(builder.toString());
+    }
+
     static String joinPdfPageTexts(List<PdfPageText> pages) {
         if (pages == null || pages.isEmpty()) {
             return "";
@@ -102,6 +135,20 @@ final class DocumentIndexTextExtractor {
         return limitLength(builder.toString());
     }
 
+    private static List<StructuredTextSection> toStructuredSections(List<PdfPageText> pages) {
+        if (pages == null || pages.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<StructuredTextSection> sections = new ArrayList<>(pages.size());
+        for (PdfPageText page : pages) {
+            if (page == null || page.text() == null || page.text().isBlank()) {
+                continue;
+            }
+            sections.add(new StructuredTextSection(buildPageHeading(page.pageNumber(), null), page.text()));
+        }
+        return sections;
+    }
+
     private static String extractDocxText(Path file) throws IOException {
         try (XWPFDocument document = new XWPFDocument(Files.newInputStream(file));
              XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
@@ -110,6 +157,41 @@ final class DocumentIndexTextExtractor {
             log.warn("POI DOCX extraction failed for {}, falling back to XML parsing", file, ex);
         }
         return extractDocxXmlFallback(file);
+    }
+
+    private static List<StructuredTextSection> extractDocxSections(Path file) throws IOException {
+        try (XWPFDocument document = new XWPFDocument(Files.newInputStream(file))) {
+            List<StructuredTextSection> sections = new ArrayList<>();
+            StringBuilder currentPage = new StringBuilder();
+            int pageNumber = 1;
+            for (IBodyElement element : document.getBodyElements()) {
+                if (element instanceof XWPFParagraph paragraph) {
+                    if (paragraph.isPageBreak() && !currentPage.isEmpty()) {
+                        addStructuredPage(sections, pageNumber++, currentPage.toString(), null);
+                        currentPage.setLength(0);
+                    }
+                    appendText(currentPage, paragraph.getText());
+                    if (containsDocxInlinePageBreak(paragraph) && !currentPage.isEmpty()) {
+                        addStructuredPage(sections, pageNumber++, currentPage.toString(), null);
+                        currentPage.setLength(0);
+                    }
+                } else if (element instanceof XWPFTable table) {
+                    appendText(currentPage, table.getText());
+                }
+            }
+            addStructuredPage(sections, pageNumber, currentPage.toString(), null);
+            if (!sections.isEmpty()) {
+                return sections;
+            }
+        } catch (IOException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.warn("POI DOCX page extraction failed for {}, falling back to plain text", file, ex);
+        }
+        String text = extractDocxText(file);
+        return text.isBlank()
+                ? Collections.emptyList()
+                : List.of(new StructuredTextSection(buildPageHeading(1, null), text));
     }
 
     private static String extractDocxXmlFallback(Path file) throws IOException {
@@ -193,6 +275,39 @@ final class DocumentIndexTextExtractor {
         return extractBinaryTextRuns(bytes, 4, 6);
     }
 
+    private static List<StructuredTextSection> extractLegacyWordSections(Path file) throws IOException {
+        try {
+            Class<?> documentClass = Class.forName("org.apache.poi.hwpf.HWPFDocument");
+            Class<?> extractorClass = Class.forName("org.apache.poi.hwpf.extractor.WordExtractor");
+            try (InputStream input = Files.newInputStream(file);
+                 AutoCloseable document = (AutoCloseable) documentClass.getConstructor(InputStream.class).newInstance(input);
+                 AutoCloseable extractor = (AutoCloseable) extractorClass.getConstructor(documentClass).newInstance(document)) {
+                String text = (String) extractorClass.getMethod("getText").invoke(extractor);
+                List<StructuredTextSection> sections = splitIntoPageSections(text);
+                if (!sections.isEmpty()) {
+                    return sections;
+                }
+                String normalized = normalizeExtractedText(text);
+                return normalized.isBlank()
+                        ? Collections.emptyList()
+                        : List.of(new StructuredTextSection(buildPageHeading(1, null), normalized));
+            }
+        } catch (ClassNotFoundException ex) {
+            log.info("POI HWPF support is unavailable, falling back to binary page extraction for {}", file);
+        } catch (Exception ex) {
+            log.warn("POI DOC page extraction failed for {}, falling back to binary extraction", file, ex);
+        }
+        String text = extractBinaryTextRuns(Files.readAllBytes(file), 4, 6);
+        List<StructuredTextSection> sections = splitIntoPageSections(text);
+        if (!sections.isEmpty()) {
+            return sections;
+        }
+        String normalized = normalizeExtractedText(text);
+        return normalized.isBlank()
+                ? Collections.emptyList()
+                : List.of(new StructuredTextSection(buildPageHeading(1, null), normalized));
+    }
+
     private static String extractPowerPointText(Path file) throws IOException {
         try (var slideShow = SlideShowFactory.create(file.toFile());
              SlideShowExtractor<?, ?> extractor = new SlideShowExtractor<>(slideShow)) {
@@ -206,6 +321,99 @@ final class DocumentIndexTextExtractor {
         } catch (Exception ex) {
             throw new IOException("POI PowerPoint extraction failed for " + file, ex);
         }
+    }
+
+    private static List<StructuredTextSection> extractPowerPointSections(Path file) throws IOException {
+        try (var slideShow = SlideShowFactory.create(file.toFile());
+             @SuppressWarnings("rawtypes") SlideShowExtractor extractor = new SlideShowExtractor(slideShow)) {
+            extractor.setSlidesByDefault(true);
+            extractor.setNotesByDefault(false);
+            extractor.setCommentsByDefault(false);
+            extractor.setMasterByDefault(false);
+            List<StructuredTextSection> sections = new ArrayList<>();
+            for (Object slideObj : slideShow.getSlides()) {
+                if (!(slideObj instanceof Slide<?, ?> slide)) {
+                    continue;
+                }
+                String text = normalizeExtractedText(extractor.getText(slide));
+                if (text.isBlank()) {
+                    continue;
+                }
+                String title = normalizeExtractedText(slide.getTitle());
+                sections.add(new StructuredTextSection(buildPageHeading(slide.getSlideNumber(), title), text));
+            }
+            if (!sections.isEmpty()) {
+                return sections;
+            }
+            String text = normalizeExtractedText(extractor.getText());
+            return text.isBlank()
+                    ? Collections.emptyList()
+                    : List.of(new StructuredTextSection(buildPageHeading(1, null), text));
+        } catch (IOException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IOException("POI PowerPoint extraction failed for " + file, ex);
+        }
+    }
+
+    private static boolean containsDocxInlinePageBreak(XWPFParagraph paragraph) {
+        if (paragraph == null || paragraph.getRuns() == null) {
+            return false;
+        }
+        for (XWPFRun run : paragraph.getRuns()) {
+            if (run == null || run.getCTR() == null) {
+                continue;
+            }
+            if (run.getCTR().sizeOfLastRenderedPageBreakArray() > 0) {
+                return true;
+            }
+            for (var br : run.getCTR().getBrList()) {
+                if (br != null && br.getType() != null && "page".equalsIgnoreCase(br.getType().toString())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static List<StructuredTextSection> splitIntoPageSections(String text) {
+        if (text == null || text.isBlank()) {
+            return Collections.emptyList();
+        }
+        String normalized = text.replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .replace('\u000B', '\n')
+                .replace('\u000C', '\f');
+        String[] pages = normalized.split("\\f+");
+        List<StructuredTextSection> sections = new ArrayList<>();
+        int pageNumber = 1;
+        for (String page : pages) {
+            addStructuredPage(sections, pageNumber++, page, null);
+        }
+        return sections;
+    }
+
+    private static void addStructuredPage(List<StructuredTextSection> sections,
+                                          int pageNumber,
+                                          String text,
+                                          String detail) {
+        if (sections == null) {
+            return;
+        }
+        String normalized = normalizeExtractedText(text);
+        if (normalized.isBlank()) {
+            return;
+        }
+        sections.add(new StructuredTextSection(buildPageHeading(pageNumber, detail), normalized));
+    }
+
+    private static String buildPageHeading(int pageNumber, String detail) {
+        String pageLabel = "第" + Math.max(pageNumber, 1) + "页";
+        String normalizedDetail = normalizeExtractedText(detail);
+        if (normalizedDetail.isBlank()) {
+            return pageLabel;
+        }
+        return pageLabel + "（" + normalizedDetail + "）";
     }
 
     private static void initializePdfBoxFontCache() throws IOException {
