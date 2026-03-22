@@ -20,8 +20,8 @@ public final class AiAuthUtil {
     private static final String PROVIDER_KIMI = "kimi";
     private static final String DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
     private static final String KIMI_BASE_URL = "https://api.moonshot.cn/v1";
-    // 默认豆包模型，参考官方示例中的 doubao-seed-1-8-251228
-    private static final String DOUBAO_DEFAULT_MODEL = "doubao-seed-1-8-251228";
+    // 默认豆包模型与下拉框候选保持一致，避免配置缺失时出现额外模型项
+    private static final String DOUBAO_DEFAULT_MODEL = "doubao-seed-2-0-mini-260215";
     private static final String KIMI_DEFAULT_MODEL = "kimi-k2.5";
     private static final String KIMI_LEGACY_MODEL = "kimi-latest";
     private static final String API_TOKEN_DIR_NAME = "dbboys";
