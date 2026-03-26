@@ -47,16 +47,20 @@ public class SqlParserUtil {
     private static final Pattern FORMAT_DOUBLE_OPERATOR_PATTERN = Pattern.compile("([=<>+*/-]) ([=<>+*/-])");
     private static final Pattern FORMAT_COMMA_SPACING_PATTERN = Pattern.compile("\\s*,\\s*");
     private static final Pattern FORMAT_COMMENT_PLACEHOLDER_PATTERN = Pattern.compile("(?i)(__PLACEHOLDER_COMMENT_[0-9]+__)\\n?\\s*");
-    private static final Pattern FORMAT_CLAUSE_BREAK_PATTERN = Pattern.compile("(?i)\\b(FROM|LEFT JOIN|WHERE|GROUP BY|ORDER BY|JOIN|RIGHT JOIN|UNION)\\b");
+    private static final Pattern FORMAT_CLAUSE_BREAK_PATTERN = Pattern.compile(
+            "(?i)\\b(FROM|WHERE|GROUP BY|HAVING|ORDER BY|UNION(?:\\s+ALL)?|(?:(?:LEFT|RIGHT|INNER|FULL|CROSS|NATURAL)(?:\\s+OUTER)?\\s+)?JOIN)\\b"
+    );
     private static final Pattern FORMAT_JOIN_ON_BREAK_PATTERN = Pattern.compile(
             "(?i)(\\b(?:(?:LEFT|RIGHT|INNER|FULL|CROSS|NATURAL)(?:\\s+OUTER)?\\s+)?JOIN\\b[^\\n]*?)\\s+\\b(ON)\\b"
     );
-    private static final Pattern FORMAT_CONDITION_BREAK_PATTERN = Pattern.compile("(?i)\\b(AND|OR|HAVING)\\b");
+    private static final Pattern FORMAT_OVER_CLAUSE_BREAK_PATTERN = Pattern.compile("(?i)\\b(PARTITION BY|ORDER BY)\\b");
+    private static final Pattern FORMAT_CONDITION_BREAK_PATTERN = Pattern.compile("(?i)\\b(AND|OR)\\b");
     private static final Pattern FORMAT_AS_SELECT_PATTERN = Pattern.compile("(?i)(as\\s+)(select\\s+)");
     private static final Pattern FORMAT_UNION_SELECT_PATTERN = Pattern.compile("(?i)(\\s*)(union\\s+\\w*\\s*)(select\\s+)");
-    private static final Pattern FORMAT_FUNCTION_PAREN_PATTERN = Pattern.compile("(?i)(\\w+)\\h+\\(");
+    private static final Pattern FORMAT_FUNCTION_PAREN_PATTERN = Pattern.compile(
+            "(?i)\\b(?!KEY\\b|CHECK\\b|VALUES\\b|UNIQUE\\b|OVER\\b|IN\\b|EXISTS\\b|USING\\b)(\\w+)\\h+\\("
+    );
     private static final Pattern FORMAT_CLOSE_PAREN_SELECT_PATTERN = Pattern.compile("(?i)(\\s*)\\)\\s*(\\bselect\\b\\s+)");
-    private static final Pattern FORMAT_FIRST_LINE_AFTER_OPEN_PAREN_PATTERN = Pattern.compile("(?i)(\\(\\n)(\\s+(?!select\\b)\\w+)");
     private static final Pattern FORMAT_TRAILING_SPACE_PATTERN = Pattern.compile("[ \\t]+(?=\\n)");
     private static final Pattern FORMAT_MULTI_BLANK_LINE_PATTERN = Pattern.compile("\\n\\s*\\n");
     private static final List<String> FORMATTABLE_PREFIXES = List.of(
@@ -665,6 +669,11 @@ public class SqlParserUtil {
             return sql.trim();
         }
 
+        String rootParenthesisStatement = formatRootParenthesisStatement(normalizedSql);
+        if (rootParenthesisStatement != null) {
+            return finalizeFormattedStatement(rootParenthesisStatement);
+        }
+
         Deque<Integer> indentStack = new ArrayDeque<>();
         int currentIndent = 0;
         StringBuilder appendSql = new StringBuilder(normalizedSql.length() + 32);
@@ -675,15 +684,18 @@ public class SqlParserUtil {
                 continue;
             }
             String rawToken = token;
-            if (shouldExpandInlineParenthesisBlock(token, previousToken, normalizedSql, currentIndent)) {
-                token = formatExpandedParenthesisBlock(token, currentIndent);
+            if (shouldFormatOverClause(token, previousToken)) {
+                token = formatOverClause(token, currentIndent);
+            } else if (shouldPreserveInlineConstraintList(token, previousToken)) {
+                token = formatInlineConstraintList(token);
             } else if (token.matches("(?i)^\\(\\s*select[\\s\\S]+") || (token.contains("(") && !token.contains(")"))) {
                 currentIndent++;
                 indentStack.push(currentIndent);
+                int innerIndent = currentIndent + 1;
                 token = formatCommentPlaceholders(token, currentIndent);
                 token = "\n" + FORMAT_INDENT.repeat(currentIndent) + "(\n"
-                        + FORMAT_INDENT.repeat(currentIndent) + token.substring(1).trim();
-                token = applyClauseBreaks(token, currentIndent, false);
+                        + FORMAT_INDENT.repeat(innerIndent) + token.substring(1).trim();
+                token = applyClauseBreaks(token, innerIndent, false);
                 token = token.replace(";", ";\n");
                 if (token.contains(")")) {
                     indentStack.pop();
@@ -709,12 +721,14 @@ public class SqlParserUtil {
         }
 
         String formattedSql = appendSql.toString();
+        return finalizeFormattedStatement(formattedSql);
+    }
+
+    private static String finalizeFormattedStatement(String formattedSql) {
         formattedSql = FORMAT_AS_SELECT_PATTERN.matcher(formattedSql).replaceAll("$1\n$2");
         formattedSql = FORMAT_UNION_SELECT_PATTERN.matcher(formattedSql).replaceAll("$1$2\n$1$3");
         formattedSql = FORMAT_FUNCTION_PAREN_PATTERN.matcher(formattedSql).replaceAll("$1(");
         formattedSql = FORMAT_CLOSE_PAREN_SELECT_PATTERN.matcher(formattedSql).replaceAll("$1)\n$2");
-        formattedSql = FORMAT_FIRST_LINE_AFTER_OPEN_PAREN_PATTERN.matcher(formattedSql)
-                .replaceAll("$1" + FORMAT_INDENT + "$2");
         formattedSql = FORMAT_TRAILING_SPACE_PATTERN.matcher(formattedSql).replaceAll("");
         return formattedSql;
     }
@@ -743,31 +757,157 @@ public class SqlParserUtil {
         return FORMAT_COMMENT_PLACEHOLDER_PATTERN.matcher(token).replaceAll(indent + "$1" + indent);
     }
 
-    private static boolean shouldExpandInlineParenthesisBlock(
-            String token,
-            String previousToken,
-            String statement,
-            int currentIndent
-    ) {
-        if (currentIndent != 0 || token == null || !token.startsWith("(") || !token.contains(")")) {
-            return false;
+    private static String formatRootParenthesisStatement(String normalizedSql) {
+        int openParenIndex = findRootParenthesisBlockStart(normalizedSql);
+        if (openParenIndex < 0) {
+            return null;
         }
-        String statementLower = statement.toLowerCase(Locale.ROOT);
-        String previousLower = previousToken == null ? "" : previousToken.trim().toLowerCase(Locale.ROOT);
-        if (statementLower.startsWith("create table ") && previousLower.startsWith("create table ")) {
-            return true;
+
+        int closeParenIndex = findMatchingParenthesis(normalizedSql, openParenIndex);
+        if (closeParenIndex < 0) {
+            return null;
         }
-        return statementLower.startsWith("alter table ")
-                && (previousLower.contains(" add ") || previousLower.endsWith(" add"));
+
+        String inner = normalizedSql.substring(openParenIndex + 1, closeParenIndex).trim();
+        if (inner.isEmpty()) {
+            return null;
+        }
+
+        List<String> items = splitTopLevelCommaSegments(inner);
+        if (items.size() < 2) {
+            return null;
+        }
+
+        String prefix = normalizedSql.substring(0, openParenIndex).trim();
+        String suffix = normalizedSql.substring(closeParenIndex + 1).trim();
+        StringBuilder formatted = new StringBuilder(normalizedSql.length() + 32);
+        formatted.append(prefix)
+                .append('\n')
+                .append(FORMAT_INDENT)
+                .append("(\n");
+
+        for (int i = 0; i < items.size(); i++) {
+            String item = formatCommentPlaceholders(items.get(i).trim(), 1);
+            formatted.append(FORMAT_INDENT.repeat(2))
+                    .append(item.trim());
+            if (i < items.size() - 1) {
+                formatted.append(',');
+            }
+            formatted.append('\n');
+        }
+
+        formatted.append(FORMAT_INDENT).append(')');
+        if (!suffix.isEmpty()) {
+            if (suffix.startsWith(";")) {
+                formatted.append(suffix);
+            } else {
+                formatted.append(' ').append(suffix);
+            }
+        }
+        return formatted.toString();
     }
 
-    private static String formatExpandedParenthesisBlock(String token, int currentIndent) {
+    private static int findRootParenthesisBlockStart(String sql) {
+        String lowerSql = sql.toLowerCase(Locale.ROOT);
+        if (lowerSql.startsWith("create table ")) {
+            return sql.indexOf('(');
+        }
+
+        if (!lowerSql.startsWith("alter table ")) {
+            return -1;
+        }
+
+        int openParenIndex = sql.indexOf('(');
+        if (openParenIndex < 0) {
+            return -1;
+        }
+
+        String beforeParen = lowerSql.substring(0, openParenIndex);
+        int addIndex = beforeParen.lastIndexOf(" add");
+        if (addIndex < 0) {
+            return -1;
+        }
+
+        String betweenAddAndParen = beforeParen.substring(addIndex + 4).trim();
+        return betweenAddAndParen.isEmpty() ? openParenIndex : -1;
+    }
+
+    private static int findMatchingParenthesis(String sql, int openParenIndex) {
+        int depth = 0;
+        for (int i = openParenIndex; i < sql.length(); i++) {
+            char currentChar = sql.charAt(i);
+            if (currentChar == '(') {
+                depth++;
+            } else if (currentChar == ')') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static List<String> splitTopLevelCommaSegments(String sql) {
+        List<String> segments = new ArrayList<>();
+        int depth = 0;
+        int segmentStart = 0;
+        for (int i = 0; i < sql.length(); i++) {
+            char currentChar = sql.charAt(i);
+            if (currentChar == '(') {
+                depth++;
+            } else if (currentChar == ')') {
+                depth = Math.max(0, depth - 1);
+            } else if (currentChar == ',' && depth == 0) {
+                segments.add(sql.substring(segmentStart, i).trim());
+                segmentStart = i + 1;
+            }
+        }
+
+        String tail = sql.substring(segmentStart).trim();
+        if (!tail.isEmpty()) {
+            segments.add(tail);
+        }
+        return segments;
+    }
+
+    private static boolean shouldFormatOverClause(String token, String previousToken) {
+        if (token == null || previousToken == null || !token.startsWith("(") || !token.contains(")")) {
+            return false;
+        }
+        String previousLower = previousToken.trim().toLowerCase(Locale.ROOT);
+        return previousLower.equals("over") || previousLower.endsWith(" over");
+    }
+
+    private static boolean shouldPreserveInlineConstraintList(String token, String previousToken) {
+        if (token == null || previousToken == null || !token.startsWith("(") || !token.contains(")")) {
+            return false;
+        }
+        String previousLower = previousToken.trim().toLowerCase(Locale.ROOT);
+        return previousLower.endsWith("primary key")
+                || previousLower.endsWith("foreign key")
+                || previousLower.endsWith("unique");
+    }
+
+    private static String formatInlineConstraintList(String token) {
+        int closeParenIndex = token.lastIndexOf(')');
+        String inner = token.substring(1, closeParenIndex).trim();
+        inner = FORMAT_COMMA_SPACING_PATTERN.matcher(inner).replaceAll(", ");
+        return "(" + inner + ")" + token.substring(closeParenIndex + 1);
+    }
+
+    private static String formatOverClause(String token, int currentIndent) {
         String inner = token.substring(1, token.lastIndexOf(')')).trim();
         int blockIndent = currentIndent + 1;
-        inner = formatCommentPlaceholders(inner, blockIndent);
-        inner = applyClauseBreaks(inner, blockIndent, false);
+        int innerIndent = currentIndent + 2;
+        inner = FORMAT_OVER_CLAUSE_BREAK_PATTERN.matcher(inner)
+                .replaceAll("\n" + FORMAT_INDENT.repeat(innerIndent) + "$1")
+                .trim();
+        if (inner.startsWith("\n")) {
+            inner = inner.substring(1);
+        }
         return "\n" + FORMAT_INDENT.repeat(blockIndent) + "(\n"
-                + FORMAT_INDENT.repeat(blockIndent) + inner
+                + FORMAT_INDENT.repeat(innerIndent) + inner
                 + "\n" + FORMAT_INDENT.repeat(blockIndent) + ")"
                 + token.substring(token.lastIndexOf(')') + 1);
     }
