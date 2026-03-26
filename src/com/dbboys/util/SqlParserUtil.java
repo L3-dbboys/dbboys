@@ -12,6 +12,7 @@ public class SqlParserUtil {
     public static final Pattern COMMENT_PATTERN = Pattern.compile("--[^\n]*" + "|"+"/\\*[\\s\\S]*?\\*/"+"|"+"/\\*[\\s\\S]*" +"|"+"\\{[\\s\\S]*?\\}");
     private static final String STRING_PATTERN_TEXT = "'([^'\\\\]*(\\\\.[^'\\\\]*)*)'" + "|" + "'[\\s\\S]*";
     private static final String DOUBLE_STRING_PATTERN_TEXT = "\"[^\"]*\"" + "|" + "\"[\\s\\S]*";
+    private static final String FANYINHAO_STRING_PATTERN_TEXT = "`[^`]*`" + "|" + "`[\\s\\S]*";
     private static final String COMMENT_PATTERN_TEXT = "--[^\\n]*" + "|"+"/\\*[\\s\\S]*?\\*/"+"|"+"/\\*[\\s\\S]*" +"|"+"\\{[\\s\\S]*?\\}";
     private static final String MULTI_LINE_START =
             "(?i)\\bcreate\\s+\\bprocedure\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+(?!(as|is)\\b)" + "|" +
@@ -32,6 +33,52 @@ public class SqlParserUtil {
             "(?i)\\bfunction\\s+(?<FUNC>[a-zA-Z0-9_$.]+)\\s*(\\([\\s\\S]*?\\))?\\s+return\\s+([a-zA-Z0-9_$.]+)\\s*(PIPELINED\\s+|DETERMINISTIC\\s+|RESULT_CACHE\\s+)?(AS|IS|;)"
             + "|"
             + "(?i)\\bprocedure\\s+(?<PROC>[a-zA-Z0-9_$.]+)\\s*(\\([\\s\\S]*?\\))?\\s*(AS|IS|;)";
+    private static final Pattern FORMAT_PROTECT_PATTERN = Pattern.compile(
+            "(?<STRING>" + STRING_PATTERN_TEXT + ")"
+                    + "|(?<DOUBLESTRING>" + DOUBLE_STRING_PATTERN_TEXT + ")"
+                    + "|(?<BACKTICK>" + FANYINHAO_STRING_PATTERN_TEXT + ")"
+                    + "|(?<COMMENT>" + COMMENT_PATTERN_TEXT + ")"
+    );
+    private static final Pattern FORMAT_TOKEN_SPLIT_PATTERN = Pattern.compile("(?=\\()|(?<=\\))");
+    private static final Pattern FORMAT_COMPACT_SPACES_PATTERN = Pattern.compile("[ \\t]+");
+    private static final Pattern FORMAT_OPERATOR_SPACING_PATTERN = Pattern.compile("\\s*([=<>+*/-])\\s*");
+    private static final Pattern FORMAT_OPEN_PAREN_SPACING_PATTERN = Pattern.compile("(\\()\\s+");
+    private static final Pattern FORMAT_CLOSE_PAREN_SPACING_PATTERN = Pattern.compile("\\s+(\\))");
+    private static final Pattern FORMAT_DOUBLE_OPERATOR_PATTERN = Pattern.compile("([=<>+*/-]) ([=<>+*/-])");
+    private static final Pattern FORMAT_COMMA_SPACING_PATTERN = Pattern.compile("\\s*,\\s*");
+    private static final Pattern FORMAT_COMMENT_PLACEHOLDER_PATTERN = Pattern.compile("(?i)(__PLACEHOLDER_COMMENT_[0-9]+__)\\n?\\s*");
+    private static final Pattern FORMAT_CLAUSE_BREAK_PATTERN = Pattern.compile("(?i)\\b(FROM|LEFT JOIN|WHERE|GROUP BY|ORDER BY|JOIN|RIGHT JOIN|UNION)\\b");
+    private static final Pattern FORMAT_JOIN_ON_BREAK_PATTERN = Pattern.compile(
+            "(?i)(\\b(?:(?:LEFT|RIGHT|INNER|FULL|CROSS|NATURAL)(?:\\s+OUTER)?\\s+)?JOIN\\b[^\\n]*?)\\s+\\b(ON)\\b"
+    );
+    private static final Pattern FORMAT_CONDITION_BREAK_PATTERN = Pattern.compile("(?i)\\b(AND|OR|HAVING)\\b");
+    private static final Pattern FORMAT_AS_SELECT_PATTERN = Pattern.compile("(?i)(as\\s+)(select\\s+)");
+    private static final Pattern FORMAT_UNION_SELECT_PATTERN = Pattern.compile("(?i)(\\s*)(union\\s+\\w*\\s*)(select\\s+)");
+    private static final Pattern FORMAT_FUNCTION_PAREN_PATTERN = Pattern.compile("(?i)(\\w+)\\h+\\(");
+    private static final Pattern FORMAT_CLOSE_PAREN_SELECT_PATTERN = Pattern.compile("(?i)(\\s*)\\)\\s*(\\bselect\\b\\s+)");
+    private static final Pattern FORMAT_FIRST_LINE_AFTER_OPEN_PAREN_PATTERN = Pattern.compile("(?i)(\\(\\n)(\\s+(?!select\\b)\\w+)");
+    private static final Pattern FORMAT_TRAILING_SPACE_PATTERN = Pattern.compile("[ \\t]+(?=\\n)");
+    private static final Pattern FORMAT_MULTI_BLANK_LINE_PATTERN = Pattern.compile("\\n\\s*\\n");
+    private static final List<String> FORMATTABLE_PREFIXES = List.of(
+            "select ",
+            "with ",
+            "create table ",
+            "create view ",
+            "create index ",
+            "create sequence ",
+            "create trigger ",
+            "alter table ",
+            "alter fragment ",
+            "rename ",
+            "comment on ",
+            "delete from ",
+            "drop ",
+            "insert ",
+            "update ",
+            "delete ",
+            "truncate "
+    );
+    private static final String FORMAT_INDENT = "  ";
 
     public static class PackageMember {
         private final String name;
@@ -543,132 +590,206 @@ public class SqlParserUtil {
     }
 
     public static String formatSql(String sql) {
+        if (sql == null || sql.isBlank()) {
+            return sql == null ? "" : sql.trim();
+        }
 
-        Map<String, String> placeholders = new HashMap<>();
-        int[] index = {0};
+        Map<String, String> placeholders = new LinkedHashMap<>();
+        String protectedSql = protectFormatSql(sql, placeholders);
+        List<String> statements = splitStatementsForFormat(protectedSql);
 
-        // 1. 保护字符串和注释
-        sql = protectPattern(sql, STRING_PATTERN, placeholders, index);
-        sql = protectPattern(sql, DOUBLE_STRING_PATTERN, placeholders, index);
-        sql = protectPattern(sql, FANYINHAO_STRING_PATTERN, placeholders, index);
-        sql = protectPattern(sql, COMMENT_PATTERN, placeholders, index);
-        // 1. 去掉多余空格
+        StringBuilder result = new StringBuilder(protectedSql.length() + 32);
+        for (String statement : statements) {
+            if (statement == null || statement.trim().isEmpty()) {
+                continue;
+            }
+            String formattedStatement = formatSingleStatement(statement);
+            if (formattedStatement.isEmpty()) {
+                continue;
+            }
+            if (result.length() > 0) {
+                result.append('\n');
+            }
+            result.append(formattedStatement);
+        }
 
-        // 3. 用栈处理括号缩进
-        StringBuilder result = new StringBuilder();
-        Stack<Integer> indentStack = new Stack<>();
-        int currentIndent = 0;
-        //String tab = "\t";
-        String tab = "  ";
+        if (result.length() == 0) {
+            result.append(protectedSql.trim());
+        }
 
+        String formattedSql = result.toString().replace(";", ";\n");
+        formattedSql = FORMAT_MULTI_BLANK_LINE_PATTERN.matcher(formattedSql).replaceAll("\n").trim();
+        return restoreProtectedSql(formattedSql, placeholders);
+    }
 
-        String[] sqls = sql.split("(?<=;)");
-        for(String subsql:sqls){
-            String checkSql=subsql.trim().replaceAll("[ \\t]+", " ")    // 连续空格/tab → 单个空格
-                    .replaceAll("\\s*([=<>+*/-])\\s*", " $1 ") // 操作符两边保留一个空格
-                    .replaceAll("\\s+", " ")       // 再压缩一次多余空格
-                    .trim();
-            //去掉(后面及)前面的空格
-            checkSql = checkSql.replaceAll("(?i)(\\()\\s+", "$1").replaceAll("(?i)\\s+(\\))", "$1");
-            //去掉两个符合之间的空格
-            checkSql = checkSql.replaceAll("([=<>+*/-]) ([=<>+*/-])", "$1$2");
+    private static String protectFormatSql(String sql, Map<String, String> placeholders) {
+        Matcher matcher = FORMAT_PROTECT_PATTERN.matcher(sql);
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            boolean isComment = matcher.group("COMMENT") != null;
+            String placeholderPrefix = isComment ? "__PLACEHOLDER_COMMENT_" : "__PLACEHOLDER_";
+            String placeholder = placeholderPrefix + placeholders.size() + "__";
+            placeholders.put(placeholder, matcher.group());
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(placeholder));
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
 
-            if(checkSql.toLowerCase().startsWith("select ")
-                    || checkSql.toLowerCase().startsWith("with ")
-                    || checkSql.toLowerCase().startsWith("create table ")
-                    || checkSql.toLowerCase().startsWith("create view ")
-                    || checkSql.toLowerCase().startsWith("create index ")
-                    || checkSql.toLowerCase().startsWith("create sequence ")
-                    || checkSql.toLowerCase().startsWith("create trigger ")
-                    || checkSql.toLowerCase().startsWith("alter table ")
-                    || checkSql.toLowerCase().startsWith("alter fragment ")
-                    || checkSql.toLowerCase().startsWith("rename ")
-                    || checkSql.toLowerCase().startsWith("comment on ")
-                    || checkSql.toLowerCase().startsWith("delete from ")
-                    || checkSql.toLowerCase().startsWith("drop ")
-                    || checkSql.toLowerCase().startsWith("insert ")
-                    || checkSql.toLowerCase().startsWith("update ")
-                    || checkSql.toLowerCase().startsWith("delete ")
-                    || checkSql.toLowerCase().startsWith("truncate ")
-            ){
-                subsql=checkSql;
-                String[] tokens = subsql.split("(?=\\()|(?<=\\))"); // 按括号拆分
-                String appendSql="";
-                for (String token : tokens) {
-                    if (token.isEmpty()) continue;
-                    if (token.matches("(?i)^\\(\\s*select[\\s\\S]+")||(token.contains("(")&&!token.contains(")"))) {
-                        currentIndent++;
-                        indentStack.push(currentIndent);
-                        token=token.replaceAll("(?i)(__PLACEHOLDER_COMMENT_[0-9]+__)\n?\\s*","\n"+tab.repeat(currentIndent+1)+"$0\n"+tab.repeat(currentIndent+1));
-                        token="\n"+tab.repeat(currentIndent)+"("+"\n"+tab.repeat(currentIndent)+token.substring(1).trim();
-                        token=token.replaceAll("\\s*,\\s*",",\n"+tab.repeat(currentIndent+1)).replaceAll("(?i)\\b(FROM|LEFT JOIN|WHERE|GROUP BY|ORDER BY|JOIN|RIGHT JOIN|UNION)\\b","\n"+tab.repeat(currentIndent)+"$0").replaceAll("(?i)\\b(AND|OR|ON|HAVING)\\b","\n"+tab.repeat(currentIndent+1)+"$0");
-                        token=token.replaceAll(";",";\n");
-                        if(token.contains(")")){
-                            indentStack.pop();
-                            currentIndent--;
-                            token=token.replaceAll("\\)","\n"+tab.repeat(currentIndent+1)+")");
-                            token=token.replaceAll(";",";\n");
-                        }
-                    } else if (token.contains(")")&&!token.contains("(")) {
-                        token=token.replaceAll("(?i)(__PLACEHOLDER_COMMENT_[0-9]+__)\n?\\s*","\n"+tab.repeat(currentIndent+1)+"$0\n"+tab.repeat(currentIndent+1));
-                        //token="\n"+tab.repeat(currentIndent)+token.replaceAll("\\)","\n"+tab.repeat(currentIndent)+")");
-                        token=token.replaceAll("\\)","\n"+tab.repeat(currentIndent)+")");
-                        token=token.replaceAll("\\s*,\\s*",",\n"+tab.repeat(currentIndent+1)).replaceAll("(?i)\\b(FROM|LEFT JOIN|WHERE|GROUP BY|ORDER BY|JOIN|RIGHT JOIN|UNION)\\b","\n"+tab.repeat(currentIndent)+"$0").replaceAll("(?i)\\b(AND|OR|ON|HAVING)\\b","\n"+tab.repeat(currentIndent+1)+"$0");
-                        token=token.replaceAll(";",";\n");
-                        if (!indentStack.isEmpty()) {
-                            currentIndent = indentStack.pop();
-                            currentIndent--;
-                        }
-                    } else {
-                        //token=" "+token;
-                        token = token.replaceAll("(?i)(__PLACEHOLDER_COMMENT_[0-9]+__)\n?\\s*", "\n" + tab.repeat(currentIndent + 1) + "$0\n"+tab.repeat(currentIndent + 1));
-                        if(token.contains("(")&&token.contains(")")){
-                            token=token.replaceAll("\\s*,\\s*",",").replaceAll("(?i)\\b(FROM|LEFT JOIN|WHERE|GROUP BY|ORDER BY|JOIN|RIGHT JOIN|UNION)\\b","\n"+tab.repeat(currentIndent)+"$0").replaceAll("(?i)\\b(AND|OR|ON|HAVING)\\b","\n"+tab.repeat(currentIndent+1)+"$0");
-                        }else {
-                            token = token.replaceAll("\\s*,\\s*", ",\n" + tab.repeat(currentIndent + 1)).replaceAll("(?i)\\b(FROM|LEFT JOIN|WHERE|GROUP BY|ORDER BY|JOIN|RIGHT JOIN|UNION)\\b", "\n" + tab.repeat(currentIndent) + "$0").replaceAll("(?i)\\b(AND|OR|ON|HAVING)\\b", "\n" + tab.repeat(currentIndent + 1) + "$0");
-                        }
-                        token=token.replaceAll(";",";\n");
-                    }
-                    appendSql+=token;
+    private static List<String> splitStatementsForFormat(String sql) {
+        List<String> statements = new ArrayList<>();
+        Sql currentSql = new Sql();
+        for (Segment segment : split(sql)) {
+            String remainingChunk = segment.getText();
+            while (remainingChunk != null && !remainingChunk.isBlank()) {
+                currentSql = modifySql(currentSql, remainingChunk);
+                if (!currentSql.getSqlEnd()) {
+                    break;
                 }
-
-                //视图as select换行
-                appendSql = appendSql.replaceAll("(?i)(as\\s+)(select\\s+)", "$1\n$2");
-
-                //union后换行
-                appendSql = appendSql.replaceAll("(?i)(\\s*)(union\\s+\\w*\\s*)(select\\s+)", "$1$2\n$1$3");
-                //去掉函数括号的缩进
-                appendSql = appendSql.replaceAll("(?i)(\\w+)\\t+\\(", "$1(");
-
-                //)后面的select换行,主要用于with as语句后的select
-                appendSql = appendSql.replaceAll("(?i)(\\s*)\\)\\s*(\\bselect\\b\\s+)", "$1)\n"+"$2");
-                //(后面首行缩进调整
-                appendSql = appendSql.replaceAll("(?i)(\\(\\n)(\\s+(?!select\\b)\\w+)", "$1"+tab+"$2");
-                result.append(appendSql);
-            }else{
-                result.append("\n"+subsql);
+                if (!currentSql.getSqlstr().trim().isEmpty()) {
+                    statements.add(currentSql.getSqlstr());
+                }
+                remainingChunk = currentSql.getSqlRemainder();
+                currentSql = new Sql();
             }
         }
-        sql=result.toString();
-        sql=sql.replaceAll(";", ";\n");
-        sql=sql.replaceAll("\\n\\s*\\n", "\n") // 去掉多余空行
-                .trim();
+        if (!currentSql.getSqlstr().trim().isEmpty()) {
+            statements.add(currentSql.getSqlstr());
+        }
+        return statements;
+    }
 
+    private static String formatSingleStatement(String sql) {
+        String normalizedSql = normalizeFormatStatement(sql);
+        if (!shouldFormatStatement(normalizedSql)) {
+            return sql.trim();
+        }
 
-        //把括号后面的别名放到括号后面，避免对不齐
-        //sql = sql.replaceAll("(?i)\\)\\s+([as ]?\\w+\\s+,?)", ") $1");
-        //sql = sql.replaceAll("(?i)\\)\\s+([as ]?\\w+\\s+)\\s+(FROM|,)", ") $1");
-        //sql = sql.replaceAll("(?i)\\)\\s+((as )?\\w+\\s+(,|FROM))", ") $1");
+        Deque<Integer> indentStack = new ArrayDeque<>();
+        int currentIndent = 0;
+        StringBuilder appendSql = new StringBuilder(normalizedSql.length() + 32);
+        String previousToken = "";
 
+        for (String token : FORMAT_TOKEN_SPLIT_PATTERN.split(normalizedSql)) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            String rawToken = token;
+            if (shouldExpandInlineParenthesisBlock(token, previousToken, normalizedSql, currentIndent)) {
+                token = formatExpandedParenthesisBlock(token, currentIndent);
+            } else if (token.matches("(?i)^\\(\\s*select[\\s\\S]+") || (token.contains("(") && !token.contains(")"))) {
+                currentIndent++;
+                indentStack.push(currentIndent);
+                token = formatCommentPlaceholders(token, currentIndent);
+                token = "\n" + FORMAT_INDENT.repeat(currentIndent) + "(\n"
+                        + FORMAT_INDENT.repeat(currentIndent) + token.substring(1).trim();
+                token = applyClauseBreaks(token, currentIndent, false);
+                token = token.replace(";", ";\n");
+                if (token.contains(")")) {
+                    indentStack.pop();
+                    currentIndent--;
+                    token = token.replace(")", "\n" + FORMAT_INDENT.repeat(currentIndent + 1) + ")");
+                    token = token.replace(";", ";\n");
+                }
+            } else if (token.contains(")") && !token.contains("(")) {
+                token = formatCommentPlaceholders(token, currentIndent);
+                token = token.replace(")", "\n" + FORMAT_INDENT.repeat(currentIndent) + ")");
+                token = applyClauseBreaks(token, currentIndent, false);
+                token = token.replace(";", ";\n");
+                if (!indentStack.isEmpty()) {
+                    currentIndent = indentStack.pop() - 1;
+                }
+            } else {
+                token = formatCommentPlaceholders(token, currentIndent);
+                token = applyClauseBreaks(token, currentIndent, token.contains("(") && token.contains(")"));
+                token = token.replace(";", ";\n");
+            }
+            appendSql.append(token);
+            previousToken = rawToken;
+        }
 
+        String formattedSql = appendSql.toString();
+        formattedSql = FORMAT_AS_SELECT_PATTERN.matcher(formattedSql).replaceAll("$1\n$2");
+        formattedSql = FORMAT_UNION_SELECT_PATTERN.matcher(formattedSql).replaceAll("$1$2\n$1$3");
+        formattedSql = FORMAT_FUNCTION_PAREN_PATTERN.matcher(formattedSql).replaceAll("$1(");
+        formattedSql = FORMAT_CLOSE_PAREN_SELECT_PATTERN.matcher(formattedSql).replaceAll("$1)\n$2");
+        formattedSql = FORMAT_FIRST_LINE_AFTER_OPEN_PAREN_PATTERN.matcher(formattedSql)
+                .replaceAll("$1" + FORMAT_INDENT + "$2");
+        formattedSql = FORMAT_TRAILING_SPACE_PATTERN.matcher(formattedSql).replaceAll("");
+        return formattedSql;
+    }
 
-        //恢复注释和字符串
+    private static String normalizeFormatStatement(String sql) {
+        String normalizedSql = FORMAT_COMPACT_SPACES_PATTERN.matcher(sql.trim()).replaceAll(" ");
+        normalizedSql = FORMAT_OPERATOR_SPACING_PATTERN.matcher(normalizedSql).replaceAll(" $1 ");
+        normalizedSql = normalizedSql.replaceAll("\\s+", " ").trim();
+        normalizedSql = FORMAT_OPEN_PAREN_SPACING_PATTERN.matcher(normalizedSql).replaceAll("$1");
+        normalizedSql = FORMAT_CLOSE_PAREN_SPACING_PATTERN.matcher(normalizedSql).replaceAll("$1");
+        return FORMAT_DOUBLE_OPERATOR_PATTERN.matcher(normalizedSql).replaceAll("$1$2");
+    }
+
+    private static boolean shouldFormatStatement(String sql) {
+        String lowerSql = sql.toLowerCase(Locale.ROOT);
+        for (String prefix : FORMATTABLE_PREFIXES) {
+            if (lowerSql.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String formatCommentPlaceholders(String token, int currentIndent) {
+        String indent = "\n" + FORMAT_INDENT.repeat(currentIndent + 1);
+        return FORMAT_COMMENT_PLACEHOLDER_PATTERN.matcher(token).replaceAll(indent + "$1" + indent);
+    }
+
+    private static boolean shouldExpandInlineParenthesisBlock(
+            String token,
+            String previousToken,
+            String statement,
+            int currentIndent
+    ) {
+        if (currentIndent != 0 || token == null || !token.startsWith("(") || !token.contains(")")) {
+            return false;
+        }
+        String statementLower = statement.toLowerCase(Locale.ROOT);
+        String previousLower = previousToken == null ? "" : previousToken.trim().toLowerCase(Locale.ROOT);
+        if (statementLower.startsWith("create table ") && previousLower.startsWith("create table ")) {
+            return true;
+        }
+        return statementLower.startsWith("alter table ")
+                && (previousLower.contains(" add ") || previousLower.endsWith(" add"));
+    }
+
+    private static String formatExpandedParenthesisBlock(String token, int currentIndent) {
+        String inner = token.substring(1, token.lastIndexOf(')')).trim();
+        int blockIndent = currentIndent + 1;
+        inner = formatCommentPlaceholders(inner, blockIndent);
+        inner = applyClauseBreaks(inner, blockIndent, false);
+        return "\n" + FORMAT_INDENT.repeat(blockIndent) + "(\n"
+                + FORMAT_INDENT.repeat(blockIndent) + inner
+                + "\n" + FORMAT_INDENT.repeat(blockIndent) + ")"
+                + token.substring(token.lastIndexOf(')') + 1);
+    }
+
+    private static String applyClauseBreaks(String token, int currentIndent, boolean compactComma) {
+        String commaReplacement = compactComma
+                ? ","
+                : ",\n" + FORMAT_INDENT.repeat(currentIndent + 1);
+        String formattedToken = FORMAT_COMMA_SPACING_PATTERN.matcher(token).replaceAll(commaReplacement);
+        formattedToken = FORMAT_CLAUSE_BREAK_PATTERN.matcher(formattedToken)
+                .replaceAll("\n" + FORMAT_INDENT.repeat(currentIndent) + "$1");
+        formattedToken = FORMAT_JOIN_ON_BREAK_PATTERN.matcher(formattedToken)
+                .replaceAll("$1\n" + FORMAT_INDENT.repeat(currentIndent + 1) + "$2");
+        return FORMAT_CONDITION_BREAK_PATTERN.matcher(formattedToken)
+                .replaceAll("\n" + FORMAT_INDENT.repeat(currentIndent + 1) + "$1");
+    }
+
+    private static String restoreProtectedSql(String sql, Map<String, String> placeholders) {
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             sql = sql.replace(entry.getKey(), entry.getValue());
         }
-
         return sql;
-
     }
 
 

@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
@@ -308,12 +309,23 @@ public class CustomSqlEditCodeArea extends CodeArea {
     private void applyTransform(java.util.function.Function<String, String> transform) {
         String selectedText = getSelectedText();
         if (selectedText == null || selectedText.isEmpty()) {
-            replaceText(transform.apply(getText()));
+            String currentText = getText();
+            String transformedText = transform.apply(currentText);
+            if (Objects.equals(currentText, transformedText)) {
+                scheduleHighlighting();
+                return;
+            }
+            replaceText(transformedText);
             return;
         }
         int start = getSelection().getStart();
         int end = getSelection().getEnd();
-        replaceText(start, end, transform.apply(selectedText));
+        String transformedSelection = transform.apply(selectedText);
+        if (Objects.equals(selectedText, transformedSelection)) {
+            scheduleHighlighting();
+            return;
+        }
+        replaceText(start, end, transformedSelection);
     }
 
 
