@@ -14,12 +14,6 @@ public class SqlParserUtil {
     private static final String DOUBLE_STRING_PATTERN_TEXT = "\"[^\"]*\"" + "|" + "\"[\\s\\S]*";
     private static final String FANYINHAO_STRING_PATTERN_TEXT = "`[^`]*`" + "|" + "`[\\s\\S]*";
     private static final String COMMENT_PATTERN_TEXT = "--[^\\n]*" + "|"+"/\\*[\\s\\S]*?\\*/"+"|"+"/\\*[\\s\\S]*" +"|"+"\\{[\\s\\S]*?\\}";
-    private static final String MULTI_LINE_START =
-            "(?i)\\bcreate\\s+\\bprocedure\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+(?!(as|is)\\b)" + "|" +
-            "(?i)\\bcreate\\s+\\bfunction\\s+(if\\s+not\\s+exists\\s+)?([a-zA-Z0-9_$.\"]*)\\s*\\([\\s\\S]*\\)\\s+\\bRETURNING\\s+[a-zA-Z_][a-zA-Z0-9_$.]*\\s+(?!(as|is)\\b)" + "|" +
-            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(package|procedure)\\s+(body\\s+)?([a-zA-Z_][a-zA-Z0-9_$.]*)\\s*(\\([\\s\\S]*?\\)\\s+)?(AS|IS)" + "|" +
-            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?(function)\\s+([a-zA-Z0-9_$.]*)\\s*(\\([\\s\\S]*?\\)\\s*)?return\\s+([a-zA-Z0-9_$.()]+)\\s+(AS|IS)" + "|" +
-            "(?i)\\bcreate\\s+(OR\\s+REPLACE\\s+)?trigger\\s+([a-zA-Z0-9_$.\"]+)\\b";
     private static final String NO_NAME_BLOCK = "(?i)^\\s*\\b(begin)(?!\\s*(;|work))|(?i)^\\s*\\b(DECLARE)(?!\\s*;)";
     private static final String MULTI_LINE_END =
             "(?i)\\bend\\s+(procedure|function)\\s*;?" + "|" +
@@ -33,6 +27,20 @@ public class SqlParserUtil {
             "(?i)\\bfunction\\s+(?<FUNC>[a-zA-Z0-9_$.]+)\\s*(\\([\\s\\S]*?\\))?\\s+return\\s+([a-zA-Z0-9_$.]+)\\s*(PIPELINED\\s+|DETERMINISTIC\\s+|RESULT_CACHE\\s+)?(AS|IS|;)"
             + "|"
             + "(?i)\\bprocedure\\s+(?<PROC>[a-zA-Z0-9_$.]+)\\s*(\\([\\s\\S]*?\\))?\\s*(AS|IS|;)";
+    private static final Pattern COMMENT_ONLY_PATTERN = Pattern.compile(COMMENT_PATTERN_TEXT);
+    private static final Pattern NO_NAME_BLOCK_PATTERN = Pattern.compile(NO_NAME_BLOCK);
+    private static final Pattern ROUTINE_DECLARATION_PATTERN = Pattern.compile(
+            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?(?<TYPE>function|procedure)\\b"
+    );
+    private static final Pattern PACKAGE_DECLARATION_PATTERN = Pattern.compile(
+            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?package(\\s+body)?\\b"
+    );
+    private static final Pattern TRIGGER_DECLARATION_PATTERN = Pattern.compile(
+            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?trigger\\b"
+    );
+    private static final Pattern BLOCK_NAME_DECLARATION_PATTERN = Pattern.compile(
+            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?(?<TYPE>package(\\s+body)?|procedure|function|trigger)\\b"
+    );
     private static final Pattern STATEMENT_PROTECT_PATTERN = Pattern.compile(
             STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + FANYINHAO_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
     );
@@ -211,12 +219,71 @@ public class SqlParserUtil {
             }
 
             if (i == sql.length() - 1
-                    || (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment && !inBrackets && current == ';')) {
+                    || (!inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment && !inBrackets && current == ';'
+                    && !shouldKeepRoutineTerminatorWithPreviousSegment(sql, i + 1))) {
                 segments.add(new Segment(buffer.toString(), i));
                 buffer.setLength(0);
             }
         }
         return segments;
+    }
+
+    private static boolean shouldKeepRoutineTerminatorWithPreviousSegment(String sql, int nextIndex) {
+        int index = skipIgnorableSql(nextIndex, sql);
+        if (index >= sql.length() || !startsWithIgnoreCase(sql, index, "end")) {
+            return false;
+        }
+        index = skipWhitespace(sql, index + 3);
+        return startsWithIgnoreCase(sql, index, "procedure")
+                || startsWithIgnoreCase(sql, index, "function");
+    }
+
+    private static int skipIgnorableSql(int index, String sql) {
+        int currentIndex = index;
+        while (currentIndex < sql.length()) {
+            currentIndex = skipWhitespace(sql, currentIndex);
+            if (currentIndex + 1 < sql.length() && sql.charAt(currentIndex) == '-' && sql.charAt(currentIndex + 1) == '-') {
+                currentIndex += 2;
+                while (currentIndex < sql.length() && sql.charAt(currentIndex) != '\n' && sql.charAt(currentIndex) != '\r') {
+                    currentIndex++;
+                }
+                continue;
+            }
+            if (currentIndex + 1 < sql.length() && sql.charAt(currentIndex) == '/' && sql.charAt(currentIndex + 1) == '*') {
+                currentIndex += 2;
+                while (currentIndex + 1 < sql.length()
+                        && !(sql.charAt(currentIndex) == '*' && sql.charAt(currentIndex + 1) == '/')) {
+                    currentIndex++;
+                }
+                if (currentIndex + 1 < sql.length()) {
+                    currentIndex += 2;
+                }
+                continue;
+            }
+            break;
+        }
+        return currentIndex;
+    }
+
+    private static int getRoutineStatementEndIndex(Matcher matcher) {
+        int endIndex = matcher.end("END");
+        String matchedEnd = matcher.group("END");
+        if (matchedEnd == null || matchedEnd.isEmpty()) {
+            return endIndex;
+        }
+
+        int offset = matchedEnd.length();
+        while (offset > 0 && Character.isWhitespace(matchedEnd.charAt(offset - 1))) {
+            offset--;
+        }
+        if (offset > 0 && matchedEnd.charAt(offset - 1) == '/') {
+            offset--;
+            while (offset > 0 && Character.isWhitespace(matchedEnd.charAt(offset - 1))) {
+                offset--;
+            }
+            return matcher.start("END") + offset;
+        }
+        return endIndex;
     }
 
     public static Sql modifySql(Sql sql, String addSql) {
@@ -260,32 +327,13 @@ public class SqlParserUtil {
                 sql.setSqlType("CALL");
                 sql.setSqlEnd(true);
             } else {
-                pattern = Pattern.compile(
-                        STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
-                                + "|(?<START>" + MULTI_LINE_START + ")"
-                );
-                Matcher matcher = pattern.matcher(addSql);
-                while (matcher.find()) {
-                    if (matcher.group("START") != null) {
-                        sql.setSqlType("MULTI_LINE_SQL");
-                        configureBlockState(sql, addSql);
-                        break;
-                    }
-                }
-
-                if (sql.getSqlType().isEmpty()) {
-                    pattern = Pattern.compile(
-                            STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
-                                    + "|(?<BLOCK>" + NO_NAME_BLOCK + ")"
-                    );
-                    matcher = pattern.matcher(addSql);
-                    while (matcher.find()) {
-                        if (matcher.group("BLOCK") != null) {
-                            sql.setSqlType("CALL_BLOCK");
-                            configureBlockState(sql, addSql);
-                            break;
-                        }
-                    }
+                Matcher matcher;
+                if (isMultiLineSqlStart(addSql)) {
+                    sql.setSqlType("MULTI_LINE_SQL");
+                    configureBlockState(sql, addSql);
+                } else if (isAnonymousBlockStart(addSql)) {
+                    sql.setSqlType("CALL_BLOCK");
+                    configureBlockState(sql, addSql);
                 }
 
                 pattern = Pattern.compile(
@@ -296,7 +344,7 @@ public class SqlParserUtil {
                 while (matcher.find()) {
                     if (matcher.group("END") != null) {
                         sql.setSqlRemainder(addSql.substring(matcher.end("END")));
-                        addSql = addSql.substring(0, matcher.end("END") - 1);
+                        addSql = addSql.substring(0, getRoutineStatementEndIndex(matcher));
                         sql.setSqlEnd(true);
                         break;
                     }
@@ -339,7 +387,7 @@ public class SqlParserUtil {
                 while (matcher.find()) {
                     if (matcher.group("END") != null) {
                         sql.setSqlRemainder(addSql.substring(matcher.end("END")));
-                        addSql = addSql.substring(0, matcher.end("END") - 1);
+                        addSql = addSql.substring(0, getRoutineStatementEndIndex(matcher));
                         sql.setSqlEnd(true);
                         break;
                     }
@@ -377,18 +425,7 @@ public class SqlParserUtil {
         }
 
         if (!result) {
-            boolean containBegin = false;
-            pattern = Pattern.compile(
-                    STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
-                            + "|(?<START>" + MULTI_LINE_START + ")"
-            );
-            matcher = pattern.matcher(remainderSql);
-            while (matcher.find()) {
-                if (matcher.group("START") != null) {
-                    containBegin = true;
-                }
-                break;
-            }
+            boolean containBegin = isMultiLineSqlStart(remainderSql) || isAnonymousBlockStart(remainderSql);
             if (!containBegin && !remainderSql.trim().isEmpty()) {
                 result = true;
             }
@@ -450,6 +487,13 @@ public class SqlParserUtil {
         return STATEMENT_PROTECT_PATTERN.matcher(sql).replaceAll("");
     }
 
+    private static String stripCommentsOnly(String sql) {
+        if (sql == null || sql.isEmpty()) {
+            return "";
+        }
+        return COMMENT_ONLY_PATTERN.matcher(sql).replaceAll(" ");
+    }
+
     private static String stripLeadingSqlDelimiter(String sql) {
         if (sql == null || sql.isEmpty()) {
             return "";
@@ -496,6 +540,104 @@ public class SqlParserUtil {
         sql.setPlainBlockMode(usesPlainBlockEnd(sql.getSqlType(), addSql));
     }
 
+    private static boolean isMultiLineSqlStart(String sql) {
+        String normalized = stripCommentsOnly(sql).trim();
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        if (TRIGGER_DECLARATION_PATTERN.matcher(normalized).find()) {
+            return true;
+        }
+        if (PACKAGE_DECLARATION_PATTERN.matcher(normalized).find()) {
+            String lowerNormalized = normalized.toLowerCase(Locale.ROOT);
+            return lowerNormalized.contains(" as") || lowerNormalized.contains(" is");
+        }
+
+        Matcher matcher = ROUTINE_DECLARATION_PATTERN.matcher(normalized);
+        if (!matcher.find()) {
+            return false;
+        }
+
+        String routineType = matcher.group("TYPE").toLowerCase(Locale.ROOT);
+        int index = skipWhitespace(normalized, matcher.end());
+        if (startsWithIgnoreCase(normalized, index, "if not exists")) {
+            index = skipWhitespace(normalized, index + "if not exists".length());
+        }
+
+        int nameEnd = skipQualifiedName(normalized, index);
+        if (nameEnd <= index) {
+            return false;
+        }
+
+        int remainderStart = skipWhitespace(normalized, nameEnd);
+        if (remainderStart < normalized.length() && normalized.charAt(remainderStart) == '(') {
+            int closeParenIndex = findMatchingParenthesis(normalized, remainderStart);
+            if (closeParenIndex < 0) {
+                return false;
+            }
+            remainderStart = skipWhitespace(normalized, closeParenIndex + 1);
+        }
+
+        String remainder = normalized.substring(remainderStart).trim().toLowerCase(Locale.ROOT);
+        if (remainder.isEmpty()) {
+            return false;
+        }
+
+        if ("function".equals(routineType)) {
+            return remainder.startsWith("return")
+                    || remainder.startsWith("returns")
+                    || remainder.startsWith("returning")
+                    || remainder.startsWith("as")
+                    || remainder.startsWith("is");
+        }
+
+        return remainder.startsWith("as")
+                || remainder.startsWith("is")
+                || remainder.startsWith("begin")
+                || remainder.startsWith("define");
+    }
+
+    private static boolean isAnonymousBlockStart(String sql) {
+        return NO_NAME_BLOCK_PATTERN.matcher(stripCommentsOnly(sql)).find();
+    }
+
+    private static int skipWhitespace(String sql, int index) {
+        int result = index;
+        while (result < sql.length() && Character.isWhitespace(sql.charAt(result))) {
+            result++;
+        }
+        return result;
+    }
+
+    private static boolean startsWithIgnoreCase(String text, int start, String value) {
+        if (start < 0 || start + value.length() > text.length()) {
+            return false;
+        }
+        return text.regionMatches(true, start, value, 0, value.length());
+    }
+
+    private static int skipQualifiedName(String sql, int index) {
+        int result = index;
+        while (result < sql.length()) {
+            char current = sql.charAt(result);
+            if (Character.isWhitespace(current) || current == '(') {
+                break;
+            }
+            if (current == '"') {
+                result++;
+                while (result < sql.length() && sql.charAt(result) != '"') {
+                    result++;
+                }
+                if (result < sql.length()) {
+                    result++;
+                }
+                continue;
+            }
+            result++;
+        }
+        return result;
+    }
+
     private static boolean usesPlainBlockEnd(String sqlType, String addSql) {
         if ("CALL_BLOCK".equals(sqlType)) {
             return true;
@@ -512,15 +654,38 @@ public class SqlParserUtil {
     }
 
     private static String extractBlockName(String addSql) {
-        String normalized = stripProtectedContent(addSql).trim();
-        Pattern pattern = Pattern.compile(
-                "(?i)^create\\s+(or\\s+replace\\s+)?(package(\\s+body)?|procedure|function|trigger)\\s+(if\\s+not\\s+exists\\s+)?(?<NAME>[a-zA-Z0-9_$.]+|\"[^\"]+\")"
-        );
-        Matcher matcher = pattern.matcher(normalized);
+        String normalized = stripCommentsOnly(addSql).trim();
+        Matcher matcher = BLOCK_NAME_DECLARATION_PATTERN.matcher(normalized);
         if (matcher.find()) {
-            return normalizeIdentifier(matcher.group("NAME"));
+            int index = skipWhitespace(normalized, matcher.end());
+            if (startsWithIgnoreCase(normalized, index, "if not exists")) {
+                index = skipWhitespace(normalized, index + "if not exists".length());
+            }
+            int nameEnd = skipQualifiedName(normalized, index);
+            if (nameEnd > index) {
+                return extractLastIdentifier(normalized.substring(index, nameEnd));
+            }
         }
         return "";
+    }
+
+    private static String extractLastIdentifier(String identifierChain) {
+        if (identifierChain == null || identifierChain.isBlank()) {
+            return "";
+        }
+        String value = identifierChain.trim();
+        int lastDot = -1;
+        boolean inQuotes = false;
+        for (int i = 0; i < value.length(); i++) {
+            char current = value.charAt(i);
+            if (current == '"') {
+                inQuotes = !inQuotes;
+            } else if (current == '.' && !inQuotes) {
+                lastDot = i;
+            }
+        }
+        String lastPart = lastDot >= 0 ? value.substring(lastDot + 1) : value;
+        return normalizeIdentifier(lastPart);
     }
 
     private static String normalizeIdentifier(String identifier) {
