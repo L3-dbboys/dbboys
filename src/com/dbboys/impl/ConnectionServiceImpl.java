@@ -24,7 +24,9 @@ import org.json.JSONObject;
 
 public class ConnectionServiceImpl implements ConnectionService {
     private static final Logger log = LogManager.getLogger(ConnectionServiceImpl.class);
+    private static final String DB_TYPE_GBASE = "GBASE 8S";
     private static final String PROP_DB_LOCALE = "DB_LOCALE";
+    private static final String PROP_IFX_TRIMTRAILINGSPACES = "IFX_TRIMTRAILINGSPACES";
     private static final Map<String, Driver> DRIVER_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, URLClassLoader> LOADER_CACHE = new ConcurrentHashMap<>();
     private final DialectServices dialectServices;
@@ -41,19 +43,24 @@ public class ConnectionServiceImpl implements ConnectionService {
         DatabaseDialect dialect = dialectServices.requireDialect(connect);
         DatabaseDialect.ConnectionParams params = dialect.getConnectionParams(connect);
         Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
-        Properties info = buildConnectionProperties(connect);
+        Properties info = buildConnectionProperties(connect, false);
         return driver.connect(params.getUrl(), info);
     }
 
-    private static Properties buildConnectionProperties(Connect connect) {
+    private static Properties buildConnectionProperties(Connect connect, boolean ignoreTrimTrailingSpaces) {
         Properties info = new Properties();
         info.setProperty("user", connect.getUsername());
         info.setProperty("password", connect.getPassword());
         JSONArray jsonArray = new JSONArray(connect.getProps());
         for (int i = 0; i < jsonArray.length(); i++) {
             JSONObject jsonObject = jsonArray.getJSONObject(i);
-            if (jsonObject.getString("propValue") != null && (!jsonObject.getString("propValue").equals(""))) {
-                info.setProperty(jsonObject.getString("propName"), jsonObject.getString("propValue"));
+            String propName = jsonObject.getString("propName");
+            String propValue = jsonObject.getString("propValue");
+            if (ignoreTrimTrailingSpaces && PROP_IFX_TRIMTRAILINGSPACES.equalsIgnoreCase(propName)) {
+                continue;
+            }
+            if (propValue != null && (!propValue.equals(""))) {
+                info.setProperty(propName, propValue);
             }
         }
         return info;
@@ -85,9 +92,17 @@ public class ConnectionServiceImpl implements ConnectionService {
     }
 
     public Connection getConnectionWithSessionInit(Connect connect) throws Exception {
-        Connection conn = createConnection(connect);
+        DatabaseDialect dialect = dialectServices.requireDialect(connect);
+        DatabaseDialect.ConnectionParams params = dialect.getConnectionParams(connect);
+        Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
+        Properties info = buildConnectionProperties(connect, shouldIgnoreTrimTrailingSpaces(connect));
+        Connection conn = driver.connect(params.getUrl(), info);
         initializeSessionIfSupported(connect, conn);
         return conn;
+    }
+
+    private boolean shouldIgnoreTrimTrailingSpaces(Connect connect) {
+        return connect != null && DB_TYPE_GBASE.equals(connect.getDbtype());
     }
 
     public void changeCommitMode(Connection conn, int commitChoiceBoxIndex) throws SQLException {
