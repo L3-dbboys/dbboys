@@ -1,9 +1,12 @@
 package com.dbboys.service;
 
+import com.dbboys.api.InstanceAdminRepository;
+import com.dbboys.api.InstanceAdminRepositoryProvider;
+import com.dbboys.app.AppContext;
 import com.dbboys.customnode.CustomSpaceChart;
-import com.dbboys.db.AdminRepository;
 import com.dbboys.api.ConnectionService;
 import com.dbboys.impl.ConnectionServiceImpl;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
@@ -12,56 +15,72 @@ import java.util.List;
 
 public class AdminService {
     private final ConnectionService connectionService;
-    private final AdminRepository adminRepository;
+    private final InstanceAdminRepositoryProvider adminRepositoryProvider;
 
     public AdminService() {
-        this(new ConnectionServiceImpl(), new AdminRepository());
+        this(resolveConnectionService(), resolveAdminRepositoryProvider());
     }
 
-    public AdminService(ConnectionService connectionService, AdminRepository adminRepository) {
+    public AdminService(ConnectionService connectionService, InstanceAdminRepositoryProvider adminRepositoryProvider) {
         this.connectionService = connectionService;
-        this.adminRepository = adminRepository;
+        this.adminRepositoryProvider = adminRepositoryProvider;
     }
 
     public void modifyChunkExtendable(Connect connect, int chunkId, boolean toExtendAble) throws Exception {
         Connection conn = connectionService.getConnectionWithSessionInit(connect);
-        modifyChunkExtendable(conn, chunkId, toExtendAble);
+        modifyChunkExtendable(adminRepositoryProvider.admin(connect), conn, chunkId, toExtendAble);
         conn.close();
     }
 
     public void unLimitedSpaceSize(Connect connect, String dbspace) throws Exception {
         Connection conn = connectionService.getConnectionWithSessionInit(connect);
-        modifySpaceSize(conn, dbspace, 10, 10000, 0);
+        modifySpaceSize(adminRepositoryProvider.admin(connect), conn, dbspace, 10, 10000, 0);
         conn.close();
     }
 
     public List<List<CustomSpaceChart.SpaceUsage>> getInstanceDbspaceInfo(Connect connect) throws Exception {
         Connection conn = connectionService.getConnectionWithSessionInit(connect);
-        List<List<CustomSpaceChart.SpaceUsage>> result = getInstanceDbspaceInfo(conn);
+        List<List<CustomSpaceChart.SpaceUsage>> result = getInstanceDbspaceInfo(adminRepositoryProvider.admin(connect), conn);
         conn.close();
         return result;
     }
 
     public double getMaxDbspaceUsed(Connect connect) throws Exception {
         Connection conn = connectionService.getConnectionWithSessionInit(connect);
-        double result = getMaxDbspaceUsed(conn);
+        double result = getMaxDbspaceUsed(adminRepositoryProvider.admin(connect), conn);
         conn.close();
         return result;
     }
 
-    public void modifyChunkExtendable(Connection conn, int chunkId, boolean toExtendable) throws SQLException {
+    private void modifyChunkExtendable(InstanceAdminRepository adminRepository, Connection conn, int chunkId, boolean toExtendable) throws SQLException {
         adminRepository.modifyChunkExtendable(conn, chunkId, toExtendable);
     }
 
-    public void modifySpaceSize(Connection conn, String dbspace, int size1, int size2, int size3) throws SQLException {
+    private void modifySpaceSize(InstanceAdminRepository adminRepository, Connection conn, String dbspace, int size1, int size2, int size3) throws SQLException {
         adminRepository.modifySpaceSize(conn, dbspace, size1, size2, size3);
     }
 
-    public List<List<CustomSpaceChart.SpaceUsage>> getInstanceDbspaceInfo(Connection conn) throws SQLException {
+    private List<List<CustomSpaceChart.SpaceUsage>> getInstanceDbspaceInfo(InstanceAdminRepository adminRepository, Connection conn) throws SQLException {
         return adminRepository.getInstanceDbspaceInfo(conn);
     }
 
-    public double getMaxDbspaceUsed(Connection conn) throws SQLException {
+    private double getMaxDbspaceUsed(InstanceAdminRepository adminRepository, Connection conn) throws SQLException {
         return adminRepository.getMaxDbspaceUsed(conn);
+    }
+
+    private static ConnectionService resolveConnectionService() {
+        try {
+            return AppContext.get(ConnectionService.class);
+        } catch (IllegalStateException e) {
+            return new ConnectionServiceImpl();
+        }
+    }
+
+    private static InstanceAdminRepositoryProvider resolveAdminRepositoryProvider() {
+        try {
+            return AppContext.get(InstanceAdminRepositoryProvider.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
     }
 }

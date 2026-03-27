@@ -1,9 +1,9 @@
 package com.dbboys.service;
 
+import com.dbboys.api.DdlRepositoryProvider;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
 import com.dbboys.api.MetadataRepositoryProvider;
-import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.ObjectList;
@@ -16,13 +16,20 @@ import java.util.List;
 
 public class SequenceService implements MetaObjectService {
     private final MetadataRepositoryProvider metadataRepositoryProvider;
+    private final DdlRepositoryProvider ddlRepositoryProvider;
 
     public SequenceService() {
-        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class),
+                com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
     }
 
     public SequenceService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this(metadataRepositoryProvider, com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
+    }
+
+    public SequenceService(MetadataRepositoryProvider metadataRepositoryProvider, DdlRepositoryProvider ddlRepositoryProvider) {
         this.metadataRepositoryProvider = metadataRepositoryProvider;
+        this.ddlRepositoryProvider = ddlRepositoryProvider;
     }
 
     @Override
@@ -38,8 +45,7 @@ public class SequenceService implements MetaObjectService {
     }
     @Override
     public DdlFetcher ddlFetcher() {
-        return DDLRepository::printSequence;
+        return (connect, conn, objectName) -> ddlRepositoryProvider.ddl(connect).printSequence(conn, objectName);
     }
 }
-
 

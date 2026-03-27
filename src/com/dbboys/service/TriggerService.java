@@ -1,10 +1,10 @@
 package com.dbboys.service;
 
+import com.dbboys.api.DdlRepositoryProvider;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
 import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
-import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.ObjectList;
@@ -19,13 +19,20 @@ import java.util.function.Consumer;
 
 public class TriggerService implements MetaObjectService {
     private final MetadataRepositoryProvider metadataRepositoryProvider;
+    private final DdlRepositoryProvider ddlRepositoryProvider;
 
     public TriggerService() {
-        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class),
+                com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
     }
 
     public TriggerService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this(metadataRepositoryProvider, com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
+    }
+
+    public TriggerService(MetadataRepositoryProvider metadataRepositoryProvider, DdlRepositoryProvider ddlRepositoryProvider) {
         this.metadataRepositoryProvider = metadataRepositoryProvider;
+        this.ddlRepositoryProvider = ddlRepositoryProvider;
     }
 
     public Trigger getTrigger(Connect connect, Database database,String objectName) throws Exception {
@@ -44,7 +51,7 @@ public class TriggerService implements MetaObjectService {
     }
     @Override
     public DdlFetcher ddlFetcher() {
-        return DDLRepository::printTrigger;
+        return (connect, conn, objectName) -> ddlRepositoryProvider.ddl(connect).printTrigger(conn, objectName);
     }
 
     public void refreshTriggerMeta(Connect connect,
@@ -84,5 +91,4 @@ public class TriggerService implements MetaObjectService {
         executeObjectSql(connect, sql, onSucceededUi);
     }
 }
-
 

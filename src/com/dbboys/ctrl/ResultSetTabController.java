@@ -8,7 +8,7 @@ import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
-import com.dbboys.db.ConnectionErrorHandler;
+import com.dbboys.util.SqlErrorUtil;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
 import javafx.application.Platform;
@@ -360,7 +360,7 @@ public class ResultSetTabController {
                     rs.close();
                 } catch (SQLException e) {
                     log.error(e.getMessage(), e);
-                    if (ConnectionErrorHandler.isDisconnectError(e)) {
+                    if (SqlErrorUtil.isDisconnectError(sqlConnect, e)) {
                         hiddenDisconnectedButton.fire();
                     } else {
                         Platform.runLater(() ->

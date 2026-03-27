@@ -1,10 +1,10 @@
 package com.dbboys.service;
 
+import com.dbboys.api.DdlRepositoryProvider;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
 import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
-import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.Index;
@@ -19,13 +19,20 @@ import java.util.function.Consumer;
 
 public class IndexService implements MetaObjectService {
     private final MetadataRepositoryProvider metadataRepositoryProvider;
+    private final DdlRepositoryProvider ddlRepositoryProvider;
 
     public IndexService() {
-        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class),
+                com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
     }
 
     public IndexService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this(metadataRepositoryProvider, com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
+    }
+
+    public IndexService(MetadataRepositoryProvider metadataRepositoryProvider, DdlRepositoryProvider ddlRepositoryProvider) {
         this.metadataRepositoryProvider = metadataRepositoryProvider;
+        this.ddlRepositoryProvider = ddlRepositoryProvider;
     }
 
     public Index getIndex(Connect connect, Database database,String objectName) throws Exception {
@@ -33,7 +40,7 @@ public class IndexService implements MetaObjectService {
     }
     @Override
     public DdlFetcher ddlFetcher() {
-        return DDLRepository::printIndex;
+        return (connect, conn, objectName) -> ddlRepositoryProvider.ddl(connect).printIndex(conn, objectName);
     }
     public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
         var repo = metadataRepositoryProvider.metadata(connect);
@@ -87,5 +94,4 @@ public class IndexService implements MetaObjectService {
         executeObjectSql(connect, sql, onSucceededUi);
     }
 }
-
 

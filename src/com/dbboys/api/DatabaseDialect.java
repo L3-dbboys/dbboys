@@ -139,6 +139,16 @@ public interface DatabaseDialect {
     com.dbboys.api.SqlexeRepository getSqlexeRepository();
 
     /**
+     * 该库的 DDL 导出实现。
+     */
+    com.dbboys.api.DdlRepository getDdlRepository();
+
+    /**
+     * 该库的实例级管理实现；不支持的数据库可返回抛 UnsupportedOperationException 的实现。
+     */
+    com.dbboys.api.InstanceAdminRepository getInstanceAdminRepository();
+
+    /**
      * JDBC 连接参数：URL、驱动类名、驱动 jar 路径。
      */
     final class ConnectionParams {

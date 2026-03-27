@@ -6,6 +6,7 @@ import com.dbboys.customnode.CustomTableCell;
 import com.dbboys.i18n.I18n;
 import com.dbboys.util.AlertUtil;
 import com.dbboys.util.CustomWindowFrameUtil;
+import com.dbboys.util.SqlErrorUtil;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
@@ -187,7 +188,7 @@ public class ResultSetColumnBuilder {
                 Platform.runLater(() -> {
                     event.getRowValue().set(columnIndex, oldvalue == null ? null : oldvalue.toString());
                     event.getTableView().refresh();
-                    if (com.dbboys.db.ConnectionErrorHandler.isDisconnectError(e)) {
+                    if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                         ctrl.hiddenDisconnectedButton.fire();
                     } else {
                         AlertUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage());

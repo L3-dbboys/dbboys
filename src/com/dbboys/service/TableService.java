@@ -1,11 +1,11 @@
 package com.dbboys.service;
 
 import com.dbboys.app.AppExecutor;
+import com.dbboys.api.DdlRepositoryProvider;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
 import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
-import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.*;
 import javafx.concurrent.Task;
 
@@ -17,13 +17,20 @@ import java.util.function.Consumer;
 
 public class TableService implements MetaObjectService {
     private final MetadataRepositoryProvider metadataRepositoryProvider;
+    private final DdlRepositoryProvider ddlRepositoryProvider;
 
     public TableService() {
-        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class),
+                com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
     }
 
     public TableService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this(metadataRepositoryProvider, com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
+    }
+
+    public TableService(MetadataRepositoryProvider metadataRepositoryProvider, DdlRepositoryProvider ddlRepositoryProvider) {
         this.metadataRepositoryProvider = metadataRepositoryProvider;
+        this.ddlRepositoryProvider = ddlRepositoryProvider;
     }
 
     public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
@@ -46,7 +53,7 @@ public class TableService implements MetaObjectService {
 
     @Override
     public DdlFetcher ddlFetcher() {
-        return DDLRepository::printTable;
+        return (connect, conn, objectName) -> ddlRepositoryProvider.ddl(connect).printTable(conn, objectName);
     }
 
 
@@ -66,7 +73,7 @@ public class TableService implements MetaObjectService {
         return objectList;
     }
     public ArrayList<ColumnsInfo> getColumns(Connect connect, Database database,String objectName) throws Exception {
-        return withMetaSession(connect, database, conn -> (ArrayList<ColumnsInfo>)DDLRepository.getColInfo(conn, objectName));
+        return withMetaSession(connect, database, conn -> new ArrayList<>(metadataRepositoryProvider.metadata(connect).getColumns(conn, objectName)));
     }
 
     public Table getTable(Connect connect, Database database,String objectName) throws Exception {
@@ -155,5 +162,4 @@ public class TableService implements MetaObjectService {
 
 
 }
-
 

@@ -1,9 +1,9 @@
 package com.dbboys.service;
 
+import com.dbboys.api.DdlRepositoryProvider;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
 import com.dbboys.api.MetadataRepositoryProvider;
-import com.dbboys.db.DDLRepository;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.ObjectList;
@@ -16,13 +16,20 @@ import java.util.List;
 
 public class ProcedureService implements MetaObjectService {
     private final MetadataRepositoryProvider metadataRepositoryProvider;
+    private final DdlRepositoryProvider ddlRepositoryProvider;
 
     public ProcedureService() {
-        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class));
+        this(com.dbboys.app.AppContext.get(MetadataRepositoryProvider.class),
+                com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
     }
 
     public ProcedureService(MetadataRepositoryProvider metadataRepositoryProvider) {
+        this(metadataRepositoryProvider, com.dbboys.app.AppContext.get(DdlRepositoryProvider.class));
+    }
+
+    public ProcedureService(MetadataRepositoryProvider metadataRepositoryProvider, DdlRepositoryProvider ddlRepositoryProvider) {
         this.metadataRepositoryProvider = metadataRepositoryProvider;
+        this.ddlRepositoryProvider = ddlRepositoryProvider;
     }
 
     public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
@@ -38,12 +45,11 @@ public class ProcedureService implements MetaObjectService {
     }
     @Override
     public DdlFetcher ddlFetcher() {
-        return DDLRepository::printProcedure;
+        return (connect, conn, objectName) -> ddlRepositoryProvider.ddl(connect).printProcedure(conn, objectName);
     }
     public void updateStatistics(Connect connect, String sql, Runnable onSucceededUi) {
         executeObjectSql(connect, sql, onSucceededUi);
     }
 
 }
-
 

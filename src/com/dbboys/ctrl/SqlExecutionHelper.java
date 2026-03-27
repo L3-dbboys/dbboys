@@ -3,7 +3,6 @@ package com.dbboys.ctrl;
 import com.dbboys.customnode.CustomResultsetTab;
 import com.dbboys.i18n.I18n;
 import com.dbboys.db.local.LocalDbRepository;
-import com.dbboys.db.ConnectionErrorHandler;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
@@ -227,7 +226,7 @@ public class SqlExecutionHelper {
                 }
             }
             Platform.runLater(() -> {
-                if (ConnectionErrorHandler.isDisconnectError(e)) {
+                if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                     ctrl.connectionDisconnected();
                 } else {
                     AlertUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
@@ -378,7 +377,7 @@ public class SqlExecutionHelper {
             log.error(e.getMessage(), e);
             if (ctrl.isSingleSql) {
                 Platform.runLater(() -> {
-                    if (ConnectionErrorHandler.isDisconnectError(e)) {
+                    if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                         ctrl.connectionDisconnected();
                     } else if (e.getErrorCode() == -329 || e.getErrorCode() == -23197 || e.getErrorCode() == -349) {
                         try {
@@ -484,7 +483,7 @@ public class SqlExecutionHelper {
                             }
                         });
                     } catch (SQLException e) {
-                        if (ConnectionErrorHandler.isDisconnectError(e)) {
+                        if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                             ctrl.connectionDisconnected();
                         } else {
                             Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage()));
@@ -522,7 +521,7 @@ public class SqlExecutionHelper {
                     ctrl.sqlStatement = sqlConnect.getConn().prepareStatement(finalSql);
                     ctrl.sqlStatement.executeUpdate();
                 } catch (SQLException e) {
-                    if (ConnectionErrorHandler.isDisconnectError(e)) {
+                    if (SqlErrorUtil.isDisconnectError(sqlConnect, e)) {
                         ctrl.connectionDisconnected();
                     } else {
                         Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage()));

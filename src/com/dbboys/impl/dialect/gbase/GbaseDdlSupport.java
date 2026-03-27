@@ -1,4 +1,4 @@
-package com.dbboys.db;
+package com.dbboys.impl.dialect.gbase;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,9 +28,9 @@ import com.dbboys.vo.Table;
 import com.dbboys.vo.TableWithColumn;
 import com.dbboys.vo.Trigger;
 import com.dbboys.vo.View;
+import com.dbboys.db.SqlRunner;
 
-
-public class DDLRepository {
+public final class GbaseDdlSupport {
     private static final int DEFAULT_QUERY_TIMEOUT_SECONDS = 30;
 
     /**

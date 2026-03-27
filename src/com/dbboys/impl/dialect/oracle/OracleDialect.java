@@ -1,6 +1,8 @@
 package com.dbboys.impl.dialect.oracle;
 
 import com.dbboys.api.DatabaseDialect;
+import com.dbboys.api.DdlRepository;
+import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.api.MetadataRepository;
 import com.dbboys.api.SqlexeRepository;
 import com.dbboys.vo.Connect;
@@ -17,6 +19,8 @@ public final class OracleDialect implements DatabaseDialect {
 
     private final MetadataRepository metadataRepository = new OracleMetadataRepository();
     private final SqlexeRepository sqlexeRepository = new OracleSqlexeRepository();
+    private final DdlRepository ddlRepository = new OracleDdlRepository();
+    private final InstanceAdminRepository instanceAdminRepository = new OracleInstanceAdminRepository();
 
     @Override
     public String getDbType() {
@@ -57,5 +61,15 @@ public final class OracleDialect implements DatabaseDialect {
     @Override
     public SqlexeRepository getSqlexeRepository() {
         return sqlexeRepository;
+    }
+
+    @Override
+    public DdlRepository getDdlRepository() {
+        return ddlRepository;
+    }
+
+    @Override
+    public InstanceAdminRepository getInstanceAdminRepository() {
+        return instanceAdminRepository;
     }
 }

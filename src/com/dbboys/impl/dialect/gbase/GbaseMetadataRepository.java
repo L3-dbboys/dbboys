@@ -1,7 +1,6 @@
 package com.dbboys.impl.dialect.gbase;
 
 import com.dbboys.i18n.I18n;
-import com.dbboys.db.DDLRepository;
 import com.dbboys.db.SqlRunner;
 import com.dbboys.util.SqlParserUtil;
 import com.dbboys.vo.*;
@@ -376,7 +375,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             """;
 
     public ArrayList<ColumnsInfo> getColumns(Connection conn, String tableName) throws SQLException {
-        return DDLRepository.getColInfo(conn, tableName);
+        return GbaseDdlSupport.getColInfo(conn, tableName);
     }
 
     public List<User> getUsers(Connection conn) throws SQLException {
@@ -760,5 +759,4 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
         return runner.query(fetchSql, List.of(tableName), rs -> rs.getString(1));        
     }
 }
-
 

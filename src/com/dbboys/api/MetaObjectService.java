@@ -24,7 +24,7 @@ public interface MetaObjectService {
 
     @FunctionalInterface
     interface DdlFetcher {
-        String fetch(Connection conn, String objectName) throws Exception;
+        String fetch(Connect connect, Connection conn, String objectName) throws Exception;
     }
 
     DdlFetcher ddlFetcher();
@@ -42,7 +42,7 @@ public interface MetaObjectService {
     }
 
     default String getDDL(Connect connect, Database database, String objectName) throws Exception {
-        return withMetaSession(connect, database, conn -> ddlFetcher().fetch(conn, objectName));
+        return withMetaSession(connect, database, conn -> ddlFetcher().fetch(connect, conn, objectName));
     }
 
     default ObjectList loadObjects(Connect connect, Database database) throws Exception {

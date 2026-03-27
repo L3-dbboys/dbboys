@@ -1,4 +1,4 @@
-package com.dbboys.db;
+package com.dbboys.impl.dialect.gbase;
 
 import com.dbboys.customnode.CustomSpaceChart;
 
@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AdminRepository {
+public final class GbaseAdminSupport {
     public void modifyChunkExtendable(Connection conn, int chunkId, boolean toExtendable) throws SQLException {
         String sql = toExtendable
                 ? "EXECUTE FUNCTION sysadmin:task (\"modify chunk extendable on\"," + chunkId + ")"

@@ -2,7 +2,7 @@ package com.dbboys.ctrl;
 
 import com.dbboys.i18n.I18n;
 import com.dbboys.util.AlertUtil;
-import com.dbboys.db.ConnectionErrorHandler;
+import com.dbboys.util.SqlErrorUtil;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -100,7 +100,7 @@ public class ResultSetFetchHelper {
                     ctrl.sqlResultSetList.addAll(fetchedRows);
                     ctrl.sqlFetchedRows += fetchedRows.size();
                 } catch (SQLException e) {
-                    if (ConnectionErrorHandler.isDisconnectError(e)) {
+                    if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                         ctrl.hiddenDisconnectedButton.fire();
                     } else {
                         Platform.runLater(() -> AlertUtil.CustomAlert("错误", "[" + e.getErrorCode() + "]" + e.getMessage()));

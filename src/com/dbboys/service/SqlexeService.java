@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import com.dbboys.api.ConnectionService;
 import com.dbboys.api.SqlexeRepositoryProvider;
 import com.dbboys.app.AppErrorHandler;
+import com.dbboys.util.SqlErrorUtil;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.util.tree.TreeViewUtil;
@@ -68,7 +69,7 @@ public class SqlexeService {
                 } catch (Exception ex) {
                     log.error("Operation failed", ex);
                 }
-            } else if (e.getErrorCode() == -79716 || e.getErrorCode() == -79730) {
+            } else if (SqlErrorUtil.isDisconnectError(connect, e)) {
                 TreeViewUtil.connectionDisconnected();
             } else {
                 AppErrorHandler.handle(e);

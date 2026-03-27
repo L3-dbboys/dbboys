@@ -6,8 +6,8 @@ import com.dbboys.i18n.I18n;
 import com.dbboys.api.ConnectionService;
 import com.dbboys.service.SqlexeService;
 import com.dbboys.ui.IconPaths;
-import com.dbboys.db.ConnectionErrorHandler;
 import com.dbboys.app.AppErrorHandler;
+import com.dbboys.util.SqlErrorUtil;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.TreeData;
@@ -255,7 +255,7 @@ public class SqlConnectionHandler {
                     ctrl.sqlConnect.getConn().setAutoCommit(ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex() == 0);
                 } catch (SQLException e) {
                     log.error(e.getMessage(), e);
-                    if (ConnectionErrorHandler.isDisconnectError(e)) {
+                    if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                         ctrl.connectionDisconnected();
                     } else {
                         AppErrorHandler.handle(e);
