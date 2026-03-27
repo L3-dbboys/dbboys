@@ -43,7 +43,7 @@ public class TreeDataLoader {
                     () -> {
                         try{
                               // 获取已经按当前数据库类型初始化过会话的连接
-                              connect.setConn(TreeViewUtil.metadataService.getGbaseModeConnection(connect));
+                              connect.setConn(TreeViewUtil.metadataService.getConnectionWithSessionInit(connect));
 
 
                             //TreeItem<TreeData> scanItem=createTreeItem(checkTreeData);

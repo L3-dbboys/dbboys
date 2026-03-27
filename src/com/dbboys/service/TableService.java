@@ -97,7 +97,7 @@ public class TableService implements MetaObjectService {
         Task<List<String>> loadIndexColumnsTask = new Task<>() {
             @Override
             protected List<String> call() throws Exception {
-                try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
+                try (Connection conn = connectionService().getConnectionWithSessionInit(connect)) {
                     return metadataRepositoryProvider.get(connect).getIndexColumnsForTable(conn, tableName);
                 }
             }

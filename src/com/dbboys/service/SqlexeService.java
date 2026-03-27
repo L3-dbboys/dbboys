@@ -62,7 +62,7 @@ public class SqlexeService {
                 //connect.setProps(connectionService.modifyProps(connect, DBLocale));
                 //connect.setDatabase(database.getName());
                 try {
-                    connection1 = connectionService.getConnection(connect1);
+                    connection1 = connectionService.createConnection(connect1);
                     sqlTabController.closeResultSet();
                     connection.close();
                     connect.setConn(connection1);

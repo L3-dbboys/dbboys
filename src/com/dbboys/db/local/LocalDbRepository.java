@@ -466,7 +466,7 @@ public  class LocalDbRepository {
                Connection connection=null;
                try {
                    if(connect.getIp()!=null){ //如果是增加系统分类，没有IP,也不需要测试连接
-                        // connection = new ConnectionService().getConnection(connect);
+                        // connection = AppContext.get(ConnectionService.class).createConnection(connect);
 
                        //查询数据库信息，包括版本，启动环境，系统配置
                        ResultSet rs=null;

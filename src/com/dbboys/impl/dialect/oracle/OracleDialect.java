@@ -45,6 +45,11 @@ public final class OracleDialect implements DatabaseDialect {
     }
 
     @Override
+    public String testConnectionSql() {
+        return "SELECT 1 FROM DUAL";
+    }
+
+    @Override
     public MetadataRepository getMetadataRepository() {
         return metadataRepository;
     }

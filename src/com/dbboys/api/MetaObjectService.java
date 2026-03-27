@@ -66,7 +66,7 @@ public interface MetaObjectService {
                 backSqlTask.setConnect(connect);
                 long beginTime = System.currentTimeMillis();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
+                try (Connection conn = connectionService().getConnectionWithSessionInit(connect)) {
                     if (conn == null) {
                         throw new Exception("ERROR");
                     }
@@ -142,7 +142,7 @@ public interface MetaObjectService {
             protected Void call() throws Exception {
                 backSqlTask.setConnect(connect);
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                try (Connection conn = connectionService().getGbaseModeConnection(connect)) {
+                try (Connection conn = connectionService().getConnectionWithSessionInit(connect)) {
                     if (conn == null) {
                         throw new Exception("ERROR");
                     }

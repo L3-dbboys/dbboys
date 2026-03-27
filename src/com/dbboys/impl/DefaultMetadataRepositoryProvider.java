@@ -1,11 +1,13 @@
 package com.dbboys.impl;
 
-import com.dbboys.api.DatabaseDialect;
 import com.dbboys.api.MetadataRepository;
 import com.dbboys.api.MetadataRepositoryProvider;
 import com.dbboys.impl.dialect.DatabaseDialectRegistry;
 import com.dbboys.vo.Connect;
 
+/**
+ * 按 {@link Connect#getDbtype()} 从 {@link DatabaseDialectRegistry} 取元数据实现（与 {@link DefaultSqlexeRepositoryProvider} 成对，因 Java 接口返回类型不能合并为一个 {@code get}）。
+ */
 public final class DefaultMetadataRepositoryProvider implements MetadataRepositoryProvider {
 
     private final DatabaseDialectRegistry registry;
@@ -16,10 +18,6 @@ public final class DefaultMetadataRepositoryProvider implements MetadataReposito
 
     @Override
     public MetadataRepository get(Connect connect) {
-        DatabaseDialect dialect = registry.getDialect(connect.getDbtype());
-        if (dialect == null) {
-            throw new IllegalArgumentException("Unsupported database type: " + connect.getDbtype());
-        }
-        return dialect.getMetadataRepository();
+        return registry.requireDialect(connect).getMetadataRepository();
     }
 }

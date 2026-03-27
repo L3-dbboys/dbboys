@@ -24,26 +24,26 @@ public class AdminService {
     }
 
     public void modifyChunkExtendable(Connect connect, int chunkId, boolean toExtendAble) throws Exception {
-        Connection conn = connectionService.getGbaseModeConnection(connect);
+        Connection conn = connectionService.getConnectionWithSessionInit(connect);
         modifyChunkExtendable(conn, chunkId, toExtendAble);
         conn.close();
     }
 
     public void unLimitedSpaceSize(Connect connect, String dbspace) throws Exception {
-        Connection conn = connectionService.getGbaseModeConnection(connect);
+        Connection conn = connectionService.getConnectionWithSessionInit(connect);
         modifySpaceSize(conn, dbspace, 10, 10000, 0);
         conn.close();
     }
 
     public List<List<CustomSpaceChart.SpaceUsage>> getInstanceDbspaceInfo(Connect connect) throws Exception {
-        Connection conn = connectionService.getGbaseModeConnection(connect);
+        Connection conn = connectionService.getConnectionWithSessionInit(connect);
         List<List<CustomSpaceChart.SpaceUsage>> result = getInstanceDbspaceInfo(conn);
         conn.close();
         return result;
     }
 
     public double getMaxDbspaceUsed(Connect connect) throws Exception {
-        Connection conn = connectionService.getGbaseModeConnection(connect);
+        Connection conn = connectionService.getConnectionWithSessionInit(connect);
         double result = getMaxDbspaceUsed(conn);
         conn.close();
         return result;

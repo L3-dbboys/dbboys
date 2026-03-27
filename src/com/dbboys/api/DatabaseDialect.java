@@ -3,10 +3,14 @@ package com.dbboys.api;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
- * 数据库方言：按数据库类型提供建连参数和会话初始化。
- * 阶段 1 仅负责连接创建与会话初始化；元数据/执行按库切换在阶段 2。
+ * 一种数据库类型的「全家桶」策略：与 {@link com.dbboys.vo.Connect#getDbtype()} 一一对应，
+ * 内含建连、（可选）会话初始化、元数据访问、SQL/切库执行等；注册到 {@link com.dbboys.impl.dialect.DatabaseDialectRegistry} 后即参与多库路由。
  */
 public interface DatabaseDialect {
 
@@ -27,18 +31,70 @@ public interface DatabaseDialect {
     void sessionInit(Connection conn, Connect connect) throws Exception;
 
     /**
-     * 是否支持会话初始化。若为 false，{@link ConnectionService#getGbaseModeConnection} 等价于普通建连。
+     * 是否支持会话初始化。若为 false，{@link ConnectionService#getConnectionWithSessionInit} 等价于普通建连。
      */
     default boolean supportsSessionInit() {
         return true;
     }
 
     /**
-     * 按数据库方言调整连接属性（例如 GBase 的 DB_LOCALE 编码转换）。
-     * 默认实现为原样返回 {@link Connect#getProps()}。
+     * 用于检测连接是否可用的简单查询（单行结果即可）。
      */
-    default String adjustProps(Connect connect, String dbLocale) {
-        return connect != null ? connect.getProps() : null;
+    default String testConnectionSql() {
+        return "SELECT 1";
+    }
+
+    /**
+     * 执行 {@link #testConnectionSql()} 判断连接是否可用。
+     */
+    default boolean testConnection(Connection conn) {
+        if (conn == null) {
+            return false;
+        }
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(testConnectionSql())) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 登录成功后填充版本、实例信息等；返回主实例名等方言相关字段（无则空串）。
+     * 默认使用 {@link DatabaseMetaData}；GBase 等可覆盖。
+     */
+    default String populateConnectInfo(Connection connection, Connect connect) throws Exception {
+        if (connection == null || connect == null) {
+            return "";
+        }
+        DatabaseMetaData metaData = connection.getMetaData();
+        String product = metaData.getDatabaseProductName();
+        String version = metaData.getDatabaseProductVersion();
+        connect.setDbversion((product != null ? product : "") + " " + (version != null ? version : ""));
+        connect.setInfo("");
+        return "";
+    }
+
+    /**
+     * 切换当前库失败时，对 JDBC 异常分类（断连/需重建连接/其它）。
+     */
+    default ChangeDatabaseFailureKind classifyChangeDatabaseFailure(SQLException e) {
+        return ChangeDatabaseFailureKind.OTHER;
+    }
+
+    /**
+     * 在 {@link #classifyChangeDatabaseFailure} 为 {@link ChangeDatabaseFailureKind#RETRY_WITH_NEW_CONNECTION} 时，
+     * 元数据层可先切到该库再重连，如 GBase 的 {@code sysmaster}；不需要则返回 null。
+     */
+    default String changeDatabaseFallbackCatalogName() {
+        return null;
+    }
+
+    /**
+     * 是否为系统库（切换时通常不调整 DB_LOCALE 等）。
+     */
+    default boolean isSystemDatabase(String databaseName) {
+        return false;
     }
 
     /**

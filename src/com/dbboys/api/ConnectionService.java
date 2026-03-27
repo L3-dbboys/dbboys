@@ -8,16 +8,23 @@ import java.sql.SQLException;
 
 public interface ConnectionService {
 
+    /**
+     * 仅创建 JDBC 连接，不做方言会话初始化（如 GBase sqlmode）。需要会话初始化时请用 {@link #getConnectionWithSessionInit}。
+     */
     Connection createConnection(Connect connect) throws Exception;
 
-    Connection getConnection(Connect connect) throws Exception;
-
-    Connection getGbaseModeConnection(Connect connect) throws Exception;
+    /**
+     * 建连并在方言支持时做会话初始化（如 GBase sqlmode）；与具体数据库品牌无关。
+     */
+    Connection getConnectionWithSessionInit(Connect connect) throws Exception;
 
     void changeCommitMode(Connection conn, int commitChoiceBoxIndex) throws SQLException;
 
     ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database);
 
+    /**
+     * 按当前库 locale 调整连接属性 JSON；仅 GBase 会改写（如 DB_LOCALE），其它类型原样返回 {@link Connect#getProps()}。
+     */
     String modifyProps(Connect connect, String DBlocale);
 
     String setConnectInfo(Connect connect) throws Exception;

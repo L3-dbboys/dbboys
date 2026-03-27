@@ -855,7 +855,7 @@ public class DownloadManagerUtil {
             @Override
             protected Void call() throws Exception {
                 long totalRows = -1;
-                Connection conn = com.dbboys.app.AppContext.get(ConnectionService.class).getConnection(sqlConnect);
+                Connection conn = com.dbboys.app.AppContext.get(ConnectionService.class).createConnection(sqlConnect);
                 // 统计总行数
                 try (PreparedStatement cps = conn.prepareStatement("select count(*) from (" + sql + ") t")) {
                     try (ResultSet crs = cps.executeQuery()) {

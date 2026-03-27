@@ -712,8 +712,7 @@ public class CreateConnectController {
                     Long end = System.currentTimeMillis();
 
                     try {
-                        connect.setConn(connectionService.getConnection(connect));
-                       // connectionService.getConnection(connect);
+                        connect.setConn(connectionService.createConnection(connect));
 
                         end=System.currentTimeMillis();
                         if(isCancelled()) return  null;

@@ -86,7 +86,7 @@ public class SqlConnectionHandler {
             });
             Connection conn = null;
             try {
-                conn = connectionService.getConnection(newVal);
+                conn = connectionService.createConnection(newVal);
                 connectionService.changeCommitMode(conn, ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex());
             } catch (Exception e) {
                 AppErrorHandler.handle(e);
