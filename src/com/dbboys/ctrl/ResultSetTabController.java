@@ -499,52 +499,20 @@ public class ResultSetTabController {
     public void getPrimaryKeys(String sqlExe) {
         resultTablePriNum.clear();
         resultFromTable = SqlParserUtil.getFromTable(sqlExe);
-        String sql_get_primary = """
-                select trim(case when i.part1>0 then (select colname from syscolumns where colno=i.part1 and tabid=i.tabid) else '' end)||
-                trim(case when i.part2>0 then (select ','||colname from syscolumns where colno=i.part2 and tabid=i.tabid) else '' end)||
-                trim(case when i.part3>0 then (select ','||colname from syscolumns where colno=i.part3 and tabid=i.tabid) else '' end)||
-                trim(case when i.part4>0 then (select ','||colname from syscolumns where colno=i.part4 and tabid=i.tabid) else '' end)||
-                trim(case when i.part5>0 then (select ','||colname from syscolumns where colno=i.part5 and tabid=i.tabid) else '' end)||
-                trim(case when i.part6>0 then (select ','||colname from syscolumns where colno=i.part6 and tabid=i.tabid) else '' end)||
-                trim(case when i.part7>0 then (select ','||colname from syscolumns where colno=i.part7 and tabid=i.tabid) else '' end)||
-                trim(case when i.part8>0 then (select ','||colname from syscolumns where colno=i.part8 and tabid=i.tabid) else '' end)||
-                trim(case when i.part9>0 then (select ','||colname from syscolumns where colno=i.part9 and tabid=i.tabid) else '' end)||
-                trim(case when i.part10>0 then (select ','||colname from syscolumns where colno=i.part10 and tabid=i.tabid) else '' end)||
-                trim(case when i.part11>0 then (select ','||colname from syscolumns where colno=i.part11 and tabid=i.tabid) else '' end)||
-                trim(case when i.part12>0 then (select ','||colname from syscolumns where colno=i.part12 and tabid=i.tabid) else '' end)||
-                trim(case when i.part13>0 then (select ','||colname from syscolumns where colno=i.part13 and tabid=i.tabid) else '' end)||
-                trim(case when i.part14>0 then (select ','||colname from syscolumns where colno=i.part14 and tabid=i.tabid) else '' end)||
-                trim(case when i.part15>0 then (select ','||colname from syscolumns where colno=i.part15 and tabid=i.tabid) else '' end)||
-                trim(case when i.part16>0 then (select ','||colname from syscolumns where colno=i.part16 and tabid=i.tabid) else '' end )
-                index_cols from systables t ,
-                sysconstraints c
-                ,sysindexes i
-                where
-                t.tabid=c.tabid
-                and t.tabid=i.tabid
-                and tabtype='T'
-                and c.constrtype='P'
-                and tabname=?
-                """;
-        String finalSqlGetPrimary = sql_get_primary;
-
         sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                if (sqlStatement != null) {
-                    try {
-                        sqlStatement.cancel();
-                    } catch (SQLException ignored) {
-                    }
+                if (resultFromTable == null || resultFromTable.isBlank()) {
+                    Platform.runLater(() -> resultSetTableView.setEditable(false));
+                    return null;
                 }
 
                 try {
-                    ResultSetEditHelper.PrimaryKeyInfo info = editHelper.fetchPrimaryKeyInfo(finalSqlGetPrimary, sqlExe);
+                    ResultSetEditHelper.PrimaryKeyInfo info = editHelper.fetchPrimaryKeyInfo(sqlExe);
                     Platform.runLater(() -> editHelper.applyPrimaryKeyInfo(info));
-                } catch (SQLException e) {
+                } catch (SQLException | UnsupportedOperationException e) {
                     // ignore primary key failures
                 }
-                sqlStatement.close();
                 return null;
             }
         };

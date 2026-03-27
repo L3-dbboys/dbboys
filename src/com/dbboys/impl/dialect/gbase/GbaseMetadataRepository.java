@@ -374,8 +374,51 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             select ?,procname,owner,count(*) FROM sysprocedures WHERE mode='O' and retsize=0 group by 1,2,3 order by 1,2
             """;
 
+    private static final String SQL_PRIMARY_KEY_COLUMNS = """
+            select trim(case when i.part1>0 then (select colname from syscolumns where colno=i.part1 and tabid=i.tabid) else '' end)||
+            trim(case when i.part2>0 then (select ','||colname from syscolumns where colno=i.part2 and tabid=i.tabid) else '' end)||
+            trim(case when i.part3>0 then (select ','||colname from syscolumns where colno=i.part3 and tabid=i.tabid) else '' end)||
+            trim(case when i.part4>0 then (select ','||colname from syscolumns where colno=i.part4 and tabid=i.tabid) else '' end)||
+            trim(case when i.part5>0 then (select ','||colname from syscolumns where colno=i.part5 and tabid=i.tabid) else '' end)||
+            trim(case when i.part6>0 then (select ','||colname from syscolumns where colno=i.part6 and tabid=i.tabid) else '' end)||
+            trim(case when i.part7>0 then (select ','||colname from syscolumns where colno=i.part7 and tabid=i.tabid) else '' end)||
+            trim(case when i.part8>0 then (select ','||colname from syscolumns where colno=i.part8 and tabid=i.tabid) else '' end)||
+            trim(case when i.part9>0 then (select ','||colname from syscolumns where colno=i.part9 and tabid=i.tabid) else '' end)||
+            trim(case when i.part10>0 then (select ','||colname from syscolumns where colno=i.part10 and tabid=i.tabid) else '' end)||
+            trim(case when i.part11>0 then (select ','||colname from syscolumns where colno=i.part11 and tabid=i.tabid) else '' end)||
+            trim(case when i.part12>0 then (select ','||colname from syscolumns where colno=i.part12 and tabid=i.tabid) else '' end)||
+            trim(case when i.part13>0 then (select ','||colname from syscolumns where colno=i.part13 and tabid=i.tabid) else '' end)||
+            trim(case when i.part14>0 then (select ','||colname from syscolumns where colno=i.part14 and tabid=i.tabid) else '' end)||
+            trim(case when i.part15>0 then (select ','||colname from syscolumns where colno=i.part15 and tabid=i.tabid) else '' end)||
+            trim(case when i.part16>0 then (select ','||colname from syscolumns where colno=i.part16 and tabid=i.tabid) else '' end)
+            from systables t, sysconstraints c, sysindexes i
+            where t.tabid=c.tabid
+            and t.tabid=i.tabid
+            and t.tabtype='T'
+            and c.constrtype='P'
+            and c.idxname = i.idxname
+            and t.tabname=?
+            """;
+
     public ArrayList<ColumnsInfo> getColumns(Connection conn, String tableName) throws SQLException {
         return GbaseDdlSupport.getColInfo(conn, tableName);
+    }
+
+    @Override
+    public List<String> getPrimaryKeyColumns(Connection conn, String tableName) throws SQLException {
+        SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
+        String indexColumns = runner.queryOne(SQL_PRIMARY_KEY_COLUMNS, List.of(normalizeTableLookupName(tableName)), rs -> rs.getString(1));
+        if (indexColumns == null || indexColumns.isBlank()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String column : indexColumns.split(",")) {
+            String normalized = normalizeIdentifier(column);
+            if (!normalized.isEmpty()) {
+                result.add(normalized);
+            }
+        }
+        return result;
     }
 
     public List<User> getUsers(Connection conn) throws SQLException {
@@ -758,5 +801,23 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
         return runner.query(fetchSql, List.of(tableName), rs -> rs.getString(1));        
     }
-}
 
+    private static String normalizeTableLookupName(String tableName) {
+        if (tableName == null) {
+            return "";
+        }
+        String normalized = tableName.trim();
+        int dotIndex = normalized.lastIndexOf('.');
+        if (dotIndex >= 0 && dotIndex < normalized.length() - 1) {
+            normalized = normalized.substring(dotIndex + 1);
+        }
+        if (normalized.startsWith("\"") && normalized.endsWith("\"") && normalized.length() >= 2) {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+        return normalized.trim();
+    }
+
+    private static String normalizeIdentifier(String identifier) {
+        return identifier == null ? "" : identifier.trim().replace("\"", "").toLowerCase();
+    }
+}

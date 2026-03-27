@@ -1,8 +1,12 @@
 package com.dbboys.ctrl;
 
+import com.dbboys.api.MetadataRepositoryProvider;
+import com.dbboys.app.AppContext;
 import com.dbboys.i18n.I18n;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.util.*;
+import com.dbboys.vo.ColumnsInfo;
 import com.dbboys.vo.UpdateResult;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -13,13 +17,16 @@ import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 
 public class ResultSetEditHelper {
     private final ResultSetTabController ctrl;
+    private final MetadataRepositoryProvider metadataRepositoryProvider;
 
     public ResultSetEditHelper(ResultSetTabController ctrl) {
         this.ctrl = ctrl;
+        this.metadataRepositoryProvider = resolveMetadataRepositoryProvider();
     }
 
     public void updateCellValue(int columnIndex,
@@ -110,26 +117,25 @@ public class ResultSetEditHelper {
         return true;
     }
 
-    public PrimaryKeyInfo fetchPrimaryKeyInfo(String finalSqlGetPrimary, String sqlExe) throws SQLException {
-        String pri = null;
-        ctrl.sqlStatement = ctrl.sqlConnect.getConn().prepareStatement(finalSqlGetPrimary);
-        ctrl.sqlStatement.setObject(1, ctrl.resultFromTable);
-        ctrl.priSqlResult = ctrl.sqlStatement.executeQuery();
-        if (ctrl.priSqlResult.next()) {
-            pri = ctrl.priSqlResult.getString(1);
+    public PrimaryKeyInfo fetchPrimaryKeyInfo(String sqlExe) throws SQLException {
+        if (ctrl.resultFromTable == null || ctrl.resultFromTable.isBlank()) {
+            return null;
         }
-        ctrl.priSqlResult.close();
-
-        List<String> cols = new ArrayList<>();
-        ctrl.sqlStatement = ctrl.sqlConnect.getConn().prepareStatement("select colname from syscolumns c,systables t where  t.tabid=c.tabid and tabname=?");
-        ctrl.sqlStatement.setObject(1, ctrl.resultFromTable);
-        ctrl.priSqlResult = ctrl.sqlStatement.executeQuery();
-        while (ctrl.priSqlResult.next()) {
-            cols.add(ctrl.priSqlResult.getString(1));
+        var repo = metadataRepositoryProvider.metadata(ctrl.sqlConnect);
+        List<String> primaryKeys = normalizeIdentifiers(repo.getPrimaryKeyColumns(ctrl.sqlConnect.getConn(), ctrl.resultFromTable));
+        List<String> tableColumns = normalizeIdentifiers(repo.getTableColumnNames(ctrl.sqlConnect.getConn(), ctrl.resultFromTable));
+        if (tableColumns.isEmpty()) {
+            try {
+                ArrayList<ColumnsInfo> columns = repo.getColumns(ctrl.sqlConnect.getConn(), ctrl.resultFromTable);
+                for (ColumnsInfo column : columns) {
+                    tableColumns.add(normalizeIdentifier(column.getColName()));
+                }
+            } catch (UnsupportedOperationException ignored) {
+                // no-op
+            }
         }
-        ctrl.priSqlResult.close();
-        ctrl.resultTableCols = SqlParserUtil.getSelectedCols(sqlExe, cols);
-        return new PrimaryKeyInfo(pri, ctrl.resultTableCols);
+        ctrl.resultTableCols = SqlParserUtil.getSelectedCols(sqlExe, tableColumns);
+        return new PrimaryKeyInfo(primaryKeys, ctrl.resultTableCols);
     }
 
     public void applyPrimaryKeyInfo(PrimaryKeyInfo info) {
@@ -137,11 +143,11 @@ public class ResultSetEditHelper {
             ctrl.resultSetTableView.setEditable(false);
             return;
         }
-        String pri = info.primaryKeys;
+        List<String> primaryKeys = info.primaryKeys;
         List<String> selectedCols = info.selectedColumns;
         ctrl.resultTableCols = selectedCols;
-        if (pri != null && selectedCols.containsAll(List.of(pri.split(",")))) {
-            for (String key : pri.split(",")) {
+        if (primaryKeys != null && !primaryKeys.isEmpty() && selectedCols.containsAll(primaryKeys)) {
+            for (String key : primaryKeys) {
                 int columnIndex = selectedCols.indexOf(key);
                 ctrl.resultTablePriNum.add(columnIndex);
                 markPrimaryKeyColumn(columnIndex, "PRI", "-fx-font-size: 8;-fx-text-fill: #9f453c");
@@ -174,12 +180,45 @@ public class ResultSetEditHelper {
     }
 
     public static class PrimaryKeyInfo {
-        public final String primaryKeys;
+        public final List<String> primaryKeys;
         public final List<String> selectedColumns;
 
-        public PrimaryKeyInfo(String primaryKeys, List<String> selectedColumns) {
+        public PrimaryKeyInfo(List<String> primaryKeys, List<String> selectedColumns) {
             this.primaryKeys = primaryKeys;
             this.selectedColumns = selectedColumns;
         }
+    }
+
+    private static MetadataRepositoryProvider resolveMetadataRepositoryProvider() {
+        try {
+            return AppContext.get(MetadataRepositoryProvider.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
+    }
+
+    private static List<String> normalizeIdentifiers(List<String> identifiers) {
+        List<String> result = new ArrayList<>();
+        if (identifiers == null) {
+            return result;
+        }
+        for (String identifier : identifiers) {
+            String normalized = normalizeIdentifier(identifier);
+            if (!normalized.isEmpty()) {
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    private static String normalizeIdentifier(String identifier) {
+        if (identifier == null) {
+            return "";
+        }
+        String normalized = identifier.trim();
+        if (normalized.startsWith("\"") && normalized.endsWith("\"") && normalized.length() >= 2) {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+        return normalized.trim().toLowerCase(Locale.ROOT);
     }
 }
