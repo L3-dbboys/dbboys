@@ -1,11 +1,13 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppState;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.ctrl.CreateConnectController;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
@@ -428,16 +430,16 @@ public class TreeNavigator {
                 || treeData instanceof DBPackage)) {
             return false;
         }
+        Connect connect = getMetaConnect(selectedItem);
         String database = getCurrentDatabase(selectedItem).getName();
-        return database.equals("sysmaster")
-                || database.equals("sysuser")
-                || database.equals("sysadmin")
-                || database.equals("sysutils")
-                || database.equals("sysha")
-                || database.equals("syscdr")
-                || database.equals("syscdcv1")
-                || database.equals("gbasedbt")
-                || database.equals("sys");
+        if ("sysuser".equals(database)) {
+            return true;
+        }
+        try {
+            return resolveDialectServices().requireDialect(connect).isSystemDatabase(database);
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     public static boolean isDatabaseMenuObject(TreeData treeData) {
@@ -575,5 +577,13 @@ public class TreeNavigator {
             return "user";
         }
         return "object";
+    }
+
+    private static DialectServices resolveDialectServices() {
+        try {
+            return AppContext.get(DialectServices.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
     }
 }

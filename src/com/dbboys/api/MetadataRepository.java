@@ -16,7 +16,26 @@ public interface MetadataRepository {
 
     List<User> getUsers(Connection conn) throws SQLException;
 
+    default boolean supportsUsers(Connect connect) {
+        return false;
+    }
+
     List<Database> getDatabases(Connection conn, boolean useOracleSyntax) throws SQLException;
+
+    default List<Database> getDatabases(Connection conn) throws SQLException {
+        try {
+            return getDatabases(conn, false);
+        } catch (SQLException e) {
+            if (shouldRetryGetDatabases(e)) {
+                return getDatabases(conn, true);
+            }
+            throw e;
+        }
+    }
+
+    default boolean shouldRetryGetDatabases(SQLException e) {
+        return false;
+    }
 
     Database getDatabaseInfo(Connection conn, String databaseName) throws SQLException;
 

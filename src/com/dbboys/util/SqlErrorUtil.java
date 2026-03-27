@@ -7,25 +7,55 @@ import com.dbboys.vo.Connect;
 
 import java.sql.SQLException;
 
-/**
- * 基于连接方言分类 JDBC 错误。
- */
 public final class SqlErrorUtil {
 
     private SqlErrorUtil() {
     }
 
     public static boolean isDisconnectError(Connect connect, SQLException e) {
-        if (connect == null || e == null) {
+        if (e == null) {
             return false;
+        }
+        if (connect == null) {
+            return isDisconnectError(e);
         }
         try {
             return resolveDialectServices()
                     .requireDialect(connect)
                     .classifyChangeDatabaseFailure(e) == ChangeDatabaseFailureKind.DISCONNECTED;
         } catch (Exception ex) {
+            return isDisconnectError(e);
+        }
+    }
+
+    public static boolean isDisconnectError(SQLException e) {
+        if (e == null) {
             return false;
         }
+        String sqlState = e.getSQLState();
+        if (sqlState != null && sqlState.startsWith("08")) {
+            return true;
+        }
+        return matchesFailureKind(e, ChangeDatabaseFailureKind.DISCONNECTED);
+    }
+
+    public static boolean requiresSessionRecovery(SQLException e) {
+        return matchesFailureKind(e, ChangeDatabaseFailureKind.RETRY_WITH_NEW_CONNECTION);
+    }
+
+    private static boolean matchesFailureKind(SQLException e, ChangeDatabaseFailureKind expectedKind) {
+        if (e == null || expectedKind == null) {
+            return false;
+        }
+        try {
+            for (com.dbboys.api.DatabaseDialect dialect : resolveDialectServices().getRegistry().getAllDialects()) {
+                if (dialect.classifyChangeDatabaseFailure(e) == expectedKind) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     private static DialectServices resolveDialectServices() {

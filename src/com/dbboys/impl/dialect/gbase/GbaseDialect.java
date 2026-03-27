@@ -59,6 +59,26 @@ public final class GbaseDialect implements DatabaseDialect {
     }
 
     @Override
+    public String defaultPort() {
+        return "9088";
+    }
+
+    @Override
+    public String defaultDatabase() {
+        return "sysmaster";
+    }
+
+    @Override
+    public String defaultUsername() {
+        return "gbasedbt";
+    }
+
+    @Override
+    public boolean supportsNamedServerConnection() {
+        return true;
+    }
+
+    @Override
     public String testConnectionSql() {
         return "select first 1 tabid from systables";
     }

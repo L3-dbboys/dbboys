@@ -426,6 +426,11 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
         return runner.query(SQL_USERS, null, rs -> new User(rs.getString(1)));
     }
 
+    @Override
+    public boolean supportsUsers(Connect connect) {
+        return connect != null && "gbasedbt".equalsIgnoreCase(connect.getUsername());
+    }
+
     public List<Database> getDatabases(Connection conn, boolean useOracleSyntax) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
         String sql = useOracleSyntax ? SQL_DATABASES_ORACLE : SQL_DATABASES_GBASE;
@@ -440,6 +445,11 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             database.setDbSize(rs.getString(8));
             return database;
         });
+    }
+
+    @Override
+    public boolean shouldRetryGetDatabases(SQLException e) {
+        return e != null && e.getErrorCode() == -201;
     }
 
     public Database getDatabaseInfo(Connection conn, String databaseName) throws SQLException {

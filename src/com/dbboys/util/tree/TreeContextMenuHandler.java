@@ -1,5 +1,7 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.InstanceAdminRepositoryProvider;
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppState;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.db.local.LocalDbRepository;
@@ -8,6 +10,7 @@ import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.ConnectionService;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
@@ -1007,7 +1010,7 @@ public class TreeContextMenuHandler {
             if (result == buttonTypeOk) {
                 Connect connect = new Connect((Connect) selectedItem.getParent().getValue());
                 String dbLocale = ((String) comboBox.getValue()).replaceAll("\\([^()]*\\)", "");
-                connect.setDatabase("sysmaster");
+                connect.setDatabase(resolveFallbackDatabase(connect));
                 connect.setProps(TreeViewUtil.connectionService.modifyProps(connect, "DB_LOCALE", dbLocale));
                 String sql = "create database " + textField.getText() + " in "
                         + ((String) comboBox1.getValue()).replaceAll("\\([^()]*\\)", "")
@@ -1224,8 +1227,7 @@ public class TreeContextMenuHandler {
                         selectedItem.getValue() instanceof Procedure||
                         selectedItem.getValue() instanceof DBPackage
                 ) {
-                    String database = TreeNavigator.getCurrentDatabase(selectedItem).getName();
-                    if (database.equals("sysmaster") || database.equals("sysuser") || database.equals("sysadmin") || database.equals("sysutils") || database.equals("sysha") || database.equals("syscdr") || database.equals("syscdcv1") || database.equals("gbasedbt") || database.equals("sys")) {
+                    if (TreeNavigator.isSystemDatabaseObject(selectedItem)) {
                         truncateItem.setDisable(true);
                         deleteItem.setDisable(true);
                         renameItem.setDisable(true);
@@ -1264,7 +1266,7 @@ public class TreeContextMenuHandler {
                 //连接
                 else if(selectedItem.getValue() instanceof Connect){
                     Connect connect =(Connect)selectedItem.getValue();
-                    if(!connect.getUsername().equals("gbasedbt")){
+                    if (!supportsInstanceAdmin(connect)) {
                         healthCheckItem.setDisable(true);
                         onlinelogItem.setDisable(true);
                         spaceManagerItem.setDisable(true);
@@ -1470,5 +1472,46 @@ public class TreeContextMenuHandler {
                 treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
             }
         });
+    }
+
+    private static String resolveFallbackDatabase(Connect connect) {
+        if (connect == null) {
+            return null;
+        }
+        try {
+            String fallback = resolveDialectServices().requireDialect(connect).changeDatabaseFallbackCatalogName();
+            if (fallback != null && !fallback.isBlank()) {
+                return fallback;
+            }
+        } catch (Exception ignored) {
+        }
+        return connect.getDatabase();
+    }
+
+    private static boolean supportsInstanceAdmin(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        try {
+            return resolveAdminRepositoryProvider().admin(connect).supportsAdminFeatures(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static DialectServices resolveDialectServices() {
+        try {
+            return AppContext.get(DialectServices.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
+    }
+
+    private static InstanceAdminRepositoryProvider resolveAdminRepositoryProvider() {
+        try {
+            return AppContext.get(InstanceAdminRepositoryProvider.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
     }
 }

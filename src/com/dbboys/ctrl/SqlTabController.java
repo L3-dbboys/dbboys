@@ -34,6 +34,7 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 public class SqlTabController {
@@ -227,13 +228,14 @@ public class SqlTabController {
             Platform.runLater(() -> sqlSqlModeChoiceBox.setVisible(false));
             return;
         }
+        List<String> distinctModes = new ArrayList<>(new LinkedHashSet<>(sqlmodes));
+        String currentMode = sqlmodes.get(0);
         Platform.runLater(() -> {
             sqlSqlModeChoiceBox.setVisible(true);
             sqlSqlModeChoiceBox.getItems().clear();
-            sqlSqlModeChoiceBox.getItems().add("sqlmode=gbase");
-            sqlSqlModeChoiceBox.getItems().addAll(sqlmodes.subList(1, sqlmodes.size()));
+            sqlSqlModeChoiceBox.getItems().addAll(distinctModes);
             for (String item : sqlSqlModeChoiceBox.getItems()) {
-                if (item.equals(sqlmodes.get(0))) {
+                if (item.equals(currentMode)) {
                     sqlSqlModeChoiceBox.setValue(item);
                     break;
                 }

@@ -2,6 +2,7 @@ package com.dbboys.impl.dialect.gbase;
 
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.customnode.CustomSpaceChart;
+import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -13,6 +14,11 @@ import java.util.List;
 public final class GbaseInstanceAdminRepository implements InstanceAdminRepository {
 
     private final GbaseAdminSupport delegate = new GbaseAdminSupport();
+
+    @Override
+    public boolean supportsAdminFeatures(Connect connect) {
+        return connect != null && "gbasedbt".equalsIgnoreCase(connect.getUsername());
+    }
 
     @Override
     public void modifyChunkExtendable(Connection conn, int chunkId, boolean toExtendable) throws SQLException {

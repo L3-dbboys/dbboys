@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class GbaseSqlexeRepository implements com.dbboys.api.SqlexeRepository {
     public static final String SQL_SYS_DUAL = "select  * from sysmaster:sysdual";
@@ -12,6 +13,7 @@ public class GbaseSqlexeRepository implements com.dbboys.api.SqlexeRepository {
     public static final String SQLMODE_MYSQL = "set environment sqlmode 'mysql'";
     public static final String SQLMODE_ORACLE = "set environment sqlmode 'oracle'";
     public static final String SQL_TABNAMES_GROUP = "select tabid,tabname from systables group by 1";
+    public static final String SQL_EXPLAIN = "execute function ifx_explain(?)";
 
     public void setDatabase(Connection conn, String databaseName) throws SQLException {
         conn.createStatement().executeUpdate("database " + databaseName);
@@ -77,5 +79,69 @@ public class GbaseSqlexeRepository implements com.dbboys.api.SqlexeRepository {
             }
         }
         return sqlmodes;
+    }
+
+    @Override
+    public void changeSqlMode(Connection conn, String sqlMode) throws SQLException {
+        String sql = switch (sqlMode) {
+            case "sqlmode=gbase" -> SQLMODE_GBASE;
+            case "sqlmode=oracle" -> SQLMODE_ORACLE;
+            case "sqlmode=mysql" -> SQLMODE_MYSQL;
+            default -> throw new IllegalArgumentException("Unsupported sql mode: " + sqlMode);
+        };
+        conn.createStatement().executeUpdate(sql);
+    }
+
+    @Override
+    public String detectSqlMode(String sql) {
+        if (sql == null) {
+            return null;
+        }
+        String normalized = sql.toLowerCase(Locale.ROOT).replaceAll("[ \\t\\r\\n]+", "");
+        if (normalized.startsWith("setenvironmentsqlmode'gbase'")) {
+            return "sqlmode=gbase";
+        }
+        if (normalized.startsWith("setenvironmentsqlmode'oracle'")) {
+            return "sqlmode=oracle";
+        }
+        if (normalized.startsWith("setenvironmentsqlmode'mysql'")) {
+            return "sqlmode=mysql";
+        }
+        return null;
+    }
+
+    @Override
+    public boolean autoCommitsDdl(String sqlMode) {
+        return "sqlmode=oracle".equals(sqlMode) || "sqlmode=mysql".equals(sqlMode);
+    }
+
+    @Override
+    public String explain(Connection conn, String sql) throws SQLException {
+        try (java.sql.PreparedStatement stmt = conn.prepareStatement(SQL_EXPLAIN)) {
+            stmt.setObject(1, sql);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return rs.getString(1);
+            }
+        }
+    }
+
+    @Override
+    public boolean requiresSessionRecovery(SQLException e) {
+        if (e == null) {
+            return false;
+        }
+        int code = e.getErrorCode();
+        return code == -329 || code == -23197 || code == -349;
+    }
+
+    @Override
+    public void recoverSession(Connection conn, String databaseName) throws SQLException {
+        if (databaseName == null || databaseName.isBlank()) {
+            return;
+        }
+        setDatabase(conn, databaseName);
     }
 }

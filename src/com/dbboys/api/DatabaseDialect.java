@@ -39,6 +39,22 @@ public interface DatabaseDialect {
         return true;
     }
 
+    default String defaultPort() {
+        return "";
+    }
+
+    default String defaultDatabase() {
+        return "";
+    }
+
+    default String defaultUsername() {
+        return "";
+    }
+
+    default boolean supportsNamedServerConnection() {
+        return false;
+    }
+
     /**
      * 用于检测连接是否可用的简单查询（单行结果即可）。
      */

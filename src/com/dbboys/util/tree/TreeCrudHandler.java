@@ -1,10 +1,12 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppErrorHandler;
 import com.dbboys.app.AppState;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
@@ -296,9 +298,27 @@ public class TreeCrudHandler {
     public static Connect buildObjectConnect(TreeItem<TreeData> selectedItem, boolean useSysmaster) {
         Connect connect = new Connect(TreeNavigator.getMetaConnect(selectedItem));
         Database currentDatabase = TreeNavigator.getCurrentDatabase(selectedItem);
-        connect.setDatabase(useSysmaster ? "sysmaster" : currentDatabase.getName());
+        String databaseName = currentDatabase.getName();
+        if (useSysmaster) {
+            try {
+                String fallback = resolveDialectServices().requireDialect(connect).changeDatabaseFallbackCatalogName();
+                if (fallback != null && !fallback.isBlank()) {
+                    databaseName = fallback;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        connect.setDatabase(databaseName);
         connect.setProps(TreeViewUtil.connectionService.modifyProps(connect, "DB_LOCALE", currentDatabase.getDbLocale()));
         return connect;
+    }
+
+    private static DialectServices resolveDialectServices() {
+        try {
+            return AppContext.get(DialectServices.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
     }
 
     public static void toggleObjectEnabled(TreeItem<TreeData> selectedItem, boolean enabled) {

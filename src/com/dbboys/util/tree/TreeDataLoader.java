@@ -60,7 +60,7 @@ public class TreeDataLoader {
                                 treeItem.getChildren().clear();
                                 //查询到的结果添加到数据库条目下
                                 treeItem.getChildren().add(databaseItem);
-                                if(connect.getUsername().equals("gbasedbt")) {
+                                if (TreeViewUtil.userService.supportsUsers(connect)) {
                                     treeItem.getChildren().add(userItem);
                                 }
                                 // treeItem.getChildren().add(scanItem);
@@ -88,18 +88,9 @@ public class TreeDataLoader {
                     () -> {
                           final List<Database> databases = new ArrayList<>();
                           try {
-                              databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem), false));
+                              databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem)));
                           } catch (SQLException e) {
-                              if (e.getErrorCode() == -201) {
-                                  try {
-                                      databases.clear();
-                                      databases.addAll(TreeViewUtil.databaseService.getDatabases(TreeNavigator.getMetaConnect(treeItem), true));
-                                  } catch (SQLException ex) {
-                                      AppErrorHandler.handle(ex);
-                                  }
-                              } else {
-                                  AppErrorHandler.handle(e);
-                              }
+                              AppErrorHandler.handle(e);
                           }
                         //查询到结果后删除loading节点
                         if(databases.size()>0){

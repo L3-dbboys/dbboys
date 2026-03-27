@@ -1,12 +1,15 @@
 package com.dbboys.ctrl;
 
 
+import com.dbboys.app.AppContext;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.customnode.CustomInfoCodeArea;
 import com.dbboys.customnode.CustomLostFocusCommitTableCell;
 import com.dbboys.customnode.CustomTableView;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.api.ConnectionService;
+import com.dbboys.api.DatabaseDialect;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
@@ -220,6 +223,7 @@ public class CreateConnectController {
             ObservableList<String> driverItems = FXCollections.observableArrayList(driverList);
             driverChoiceBox.setItems(driverItems); //触发内容变化监听
             driverChoiceBox.getSelectionModel().select(driverItems.size()-1);
+            applyDialectDefaults(connect, oldValue, newValue);
         });
         dbTypeChoiceBox.getSelectionModel().select(0);
 
@@ -230,8 +234,7 @@ public class CreateConnectController {
             usernameTextField.setText(Main.lastInstallConnect.getUsername());
             passwordTextField.setText(Main.lastInstallConnect.getPassword());
         }else{
-            usernameTextField.setText("gbasedbt");
-            portTextField.setText("9088");
+            applyDialectDefaults(connect, null, dbTypeChoiceBox.getValue());
         }
 
         //如果传了参数，可能树分类上右键新建连接或编辑连接，需将已有参数填充到表单
@@ -362,8 +365,8 @@ public class CreateConnectController {
                 }
                 }
 
-                if (connect.getDatabase() == null) {
-                    connect.setDatabase("sysmaster");
+                if (connect.getDatabase() == null || connect.getDatabase().isBlank()) {
+                    connect.setDatabase(defaultDatabaseFor(connect.getDbtype()));
                 }
                 connect.setUsername(usernameTextField.getText());
                 connect.setPassword(passwordTextField.getText());
@@ -401,6 +404,51 @@ public class CreateConnectController {
                 return false;
             }
             return true;
+    }
+
+    private void applyDialectDefaults(Connect connect, String oldDbType, String newDbType) {
+        DatabaseDialect oldDialect = resolveDialectServices().getDialect(oldDbType);
+        DatabaseDialect newDialect = resolveDialectServices().getDialect(newDbType);
+        if (newDialect == null) {
+            return;
+        }
+        switchGroupOrIP.setVisible(newDialect.supportsNamedServerConnection());
+        if (!newDialect.supportsNamedServerConnection()) {
+            groupHbox.setVisible(false);
+        }
+        if (shouldReplaceField(portTextField.getText(), oldDialect == null ? null : oldDialect.defaultPort())) {
+            portTextField.setText(newDialect.defaultPort());
+        }
+        if (shouldReplaceField(usernameTextField.getText(), oldDialect == null ? null : oldDialect.defaultUsername())) {
+            usernameTextField.setText(newDialect.defaultUsername());
+        }
+        if (connect.getDatabase() == null
+                || connect.getDatabase().isBlank()
+                || (oldDialect != null && connect.getDatabase().equalsIgnoreCase(oldDialect.defaultDatabase()))) {
+            connect.setDatabase(newDialect.defaultDatabase());
+        }
+    }
+
+    private boolean shouldReplaceField(String currentValue, String oldDefault) {
+        return currentValue == null
+                || currentValue.isBlank()
+                || (oldDefault != null && !oldDefault.isBlank() && currentValue.equalsIgnoreCase(oldDefault));
+    }
+
+    private String defaultDatabaseFor(String dbType) {
+        DatabaseDialect dialect = resolveDialectServices().getDialect(dbType);
+        if (dialect == null) {
+            return "";
+        }
+        return dialect.defaultDatabase();
+    }
+
+    private DialectServices resolveDialectServices() {
+        try {
+            return AppContext.get(DialectServices.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
     }
 
     public void initialize() throws IOException {

@@ -1,6 +1,7 @@
 package com.dbboys.api;
 
 import com.dbboys.customnode.CustomSpaceChart;
+import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -10,6 +11,10 @@ import java.util.List;
  * 实例级管理能力，如空间信息与扩容策略。
  */
 public interface InstanceAdminRepository {
+
+    default boolean supportsAdminFeatures(Connect connect) {
+        return false;
+    }
 
     void modifyChunkExtendable(Connection conn, int chunkId, boolean toExtendable) throws SQLException;
 

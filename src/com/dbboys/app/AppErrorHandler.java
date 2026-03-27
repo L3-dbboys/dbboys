@@ -1,6 +1,7 @@
 package com.dbboys.app;
 
 import com.dbboys.i18n.I18n;
+import com.dbboys.util.SqlErrorUtil;
 import com.dbboys.util.tree.TreeViewUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -75,7 +76,7 @@ public final class AppErrorHandler {
     static class SqlDisconnectedStrategy implements ErrorStrategy {
         @Override
         public boolean supports(Throwable e) {
-            return e instanceof SQLException se && (se.getErrorCode() == -79716 || se.getErrorCode() == -79730);
+            return e instanceof SQLException se && SqlErrorUtil.isDisconnectError(se);
         }
 
         @Override
@@ -92,7 +93,7 @@ public final class AppErrorHandler {
     static class SqlDatabaseNotChoicedStrategy implements ErrorStrategy {
         @Override
         public boolean supports(Throwable e) {
-            return e instanceof SQLException se && (se.getErrorCode() == -23197 || se.getErrorCode() == -349);
+            return e instanceof SQLException se && SqlErrorUtil.requiresSessionRecovery(se);
         }
 
         @Override

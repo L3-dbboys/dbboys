@@ -49,6 +49,16 @@ public final class OracleDialect implements DatabaseDialect {
     }
 
     @Override
+    public String defaultPort() {
+        return "1521";
+    }
+
+    @Override
+    public String defaultDatabase() {
+        return "ORCL";
+    }
+
+    @Override
     public String testConnectionSql() {
         return "SELECT 1 FROM DUAL";
     }

@@ -61,15 +61,9 @@ public class SqlexeService {
     public List<Database> getDatabases(Connect connect) {
         List<Database> catalogs = new ArrayList<>();
         try {
-            catalogs = databaseService.getDatabases(connect, false);
+            catalogs = databaseService.getDatabases(connect);
         } catch (SQLException e) {
-            if (e.getErrorCode() == -201) {
-                try {
-                    catalogs = databaseService.getDatabases(connect, true);
-                } catch (Exception ex) {
-                    log.error("Operation failed", ex);
-                }
-            } else if (SqlErrorUtil.isDisconnectError(connect, e)) {
+            if (SqlErrorUtil.isDisconnectError(connect, e)) {
                 TreeViewUtil.connectionDisconnected();
             } else {
                 AppErrorHandler.handle(e);

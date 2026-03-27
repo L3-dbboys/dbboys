@@ -25,6 +25,10 @@ public class DatabaseService implements MetaObjectService {
         return metadataRepositoryProvider.metadata(connect).getDBspaceForCreateDatabase(connect.getConn());
     }
 
+    public List<Database> getDatabases(Connect connect) throws SQLException {
+        return metadataRepositoryProvider.metadata(connect).getDatabases(connect.getConn());
+    }
+
     public List<Database> getDatabases(Connect connect, boolean useOracleSyntax) throws SQLException {
         return metadataRepositoryProvider.metadata(connect).getDatabases(connect.getConn(), useOracleSyntax);
     }

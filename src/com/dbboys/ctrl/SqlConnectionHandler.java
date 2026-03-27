@@ -25,7 +25,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -125,21 +124,10 @@ public class SqlConnectionHandler {
                             t.setExpanded(false);
                             t.setExpanded(true);
                         } else {
-                            ResultSet rs = null;
-                            try {
-                                rs = connect.getConn().createStatement().executeQuery("select first 1 tabid from systables");
-                            } catch (SQLException e) {
+                            if (!connectionService.testConn(connect)) {
                                 connect.setConn(null);
                                 t.setExpanded(false);
                                 t.setExpanded(true);
-                            } finally {
-                                if (rs != null) {
-                                    try {
-                                        rs.close();
-                                    } catch (SQLException e) {
-                                        rs = null;
-                                    }
-                                }
                             }
                         }
                     } catch (SQLException e) {

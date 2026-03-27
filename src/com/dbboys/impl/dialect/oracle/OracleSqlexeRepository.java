@@ -20,6 +20,11 @@ public final class OracleSqlexeRepository implements SqlexeRepository {
 
     @Override
     public List<String> getSqlMode(Connection conn) throws SQLException {
-        throw new UnsupportedOperationException(MSG);
+        return List.of();
+    }
+
+    @Override
+    public boolean autoCommitsDdl(String sqlMode) {
+        return true;
     }
 }

@@ -33,6 +33,9 @@ public class UserService implements MetaObjectService {
     public List<User> getUsers(Connect connect, Connection conn) throws SQLException {
         return metadataRepositoryProvider.metadata(connect).getUsers(conn);
     }
-}
 
+    public boolean supportsUsers(Connect connect) {
+        return metadataRepositoryProvider.metadata(connect).supportsUsers(connect);
+    }
+}
 

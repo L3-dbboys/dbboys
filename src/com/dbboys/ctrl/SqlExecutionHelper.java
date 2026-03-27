@@ -1,6 +1,10 @@
 package com.dbboys.ctrl;
 
+import com.dbboys.api.SqlexeRepository;
+import com.dbboys.api.SqlexeRepositoryProvider;
+import com.dbboys.app.AppContext;
 import com.dbboys.customnode.CustomResultsetTab;
+import com.dbboys.impl.DialectServices;
 import com.dbboys.i18n.I18n;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.util.*;
@@ -22,9 +26,11 @@ public class SqlExecutionHelper {
     private static final Logger log = LogManager.getLogger(SqlExecutionHelper.class);
 
     final SqlTabController ctrl;
+    private final SqlexeRepositoryProvider sqlexeRepositoryProvider;
 
     public SqlExecutionHelper(SqlTabController ctrl) {
         this.ctrl = ctrl;
+        this.sqlexeRepositoryProvider = resolveSqlexeRepositoryProvider();
     }
 
     public String resolveSqlText(boolean allowRefresh) {
@@ -138,10 +144,7 @@ public class SqlExecutionHelper {
 
                             if (ctrl.sqlExecutionSuccess) {
                                 handlePostExecutionSuccess(sql);
-                            } else if (ctrl.sqlSqlModeChoiceBox.getValue().equals("sqlmode=oracle")
-                                    && (ctrl.sqlExe.toUpperCase().trim().startsWith("ALTER")
-                                    || ctrl.sqlExe.toUpperCase().trim().startsWith("CREATE")
-                                    || ctrl.sqlExe.toUpperCase().trim().startsWith("DROP"))) {
+                            } else if (shouldClearTransactionAfterDdl(ctrl.sqlExe)) {
                                 ctrl.sqlTransactionText.set("");
                             }
 
@@ -375,15 +378,15 @@ public class SqlExecutionHelper {
             ctrl.sqlExecutionResult = I18n.t("sql.exec.success");
         } catch (SQLException e) {
             log.error(e.getMessage(), e);
+            boolean requiresRecovery = requiresSessionRecovery(e);
             if (ctrl.isSingleSql) {
                 Platform.runLater(() -> {
                     if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                         ctrl.connectionDisconnected();
-                    } else if (e.getErrorCode() == -329 || e.getErrorCode() == -23197 || e.getErrorCode() == -349) {
+                    } else if (requiresRecovery) {
                         try {
-                            ctrl.sqlStatement = ctrl.sqlConnect.getConn().prepareStatement("database " + ctrl.sqlConnect.getDatabase());
-                            ctrl.sqlStatement.executeUpdate();
-                        } catch (SQLException ex) {
+                            sqlexeRepository().recoverSession(ctrl.sqlConnect.getConn(), ctrl.sqlConnect.getDatabase());
+                        } catch (Exception ex) {
                             log.error(ex.getMessage(), ex);
                         }
                         AlertUtil.CustomAlert(I18n.t("common.error"), "[" + e.getErrorCode() + "]" + e.getMessage());
@@ -410,15 +413,9 @@ public class SqlExecutionHelper {
                 });
             }
 
-            String normalizedSql = ctrl.sqlExe.toLowerCase().trim().replaceAll("[ \\t\\n]+", "");
-            if (normalizedSql.startsWith("setenvironmentsqlmode'oracle'")) {
-                Platform.runLater(() -> ctrl.sqlSqlModeChoiceBox.setValue("sqlmode=oracle"));
-            } else if (normalizedSql.startsWith("setenvironmentsqlmode'gbase'")) {
-                Platform.runLater(() -> ctrl.sqlSqlModeChoiceBox.setValue("sqlmode=gbase"));
-            } else if (normalizedSql.startsWith("setenvironmentsqlmode'mysql'")) {
-                if (ctrl.sqlSqlModeChoiceBox.getItems().contains("sqlmode=mysql")) {
-                    Platform.runLater(() -> ctrl.sqlSqlModeChoiceBox.setValue("sqlmode=mysql"));
-                }
+            String detectedSqlMode = detectSqlMode(ctrl.sqlExe);
+            if (detectedSqlMode != null && ctrl.sqlSqlModeChoiceBox.getItems().contains(detectedSqlMode)) {
+                Platform.runLater(() -> ctrl.sqlSqlModeChoiceBox.setValue(detectedSqlMode));
             }
 
             trackTransactionState(sql);
@@ -437,9 +434,9 @@ public class SqlExecutionHelper {
             } else if (!ctrl.sqlTransactionText.get().isEmpty()) {
                 ctrl.sqlTransactionText.set(ctrl.sqlTransactionText.get() + sqlWithSemicolon);
             }
-        } else if (ctrl.sqlSqlModeChoiceBox.getValue().equals("sqlmode=oracle") || ctrl.sqlSqlModeChoiceBox.getValue().equals("sqlmode=mysql")) {
+        } else if (autoCommitsDdl()) {
             ctrl.sqlTransactionText.set(ctrl.sqlTransactionText.get() + sqlWithSemicolon);
-            if (upperSql.startsWith("ALTER") || upperSql.startsWith("CREATE") || upperSql.startsWith("DROP")
+            if (isDdlStatement(upperSql)
                     || upperSql.startsWith("COMMIT") || upperSql.startsWith("ROLLBACK")) {
                 ctrl.sqlTransactionText.set("");
             }
@@ -462,26 +459,16 @@ public class SqlExecutionHelper {
                     Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.single_only")));
                 } else {
                     try {
-                        ctrl.sqlStatement = ctrl.sqlConnect.getConn().prepareStatement("execute function ifx_explain(?)");
-                        ctrl.sqlStatement.setObject(1, ctrl.sqlText);
-                        ResultSet rs = ctrl.sqlStatement.executeQuery();
-                        rs.next();
+                        String explainText = sqlexeRepository().explain(ctrl.sqlConnect.getConn(), ctrl.sqlText);
                         Platform.runLater(() -> {
-                            try {
-                                if (rs.getString(1) != null) {
-                                    if (rs.getString(1).equals("Error 0")) {
-                                        AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported"));
-                                    } else {
-                                        ctrl.showExplainText(rs.getString(1));
-                                        rs.close();
-                                    }
-                                } else {
-                                    AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported"));
-                                }
-                            } catch (SQLException e) {
-                                throw new RuntimeException(e);
+                            if (explainText != null && !"Error 0".equals(explainText)) {
+                                ctrl.showExplainText(explainText);
+                            } else {
+                                AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported"));
                             }
                         });
+                    } catch (UnsupportedOperationException e) {
+                        Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported")));
                     } catch (SQLException e) {
                         if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
                             ctrl.connectionDisconnected();
@@ -505,21 +492,14 @@ public class SqlExecutionHelper {
     // --- createSqlModeTask ---
 
     public Task<Void> createSqlModeTask(Connect sqlConnect, String sqlmode) {
-        String sql;
-        if (sqlmode.equals("sqlmode=gbase")) {
-            sql = "set environment sqlmode 'gbase'";
-        } else if (sqlmode.equals("sqlmode=oracle")) {
-            sql = "set environment sqlmode 'oracle'";
-        } else {
-            sql = "set environment sqlmode 'mysql'";
-        }
-        String finalSql = sql;
         ctrl.sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
                 try {
-                    ctrl.sqlStatement = sqlConnect.getConn().prepareStatement(finalSql);
-                    ctrl.sqlStatement.executeUpdate();
+                    sqlexeRepositoryProvider.sqlexe(sqlConnect).changeSqlMode(sqlConnect.getConn(), sqlmode);
+                } catch (UnsupportedOperationException e) {
+                    Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.not_supported")));
+                    throw new Exception("ERROR", e);
                 } catch (SQLException e) {
                     if (SqlErrorUtil.isDisconnectError(sqlConnect, e)) {
                         ctrl.connectionDisconnected();
@@ -533,5 +513,52 @@ public class SqlExecutionHelper {
             }
         };
         return ctrl.sqlTask;
+    }
+
+    private SqlexeRepository sqlexeRepository() {
+        return sqlexeRepositoryProvider.sqlexe(ctrl.sqlConnect);
+    }
+
+    private SqlexeRepositoryProvider resolveSqlexeRepositoryProvider() {
+        try {
+            return AppContext.get(SqlexeRepositoryProvider.class);
+        } catch (IllegalStateException e) {
+            return DialectServices.createDefault();
+        }
+    }
+
+    private String detectSqlMode(String sql) {
+        try {
+            return sqlexeRepository().detectSqlMode(sql);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean requiresSessionRecovery(SQLException e) {
+        try {
+            return sqlexeRepository().requiresSessionRecovery(e);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean autoCommitsDdl() {
+        try {
+            return sqlexeRepository().autoCommitsDdl(ctrl.sqlSqlModeChoiceBox.getValue());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean shouldClearTransactionAfterDdl(String sql) {
+        return autoCommitsDdl() && isDdlStatement(sql == null ? "" : sql.trim().toUpperCase());
+    }
+
+    private boolean isDdlStatement(String upperSql) {
+        return upperSql.startsWith("ALTER")
+                || upperSql.startsWith("CREATE")
+                || upperSql.startsWith("DROP")
+                || upperSql.startsWith("TRUNCATE");
     }
 }
