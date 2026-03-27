@@ -78,6 +78,11 @@ public class GbaseSqlexeRepository implements com.dbboys.api.SqlexeRepository {
                 }
             }
         }
+        if (!sqlmodes.isEmpty()
+                && !"sqlmode=none".equals(sqlmodes.get(0))
+                && !sqlmodes.contains("sqlmode=gbase")) {
+            sqlmodes.add("sqlmode=gbase");
+        }
         return sqlmodes;
     }
 
