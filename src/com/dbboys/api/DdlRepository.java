@@ -1,14 +1,23 @@
 package com.dbboys.api;
 
 import java.sql.Connection;
+import java.util.function.LongConsumer;
 
 /**
  * 按数据库方言提供对象 DDL 导出能力。
  */
 public interface DdlRepository {
 
+    default long countDatabaseExportItems(Connection conn, String databaseName) throws Exception {
+        return -1;
+    }
+
     default String printDatabase(Connection conn, String databaseName) throws Exception {
         throw new UnsupportedOperationException("Database DDL export not supported");
+    }
+
+    default String printDatabase(Connection conn, String databaseName, LongConsumer progressCallback) throws Exception {
+        return printDatabase(conn, databaseName);
     }
 
     String printTable(Connection conn, String objectName) throws Exception;

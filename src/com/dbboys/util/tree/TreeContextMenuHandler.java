@@ -1415,11 +1415,11 @@ public class TreeContextMenuHandler {
                     treeview_menu.getItems().add(TreeViewUtil.databaseOpenFileItem);
                     treeview_menu.getItems().add(setDefaultDatabaseItem);
                     treeview_menu.getItems().add(updateStatisticsItem);
-                    treeview_menu.getItems().add(exportDdlMenu);
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(TreeViewUtil.refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(exportDdlMenu);
                 }
                 //对象文件夹
                 else if(selectedItem.getValue() instanceof ObjectFolder) {

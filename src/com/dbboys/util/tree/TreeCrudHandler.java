@@ -563,10 +563,22 @@ public class TreeCrudHandler {
         Task<String> ddlTask = new Task<>() {
             @Override
             protected String call() throws Exception {
+                String countingMessage = I18n.t("metadata.menu.ddl.loading.counting", "正在统计导出对象...");
+                String loadingMessage = I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL...");
+                String loadingProgressPattern = I18n.t("metadata.menu.ddl.loading.progress", "正在导出DDL... (%d/%d)");
                 updateProgress(-1, 1);
-                updateMessage(I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL..."));
+                updateMessage(countingMessage);
                 Connect connect = TreeNavigator.getMetaConnect(selectedItem);
-                return TreeViewUtil.databaseService.exportDatabaseDdl(connect, database);
+                return TreeViewUtil.databaseService.exportDatabaseDdl(connect, database, (completed, total) -> {
+                    if (total > 0) {
+                        long safeCompleted = Math.min(completed, total);
+                        updateProgress(safeCompleted, total);
+                        updateMessage(loadingProgressPattern.formatted(safeCompleted, total));
+                    } else {
+                        updateProgress(-1, 1);
+                        updateMessage(loadingMessage);
+                    }
+                });
             }
         };
 

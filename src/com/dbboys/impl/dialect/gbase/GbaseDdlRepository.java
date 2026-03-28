@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -2195,6 +2196,58 @@ public final class GbaseDdlRepository implements DdlRepository {
      */
     @Override
     public String printDatabase(Connection connection,String databasename) throws SQLException {
+        return printDatabase(connection, databasename, null);
+    }
+
+    @Override
+    public long countDatabaseExportItems(Connection connection, String databasename) throws SQLException {
+        String preDatabase = getActiveDbname(connection);
+        boolean switchedDatabase = !databasename.equals(preDatabase);
+        Throwable pending = null;
+        try {
+            if (switchedDatabase) {
+                setActiveDbname(connection, databasename);
+            }
+            GbaseMetadataRepository metadataRepository = new GbaseMetadataRepository();
+            boolean filterType = metadataRepository.hasSysProcTypeColumn(connection);
+            long total = 0;
+            total += metadataRepository.getFunctionCount(connection, filterType);
+            total += metadataRepository.getProcedureCount(connection, filterType);
+            total += metadataRepository.getUserTablesCount(connection);
+            total += metadataRepository.getSynonymCount(connection);
+            total += metadataRepository.getSequenceCount(connection);
+            total += metadataRepository.getViewCount(connection);
+            total += metadataRepository.getIndexCount(connection);
+            total += metadataRepository.getTriggerCount(connection);
+            //SqlRunner runner = new SqlRunner(connection, DEFAULT_QUERY_TIMEOUT_SECONDS);
+            //total += countCommentExportItems(connection, runner);
+            return total;
+        } catch (SQLException e) {
+            pending = e;
+            throw e;
+        } catch (RuntimeException e) {
+            pending = e;
+            throw e;
+        } catch (Error e) {
+            pending = e;
+            throw e;
+        } finally {
+            if (switchedDatabase) {
+                try {
+                    setActiveDbname(connection, preDatabase);
+                } catch (SQLException restoreException) {
+                    if (pending != null) {
+                        pending.addSuppressed(restoreException);
+                    } else {
+                        throw restoreException;
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public String printDatabase(Connection connection,String databasename, LongConsumer progressCallback) throws SQLException {
         // 顺序暂定：函数->存储过程->表（含主键、索引、约束）->同义词（等）-> 序列 -> 视图（可能有依赖关系，先后顺序）
         StringBuilder ddl = new StringBuilder();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -2206,6 +2259,7 @@ public final class GbaseDdlRepository implements DdlRepository {
         String sqlstr = null;
         boolean switchedDatabase = ! databasename.equals(preDatabase);
         Throwable pending = null;
+        long completed = 0;
         ddl.append("-- ### product version : ").append(productversion).append("\n");
         ddl.append("-- ### export database : ").append(databasename).append("\n");
         ddl.append("-- ### export datetime : ").append(datestr).append("\n");
@@ -2221,7 +2275,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                     select p.procname,p.procid,p.procflags,b.seqno,b.data as procbody 
                     from sysprocedures p, sysprocbody b  
                     where p.procid = b.procid 
-                    and p.mode in ('O','o') 
+                    and p.mode in ('O') 
                     and b.datakey = 'T' 
                     and p.isproc = 'f' 
                     order by p.procid asc,b.seqno asc
@@ -2231,7 +2285,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                     select p.procname,p.procid,p.procflags,b.seqno,b.data as procbody 
                     from sysprocedures p, sysprocbody b  
                     where p.procid = b.procid 
-                    and p.mode in ('O','o') 
+                    and p.mode in ('O') 
                     and b.datakey = 'T' 
                     and p.isproc = 't' 
                     order by p.procid asc,b.seqno asc
@@ -2283,6 +2337,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 ddl.append("\n/");
             }
             ddl.append("\n\n");
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output function and procedure.\n\n");
 
@@ -2328,6 +2383,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 ddl.append(buildTableSqlExtent(connection, tableInfoArrayList.get(i)));
             }
             ddl.append("\n");
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output tables.\n\n");
 
@@ -2382,6 +2438,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 ddl.append(getName(synonymInfoArrayList.get(i).getLTabName()));
             }
             ddl.append("\n\n");
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output synonym.\n\n");
 
@@ -2442,6 +2499,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 ddl.append(" NOORDER");
             }
             ddl.append(";\n\n");
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output sequence.\n\n");
 
@@ -2493,6 +2551,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             }
             ddl.append(viewInfoArrayList.get(i).getViewBoday());
             ddl.append("\n");
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output view.\n\n");
 
@@ -2560,6 +2619,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             ddl.append(getKeyCols(connection, indexesArrayList.get(i).getTableId(), indexesArrayList.get(i).getCols(), tableColumnArrayList));
 
             ddl.append(");\n");
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
 
         ddl.append("-- ### FINISH: output index.\n\n");
@@ -2648,6 +2708,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 ddl.append("SET CONSTRAINTS ").append(getName(foreignKeyInfoArrayList.get(i).getPkTabname()));
                 ddl.append(" DISABLED;\n");
             }
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output foreigen key.\n\n");
 
@@ -2712,6 +2773,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             if (trigArrayList.get(i).isIsdisabled()){
                 ddl.append("SET TRIGGERS ").append(trigArrayList.get(i).getName()).append(" DISABLED;\n");
             }
+            completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output trigger.\n\n");
 
@@ -2737,6 +2799,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 while (resultSet.next()){
                     if (resultSet.getInt("segno") == 0){
                         ddl.append("COMMENT ON TABLE ").append(tabname).append(" IS '").append(trim(tabcomm).replace("'","''")).append("';\n");
+                        completed = advanceDatabaseExportProgress(progressCallback, completed);
                         tabname = resultSet.getString("tabname");
                         tabcomm = resultSet.getString("comments");
                     } else {
@@ -2746,6 +2809,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             }
             if (tabname != null){
                 ddl.append("COMMENT ON TABLE ").append(tabname).append(" IS '").append(trim(tabcomm).replace("'","''")).append("';\n");
+                completed = advanceDatabaseExportProgress(progressCallback, completed);
             }
             // 字段
             sqlstr = """
@@ -2770,6 +2834,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                     if (resultSet.getInt("segno") == 0){
                         ddl.append("COMMENT ON COLUMN ").append(tabname).append(".").append(colname);
                         ddl.append(" IS '").append(trim(tabcomm).replace("'","''")).append("';\n");
+                        completed = advanceDatabaseExportProgress(progressCallback, completed);
                         tabname = resultSet.getString("tabname");
                         colname = resultSet.getString("colname");
                         colcomm = resultSet.getString("comments");
@@ -2781,6 +2846,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             if (tabname != null){
                 ddl.append("COMMENT ON COLUMN ").append(tabname).append(".").append(colname);
                 ddl.append(" IS '").append(trim(tabcomm).replace("'","''")).append("';\n");
+                completed = advanceDatabaseExportProgress(progressCallback, completed);
             }
         } else if (commflags == 1){ // 不含segno
             // 表
@@ -2795,6 +2861,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 while(resultSet.next()){
                     ddl.append("COMMENT ON TABLE ").append(resultSet.getString("tabname")).append(" IS '");
                     ddl.append(trim(resultSet.getString("comments")).replace("'","''")).append("';\n");
+                    completed = advanceDatabaseExportProgress(progressCallback, completed);
                 }
             }
             // 字段
@@ -2811,6 +2878,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 while(resultSet.next()){
                     ddl.append("COMMENT ON COLUMN ").append(resultSet.getString("tabname")).append(".").append(resultSet.getString("colname"));
                     ddl.append(" IS '").append(trim(resultSet.getString("comments")).replace("'","''")).append("';\n");
+                    completed = advanceDatabaseExportProgress(progressCallback, completed);
                 }
             }
         }
@@ -2838,6 +2906,45 @@ public final class GbaseDdlRepository implements DdlRepository {
                 }
             }
         }
+    }
+
+    private static long queryCount(SqlRunner runner, String sql) throws SQLException {
+        Long value = runner.queryOne(sql, List.of(), rs -> rs.getLong(1));
+        return value == null ? 0 : value;
+    }
+
+    private static long countCommentExportItems(Connection connection, SqlRunner runner) throws SQLException {
+        int commflags = getCommentFlags(connection);
+        if (commflags == 11) {
+            return queryCount(runner, """
+                    select count(*)
+                    from (
+                        select c.tabid
+                        from syscomms c
+                        group by c.tabid
+                    ) t;
+                    """) + queryCount(runner, """
+                    select count(*)
+                    from (
+                        select cc.tabid, cc.colno
+                        from syscolcomms cc
+                        group by cc.tabid, cc.colno
+                    ) t;
+                    """);
+        }
+        if (commflags == 1) {
+            return queryCount(runner, "select count(*) from syscomms;")
+                    + queryCount(runner, "select count(*) from syscolcomms;");
+        }
+        return 0;
+    }
+
+    private static long advanceDatabaseExportProgress(LongConsumer progressCallback, long completed) {
+        long next = completed + 1;
+        if (progressCallback != null) {
+            progressCallback.accept(next);
+        }
+        return next;
     }
 
     /**

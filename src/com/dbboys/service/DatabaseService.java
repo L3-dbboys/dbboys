@@ -10,6 +10,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.LongConsumer;
 
 public class DatabaseService implements MetaObjectService {
     private final MetadataRepositoryProvider metadataRepositoryProvider;
@@ -49,6 +51,20 @@ public class DatabaseService implements MetaObjectService {
     public String exportDatabaseDdl(Connect connect, Database database) throws Exception {
         return withMetaSession(connect, database,
                 conn -> ddlRepositoryProvider.ddl(connect).printDatabase(conn, database.getName()));
+    }
+
+    public String exportDatabaseDdl(Connect connect, Database database, BiConsumer<Long, Long> progressListener) throws Exception {
+        return withMetaSession(connect, database, conn -> {
+            var ddlRepository = ddlRepositoryProvider.ddl(connect);
+            long total = ddlRepository.countDatabaseExportItems(conn, database.getName());
+            if (progressListener != null) {
+                progressListener.accept(0L, total);
+            }
+            LongConsumer progressCallback = (progressListener != null && total > 0)
+                    ? completed -> progressListener.accept(completed, total)
+                    : null;
+            return ddlRepository.printDatabase(conn, database.getName(), progressCallback);
+        });
     }
 
     public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
