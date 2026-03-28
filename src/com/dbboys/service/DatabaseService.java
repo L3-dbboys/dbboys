@@ -65,7 +65,7 @@ public class DatabaseService implements MetaObjectService {
             }
             LongConsumer progressCallback = (progressListener != null && total > 0)
                     ? completed -> {progressListener.accept(completed, total);
-                        log.info("#################################commpeted total: {}", completed);}
+                        }
                     : null;
             return ddlRepository.printDatabase(conn, database.getName(), progressCallback);
         });
