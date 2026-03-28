@@ -20,7 +20,14 @@ public interface ConnectionService {
 
     void changeCommitMode(Connection conn, int commitChoiceBoxIndex) throws SQLException;
 
-    ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database);
+    default ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database) {
+        return changeDefaultDatabase(connect, database, true);
+    }
+
+    /**
+     * 切换当前库；当方言要求通过新连接重试时，可选择是否执行 sessionInit。
+     */
+    ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database, boolean sessionInitOnReconnect);
 
     /**
      * 按属性名和值调整连接属性 JSON；方言可在写入前对特定属性做归一化处理（如 GBase 的 DB_LOCALE）。

@@ -127,7 +127,7 @@ public class ConnectionServiceImpl implements ConnectionService {
         }
     }
 
-    public ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database) {
+    public ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database, boolean sessionInitOnReconnect) {
         ChangeDefaultDatabaseResult result = new ChangeDefaultDatabaseResult();
         if (connect == null || database == null) {
             result.setSuccess(false);
@@ -159,7 +159,9 @@ public class ConnectionServiceImpl implements ConnectionService {
                     if (!dialect.isSystemDatabase(database.getName())) {
                         connect.setProps(modifyProps(connect, PROP_DB_LOCALE, database.getDbLocale()));
                     }
-                    Connection newConn = getConnectionWithSessionInit(connect);
+                    Connection newConn = sessionInitOnReconnect
+                            ? getConnectionWithSessionInit(connect)
+                            : createConnection(connect);
                     connect.setConn(newConn);
                     closeConnectionQuietly(oldConn);
                     LocalDbRepository.updateConnect(connect);
