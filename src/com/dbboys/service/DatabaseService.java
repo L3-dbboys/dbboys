@@ -12,8 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.LongConsumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class DatabaseService implements MetaObjectService {
+    private static final Logger log = LogManager.getLogger(DatabaseService.class);
     private final MetadataRepositoryProvider metadataRepositoryProvider;
     private final DdlRepositoryProvider ddlRepositoryProvider;
 
@@ -61,7 +64,8 @@ public class DatabaseService implements MetaObjectService {
                 progressListener.accept(0L, total);
             }
             LongConsumer progressCallback = (progressListener != null && total > 0)
-                    ? completed -> progressListener.accept(completed, total)
+                    ? completed -> {progressListener.accept(completed, total);
+                        log.info("#################################commpeted total: {}", completed);}
                     : null;
             return ddlRepository.printDatabase(conn, database.getName(), progressCallback);
         });

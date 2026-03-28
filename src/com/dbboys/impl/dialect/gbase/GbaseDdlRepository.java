@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -2940,11 +2941,19 @@ public final class GbaseDdlRepository implements DdlRepository {
     }
 
     private static long advanceDatabaseExportProgress(LongConsumer progressCallback, long completed) {
+        throwIfCancelled();
         long next = completed + 1;
         if (progressCallback != null) {
             progressCallback.accept(next);
         }
+        throwIfCancelled();
         return next;
+    }
+
+    private static void throwIfCancelled() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("Database DDL export cancelled");
+        }
     }
 
     /**

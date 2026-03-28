@@ -23,6 +23,9 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 
@@ -457,6 +460,7 @@ public class TreeCrudHandler {
         TreeData firstData = firstItem.getValue();
         boolean multi = items.size() > 1;
         int totalItems = items.size();
+        AtomicReference<Future<?>> ddlFuture = new AtomicReference<>();
 
         Task<String> ddlTask = new Task<>() {
             @Override
@@ -464,14 +468,17 @@ public class TreeCrudHandler {
                 String loadingMessage = I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL...");
                 String loadingProgressPattern = I18n.t("metadata.menu.ddl.loading.progress", "正在导出DDL... (%d/%d)");
                 StringBuilder sb = new StringBuilder();
+                if (isCancelled() || Thread.currentThread().isInterrupted()) {
+                    return null;
+                }
                 updateProgress(multi ? 0 : -1, multi ? totalItems : 1);
                 updateMessage(multi ? loadingProgressPattern.formatted(0, totalItems) : loadingMessage);
                 int processed = 0;
-                if (isCancelled()) {
+                if (isCancelled() || Thread.currentThread().isInterrupted()) {
                     return null;
                 }
                 for (TreeItem<TreeData> item : items) {
-                    if (isCancelled()) {
+                    if (isCancelled() || Thread.currentThread().isInterrupted()) {
                         return null;
                     }
                     if (item == null || item.getValue() == null) {
@@ -509,7 +516,7 @@ public class TreeCrudHandler {
                                 ((DBPackage) item.getParent().getValue()).getDDL(), data.getName());
                     }
 
-                    if (isCancelled()) {
+                    if (isCancelled() || Thread.currentThread().isInterrupted()) {
                         data.setRunning(false);
                         return null;
                     }
@@ -530,7 +537,13 @@ public class TreeCrudHandler {
             }
         };
 
-        AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask);
+        AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask, () -> {
+            ddlTask.cancel(true);
+            Future<?> future = ddlFuture.get();
+            if (future != null) {
+                future.cancel(true);
+            }
+        });
         ddlTask.setOnSucceeded(event1 -> {
             closeDdlLoadingDialog(loadingDialog);
             items.forEach(it -> {
@@ -551,7 +564,7 @@ public class TreeCrudHandler {
         });
 
         loadingDialog.getStage().show();
-        TreeNavigator.getMetaConnect(firstItem).executeSqlTask(ddlTask);
+        ddlFuture.set(TreeNavigator.getMetaConnect(firstItem).executeSqlTask(ddlTask));
     }
 
     public static void handleDatabaseDdlAction(TreeView<TreeData> treeView, BiConsumer<TreeData, String> onSuccess) {
@@ -560,16 +573,24 @@ public class TreeCrudHandler {
             return;
         }
 
+        Connect connect = TreeNavigator.getMetaConnect(selectedItem);
+        AtomicReference<Future<?>> ddlFuture = new AtomicReference<>();
+
         Task<String> ddlTask = new Task<>() {
             @Override
             protected String call() throws Exception {
                 String countingMessage = I18n.t("metadata.menu.ddl.loading.counting", "正在统计导出对象...");
                 String loadingMessage = I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL...");
                 String loadingProgressPattern = I18n.t("metadata.menu.ddl.loading.progress", "正在导出DDL... (%d/%d)");
+                if (isCancelled() || Thread.currentThread().isInterrupted()) {
+                    return null;
+                }
                 updateProgress(-1, 1);
                 updateMessage(countingMessage);
-                Connect connect = TreeNavigator.getMetaConnect(selectedItem);
                 return TreeViewUtil.databaseService.exportDatabaseDdl(connect, database, (completed, total) -> {
+                    if (isCancelled() || Thread.currentThread().isInterrupted()) {
+                        throw new CancellationException("Database DDL export cancelled");
+                    }
                     if (total > 0) {
                         long safeCompleted = Math.min(completed, total);
                         updateProgress(safeCompleted, total);
@@ -582,7 +603,13 @@ public class TreeCrudHandler {
             }
         };
 
-        AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask);
+        AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask, () -> {
+            ddlTask.cancel(true);
+            Future<?> future = ddlFuture.get();
+            if (future != null) {
+                future.cancel(true);
+            }
+        });
         ddlTask.setOnSucceeded(event1 -> {
             closeDdlLoadingDialog(loadingDialog);
             onSuccess.accept(database, ddlTask.getValue() == null ? "" : ddlTask.getValue());
@@ -590,10 +617,10 @@ public class TreeCrudHandler {
         AppErrorHandler.bindTask(ddlTask, () -> closeDdlLoadingDialog(loadingDialog));
 
         loadingDialog.getStage().show();
-        TreeNavigator.getMetaConnect(selectedItem).executeSqlTask(ddlTask);
+        ddlFuture.set(connect.executeSqlTask(ddlTask));
     }
 
-    private static AlertUtil.ContentDialog createDdlLoadingDialog(Task<?> ddlTask) {
+    private static AlertUtil.ContentDialog createDdlLoadingDialog(Task<?> ddlTask, Runnable cancelAction) {
         ButtonType cancelButtonType = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
 
         Label messageLabel = new Label(I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL..."));
@@ -627,7 +654,13 @@ public class TreeCrudHandler {
         );
         Button cancelButton = dialog.getButton(cancelButtonType);
         if (cancelButton != null) {
-            cancelButton.setOnAction(event -> ddlTask.cancel(true));
+            cancelButton.setOnAction(event -> {
+                if (cancelAction != null) {
+                    cancelAction.run();
+                } else {
+                    ddlTask.cancel(true);
+                }
+            });
         }
         dialog.getFrame().closeButton.setVisible(false);
         dialog.getFrame().closeButton.setManaged(false);

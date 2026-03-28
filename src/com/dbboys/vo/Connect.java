@@ -5,6 +5,7 @@ import javafx.beans.property.*;
 import java.sql.Connection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -265,8 +266,8 @@ public class Connect extends TreeData{
         return getName();
     }
 
-    public void executeSqlTask(Runnable task) {
-        executorService.submit(() -> {
+    public Future<?> executeSqlTask(Runnable task) {
+        return executorService.submit(() -> {
             try {
                 task.run();
             } catch (Exception e) {
@@ -275,4 +276,3 @@ public class Connect extends TreeData{
         });
     }
 }
-
