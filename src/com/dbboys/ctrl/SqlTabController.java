@@ -451,10 +451,13 @@ public class SqlTabController {
         if (currentResultSetTabController != null) {
             currentResultSetTabController.init();
         }
-        if (resultsetTabPane != null && resultsetTabPane.getTabs().size() > 1) {
-            resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
+        if (resultsetTabPane != null) {
+            if (resultsetTabPane.getTabs().size() > 1) {
+                resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
+            }
+            resultsetTabPane.getSelectionModel().select(resultsetSummaryTab);
         }
-        resultSetVBox.setVisible(false);
+        resultSetVBox.setVisible(true);
         if (explain_result_stackpane != null) {
             explain_result_stackpane.setVisible(false);
         }
