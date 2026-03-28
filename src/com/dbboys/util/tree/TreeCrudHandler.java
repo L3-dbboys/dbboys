@@ -8,13 +8,16 @@ import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.impl.DialectServices;
 import com.dbboys.api.MetaObjectService;
+import com.dbboys.ui.IconFactory;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import java.io.File;
@@ -453,12 +456,24 @@ public class TreeCrudHandler {
         }
         TreeData firstData = firstItem.getValue();
         boolean multi = items.size() > 1;
+        int totalItems = items.size();
 
         Task<String> ddlTask = new Task<>() {
             @Override
             protected String call() throws Exception {
+                String loadingMessage = I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL...");
+                String loadingProgressPattern = I18n.t("metadata.menu.ddl.loading.progress", "正在导出DDL... (%d/%d)");
                 StringBuilder sb = new StringBuilder();
+                updateProgress(multi ? 0 : -1, multi ? totalItems : 1);
+                updateMessage(multi ? loadingProgressPattern.formatted(0, totalItems) : loadingMessage);
+                int processed = 0;
+                if (isCancelled()) {
+                    return null;
+                }
                 for (TreeItem<TreeData> item : items) {
+                    if (isCancelled()) {
+                        return null;
+                    }
                     if (item == null || item.getValue() == null) {
                         continue;
                     }
@@ -467,6 +482,7 @@ public class TreeCrudHandler {
                         continue;
                     }
                     data.setRunning(true);
+                    updateMessage(multi ? loadingProgressPattern.formatted(processed + 1, totalItems) : loadingMessage);
                     Connect connectParam = TreeNavigator.getMetaConnect(item);
                     Database database = TreeNavigator.getCurrentDatabase(item);
                     String ddlText = "";
@@ -493,23 +509,30 @@ public class TreeCrudHandler {
                                 ((DBPackage) item.getParent().getValue()).getDDL(), data.getName());
                     }
 
+                    if (isCancelled()) {
+                        data.setRunning(false);
+                        return null;
+                    }
                     if (!multi) {
                         data.setRunning(false);
-                       // return SqlParserUtil.formatSql(ddlText);
+                        updateProgress(1, 1);
                         return ddlText;
                     }
                     if (ddlText != null && !ddlText.isEmpty()) {
                         sb.append("-- ").append(data.getName()).append(System.lineSeparator());
                         sb.append(ddlText).append(System.lineSeparator()).append(System.lineSeparator());
                     }
-                     data.setRunning(false);
+                    processed++;
+                    updateProgress(processed, totalItems);
+                    data.setRunning(false);
                 }
-                //return SqlParserUtil.formatSql(sb.toString());
                 return sb.toString();
             }
         };
 
+        AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask);
         ddlTask.setOnSucceeded(event1 -> {
+            closeDdlLoadingDialog(loadingDialog);
             items.forEach(it -> {
                 if (it != null && it.getValue() != null) {
                     it.getValue().setRunning(false);
@@ -518,13 +541,68 @@ public class TreeCrudHandler {
             String ddlText = ddlTask.getValue();
             onSuccess.accept(firstData, ddlText == null ? "" : ddlText);
         });
-        AppErrorHandler.bindTask(ddlTask, () -> items.forEach(it -> {
-            if (it != null && it.getValue() != null) {
-                it.getValue().setRunning(false);
-            }
-        }));
+        AppErrorHandler.bindTask(ddlTask, () -> {
+            closeDdlLoadingDialog(loadingDialog);
+            items.forEach(it -> {
+                if (it != null && it.getValue() != null) {
+                    it.getValue().setRunning(false);
+                }
+            });
+        });
 
+        loadingDialog.getStage().show();
         TreeNavigator.getMetaConnect(firstItem).executeSqlTask(ddlTask);
+    }
+
+    private static AlertUtil.ContentDialog createDdlLoadingDialog(Task<?> ddlTask) {
+        ButtonType cancelButtonType = new ButtonType(I18n.t("common.cancel", "取消"), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        Label messageLabel = new Label(I18n.t("metadata.menu.ddl.loading.message", "正在导出DDL..."));
+        messageLabel.setWrapText(true);
+        messageLabel.setStyle("-fx-text-fill: -color-fg-default;");
+        ddlTask.messageProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isBlank()) {
+                messageLabel.setText(newVal);
+            }
+        });
+
+        ProgressBar progressBar = new ProgressBar(ProgressIndicator.INDETERMINATE_PROGRESS);
+        progressBar.progressProperty().bind(ddlTask.progressProperty());
+        progressBar.setPrefWidth(280);
+        progressBar.setMaxWidth(Double.MAX_VALUE);
+
+        ImageView loadingIcon = IconFactory.loadingImageView(0.8);
+        HBox header = new HBox(10, loadingIcon, messageLabel);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        VBox content = new VBox(14, header, progressBar);
+        content.setAlignment(Pos.CENTER_LEFT);
+        content.setPrefWidth(280);
+
+        AlertUtil.ContentDialog dialog = AlertUtil.createContentDialog(
+                I18n.t("metadata.menu.ddl.loading.title", "导出DDL"),
+                content,
+                360,
+                150,
+                cancelButtonType
+        );
+        Button cancelButton = dialog.getButton(cancelButtonType);
+        if (cancelButton != null) {
+            cancelButton.setOnAction(event -> ddlTask.cancel(true));
+        }
+        dialog.getFrame().closeButton.setVisible(false);
+        dialog.getFrame().closeButton.setManaged(false);
+        dialog.getStage().setOnCloseRequest(event -> event.consume());
+        return dialog;
+    }
+
+    private static void closeDdlLoadingDialog(AlertUtil.ContentDialog dialog) {
+        if (dialog == null) {
+            return;
+        }
+        if (dialog.getStage().isShowing()) {
+            dialog.getStage().close();
+        }
     }
 
     public static void exportTableData(List<TreeItem<TreeData>> selectedItems, ExportFormat format) {
