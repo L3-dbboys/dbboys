@@ -32,9 +32,12 @@ import com.dbboys.vo.TableWithColumn;
 import com.dbboys.vo.Trigger;
 import com.dbboys.vo.View;
 import com.dbboys.db.SqlRunner;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class GbaseDdlRepository implements DdlRepository {
     private static final int DEFAULT_QUERY_TIMEOUT_SECONDS = 30;
+    private static final Logger log = LogManager.getLogger(GbaseDdlRepository.class);
 
     /**
      * 获取当前的数据库
@@ -2211,17 +2214,42 @@ public final class GbaseDdlRepository implements DdlRepository {
             }
             GbaseMetadataRepository metadataRepository = new GbaseMetadataRepository();
             boolean filterType = metadataRepository.hasSysProcTypeColumn(connection);
-            long total = 0;
-            total += metadataRepository.getFunctionCount(connection, filterType);
-            total += metadataRepository.getProcedureCount(connection, filterType);
-            total += metadataRepository.getUserTablesCount(connection);
-            total += metadataRepository.getSynonymCount(connection);
-            total += metadataRepository.getSequenceCount(connection);
-            total += metadataRepository.getViewCount(connection);
-            total += metadataRepository.getIndexCount(connection);
-            total += metadataRepository.getTriggerCount(connection);
-            //SqlRunner runner = new SqlRunner(connection, DEFAULT_QUERY_TIMEOUT_SECONDS);
-            //total += countCommentExportItems(connection, runner);
+            SqlRunner runner = new SqlRunner(connection, DEFAULT_QUERY_TIMEOUT_SECONDS);
+            long functionCount = metadataRepository.getFunctionCount(connection, filterType);
+            long procedureCount = metadataRepository.getProcedureCount(connection, filterType);
+            long tableCount = metadataRepository.getUserTablesCount(connection);
+            long synonymCount = metadataRepository.getSynonymCount(connection);
+            long sequenceCount = metadataRepository.getSequenceCount(connection);
+            long viewCount = metadataRepository.getViewCount(connection);
+            long indexCount = metadataRepository.getIndexCount(connection);
+            long foreignKeyCount = countForeignKeyExportItems(runner);
+            long triggerCount = metadataRepository.getTriggerCount(connection);
+            long commentCount = countCommentExportItems(connection, runner);
+            long total = functionCount
+                    + procedureCount
+                    + tableCount
+                    + synonymCount
+                    + sequenceCount
+                    + viewCount
+                    + indexCount
+                    + foreignKeyCount
+                    + triggerCount
+                    + commentCount;
+            log.info(
+                    "Database export object counts for {}: function={}, procedure={}, table={}, synonym={}, sequence={}, view={}, index={}, foreignKey={}, trigger={}, comment={}, total={}",
+                    databasename,
+                    functionCount,
+                    procedureCount,
+                    tableCount,
+                    synonymCount,
+                    sequenceCount,
+                    viewCount,
+                    indexCount,
+                    foreignKeyCount,
+                    triggerCount,
+                    commentCount,
+                    total
+            );
             return total;
         } catch (SQLException e) {
             pending = e;
@@ -2436,7 +2464,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             } else {
                 ddl.append(getName(synonymInfoArrayList.get(i).getLTabName()));
             }
-            ddl.append("\n\n");
+            ddl.append(";\n\n");
             completed = advanceDatabaseExportProgress(progressCallback, completed);
         }
         ddl.append("-- ### FINISH: output synonym.\n\n");
@@ -2832,7 +2860,7 @@ public final class GbaseDdlRepository implements DdlRepository {
                 while (resultSet.next()){
                     if (resultSet.getInt("segno") == 0){
                         ddl.append("COMMENT ON COLUMN ").append(tabname).append(".").append(colname);
-                        ddl.append(" IS '").append(trim(tabcomm).replace("'","''")).append("';\n");
+                        ddl.append(" IS '").append(trim(colcomm).replace("'","''")).append("';\n");
                         completed = advanceDatabaseExportProgress(progressCallback, completed);
                         tabname = resultSet.getString("tabname");
                         colname = resultSet.getString("colname");
@@ -2844,7 +2872,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             }
             if (tabname != null){
                 ddl.append("COMMENT ON COLUMN ").append(tabname).append(".").append(colname);
-                ddl.append(" IS '").append(trim(tabcomm).replace("'","''")).append("';\n");
+                ddl.append(" IS '").append(trim(colcomm).replace("'","''")).append("';\n");
                 completed = advanceDatabaseExportProgress(progressCallback, completed);
             }
         } else if (commflags == 1){ // 不含segno
@@ -2910,6 +2938,26 @@ public final class GbaseDdlRepository implements DdlRepository {
     private static long queryCount(SqlRunner runner, String sql) throws SQLException {
         Long value = runner.queryOne(sql, List.of(), rs -> rs.getLong(1));
         return value == null ? 0 : value;
+    }
+
+    private static long countForeignKeyExportItems(SqlRunner runner) throws SQLException {
+        return queryCount(runner, """
+                select count(*)
+                from (
+                    SELECT fk_c.constrid
+                    FROM sysconstraints fk_c, systables fk_t, sysindices fk_i,sysreferences fk_r,
+                         sysconstraints pk_c, systables pk_t, sysindices pk_i,sysobjstate obj
+                    WHERE fk_c.tabid = fk_t.tabid
+                    AND fk_c.constrname = obj.name
+                    AND obj.objtype = 'C'
+                    AND fk_c.constrtype = 'R'
+                    AND fk_c.idxname = fk_i.idxname
+                    AND fk_c.constrid = fk_r.constrid
+                    AND fk_r.PRIMARY = pk_c.constrid
+                    AND pk_c.tabid = pk_t.tabid
+                    AND pk_c.idxname = pk_i.idxname
+                ) t;
+                """);
     }
 
     private static long countCommentExportItems(Connection connection, SqlRunner runner) throws SQLException {

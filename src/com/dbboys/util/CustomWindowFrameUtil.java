@@ -27,10 +27,12 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class CustomWindowFrameUtil {
     private static final String MAXIMIZED_KEY = "customWindowMaximized";
+    private static final String RESIZE_HANDLES_KEY = "customWindowResizeHandles";
     private static final String TITLE_BG = "-color-bg-default";
     private static final String BODY_BG = "-color-bg-default";
     private static final String BORDER_COLOR = "-color-fg-default";
@@ -216,7 +218,7 @@ public final class CustomWindowFrameUtil {
         stage.setMinHeight(100);
         AppState.applyAppStylesheet(scene);
         if (enableResize) {
-            installResizeHandles(stage, root, scene);
+            stage.getProperties().put(RESIZE_HANDLES_KEY, installResizeHandles(stage, root, scene));
         }
 
         WindowState state = new WindowState();
@@ -327,6 +329,7 @@ public final class CustomWindowFrameUtil {
         }
         state.maximized = !state.maximized;
         stage.getProperties().put(MAXIMIZED_KEY, state.maximized);
+        updateResizeHandles(stage, state.maximized);
         if (stage.getScene() != null) {
             stage.getScene().setCursor(Cursor.DEFAULT);
         }
@@ -348,6 +351,7 @@ public final class CustomWindowFrameUtil {
         frame.maxButton.setGraphic(IconFactory.group(IconPaths.WINDOW_RESTORE, 0.4));
         frame.state.maximized = true;
         stage.getProperties().put(MAXIMIZED_KEY, true);
+        updateResizeHandles(stage, true);
         stage.getScene().setCursor(Cursor.DEFAULT);
     }
 
@@ -357,16 +361,17 @@ public final class CustomWindowFrameUtil {
         return screen.getVisualBounds();
     }
 
-    private static void installResizeHandles(Stage stage, StackPane root, Scene scene) {
-        addEdgeResizeHandle(stage, scene, root, ResizeDirection.N);
-        addEdgeResizeHandle(stage, scene, root, ResizeDirection.S);
-        addEdgeResizeHandle(stage, scene, root, ResizeDirection.W);
-        addEdgeResizeHandle(stage, scene, root, ResizeDirection.E);
+    private static List<Region> installResizeHandles(Stage stage, StackPane root, Scene scene) {
+        List<Region> handles = new ArrayList<>(8);
+        handles.add(addEdgeResizeHandle(stage, scene, root, ResizeDirection.N));
+        handles.add(addEdgeResizeHandle(stage, scene, root, ResizeDirection.S));
+        handles.add(addEdgeResizeHandle(stage, scene, root, ResizeDirection.W));
+        handles.add(addEdgeResizeHandle(stage, scene, root, ResizeDirection.E));
 
-        addCornerResizeHandle(stage, scene, root, ResizeDirection.NW);
-        addCornerResizeHandle(stage, scene, root, ResizeDirection.NE);
-        addCornerResizeHandle(stage, scene, root, ResizeDirection.SW);
-        addCornerResizeHandle(stage, scene, root, ResizeDirection.SE);
+        handles.add(addCornerResizeHandle(stage, scene, root, ResizeDirection.NW));
+        handles.add(addCornerResizeHandle(stage, scene, root, ResizeDirection.NE));
+        handles.add(addCornerResizeHandle(stage, scene, root, ResizeDirection.SW));
+        handles.add(addCornerResizeHandle(stage, scene, root, ResizeDirection.SE));
 
         root.addEventHandler(MouseEvent.MOUSE_MOVED, event -> {
             if (event.getTarget() == root) {
@@ -393,28 +398,50 @@ public final class CustomWindowFrameUtil {
                 scene.setCursor(Cursor.DEFAULT);
             }
         });
+        updateResizeHandles(stage, Boolean.TRUE.equals(stage.getProperties().get(MAXIMIZED_KEY)));
+        return handles;
     }
 
-    private static void addEdgeResizeHandle(Stage stage,
-                                            Scene scene,
-                                            StackPane root,
-                                            ResizeDirection direction) {
-        Region handle = createResizeHandle(stage, scene, direction);
-        root.getChildren().add(handle);
-        root.widthProperty().addListener((obs, oldVal, newVal) -> layoutEdgeResizeHandle(handle, root, direction));
-        root.heightProperty().addListener((obs, oldVal, newVal) -> layoutEdgeResizeHandle(handle, root, direction));
-        layoutEdgeResizeHandle(handle, root, direction);
-    }
-
-    private static void addCornerResizeHandle(Stage stage,
+    private static Region addEdgeResizeHandle(Stage stage,
                                               Scene scene,
                                               StackPane root,
                                               ResizeDirection direction) {
         Region handle = createResizeHandle(stage, scene, direction);
         root.getChildren().add(handle);
+        root.widthProperty().addListener((obs, oldVal, newVal) -> layoutEdgeResizeHandle(handle, root, direction));
+        root.heightProperty().addListener((obs, oldVal, newVal) -> layoutEdgeResizeHandle(handle, root, direction));
+        layoutEdgeResizeHandle(handle, root, direction);
+        return handle;
+    }
+
+    private static Region addCornerResizeHandle(Stage stage,
+                                                Scene scene,
+                                                StackPane root,
+                                                ResizeDirection direction) {
+        Region handle = createResizeHandle(stage, scene, direction);
+        root.getChildren().add(handle);
         root.widthProperty().addListener((obs, oldVal, newVal) -> layoutCornerResizeHandle(handle, root, direction));
         root.heightProperty().addListener((obs, oldVal, newVal) -> layoutCornerResizeHandle(handle, root, direction));
         layoutCornerResizeHandle(handle, root, direction);
+        return handle;
+    }
+
+    private static void updateResizeHandles(Stage stage, boolean maximized) {
+        Object handlesValue = stage.getProperties().get(RESIZE_HANDLES_KEY);
+        if (!(handlesValue instanceof List<?> handles)) {
+            return;
+        }
+        boolean active = stage.isResizable() && !maximized;
+        for (Object handleValue : handles) {
+            if (!(handleValue instanceof Region handle)) {
+                continue;
+            }
+            handle.setVisible(active);
+            handle.setMouseTransparent(!active);
+            if (!active) {
+                handle.setCursor(Cursor.DEFAULT);
+            }
+        }
     }
 
     private static Region createResizeHandle(Stage stage,
