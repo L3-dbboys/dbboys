@@ -244,8 +244,14 @@ public class ResultSetTabController {
     private void setupTableView() {
         Label tableviewEmptyLabel = new Label();
         tableviewEmptyLabel.textProperty().bind(I18n.bind("resultset.placeholder.empty"));
+        StackPane runningPlaceholder = new StackPane();
+        runningPlaceholder.setMinSize(0, 0);
+        runningPlaceholder.setPrefSize(0, 0);
         resultSetTableView.getStyleClass().add("resultset-table-view");
-        resultSetTableView.setPlaceholder(tableviewEmptyLabel);
+        resultSetTableView.setPlaceholder(sqlExecuteProcessStackPane.isVisible() ? runningPlaceholder : tableviewEmptyLabel);
+        sqlExecuteProcessStackPane.visibleProperty().addListener((obs, oldVal, running) ->
+                resultSetTableView.setPlaceholder(running ? runningPlaceholder : tableviewEmptyLabel)
+        );
         resultSetTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         resultSetTableView.getSelectionModel().setCellSelectionEnabled(true);
         resultSetTableView.prefWidthProperty().bind(resultSetVBox.widthProperty());
