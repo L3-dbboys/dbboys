@@ -29,6 +29,15 @@ public interface ConnectionService {
      */
     ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database, boolean sessionInitOnReconnect);
 
+    default ChangeDefaultDatabaseResult changeSessionDatabase(Connect connect, Database database) {
+        return changeSessionDatabase(connect, database, true);
+    }
+
+    /**
+     * 仅切换当前会话的库，不持久化修改连接默认库。
+     */
+    ChangeDefaultDatabaseResult changeSessionDatabase(Connect connect, Database database, boolean sessionInitOnReconnect);
+
     /**
      * 按属性名和值调整连接属性 JSON；方言可在写入前对特定属性做归一化处理（如 GBase 的 DB_LOCALE）。
      */

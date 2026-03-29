@@ -43,7 +43,7 @@ public class SqlexeService {
 
     public String activeDatabase(Connect connect, Database database, SqlTabController sqlTabController) {
         ConnectionService.ChangeDefaultDatabaseResult result =
-                connectionService.changeDefaultDatabase(connect, database, false);
+                connectionService.changeSessionDatabase(connect, database, false);
         if (result.isSuccess()) {
             if (result.isReconnected()) {
                 sqlTabController.closeResultSet();

@@ -128,6 +128,17 @@ public class ConnectionServiceImpl implements ConnectionService {
     }
 
     public ChangeDefaultDatabaseResult changeDefaultDatabase(Connect connect, Database database, boolean sessionInitOnReconnect) {
+        return changeDatabase(connect, database, sessionInitOnReconnect, true);
+    }
+
+    public ChangeDefaultDatabaseResult changeSessionDatabase(Connect connect, Database database, boolean sessionInitOnReconnect) {
+        return changeDatabase(connect, database, sessionInitOnReconnect, false);
+    }
+
+    private ChangeDefaultDatabaseResult changeDatabase(Connect connect,
+                                                       Database database,
+                                                       boolean sessionInitOnReconnect,
+                                                       boolean persistDefaultDatabase) {
         ChangeDefaultDatabaseResult result = new ChangeDefaultDatabaseResult();
         if (connect == null || database == null) {
             result.setSuccess(false);
@@ -144,7 +155,9 @@ public class ConnectionServiceImpl implements ConnectionService {
             if (!dialect.isSystemDatabase(database.getName())) {
                 connect.setProps(modifyProps(connect, PROP_DB_LOCALE, database.getDbLocale()));
             }
-            LocalDbRepository.updateConnect(connect);
+            if (persistDefaultDatabase) {
+                LocalDbRepository.updateConnect(connect);
+            }
             result.setSuccess(true);
         } catch (SQLException e) {
             ChangeDatabaseFailureKind kind = dialect.classifyChangeDatabaseFailure(e);
@@ -164,7 +177,9 @@ public class ConnectionServiceImpl implements ConnectionService {
                             : createConnection(connect);
                     connect.setConn(newConn);
                     closeConnectionQuietly(oldConn);
-                    LocalDbRepository.updateConnect(connect);
+                    if (persistDefaultDatabase) {
+                        LocalDbRepository.updateConnect(connect);
+                    }
                     result.setSuccess(true);
                     result.setReconnected(true);
                 } catch (Exception ex) {
