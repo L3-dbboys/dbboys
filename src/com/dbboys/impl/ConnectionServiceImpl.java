@@ -156,6 +156,7 @@ public class ConnectionServiceImpl implements ConnectionService {
             if (!dialect.isSystemDatabase(database.getName())) {
                 connect.setProps(modifyProps(connect, PROP_DB_LOCALE, database.getDbLocale()));
             }
+            adjustDefaultDatabaseIsolationLevel(connect, database, persistDefaultDatabase);
             if (persistDefaultDatabase) {
                 LocalDbRepository.updateConnect(connect);
             }
@@ -173,6 +174,7 @@ public class ConnectionServiceImpl implements ConnectionService {
                     if (!dialect.isSystemDatabase(database.getName())) {
                         connect.setProps(modifyProps(connect, PROP_DB_LOCALE, database.getDbLocale()));
                     }
+                    adjustDefaultDatabaseIsolationLevel(connect, database, persistDefaultDatabase);
                     Connect reconnectConnect = new Connect(connect);
                     if (shouldIgnoreIsolationLevel(database)) {
                         reconnectConnect.setProps(modifyProps(reconnectConnect, PROP_IFX_ISOLATION_LEVEL, ""));
@@ -206,6 +208,22 @@ public class ConnectionServiceImpl implements ConnectionService {
             return null;
         }
         return dialectServices.requireDialect(connect).modifyProps(connect, propName, propValue);
+    }
+
+    private void adjustDefaultDatabaseIsolationLevel(Connect connect,
+                                                     Database database,
+                                                     boolean persistDefaultDatabase) {
+        if (!persistDefaultDatabase || connect == null || !DB_TYPE_GBASE.equals(connect.getDbtype())) {
+            return;
+        }
+        if (shouldIgnoreIsolationLevel(database)) {
+            connect.setProps(modifyProps(connect, PROP_IFX_ISOLATION_LEVEL, ""));
+            return;
+        }
+        String isolationLevel = connect.getPropByName(PROP_IFX_ISOLATION_LEVEL);
+        if (isolationLevel == null || isolationLevel.trim().isEmpty()) {
+            connect.setProps(modifyProps(connect, PROP_IFX_ISOLATION_LEVEL, "5"));
+        }
     }
 
     public String setConnectInfo(Connect connect) throws Exception {
