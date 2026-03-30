@@ -39,14 +39,17 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 class DownloadTaskWrapper {
     private static final Logger log = LogManager.getLogger(DownloadTaskWrapper.class);
+    private static final String CSV_BINARY_PREFIX = "base64:";
 
     private Task<Void> task;
     private final Object source;
@@ -420,8 +423,8 @@ class DownloadTaskWrapper {
             while (!cancelled && rs.next()) {
                 for (int i = 1; i <= columnCount; i++) {
                     if (i > 1) writer.write(",");
-                    Object val = rs.getObject(i);
-                    writer.write(val == null ? "" : escapeCsv(String.valueOf(val)));
+                    String val = readCsvCellValue(rs, meta, i);
+                    writer.write(val == null ? "" : escapeCsv(val));
                 }
                 writer.newLine();
                 row++;
@@ -431,6 +434,42 @@ class DownloadTaskWrapper {
                 }
             }
         }
+    }
+
+    private String readCsvCellValue(ResultSet rs, ResultSetMetaData meta, int columnIndex) throws Exception {
+        String columnType = normalizeColumnType(meta.getColumnTypeName(columnIndex));
+        if (isBinaryExportColumnType(columnType)) {
+            byte[] bytes = rs.getBytes(columnIndex);
+            return bytes == null ? null : CSV_BINARY_PREFIX + Base64.getEncoder().encodeToString(bytes);
+        }
+        return rs.getString(columnIndex);
+    }
+
+    private Object readJsonCellValue(ResultSet rs, ResultSetMetaData meta, int columnIndex) throws Exception {
+        String columnType = normalizeColumnType(meta.getColumnTypeName(columnIndex));
+        if (isBinaryExportColumnType(columnType)) {
+            byte[] bytes = rs.getBytes(columnIndex);
+            return bytes == null ? null : CSV_BINARY_PREFIX + Base64.getEncoder().encodeToString(bytes);
+        }
+        if (isTextLobExportColumnType(columnType)) {
+            return rs.getString(columnIndex);
+        }
+        return rs.getObject(columnIndex);
+    }
+
+    private boolean isBinaryExportColumnType(String columnType) {
+        return columnType.startsWith("BYTE") || columnType.startsWith("BLOB");
+    }
+
+    private boolean isTextLobExportColumnType(String columnType) {
+        return columnType.startsWith("TEXT") || columnType.startsWith("CLOB");
+    }
+
+    private String normalizeColumnType(String columnType) {
+        if (columnType == null) {
+            return "";
+        }
+        return columnType.trim().toUpperCase(Locale.ROOT);
     }
 
     private void writeJsonStreaming(ResultSet rs, ResultSetMetaData meta, File file,
@@ -447,7 +486,7 @@ class DownloadTaskWrapper {
                 for (int i = 1; i <= columnCount; i++) {
                     if (i > 1) writer.write(",");
                     String key = meta.getColumnLabel(i);
-                    Object val = rs.getObject(i);
+                    Object val = readJsonCellValue(rs, meta, i);
                     writer.write("\"");
                     writer.write(escapeJson(key));
                     writer.write("\":");
@@ -515,7 +554,17 @@ class DownloadTaskWrapper {
     }
 
     private String escapeCsv(String value) {
-        return value;
+        if (value == null) {
+            return "";
+        }
+        boolean needsQuoting = value.indexOf(',') >= 0
+                || value.indexOf('"') >= 0
+                || value.indexOf('\n') >= 0
+                || value.indexOf('\r') >= 0;
+        if (!needsQuoting) {
+            return value;
+        }
+        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     private String escapeJson(String value) {

@@ -23,11 +23,15 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.PushbackReader;
 import java.nio.charset.StandardCharsets;
+import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +42,7 @@ import java.util.function.IntConsumer;
 
 public class TableService implements MetaObjectService {
     private static final int IMPORT_BATCH_SIZE = 500;
+    private static final String CSV_BINARY_PREFIX = "base64:";
     private final MetadataRepositoryProvider metadataRepositoryProvider;
     private final DdlRepositoryProvider ddlRepositoryProvider;
 
@@ -327,19 +332,21 @@ public class TableService implements MetaObjectService {
                 backSqlTask.setStmt(preparedStatement);
                 int importedRowCount = 0;
                 int batchCount = 0;
+                int batchStartRowNumber = 1;
                 for (Map<String, Object> row : importPlan.rows) {
                     checkImportCancelled(backSqlTask);
-                    bindImportRow(preparedStatement, importPlan.targetColumns, row);
+                    bindImportRow(preparedStatement, importPlan.targetColumns, row, importedRowCount + 1, tableName);
                     preparedStatement.addBatch();
                     importedRowCount++;
                     batchCount++;
                     if (batchCount >= IMPORT_BATCH_SIZE) {
-                        preparedStatement.executeBatch();
+                        executeImportBatch(preparedStatement, tableName, batchStartRowNumber);
+                        batchStartRowNumber = importedRowCount + 1;
                         batchCount = 0;
                     }
                 }
                 if (batchCount > 0) {
-                    preparedStatement.executeBatch();
+                    executeImportBatch(preparedStatement, tableName, batchStartRowNumber);
                 }
                 checkImportCancelled(backSqlTask);
                 conn.commit();
@@ -359,11 +366,98 @@ public class TableService implements MetaObjectService {
 
     private void bindImportRow(PreparedStatement preparedStatement,
                                List<ColumnsInfo> targetColumns,
-                               Map<String, Object> row) throws SQLException {
+                               Map<String, Object> row,
+                               int rowNumber,
+                               String tableName) throws SQLException, TableImportException {
         for (int i = 0; i < targetColumns.size(); i++) {
             ColumnsInfo column = targetColumns.get(i);
             Object value = row.get(normalizeFieldName(column.getColName()));
-            preparedStatement.setObject(i + 1, normalizeImportedValue(value));
+            try {
+                bindImportValue(preparedStatement, i + 1, column, value);
+            } catch (SQLException e) {
+                throw new TableImportException(
+                        I18n.t(
+                                "metadata.import.error.bind_column",
+                                "表\"%s\"第 %d 行列\"%s\"(%s) 导入失败：%s"
+                        ).formatted(
+                                tableName,
+                                rowNumber,
+                                column == null ? "" : column.getColName(),
+                                column == null ? "" : normalizeColumnType(column.getColType()),
+                                buildImportErrorMessage(e)
+                        ),
+                        e
+                );
+            }
+        }
+    }
+
+    private void bindImportValue(PreparedStatement preparedStatement,
+                                 int parameterIndex,
+                                 ColumnsInfo column,
+                                 Object value) throws SQLException {
+        String columnType = normalizeColumnType(column == null ? null : column.getColType());
+        Object normalizedValue = normalizeImportedValue(value);
+        if (normalizedValue == null) {
+            preparedStatement.setNull(parameterIndex, resolveImportSqlType(columnType));
+            return;
+        }
+        if (normalizedValue instanceof byte[] bytesValue) {
+            preparedStatement.setBytes(parameterIndex, bytesValue);
+            return;
+        }
+        if (normalizedValue instanceof String stringValue) {
+            bindImportStringValue(preparedStatement, parameterIndex, columnType, stringValue);
+            return;
+        }
+        if (isTextImportColumnType(columnType)) {
+            preparedStatement.setString(parameterIndex, normalizedValue.toString());
+            return;
+        }
+        preparedStatement.setObject(parameterIndex, normalizedValue);
+    }
+
+    private void bindImportStringValue(PreparedStatement preparedStatement,
+                                       int parameterIndex,
+                                       String columnType,
+                                       String value) throws SQLException {
+        if (shouldImportBlankAsNull(columnType, value)) {
+            preparedStatement.setNull(parameterIndex, resolveImportSqlType(columnType));
+            return;
+        }
+        if (isBinaryImportColumnType(columnType)) {
+            preparedStatement.setBytes(parameterIndex, decodeBinaryImportValue(value));
+            return;
+        }
+        if (shouldTrimImportValue(columnType)) {
+            preparedStatement.setString(parameterIndex, value.trim());
+            return;
+        }
+        preparedStatement.setString(parameterIndex, value);
+    }
+
+    private void executeImportBatch(PreparedStatement preparedStatement,
+                                    String tableName,
+                                    int batchStartRowNumber) throws SQLException, TableImportException {
+        try {
+            preparedStatement.executeBatch();
+        } catch (BatchUpdateException e) {
+            int failedRowNumber = batchStartRowNumber + countBatchRowsBeforeFailure(e.getUpdateCounts());
+            throw new TableImportException(
+                    I18n.t(
+                            "metadata.import.error.batch_row_failed",
+                            "表\"%s\"第 %d 行导入失败：%s"
+                    ).formatted(tableName, failedRowNumber, buildImportErrorMessage(e)),
+                    e
+            );
+        } catch (SQLException e) {
+            throw new TableImportException(
+                    I18n.t(
+                            "metadata.import.error.batch_failed",
+                            "表\"%s\"从第 %d 行开始的批量导入失败：%s"
+                    ).formatted(tableName, batchStartRowNumber, buildImportErrorMessage(e)),
+                    e
+            );
         }
     }
 
@@ -622,6 +716,135 @@ public class TableService implements MetaObjectService {
         return value;
     }
 
+    private String normalizeColumnType(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private boolean isTextImportColumnType(String columnType) {
+        if (columnType == null || columnType.isEmpty()) {
+            return false;
+        }
+        return columnType.startsWith("CHAR")
+                || columnType.startsWith("NCHAR")
+                || columnType.startsWith("VARCHAR")
+                || columnType.startsWith("NVARCHAR")
+                || columnType.startsWith("LVARCHAR")
+                || columnType.startsWith("TEXT")
+                || columnType.startsWith("CLOB")
+                || columnType.startsWith("JSON")
+                || columnType.startsWith("BSON");
+    }
+
+    private boolean isBinaryImportColumnType(String columnType) {
+        if (columnType == null || columnType.isEmpty()) {
+            return false;
+        }
+        return columnType.startsWith("BYTE") || columnType.startsWith("BLOB");
+    }
+
+    private boolean shouldImportBlankAsNull(String columnType, String value) {
+        if (value == null || !value.isBlank()) {
+            return false;
+        }
+        return !isTextImportColumnType(columnType);
+    }
+
+    private boolean shouldTrimImportValue(String columnType) {
+        return !isTextImportColumnType(columnType) && !isBinaryImportColumnType(columnType);
+    }
+
+    private byte[] decodeBinaryImportValue(String value) throws SQLException {
+        if (value == null) {
+            return null;
+        }
+        if (value.regionMatches(true, 0, CSV_BINARY_PREFIX, 0, CSV_BINARY_PREFIX.length())) {
+            String encoded = value.substring(CSV_BINARY_PREFIX.length());
+            try {
+                return Base64.getDecoder().decode(encoded);
+            } catch (IllegalArgumentException e) {
+                throw new SQLException("BYTE/BLOB 列内容不是有效的 Base64 数据", e);
+            }
+        }
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private int resolveImportSqlType(String columnType) {
+        if (columnType == null || columnType.isEmpty()) {
+            return Types.NULL;
+        }
+        if (isTextImportColumnType(columnType)) {
+            return columnType.startsWith("CLOB") ? Types.CLOB : Types.VARCHAR;
+        }
+        if (isBinaryImportColumnType(columnType)) {
+            return columnType.startsWith("BLOB") ? Types.BLOB : Types.LONGVARBINARY;
+        }
+        if (columnType.startsWith("SMALLINT")) {
+            return Types.SMALLINT;
+        }
+        if (columnType.startsWith("INTEGER") || columnType.startsWith("SERIAL")) {
+            return Types.INTEGER;
+        }
+        if (columnType.startsWith("BIGINT") || columnType.startsWith("BIGSERIAL") || columnType.startsWith("SERIAL8")) {
+            return Types.BIGINT;
+        }
+        if (columnType.startsWith("DECIMAL") || columnType.startsWith("NUMERIC") || columnType.startsWith("MONEY")) {
+            return Types.DECIMAL;
+        }
+        if (columnType.startsWith("FLOAT") || columnType.startsWith("DOUBLE") || columnType.startsWith("REAL") || columnType.startsWith("SMALLFLOAT")) {
+            return Types.DOUBLE;
+        }
+        if (columnType.startsWith("DATE")) {
+            return Types.DATE;
+        }
+        if (columnType.startsWith("DATETIME") || columnType.startsWith("TIMESTAMP")) {
+            return Types.TIMESTAMP;
+        }
+        if (columnType.startsWith("BOOLEAN")) {
+            return Types.BOOLEAN;
+        }
+        return Types.NULL;
+    }
+
+    private int countBatchRowsBeforeFailure(int[] updateCounts) {
+        if (updateCounts == null || updateCounts.length == 0) {
+            return 0;
+        }
+        int successCount = 0;
+        for (int updateCount : updateCounts) {
+            if (updateCount == Statement.EXECUTE_FAILED) {
+                break;
+            }
+            successCount++;
+        }
+        return successCount;
+    }
+
+    private String buildImportErrorMessage(Throwable throwable) {
+        if (throwable == null) {
+            return "";
+        }
+        Throwable current = throwable;
+        String bestMessage = "";
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && !message.isBlank()) {
+                bestMessage = message;
+            }
+            current = current.getCause();
+        }
+        if (!bestMessage.isBlank()) {
+            return bestMessage;
+        }
+        Throwable root = throwable;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root.getClass().getSimpleName();
+    }
+
     private void checkImportCancelled(BackgroundSqlTask backSqlTask) {
         if ((backSqlTask != null && backSqlTask.isCancelled()) || Thread.currentThread().isInterrupted()) {
             throw new CancellationException("import cancelled");
@@ -697,6 +920,10 @@ public class TableService implements MetaObjectService {
     private static class TableImportException extends Exception {
         private TableImportException(String message) {
             super(message);
+        }
+
+        private TableImportException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
