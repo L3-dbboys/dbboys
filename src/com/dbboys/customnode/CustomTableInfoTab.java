@@ -200,7 +200,7 @@ public class CustomTableInfoTab extends CustomTab {
                                     // 日期时间类型
                                     "DATE", "DATETIME YEAR TO SECOND","DATETIME YEAR TO FRACTION(5)", "INTERVAL",
                                     // 二进制类型
-                                    "TEXT","BYTE", "BLOB", "CLOB",
+                                    "RAW", "TEXT","BYTE", "BLOB", "CLOB",
                                     // 其他类型
                                     "BOOLEAN", "JSON","BSON"
                                 );
@@ -1566,7 +1566,9 @@ private boolean isTypeIgnoreScale(String type) {
     if (type == null) {
         return false;
     }
-    return "CHAR".equalsIgnoreCase(type) || "FLOAT".equalsIgnoreCase(type);
+    return "CHAR".equalsIgnoreCase(type)
+            || "FLOAT".equalsIgnoreCase(type)
+            || "RAW".equalsIgnoreCase(type);
 }
 
 private void appendLengthAndScale(StringBuilder sqlBuilder, String type, String length, String scale) {
