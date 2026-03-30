@@ -341,15 +341,16 @@ public class TableService implements MetaObjectService {
                     batchCount++;
                     if (batchCount >= IMPORT_BATCH_SIZE) {
                         executeImportBatch(preparedStatement, tableName, batchStartRowNumber);
+                        conn.commit();
                         batchStartRowNumber = importedRowCount + 1;
                         batchCount = 0;
                     }
                 }
                 if (batchCount > 0) {
                     executeImportBatch(preparedStatement, tableName, batchStartRowNumber);
+                    conn.commit();
                 }
                 checkImportCancelled(backSqlTask);
-                conn.commit();
                 return importedRowCount;
             } catch (CancellationException e) {
                 rollbackQuietly(conn);

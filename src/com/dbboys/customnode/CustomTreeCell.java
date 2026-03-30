@@ -712,7 +712,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     }
 
     private boolean isRawOrExternal(String tableType) {
-        return "raw".equals(tableType) || "external".equals(tableType);
+        if (tableType == null) {
+            return false;
+        }
+        String normalized = tableType.trim();
+        return "raw".equalsIgnoreCase(normalized) || "external".equalsIgnoreCase(normalized);
     }
 
     private boolean isDefaultDatabase(TreeItem<TreeData> treeItem, Database database) {

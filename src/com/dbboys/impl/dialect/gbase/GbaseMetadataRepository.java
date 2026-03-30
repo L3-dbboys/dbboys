@@ -176,7 +176,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             sum(ti_npdata) npused,replace(format_units(sum(ti_npdata*ti_pagesize),'b'),' ','')
              from
             (select tabname,owner,to_char(created,'YYYY-MM-DD') createtime,
-            case when t.flags==16 then 'raw' when t.flags==32 then 'external' else 'standard' end tabtype,
+            case when bitand(t.flags,16)=16 then 'raw' when bitand(t.flags,32)=32 then 'external' else 'standard' end tabtype,
             locklevel,case when t.partnum==0 then 1 else 0 end isfragment,
             case when t.partnum=0 then f.partn else t.partnum end  as partnum
             from
@@ -195,7 +195,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             sum(ti_npdata) npused,replace(format_units(sum(ti_npdata*ti_pagesize),'b'),' ','')
              from
             (select tabname,owner,to_char(created,'YYYY-MM-DD') createtime,
-            case when t.flags==16 then 'raw' when t.flags==32 then 'external' else 'standard' end tabtype,
+            case when bitand(t.flags,16)=16 then 'raw' when bitand(t.flags,32)=32 then 'external' else 'standard' end tabtype,
             locklevel,case when t.partnum==0 then 1 else 0 end isfragment,
             case when t.partnum=0 then f.partn else t.partnum end  as partnum
             from

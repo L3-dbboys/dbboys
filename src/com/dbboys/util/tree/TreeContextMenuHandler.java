@@ -371,7 +371,7 @@ public class TreeContextMenuHandler {
             if (TreeNavigator.isMultiTableSelection(selectedItems)) {
                 boolean hasExternalTable = false;
                 for (TreeItem<TreeData> item : selectedItems) {
-                    if ("external".equals(((Table) item.getValue()).getTableTypeCode())) {
+                    if (isTableType(((Table) item.getValue()).getTableTypeCode(), "external")) {
                         hasExternalTable = true;
                         break;
                     }
@@ -1239,7 +1239,7 @@ public class TreeContextMenuHandler {
                         if (TreeNavigator.isReadOnlyObject(item) || TreeNavigator.isSystemDatabaseObject(item)) {
                             disableByReadOnlyOrSystem = true;
                         }
-                        if ("external".equals(((Table) item.getValue()).getTableTypeCode())) {
+                        if (isTableType(((Table) item.getValue()).getTableTypeCode(), "external")) {
                             disableTruncateByExternal = true;
                         }
                     }
@@ -1439,7 +1439,7 @@ public class TreeContextMenuHandler {
                 }
                 //系统表
                 else if(selectedItem.getValue() instanceof SysTable) {
-                    if(!((SysTable)selectedItem.getValue()).getTableTypeCode().equals("view")){
+                    if(!isTableType(((SysTable)selectedItem.getValue()).getTableTypeCode(), "view")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         treeview_menu.getItems().add(copyItem);
                         treeview_menu.getItems().add(TreeViewUtil.refreshItem);
@@ -1447,18 +1447,18 @@ public class TreeContextMenuHandler {
                 }
                 //表
                 else if(selectedItem.getValue() instanceof Table) {
-                    if(!((Table)selectedItem.getValue()).getTableTypeCode().equals("external")){
+                    if(!isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         treeview_menu.getItems().add(modifyToRawItem);
                         treeview_menu.getItems().add(modifyToStandardItem);
                         treeview_menu.getItems().add(truncateItem);
                     }
-                    if(((Table)selectedItem.getValue()).getTableTypeCode().equals("raw")){
+                    if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "raw")){
                         modifyToRawItem.setDisable(true);
                     }else{
                         modifyToStandardItem.setDisable(true);
                     }
-                    if(((Table)selectedItem.getValue()).getTableTypeCode().equals("external")){
+                    if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         importDataItem.setDisable(true);
                     }
                     treeview_menu.getItems().add(copyItem);
@@ -1555,6 +1555,13 @@ public class TreeContextMenuHandler {
                 treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
             }
         });
+    }
+
+    private static boolean isTableType(String tableTypeCode, String expectedType) {
+        if (tableTypeCode == null || expectedType == null) {
+            return false;
+        }
+        return expectedType.equalsIgnoreCase(tableTypeCode.trim());
     }
 
     private static String resolveFallbackDatabase(Connect connect) {

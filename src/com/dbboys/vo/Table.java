@@ -127,7 +127,7 @@ public class Table extends TreeData{
     }
 
     public void setTableTypeCode(String tableTypeCode) {
-        this.tableTypeCode.set(tableTypeCode);
+        this.tableTypeCode.set(tableTypeCode == null ? "" : tableTypeCode.trim());
     }
 
     @Deprecated
