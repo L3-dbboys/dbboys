@@ -1049,13 +1049,13 @@ public List<String> generateAlterTableSQL() {
             boolean notNullChanged = false;
             boolean defaultChanged = false;
             if (currentRow.size() > 1 && originalRow.size() > 1) {
-                typeChanged = !safeEquals(currentRow.get(1), originalRow.get(1));
+                typeChanged = !safeEquals(getComparableColumnType(currentRow), getComparableColumnType(originalRow));
             }
             if (currentRow.size() > 2 && originalRow.size() > 2) {
-                lengthChanged = !safeEquals(currentRow.get(2), originalRow.get(2));
+                lengthChanged = !safeEquals(getComparableColumnLength(currentRow), getComparableColumnLength(originalRow));
             }
             if (currentRow.size() > 3 && originalRow.size() > 3) {
-                scaleChanged = !safeEquals(currentRow.get(3), originalRow.get(3));
+                scaleChanged = !safeEquals(getComparableColumnScale(currentRow), getComparableColumnScale(originalRow));
             }
             if (currentRow.size() > 4 && originalRow.size() > 4) {
                 notNullChanged = !safeEquals(currentRow.get(4), originalRow.get(4));
@@ -1195,13 +1195,7 @@ private String buildCreateColumnDefinition(ObservableList<String> columnRow) {
     sqlBuilder.append(colName).append(" ").append(colType);
     String length = columnRow.size() > 2 ? normalizeTableMetaValue(columnRow.get(2)) : "";
     String scale = columnRow.size() > 3 ? normalizeTableMetaValue(columnRow.get(3)) : "";
-    if (!length.isEmpty()) {
-        sqlBuilder.append("(").append(length);
-        if (!scale.isEmpty() && !isTypeIgnoreScale(colType)) {
-            sqlBuilder.append(",").append(scale);
-        }
-        sqlBuilder.append(")");
-    }
+    appendLengthAndScale(sqlBuilder, colType, length, scale);
     if (columnRow.size() > 4 && "是".equals(columnRow.get(4))) {
         sqlBuilder.append(" NOT NULL");
     }
@@ -1275,41 +1269,11 @@ private String generateColumnAlterSQL(String schemaName, String tableName, Strin
     if (rowIndex >= 0 && rowIndex < colsTableView.getItems().size()) {
         currentRow = (ObservableList<String>) colsTableView.getItems().get(rowIndex);
     }
-    
-    // 定义与长度和标度无关的数据类型列表
-    List<String> typesWithoutLengthScale = Arrays.asList(
-        "SMALLINT", "INTEGER", "BIGINT", 
-        "SERIAL", "SERIAL8", "BIGSERIAL",
-        "DATE", "DATETIME", "INTERVAL",
-        "BOOLEAN", 
-        "BYTE", "BLOB", "CLOB", "TEXT",
-        "JSON", "BSON","FLOAT"
-    );
-    
     switch (columnIndex) {
         case 1: // 列类型
             sqlBuilder.append(currentValue);
-            // 检查数据类型是否需要长度和标度信息
-            boolean needLengthScale = true;
-            for (String type : typesWithoutLengthScale) {
-                if (currentValue.toUpperCase().startsWith(type)) {
-                    needLengthScale = false;
-                    break;
-                }
-            }
-            
-            // 如果需要长度和标度信息且有相关数据，则包含
-            if (needLengthScale && currentRow != null) {
-                String length = currentRow.get(2);
-                String scale = currentRow.get(3);
-                if (length != null && !length.isEmpty()) {
-                    sqlBuilder.append("(");
-                    sqlBuilder.append(length);
-                    if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(currentValue)) {
-                        sqlBuilder.append(",").append(scale);
-                    }
-                    sqlBuilder.append(")");
-                }
+            if (currentRow != null) {
+                appendLengthAndScale(sqlBuilder, currentValue, currentRow.get(2), currentRow.get(3));
             }
             break;
         case 2: // 长度
@@ -1317,25 +1281,7 @@ private String generateColumnAlterSQL(String schemaName, String tableName, Strin
             if (currentRow != null) {
                 String currentType = currentRow.get(1);
                 sqlBuilder.append(currentType);
-                
-                // 检查数据类型是否需要长度信息
-                boolean needLength = true;
-                for (String type : typesWithoutLengthScale) {
-                    if (currentType.toUpperCase().startsWith(type)) {
-                        needLength = false;
-                        break;
-                    }
-                }
-                
-                if (needLength && currentValue != null && !currentValue.isEmpty()) {
-                    sqlBuilder.append("(");
-                    sqlBuilder.append(currentValue);
-                    String scale = currentRow.get(3);
-                    if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(currentType)) {
-                        sqlBuilder.append(",").append(scale);
-                    }
-                    sqlBuilder.append(")");
-                }
+                appendLengthAndScale(sqlBuilder, currentType, currentValue, currentRow.get(3));
             }
             break;
         case 3: // 标度
@@ -1344,22 +1290,7 @@ private String generateColumnAlterSQL(String schemaName, String tableName, Strin
                 String currentType = currentRow.get(1);
                 String length = currentRow.get(2);
                 sqlBuilder.append(currentType);
-                
-                // 检查数据类型是否需要长度和标度信息
-                boolean needLengthScaleForScale = true;
-                for (String type : typesWithoutLengthScale) {
-                    if (currentType.toUpperCase().startsWith(type)) {
-                        needLengthScaleForScale = false;
-                        break;
-                    }
-                }
-                
-                if (needLengthScaleForScale && length != null && !length.isEmpty() && !isTypeIgnoreScale(currentType)) {
-                    sqlBuilder.append("(");
-                    sqlBuilder.append(length);
-                    sqlBuilder.append(",").append(currentValue);
-                    sqlBuilder.append(")");
-                }
+                appendLengthAndScale(sqlBuilder, currentType, length, currentValue);
             }
             break;
         case 4: // 非空
@@ -1367,25 +1298,7 @@ private String generateColumnAlterSQL(String schemaName, String tableName, Strin
             if (currentRow != null) {
                 String currentType = currentRow.get(1);
                 sqlBuilder.append(currentType);
-                boolean needLength = true;
-                for (String type : typesWithoutLengthScale) {
-                    if (currentType.toUpperCase().startsWith(type)) {
-                        needLength = false;
-                        break;
-                    }
-                }
-                if (needLength) {
-                    String length = currentRow.get(2);
-                    String scale = currentRow.get(3);
-                    if (length != null && !length.isEmpty()) {
-                        sqlBuilder.append("(");
-                        sqlBuilder.append(length);
-                        if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(currentType)) {
-                            sqlBuilder.append(",").append(scale);
-                        }
-                        sqlBuilder.append(")");
-                    }
-                }
+                appendLengthAndScale(sqlBuilder, currentType, currentRow.get(2), currentRow.get(3));
                 String defaultValue = currentRow.get(7);
                 if (defaultValue != null && !defaultValue.isEmpty()) {
                     sqlBuilder.append(" DEFAULT ").append(formatDefaultValue(defaultValue));
@@ -1426,16 +1339,6 @@ private String buildModifyDefinition(ObservableList<String> currentRow, String c
     StringBuilder sqlBuilder = new StringBuilder();
     sqlBuilder.append(columnName).append(" ");
 
-    List<String> typesWithoutLengthScale = Arrays.asList(
-            "SMALLINT", "INTEGER", "BIGINT",
-            "SERIAL", "SERIAL8", "BIGSERIAL",
-            "DATE", "DATETIME", "INTERVAL",
-            "BOOLEAN",
-            "BYTE", "BLOB", "CLOB", "TEXT",
-            "JSON", "BSON",
-            "FLOAT"
-    );
-
     switch (columnIndex) {
         case 1: {
             String type = currentValue;
@@ -1443,24 +1346,7 @@ private String buildModifyDefinition(ObservableList<String> currentRow, String c
                 return null;
             }
             sqlBuilder.append(type);
-            boolean needLengthScale = true;
-            for (String t : typesWithoutLengthScale) {
-                if (type.toUpperCase().startsWith(t)) {
-                    needLengthScale = false;
-                    break;
-                }
-            }
-            if (needLengthScale) {
-                String length = currentRow.get(2);
-                String scale = currentRow.get(3);
-                if (length != null && !length.isEmpty()) {
-                    sqlBuilder.append("(").append(length);
-                    if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(type)) {
-                        sqlBuilder.append(",").append(scale);
-                    }
-                    sqlBuilder.append(")");
-                }
-            }
+            appendLengthAndScale(sqlBuilder, type, currentRow.get(2), currentRow.get(3));
             break;
         }
         case 2: {
@@ -1469,21 +1355,7 @@ private String buildModifyDefinition(ObservableList<String> currentRow, String c
                 return null;
             }
             sqlBuilder.append(type);
-            boolean needLength = true;
-            for (String t : typesWithoutLengthScale) {
-                if (type.toUpperCase().startsWith(t)) {
-                    needLength = false;
-                    break;
-                }
-            }
-            if (needLength && currentValue != null && !currentValue.isEmpty()) {
-                sqlBuilder.append("(").append(currentValue);
-                String scale = currentRow.get(3);
-                if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(type)) {
-                    sqlBuilder.append(",").append(scale);
-                }
-                sqlBuilder.append(")");
-            }
+            appendLengthAndScale(sqlBuilder, type, currentValue, currentRow.get(3));
             break;
         }
         case 3: {
@@ -1493,16 +1365,7 @@ private String buildModifyDefinition(ObservableList<String> currentRow, String c
                 return null;
             }
             sqlBuilder.append(type);
-            boolean needLengthScale = true;
-            for (String t : typesWithoutLengthScale) {
-                if (type.toUpperCase().startsWith(t)) {
-                    needLengthScale = false;
-                    break;
-                }
-            }
-            if (needLengthScale && length != null && !length.isEmpty() && !isTypeIgnoreScale(type)) {
-                sqlBuilder.append("(").append(length).append(",").append(currentValue).append(")");
-            }
+            appendLengthAndScale(sqlBuilder, type, length, currentValue);
             break;
         }
         case 4: {
@@ -1511,24 +1374,7 @@ private String buildModifyDefinition(ObservableList<String> currentRow, String c
                 return null;
             }
             sqlBuilder.append(type);
-            boolean needLength = true;
-            for (String t : typesWithoutLengthScale) {
-                if (type.toUpperCase().startsWith(t)) {
-                    needLength = false;
-                    break;
-                }
-            }
-            if (needLength) {
-                String length = currentRow.get(2);
-                String scale = currentRow.get(3);
-                if (length != null && !length.isEmpty()) {
-                    sqlBuilder.append("(").append(length);
-                    if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(type)) {
-                        sqlBuilder.append(",").append(scale);
-                    }
-                    sqlBuilder.append(")");
-                }
-            }
+            appendLengthAndScale(sqlBuilder, type, currentRow.get(2), currentRow.get(3));
             String defaultValue = currentRow.get(7);
             if (defaultValue != null && !defaultValue.isEmpty()) {
                 sqlBuilder.append(" DEFAULT ").append(formatDefaultValue(defaultValue));
@@ -1723,6 +1569,23 @@ private boolean isTypeIgnoreScale(String type) {
     return "CHAR".equalsIgnoreCase(type) || "FLOAT".equalsIgnoreCase(type);
 }
 
+private void appendLengthAndScale(StringBuilder sqlBuilder, String type, String length, String scale) {
+    if (sqlBuilder == null) {
+        return;
+    }
+    String normalizedType = normalizeTableMetaValue(type);
+    String normalizedLength = normalizeTableMetaValue(length);
+    String normalizedScale = normalizeTableMetaValue(scale);
+    if (normalizedType.isEmpty() || normalizedLength.isEmpty() || isTypeWithoutLengthScale(normalizedType)) {
+        return;
+    }
+    sqlBuilder.append("(").append(normalizedLength);
+    if (!normalizedScale.isEmpty() && !isTypeIgnoreScale(normalizedType)) {
+        sqlBuilder.append(",").append(normalizedScale);
+    }
+    sqlBuilder.append(")");
+}
+
 private boolean isTypeWithoutLengthScale(String type) {
     if (type == null) {
         return false;
@@ -1751,16 +1614,58 @@ private String buildColumnSignature(ObservableList<String> row) {
     }
     StringBuilder sb = new StringBuilder();
     for (int i = 1; i < row.size(); i++) {
-        sb.append("|").append(normalizeValue(row.get(i)));
+        sb.append("|").append(getComparableColumnValue(row, i));
     }
     return sb.toString();
 }
 
-private String normalizeValue(String value) {
-    if (value == null) {
+private String getComparableColumnValue(ObservableList<String> row, int index) {
+    if (row == null || index < 0 || index >= row.size()) {
         return "";
     }
-    return value.trim();
+    if (index == 1) {
+        return getComparableColumnType(row);
+    }
+    if (index == 2) {
+        return getComparableColumnLength(row);
+    }
+    if (index == 3) {
+        return getComparableColumnScale(row);
+    }
+    return normalizeValue(row.get(index));
+}
+
+private String getComparableColumnType(ObservableList<String> row) {
+    if (row == null || row.size() <= 1) {
+        return "";
+    }
+    return normalizeValue(row.get(1));
+}
+
+private String getComparableColumnLength(ObservableList<String> row) {
+    if (row == null || row.size() <= 2) {
+        return "";
+    }
+    String type = getComparableColumnType(row);
+    if (type.isEmpty() || isTypeWithoutLengthScale(type)) {
+        return "";
+    }
+    return normalizeValue(row.get(2));
+}
+
+private String getComparableColumnScale(ObservableList<String> row) {
+    if (row == null || row.size() <= 3) {
+        return "";
+    }
+    String type = getComparableColumnType(row);
+    if (type.isEmpty() || isTypeWithoutLengthScale(type) || isTypeIgnoreScale(type)) {
+        return "";
+    }
+    return normalizeValue(row.get(3));
+}
+
+private String normalizeValue(String value) {
+    return normalizeTableMetaValue(value);
 }
 
     /**
@@ -1824,14 +1729,7 @@ private String buildAddColumnDefinition(ObservableList<String> columnRow) {
     // 长度和标度
     String length = columnRow.get(2);
     String scale = columnRow.get(3);
-    if (length != null && !length.isEmpty()) {
-        sqlBuilder.append("(");
-        sqlBuilder.append(length);
-        if (scale != null && !scale.isEmpty() && !isTypeIgnoreScale(columnRow.get(1))) {
-            sqlBuilder.append(",").append(scale);
-        }
-        sqlBuilder.append(")");
-    }
+    appendLengthAndScale(sqlBuilder, columnRow.get(1), length, scale);
 
     // 非空约束
     if ("是".equals(columnRow.get(4))) {
