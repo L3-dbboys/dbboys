@@ -41,22 +41,24 @@ public class SqlexeService {
         }
     }
 
-    public String activeDatabase(Connect connect, Database database, SqlTabController sqlTabController) {
+    public ConnectionService.ChangeDefaultDatabaseResult activeDatabase(Connect connect,
+                                                                       Database database,
+                                                                       SqlTabController sqlTabController) {
         ConnectionService.ChangeDefaultDatabaseResult result =
                 connectionService.changeSessionDatabase(connect, database, false);
         if (result.isSuccess()) {
             if (result.isReconnected()) {
                 sqlTabController.closeResultSet();
             }
-            return "success";
+            return result;
         }
         if (result.isDisconnected()) {
-            return "disconnected";
+            return result;
         }
         if (result.getErrorCode() != null) {
             AppErrorHandler.handle(new SQLException(result.getErrorMessage(), null, result.getErrorCode()));
         }
-        return null;
+        return result;
     }
 
     public List<Database> getDatabases(Connect connect) {

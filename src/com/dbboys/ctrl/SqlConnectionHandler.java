@@ -199,25 +199,24 @@ public class SqlConnectionHandler {
             }
 
             if (!newValue.equals(oldValue) && !newValue.equals(ctrl.defaultDatabase)) {
-                String result = "success";
-                if (oldValue != null && !oldValue.equals(ctrl.defaultDatabase)) {
+                boolean switchedExistingDatabase = oldValue != null && !oldValue.equals(ctrl.defaultDatabase);
+                ConnectionService.ChangeDefaultDatabaseResult result = null;
+                if (switchedExistingDatabase) {
                     ctrl.prepareForDatabaseSwitch();
                     result = sqlexeService.activeDatabase(ctrl.sqlConnect, newValue, ctrl);
                 }
-                if (result == null) {
+                if (result != null && !result.isSuccess() && !result.isDisconnected()) {
                     Platform.runLater(() -> {
                         ctrl.suppressDbChange = true;
                         ctrl.sqlDbChoiceBox.setValue(oldValue);
                         ctrl.suppressDbChange = false;
                     });
-                } else if (result.equals("success")) {
+                } else if (result == null || result.isSuccess()) {
                     ctrl.updateSqlModeChoicebox(sqlexeService.getSqlMode(ctrl.sqlConnect, ctrl.sqlConnect.getConn()));
-                    if (ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex() == 1) {
-                        try {
-                            ctrl.sqlConnect.getConn().setAutoCommit(false);
-                        } catch (SQLException e) {
-                            log.error(e.getMessage(), e);
-                        }
+                    if (switchedExistingDatabase) {
+                        applyCommitModeAfterDatabaseSwitch(newValue, result != null && result.isReconnected());
+                    } else if (ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex() == 1) {
+                        tryApplyManualCommitMode();
                     }
                     if (!ctrl.sqlInit.isEmpty()) {
                         Platform.runLater(() -> {
@@ -227,11 +226,63 @@ public class SqlConnectionHandler {
                             ctrl.sqlInit = "";
                         });
                     }
-                } else if (result.equals("disconnected")) {
+                } else if (result.isDisconnected()) {
                     ctrl.connectionDisconnected();
                 }
             }
         });
+    }
+
+    private void applyCommitModeAfterDatabaseSwitch(Database database, boolean reconnected) {
+        boolean showCommitMode = !isNoLogDatabase(database) && !ctrl.sqlConnect.getReadonly();
+        Platform.runLater(() -> ctrl.sqlCommitModeChoiceBox.setVisible(showCommitMode));
+        if (isNoLogDatabase(database)) {
+            tryApplyAutoCommitModeAndSelectAuto();
+            return;
+        }
+        tryApplyManualCommitMode();
+    }
+
+    private void tryApplyAutoCommitModeAndSelectAuto() {
+        if (ctrl.sqlConnect.getConn() == null) {
+            return;
+        }
+        try {
+            ctrl.sqlConnect.getConn().setAutoCommit(true);
+            Platform.runLater(() -> {
+                ctrl.suppressCommitModeChange = true;
+                ctrl.sqlCommitModeChoiceBox.getSelectionModel().select(0);
+                ctrl.suppressCommitModeChange = false;
+            });
+        } catch (SQLException e) {
+            handleCommitModeApplyFailure(e);
+        }
+    }
+
+    private void tryApplyManualCommitMode() {
+        if (ctrl.sqlConnect.getConn() == null || ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex() != 1) {
+            return;
+        }
+        try {
+            ctrl.sqlConnect.getConn().setAutoCommit(false);
+        } catch (SQLException e) {
+            handleCommitModeApplyFailure(e);
+        }
+    }
+
+    private void handleCommitModeApplyFailure(SQLException e) {
+        log.error(e.getMessage(), e);
+        if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
+            ctrl.connectionDisconnected();
+        } else {
+            AppErrorHandler.handle(e);
+        }
+    }
+
+    private boolean isNoLogDatabase(Database database) {
+        return database != null
+                && database.getDbLog() != null
+                && "nolog".equalsIgnoreCase(database.getDbLog().trim());
     }
 
     public void setupCommitModeListener() {
