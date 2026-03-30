@@ -1,9 +1,10 @@
 package com.dbboys.customnode;
 
 import com.dbboys.app.AppExecutor;
+import com.dbboys.customnode.CustomShortcutMenuItem;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
-import com.dbboys.customnode.CustomShortcutMenuItem;
+import com.dbboys.util.ConfigManagerUtil;
 import com.dbboys.util.KeywordsHighlightUtil;
 import com.dbboys.util.MenuItemUtil;
 import com.dbboys.util.SqlParserUtil;
@@ -30,6 +31,13 @@ import java.util.regex.Pattern;
 public class CustomSqlEditCodeArea extends CodeArea {
     private static final int LOCAL_HIGHLIGHT_MAX = 4000;
     private static final int LOOKBACK_RANGE = 2000; // 上文最多回溯这么多字符尝试局部高亮
+    private static final int DEFAULT_FONT_SIZE = 12;
+    private static final int MIN_FONT_SIZE = 8;
+    private static final int MAX_FONT_SIZE = 40;
+    private static final int FONT_SIZE_STEP = 1;
+    private static final String SQL_EDITOR_FONT_SIZE_KEY = "SQL_EDITOR_FONT_SIZE";
+    private static final Pattern FONT_SIZE_STYLE_PATTERN = Pattern.compile("(?i)-fx-font-size\\s*:\\s*[^;]+;?");
+    private static int sharedFontSize = loadConfiguredFontSize();
 
     private final int[] sqlEditCodeAreaCursorPosition = {-1, -1};
     @SuppressWarnings("unchecked")
@@ -39,6 +47,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
     };
     private int styleChangeFlag = 0;
     private final AtomicLong highlightSeq = new AtomicLong(0);
+    private int fontSize = sharedFontSize;
     private Runnable onSaveRequest = () -> {};
     private Runnable onContentDirty = () -> {};
     private Runnable onShowFindPanel = () -> {};
@@ -49,6 +58,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
 
     public CustomSqlEditCodeArea() {
         super();
+        applyEditorFontSize(fontSize);
         CustomShortcutMenuItem codeAreaExecuteItem = MenuItemUtil.createMenuItemI18n("sql.editor.menu.execute", "Ctrl+Enter", IconFactory.group(IconPaths.SQL_RUN, 0.8,Color.valueOf("#51dd66")));
         CustomShortcutMenuItem codeAreaFormatItem = MenuItemUtil.createMenuItemI18n("sql.editor.menu.format", "Ctrl+M", IconFactory.group(IconPaths.SQL_FORMAT, 0.6));
         CustomShortcutMenuItem codeAreaUpperItem = MenuItemUtil.createMenuItemI18n("sql.editor.menu.upper", "Ctrl+U", IconFactory.group(IconPaths.SQL_UPPER, 0.6));
@@ -74,6 +84,14 @@ public class CustomSqlEditCodeArea extends CodeArea {
         setOnKeyPressed(event -> {
             if(event.isControlDown()&&event.getCode() == KeyCode.S){
                 onSaveRequest.run();
+            }
+            if (event.isControlDown() && isZoomInKey(event)) {
+                adjustFontSize(FONT_SIZE_STEP);
+                event.consume();
+            }
+            if (event.isControlDown() && isZoomOutKey(event)) {
+                adjustFontSize(-FONT_SIZE_STEP);
+                event.consume();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.ENTER){
                 fireExecute();
@@ -200,6 +218,61 @@ public class CustomSqlEditCodeArea extends CodeArea {
                     scheduleIncrementalHighlight(change);
                     onContentDirty.run();
                 });
+    }
+
+    private static int loadConfiguredFontSize() {
+        try {
+            int configured = Integer.parseInt(
+                    ConfigManagerUtil.getProperty(SQL_EDITOR_FONT_SIZE_KEY, String.valueOf(DEFAULT_FONT_SIZE))
+            );
+            return clampFontSize(configured);
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_FONT_SIZE;
+        }
+    }
+
+    private static int clampFontSize(int size) {
+        return Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
+    }
+
+    private static boolean isZoomInKey(KeyEvent event) {
+        return event.getCode() == KeyCode.ADD
+                || event.getCode() == KeyCode.PLUS
+                || event.getCode() == KeyCode.EQUALS;
+    }
+
+    private static boolean isZoomOutKey(KeyEvent event) {
+        return event.getCode() == KeyCode.SUBTRACT
+                || event.getCode() == KeyCode.MINUS;
+    }
+
+    private void adjustFontSize(int delta) {
+        int newFontSize = clampFontSize(fontSize + delta);
+        if (newFontSize == fontSize) {
+            return;
+        }
+        fontSize = newFontSize;
+        sharedFontSize = newFontSize;
+        applyEditorFontSize(newFontSize);
+        ConfigManagerUtil.setProperty(SQL_EDITOR_FONT_SIZE_KEY, String.valueOf(newFontSize));
+    }
+
+    private void applyEditorFontSize(int size) {
+        String fontSizeStyle = "-fx-font-size: " + size + "px;";
+        String currentStyle = getStyle();
+        if (currentStyle == null || currentStyle.isBlank()) {
+            setStyle(fontSizeStyle);
+            return;
+        }
+
+        Matcher matcher = FONT_SIZE_STYLE_PATTERN.matcher(currentStyle);
+        if (matcher.find()) {
+            setStyle(matcher.replaceAll(Matcher.quoteReplacement(fontSizeStyle)));
+            return;
+        }
+
+        String separator = currentStyle.endsWith(";") ? "" : ";";
+        setStyle(currentStyle + separator + fontSizeStyle);
     }
 
     public void setOnSaveRequest(Runnable onSaveRequest) {
