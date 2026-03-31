@@ -113,10 +113,13 @@ public final class KeywordsHighlightUtil {
             "RANK", "ROW_NUMBER",
 
             // Type/conversion
-            "BIGINT", "BLOB", "BYTE", "CAST", "CHAR", "CLOB", "CONVERT", "DATE", "DATETIME",
-            "DECIMAL", "FLOAT", "INT", "INT8", "INTEGER", "JSON", "LVARCHAR", "NCHAR", "NUMBER",
-            "NVARCHAR", "SERIAL", "SERIAL8", "STR_TO_DATE", "TEXT", "TIMESTAMP", "TO_MULTI_BYTE",
-            "TO_NCHAR", "TO_NUMBER", "TO_SINGLE_BYTE", "TRY_CONVERT", "UUID", "SYS_GUID",
+            "BIGINT", "BIGSERIAL", "BLOB", "BOOLEAN", "BSON", "BYTE", "CAST", "CHAR", "CLOB",
+            "COLLECTION", "CONVERT", "DATE", "DATETIME", "DECIMAL", "FLOAT", "INT", "INT8",
+            "INTEGER", "INTERVAL", "JSON", "LIST", "LVARCHAR", "MONEY", "MULTISET(SENDRECEIVE)",
+            "NCHAR", "NUMBER", "NUMERIC", "NVARCHAR", "NVARCHAR2", "REFSERIAL8", "SERIAL",
+            "SERIAL8", "SET(LVARCHAR)", "SMALLFLOAT", "SMALLINT", "STR_TO_DATE", "TEXT",
+            "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TO_MULTI_BYTE", "TO_NCHAR", "TO_NUMBER",
+            "TO_SINGLE_BYTE", "TRY_CONVERT", "UUID", "SYS_GUID", "ROWREF",
             "VARCHAR", "VARCHAR2", "SYS_REFCURSOR",
 
             // Crypto/encoding
@@ -191,8 +194,8 @@ public final class KeywordsHighlightUtil {
     }
 
     private static Pattern buildInstanceInfoPattern() {
-        String keywordPattern = "(?i)\\b(" + String.join("|", INSTANCE_INFO_KEYWORDS) + ")\\b";
-        String fieldPattern = "(?i)\\b(" + String.join("|", INSTANCE_INFO_FIELDS) + ")\\b";
+        String keywordPattern = buildDelimitedAlternation(INSTANCE_INFO_KEYWORDS);
+        String fieldPattern = buildDelimitedAlternation(INSTANCE_INFO_FIELDS);
         String parenPattern = "\\(|\\)";
         String bracePattern = "\\{|\\}";
         String bracketPattern = "\\[|\\]";
@@ -217,8 +220,8 @@ public final class KeywordsHighlightUtil {
     }
 
     private static Pattern buildOnlineLogPattern() {
-        String keywordPattern = "(?i)\\b(" + String.join("|", ONLINE_LOG_OK_WORDS) + ")\\b";
-        String errorPattern = "(?i)\\b(" + String.join("|", ONLINE_LOG_ERROR_WORDS) + ")\\b";
+        String keywordPattern = buildDelimitedAlternation(ONLINE_LOG_OK_WORDS);
+        String errorPattern = buildDelimitedAlternation(ONLINE_LOG_ERROR_WORDS);
         return Pattern.compile(
                 "(?<KEYWORD>" + keywordPattern + ")"
                         + "|(?<ERRORS>" + errorPattern + ")"
@@ -227,8 +230,8 @@ public final class KeywordsHighlightUtil {
 
     private static Pattern buildSqlPattern() {
         String datetimePattern = "(?i)\\b(year|month|day|hour|minute|second|FRACTION)\\s+to\\s+(year|month|day|hour|minute|second|FRACTION)\\b";
-        String keywordPattern = "(?i)\\b(" + String.join("|", SQL_KEYWORDS) + ")\\b";
-        String functionPattern = "(?i)\\b(" + String.join("|", SQL_FUNCTIONS) + ")\\b";
+        String keywordPattern = buildDelimitedAlternation(SQL_KEYWORDS);
+        String functionPattern = buildDelimitedAlternation(SQL_FUNCTIONS);
         String numberPattern = "(?<![a-z])+\\b\\d+(\\.\\d+)?+\\b(?![a-z])";
         String parenPattern = "\\(|\\)";
         String bracketPattern = "\\[|\\]";
@@ -251,6 +254,23 @@ public final class KeywordsHighlightUtil {
                         + "|(?<DOUBLESTRING>" + doubleStringPattern + ")"
                         + "|(?<COMMENT>" + commentPattern + ")"
         );
+    }
+
+    private static String buildDelimitedAlternation(String[] terms) {
+        StringBuilder pattern = new StringBuilder("(?i)(?<![A-Za-z0-9_])(?:");
+        boolean first = true;
+        for (String term : terms) {
+            if (term == null || term.isBlank()) {
+                continue;
+            }
+            if (!first) {
+                pattern.append("|");
+            }
+            pattern.append(Pattern.quote(term));
+            first = false;
+        }
+        pattern.append(")(?![A-Za-z0-9_])");
+        return pattern.toString();
     }
 
     private static StyleSpans<Collection<String>> applyPattern(
