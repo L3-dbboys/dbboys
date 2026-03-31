@@ -169,7 +169,7 @@ public class UpgradeUtil {
             Version lastVersion = result.latestVersion();
             if (AlertUtil.CustomAlertConfirm(
                     I18n.t("upgrade.confirm.version.title", "版本更新"),
-                    I18n.t("upgrade.confirm.new_version_found", "检查到新版本\"%s\"，确定要升级软件吗？").formatted(lastVersion.getVersion())
+                    I18n.t("upgrade.confirm.new_version_found", "检测到新版本\"%s\"，是否需要升级软件？").formatted(lastVersion.getVersion())
             )) {
                 try {
                     String defaultName = DownloadManagerUtil.getRealFileNameFromRedirect(result.versionDownloadUrl());

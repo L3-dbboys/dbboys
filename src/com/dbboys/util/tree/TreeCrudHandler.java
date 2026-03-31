@@ -23,6 +23,7 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -695,6 +696,53 @@ public class TreeCrudHandler {
         }
     }
 
+    private static boolean containsUnsupportedLobForSqlExport(List<TreeItem<TreeData>> tableItems) throws Exception {
+        for (TreeItem<TreeData> tableItem : tableItems) {
+            if (tableContainsUnsupportedLobForSqlExport(tableItem)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean tableContainsUnsupportedLobForSqlExport(TreeItem<TreeData> tableItem) throws Exception {
+        if (tableItem == null || !(tableItem.getValue() instanceof Table table)) {
+            return false;
+        }
+        Database database = TreeNavigator.getCurrentDatabase(tableItem);
+        Connect connect = TreeNavigator.getMetaConnect(tableItem);
+        if (database == null || connect == null) {
+            return false;
+        }
+        List<ColumnsInfo> columns = TreeViewUtil.tableService.getColumns(connect, database, table.getName());
+        for (ColumnsInfo column : columns) {
+            if (column != null && isUnsupportedLobTypeForSqlExport(column.getColType())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isUnsupportedLobTypeForSqlExport(String columnType) {
+        String normalized = normalizeColumnType(columnType);
+        return normalized.equals("byte")
+                || normalized.endsWith("text")
+                || normalized.contains("blob")
+                || normalized.contains("clob");
+    }
+
+    private static String normalizeColumnType(String columnType) {
+        if (columnType == null) {
+            return "";
+        }
+        String normalized = columnType.trim().toLowerCase(Locale.ROOT);
+        int parenIndex = normalized.indexOf('(');
+        if (parenIndex >= 0) {
+            normalized = normalized.substring(0, parenIndex);
+        }
+        return normalized.replaceAll("\\s+", " ").trim();
+    }
+
     public static void exportTableData(List<TreeItem<TreeData>> selectedItems, ExportFormat format) {
         if (selectedItems == null || selectedItems.isEmpty()) {
             return;
@@ -707,6 +755,20 @@ public class TreeCrudHandler {
         }
         if (tableItems.isEmpty()) {
             return;
+        }
+        if (format == ExportFormat.SQL) {
+            try {
+                if (containsUnsupportedLobForSqlExport(tableItems)) {
+                    AlertUtil.CustomAlert(
+                            I18n.t("common.error", "错误"),
+                            I18n.t("metadata.export.error.lob_not_supported_sql", "表包含大对象不支持导出为sql！")
+                    );
+                    return;
+                }
+            } catch (Exception e) {
+                AppErrorHandler.handle(e);
+                return;
+            }
         }
 
         if (tableItems.size() == 1) {
