@@ -238,7 +238,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             max(o.state)
             from
             systables t join sysindexes i
-            on t.tabid = i.tabid and t.tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION')
+            on t.tabid = i.tabid and t.tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION') and LEFT(i.idxname,1) != ' '
             join sysobjstate o on  o.tabid=t.tabid and o.name=i.idxname
             left join sysmaster:systabnames st
             on trim(i.idxname)=trim(st.tabname) and st.dbsname=?
@@ -248,14 +248,14 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             """;
 
     private static final String SQL_INDEX_COUNT = """
-            select count(*) from sysindexes i,systables t where i.tabid=t.tabid and t.tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION')
+            select count(*) from sysindexes i,systables t where i.tabid=t.tabid and t.tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION') and LEFT(i.idxname,1) != ' '
             """;
 
     private static final String SQL_INDEX_SIZE = """
             select replace(format_units(sum(ti_nptotal*ti_pagesize),'b'),' ','')
             from sysindexes s left join sysmaster:systabnames n on trim(s.idxname)=trim(n.tabname)
             left join sysmaster:systabinfo i on i.ti_partnum=n.partnum
-            where tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION')
+            where s.tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION') and LEFT(s.idxname,1) != ' '
             """;
 
     private static final String SQL_INDEX = """
@@ -285,7 +285,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             max(o.state)
             from
             systables t join sysindexes i
-            on t.tabid = i.tabid and i.idxname==?
+            on t.tabid = i.tabid and i.idxname==? and LEFT(i.idxname,1) != ' '
             join sysobjstate o on  o.tabid=t.tabid and o.name=i.idxname
             left join sysmaster:systabnames st
             on trim(i.idxname)=trim(st.tabname)
