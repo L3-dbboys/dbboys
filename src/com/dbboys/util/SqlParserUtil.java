@@ -3,6 +3,7 @@ package com.dbboys.util;
 import com.dbboys.vo.Sql;
 
 import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.regex.*;
 
 public class SqlParserUtil {
@@ -181,6 +182,13 @@ public class SqlParserUtil {
             return true;
         }
         return countExecutableStatements(sql, 2) <= 1;
+    }
+
+    public static int countExecutableStatements(String sqlText) {
+        if (sqlText == null || sqlText.isBlank()) {
+            return 0;
+        }
+        return countExecutableStatements(sqlText, Integer.MAX_VALUE);
     }
 
     public static List<Segment> split(String sql) {
@@ -593,9 +601,11 @@ public class SqlParserUtil {
         boolean[] stoppedEarly = {false};
 
         processSegments(sqlText, segment -> {
+            checkCountInterrupted();
             String sqlChunk = segment.getText();
             boolean sqlContainsCommit;
             do {
+                checkCountInterrupted();
                 currentSql[0] = modifySql(currentSql[0], sqlChunk);
                 if (currentSql[0].getSqlEnd() && !stripProtectedContent(currentSql[0].getSqlstr()).trim().isEmpty()) {
                     statementCount[0]++;
@@ -611,10 +621,17 @@ public class SqlParserUtil {
             return true;
         });
 
+        checkCountInterrupted();
         if (!stoppedEarly[0] && !stripProtectedContent(currentSql[0].getSqlstr()).trim().isEmpty()) {
             statementCount[0]++;
         }
         return statementCount[0];
+    }
+
+    private static void checkCountInterrupted() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("sql statement counting cancelled");
+        }
     }
 
     private static void resetSqlStatementState(Sql sql) {

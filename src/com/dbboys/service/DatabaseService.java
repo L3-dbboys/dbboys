@@ -27,6 +27,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.LongConsumer;
 import javafx.application.Platform;
@@ -151,6 +154,7 @@ public class DatabaseService implements MetaObjectService {
         BackgroundSqlTask backSqlTask = new BackgroundSqlTask();
         String importSummary = I18n.t("metadata.import_sql.task.summary", "导入SQL脚本 %s")
                 .formatted(file.getName());
+        AtomicReference<CompletableFuture<Integer>> countFutureRef = new AtomicReference<>();
 
         Task<Integer> bgTask = new Task<>() {
             @Override
@@ -168,7 +172,7 @@ public class DatabaseService implements MetaObjectService {
                 backSqlTask.setConnectName(connect.getName());
                 backSqlTask.setDatabaseName(connect.getDatabase());
                 backSqlTask.setSql(importSummary);
-                backSqlTask.setProgress(I18n.t("metadata.import_sql.task.counting", "正在统计SQL数量"));
+                backSqlTask.setProgress(formatImportSqlExecuted(0));
                 BackgroundSqlUtil.backSqlTaskList.add(backSqlTask);
                 BackgroundSqlUtil.updateBackSqlUIOnStart();
 
@@ -179,15 +183,24 @@ public class DatabaseService implements MetaObjectService {
                                 .formatted(file.getName()));
                     }
 
-                    List<String> statements = parseSqlStatements(scriptText);
-                    if (statements.isEmpty()) {
-                        throw new IOException(I18n.t("metadata.import_sql.error.no_statements", "SQL脚本中没有可执行语句：%s")
-                                .formatted(file.getName()));
-                    }
+                    AtomicInteger executedCount = new AtomicInteger();
+                    AtomicInteger totalStatements = new AtomicInteger(-1);
+                    CompletableFuture<Integer> countFuture = startImportSqlCountTask(
+                            scriptText,
+                            backSqlTask,
+                            executedCount,
+                            totalStatements
+                    );
+                    countFutureRef.set(countFuture);
 
-                    BackgroundSqlUtil.updateTaskProgress(backSqlTask, formatImportSqlProgress(0, statements.size()));
-
-                    int affectedRows = executeStatements(connect, statements, backSqlTask);
+                    int affectedRows = executeStatements(
+                            connect,
+                            scriptText,
+                            file.getName(),
+                            backSqlTask,
+                            executedCount,
+                            totalStatements
+                    );
                     long endTime = System.currentTimeMillis();
                     updateResult.setAffectedRows(affectedRows);
                     updateResult.setElapsedTime(String.format("%.3f", (endTime - beginTime) / 1000.0) + " sec");
@@ -208,6 +221,10 @@ public class DatabaseService implements MetaObjectService {
                     showImportError(message);
                     throw e;
                 } finally {
+                    CompletableFuture<Integer> countFuture = countFutureRef.getAndSet(null);
+                    if (countFuture != null && !countFuture.isDone()) {
+                        countFuture.cancel(true);
+                    }
                     backSqlTask.setStmt(null);
                     backSqlTask.setConnection(null);
                     BackgroundSqlUtil.backSqlTaskList.remove(backSqlTask);
@@ -221,11 +238,49 @@ public class DatabaseService implements MetaObjectService {
                 onSucceededUi.run();
             }
         });
-        backSqlTask.setCancelAction(() -> bgTask.cancel(true));
+        backSqlTask.setCancelAction(() -> {
+            bgTask.cancel(true);
+            CompletableFuture<Integer> countFuture = countFutureRef.get();
+            if (countFuture != null) {
+                countFuture.cancel(true);
+            }
+        });
         backSqlTask.setFuture(BackgroundSqlUtil.backSqlExecutor.submit(bgTask));
     }
 
-    private int executeStatements(Connect connect, List<String> statements, BackgroundSqlTask backSqlTask) throws Exception {
+    private CompletableFuture<Integer> startImportSqlCountTask(String scriptText,
+                                                               BackgroundSqlTask backSqlTask,
+                                                               AtomicInteger executedCount,
+                                                               AtomicInteger totalStatements) {
+        CompletableFuture<Integer> countFuture = CompletableFuture.supplyAsync(
+                () -> SqlParserUtil.countExecutableStatements(scriptText),
+                BackgroundSqlUtil.backSqlExecutor
+        );
+        countFuture.whenComplete((count, throwable) -> {
+            if (throwable != null) {
+                if (!isImportSqlCountCancelled(throwable)) {
+                    log.warn("failed to count import sql statements", throwable);
+                }
+                return;
+            }
+            int safeTotal = Math.max(0, count == null ? 0 : count);
+            totalStatements.set(safeTotal);
+            if (safeTotal > 0) {
+                BackgroundSqlUtil.updateTaskProgress(
+                        backSqlTask,
+                        formatImportSqlProgress(executedCount.get(), safeTotal)
+                );
+            }
+        });
+        return countFuture;
+    }
+
+    private int executeStatements(Connect connect,
+                                  String scriptText,
+                                  String scriptName,
+                                  BackgroundSqlTask backSqlTask,
+                                  AtomicInteger executedCount,
+                                  AtomicInteger totalStatements) throws Exception {
         try (Connection conn = connectionService().getConnectionWithSessionInit(connect)) {
             if (conn == null) {
                 throw new IOException(I18n.t("metadata.import_sql.error.unknown", "导入SQL脚本失败，请检查脚本内容或数据库连接"));
@@ -233,60 +288,66 @@ public class DatabaseService implements MetaObjectService {
             backSqlTask.setConnection(conn);
 
             int affectedRows = 0;
-            int total = statements.size();
-            for (int i = 0; i < total; i++) {
-                if (backSqlTask.isCancelled() || Thread.currentThread().isInterrupted()) {
-                    throw new CancellationException("import sql script cancelled");
-                }
+            Sql currentSql = new Sql();
 
-                String sql = statements.get(i);
-                BackgroundSqlUtil.updateTaskProgress(backSqlTask, formatImportSqlProgress(i + 1, total));
+            for (SqlParserUtil.Segment segment : SqlParserUtil.split(scriptText)) {
+                String remainingChunk = segment.getText();
+                while (remainingChunk != null && !remainingChunk.isBlank()) {
+                    checkImportSqlCancelled(backSqlTask);
 
-                try (Statement stmt = conn.createStatement()) {
-                    backSqlTask.setStmt(stmt);
-                    boolean hasResultSet = stmt.execute(sql);
-                    if (hasResultSet) {
-                        try (ResultSet ignored = stmt.getResultSet()) {
-                            // Consume and close result sets; import script runs headlessly.
-                        }
+                    currentSql = SqlParserUtil.modifySql(currentSql, remainingChunk);
+                    if (!currentSql.getSqlEnd()) {
+                        break;
                     }
-                    int count = stmt.getUpdateCount();
-                    if (count > 0) {
-                        affectedRows += count;
+
+                    String statement = currentSql.getSqlstr();
+                    if (statement != null && !statement.trim().isEmpty()) {
+                        affectedRows += executeSingleStatement(conn, statement.trim(), backSqlTask);
+                        updateImportSqlProgress(backSqlTask, executedCount.incrementAndGet(), totalStatements.get());
                     }
-                } catch (SQLException e) {
-                    backSqlTask.setSql(sql);
-                    throw e;
-                } finally {
-                    backSqlTask.setStmt(null);
+
+                    remainingChunk = currentSql.getSqlRemainder();
+                    currentSql = new Sql();
                 }
+            }
+
+            if (currentSql.getSqlstr() != null && !currentSql.getSqlstr().trim().isEmpty()) {
+                checkImportSqlCancelled(backSqlTask);
+                affectedRows += executeSingleStatement(conn, currentSql.getSqlstr().trim(), backSqlTask);
+                updateImportSqlProgress(backSqlTask, executedCount.incrementAndGet(), totalStatements.get());
+            }
+
+            if (executedCount.get() == 0) {
+                throw new IOException(I18n.t("metadata.import_sql.error.no_statements", "SQL脚本中没有可执行语句：%s")
+                        .formatted(scriptName));
             }
             return affectedRows;
         }
     }
 
-    private List<String> parseSqlStatements(String scriptText) {
-        List<String> statements = new ArrayList<>();
-        Sql currentSql = new Sql();
-        for (SqlParserUtil.Segment segment : SqlParserUtil.split(scriptText)) {
-            String remainingChunk = segment.getText();
-            while (remainingChunk != null && !remainingChunk.isBlank()) {
-                currentSql = SqlParserUtil.modifySql(currentSql, remainingChunk);
-                if (!currentSql.getSqlEnd()) {
-                    break;
+    private int executeSingleStatement(Connection conn, String sql, BackgroundSqlTask backSqlTask) throws Exception {
+        try (Statement stmt = conn.createStatement()) {
+            backSqlTask.setStmt(stmt);
+            boolean hasResultSet = stmt.execute(sql);
+            if (hasResultSet) {
+                try (ResultSet ignored = stmt.getResultSet()) {
+                    // Consume and close result sets; import script runs headlessly.
                 }
-                String statement = currentSql.getSqlstr();
-                if (statement != null && !statement.trim().isEmpty()) {
-                    statements.add(statement.trim());
-                }
-                remainingChunk = currentSql.getSqlRemainder();
-                currentSql = new Sql();
             }
+            int count = stmt.getUpdateCount();
+            return Math.max(count, 0);
+        } catch (SQLException e) {
+            backSqlTask.setSql(sql);
+            throw e;
+        } finally {
+            backSqlTask.setStmt(null);
         }
-        if (currentSql.getSqlstr() != null && !currentSql.getSqlstr().trim().isEmpty()) {
-            statements.add(currentSql.getSqlstr().trim());
+    }
+
+    private void checkImportSqlCancelled(BackgroundSqlTask backSqlTask) {
+        if (backSqlTask.isCancelled() || Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("import sql script cancelled");
         }
-        return statements;
     }
 
     private String stripLeadingBom(String text) {
@@ -296,12 +357,34 @@ public class DatabaseService implements MetaObjectService {
         return text.charAt(0) == '\uFEFF' ? text.substring(1) : text;
     }
 
-    private String formatImportSqlProgress(int completed, int total) {
-        if (total <= 0) {
-            return "";
+    private String formatImportSqlExecuted(int executedCount) {
+        int safeExecutedCount = Math.max(0, executedCount);
+        return I18n.t("metadata.import_sql.task.executed", "已执行 %d 条").formatted(safeExecutedCount);
+    }
+
+    private void updateImportSqlProgress(BackgroundSqlTask backSqlTask, int executedCount, int totalStatements) {
+        if (totalStatements > 0) {
+            BackgroundSqlUtil.updateTaskProgress(backSqlTask, formatImportSqlProgress(executedCount, totalStatements));
+            return;
         }
-        int safeCompleted = Math.max(0, Math.min(completed, total));
-        return safeCompleted + "/" + total;
+        BackgroundSqlUtil.updateTaskProgress(backSqlTask, formatImportSqlExecuted(executedCount));
+    }
+
+    private String formatImportSqlProgress(int executedCount, int totalStatements) {
+        int safeExecutedCount = Math.max(0, executedCount);
+        int safeTotalStatements = Math.max(safeExecutedCount, Math.max(0, totalStatements));
+        return safeExecutedCount + "/" + safeTotalStatements;
+    }
+
+    private boolean isImportSqlCountCancelled(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof CancellationException || current instanceof InterruptedException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private void showImportError(String message) {
