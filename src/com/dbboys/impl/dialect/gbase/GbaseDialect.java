@@ -151,7 +151,7 @@ public final class GbaseDialect implements DatabaseDialect {
         String info = "##########################################################################################\n";
         info += "Instance Boot Information\n";
         info += "##########################################################################################\n";
-        rs = connection.createStatement().executeQuery("select env_name,trim(env_value) from sysmaster:sysenv");
+        rs = connection.createStatement().executeQuery("select trim(env_name),trim(env_value) from sysmaster:sysenv");
 
         while (rs.next()) {
             info += String.format("%-30s", rs.getString(1)) + rs.getString(2) + "\n";
@@ -166,8 +166,8 @@ public final class GbaseDialect implements DatabaseDialect {
         rs = connection.createStatement().executeQuery("SELECT * from sysmaster:sysmachineinfo ");
         rs.next();
         for (int i = 1; i <= 24; i++) {
-            info += String.format("%-30s", rs.getMetaData().getColumnName(i));
-            info += rs.getString(i) + "\n";
+            info += String.format("%-30s", rs.getMetaData().getColumnName(i).trim());
+            info += (rs.getString(i)==null?"":rs.getString(i).trim()) + "\n";
         }
         rs.close();
         rs = null;
