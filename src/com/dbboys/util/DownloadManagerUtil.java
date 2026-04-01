@@ -529,7 +529,7 @@ class DownloadTaskWrapper {
         int columnCount = meta.getColumnCount();
         String tableName = meta.getTableName(1);
         if (tableName == null || tableName.isBlank()) tableName = "table";
-        String prefix = "INSERT INTO " + tableName + " VALUES ";
+        String prefix = "insert into " + tableName + " values";
 
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
             long row = 0;
@@ -538,16 +538,7 @@ class DownloadTaskWrapper {
                 writer.write("(");
                 for (int i = 1; i <= columnCount; i++) {
                     if (i > 1) writer.write(", ");
-                    Object val = rs.getObject(i);
-                    if (val == null) {
-                        writer.write("NULL");
-                    } else if (val instanceof Number || val instanceof Boolean) {
-                        writer.write(val.toString());
-                    } else {
-                        writer.write("'");
-                        writer.write(val.toString().replace("'", "''"));
-                        writer.write("'");
-                    }
+                    writer.write(readSqlCellLiteral(rs, meta, i));
                 }
                 writer.write(");\n");
                 row++;
@@ -557,6 +548,50 @@ class DownloadTaskWrapper {
                 }
             }
         }
+    }
+
+    private String readSqlCellLiteral(ResultSet rs, ResultSetMetaData meta, int columnIndex) throws Exception {
+        String columnType = normalizeColumnType(meta.getColumnTypeName(columnIndex));
+        Object rawValue = rs.getObject(columnIndex);
+        if (rawValue == null && rs.wasNull()) {
+            return "NULL";
+        }
+
+        if (isNumericExportColumnType(columnType) || isBooleanExportColumnType(columnType)) {
+            String numericValue = rs.getString(columnIndex);
+            return numericValue == null ? "NULL" : numericValue;
+        }
+
+        String value = readCsvCellValue(rs, meta, columnIndex);
+        if (value == null) {
+            return "NULL";
+        }
+        return "'" + value.replace("'", "''") + "'";
+    }
+
+    private boolean isNumericExportColumnType(String columnType) {
+        if (columnType == null || columnType.isEmpty()) {
+            return false;
+        }
+        return columnType.startsWith("SMALLINT")
+                || columnType.startsWith("INTEGER")
+                || columnType.equals("INT")
+                || columnType.startsWith("INT(")
+                || columnType.startsWith("BIGINT")
+                || columnType.startsWith("DECIMAL")
+                || columnType.startsWith("NUMERIC")
+                || columnType.startsWith("MONEY")
+                || columnType.startsWith("SMALLFLOAT")
+                || columnType.startsWith("FLOAT")
+                || columnType.startsWith("DOUBLE")
+                || columnType.startsWith("REAL")
+                || columnType.startsWith("SERIAL")
+                || columnType.startsWith("SERIAL8")
+                || columnType.startsWith("BIGSERIAL");
+    }
+
+    private boolean isBooleanExportColumnType(String columnType) {
+        return columnType != null && columnType.startsWith("BOOLEAN");
     }
 
     private String escapeCsv(String value) {

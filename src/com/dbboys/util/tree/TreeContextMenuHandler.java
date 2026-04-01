@@ -152,6 +152,14 @@ public class TreeContextMenuHandler {
                 MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_popup_window", null);
         ddlMenu.getItems().addAll(ddlToClipboard,ddlToPopuWindow,ddlToFile,ddlToCurrentSqlEditarea,ddlToNewSqlEditarea);
 
+        Menu importMenu = new Menu();
+        importMenu.textProperty().bind(I18n.bind("metadata.menu.import", "导入"));
+        importMenu.setGraphic(IconFactory.group(IconPaths.METADATA_IMPORT_DATA_ITEM, 0.6, 0.6));
+
+        CustomShortcutMenuItem importSqlScriptItem =
+                MenuItemUtil.createMenuItemI18n("metadata.menu.import.sql_script", null);
+        importMenu.getItems().add(importSqlScriptItem);
+
         Menu exportDdlMenu = new Menu();
         exportDdlMenu.textProperty().bind(I18n.bind("metadata.menu.export_ddl.title", "导出DDL"));
         exportDdlMenu.setGraphic(IconFactory.group(IconPaths.METADATA_DDL_MENU, 0.65, 0.65));
@@ -171,14 +179,22 @@ public class TreeContextMenuHandler {
 
         ddlMenu.showingProperty().addListener((obs, was, now) -> {
             if (now && exportMenu.isShowing()) exportMenu.hide();
+            if (now && importMenu.isShowing()) importMenu.hide();
             if (now && exportDdlMenu.isShowing()) exportDdlMenu.hide();
         });
         exportMenu.showingProperty().addListener((obs, was, now) -> {
             if (now && ddlMenu.isShowing()) ddlMenu.hide();
+            if (now && importMenu.isShowing()) importMenu.hide();
+            if (now && exportDdlMenu.isShowing()) exportDdlMenu.hide();
+        });
+        importMenu.showingProperty().addListener((obs, was, now) -> {
+            if (now && ddlMenu.isShowing()) ddlMenu.hide();
+            if (now && exportMenu.isShowing()) exportMenu.hide();
             if (now && exportDdlMenu.isShowing()) exportDdlMenu.hide();
         });
         exportDdlMenu.showingProperty().addListener((obs, was, now) -> {
             if (now && ddlMenu.isShowing()) ddlMenu.hide();
+            if (now && importMenu.isShowing()) importMenu.hide();
             if (now && exportMenu.isShowing()) exportMenu.hide();
         });
 
@@ -186,13 +202,14 @@ public class TreeContextMenuHandler {
             if (newSkin == null) return;
             Node skinRoot = newSkin.getNode();
             skinRoot.addEventFilter(MouseEvent.MOUSE_ENTERED_TARGET, event -> {
-                if (!ddlMenu.isShowing() && !exportMenu.isShowing() && !exportDdlMenu.isShowing()) return;
+                if (!ddlMenu.isShowing() && !exportMenu.isShowing() && !importMenu.isShowing() && !exportDdlMenu.isShowing()) return;
                 Node target = (Node) event.getTarget();
                 while (target != null && target != skinRoot) {
                     if (target.getStyleClass().contains("menu-item")) {
                         if (!target.getStyleClass().contains("menu")) {
                             if (ddlMenu.isShowing()) ddlMenu.hide();
                             if (exportMenu.isShowing()) exportMenu.hide();
+                            if (importMenu.isShowing()) importMenu.hide();
                             if (exportDdlMenu.isShowing()) exportDdlMenu.hide();
                         }
                         return;
@@ -207,6 +224,31 @@ public class TreeContextMenuHandler {
         exportJsonItem.setOnAction(ev -> TreeCrudHandler.exportTableData(treeView.getSelectionModel().getSelectedItems(), TreeCrudHandler.ExportFormat.JSON));
         exportSqlItem.setOnAction(ev -> TreeCrudHandler.exportTableData(treeView.getSelectionModel().getSelectedItems(), TreeCrudHandler.ExportFormat.SQL));
         importDataItem.setOnAction(ev -> TreeCrudHandler.importTableData(treeView.getSelectionModel().getSelectedItem()));
+        importSqlScriptItem.setOnAction(event -> {
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            if (selectedItem == null || !(selectedItem.getValue() instanceof Database database)) {
+                return;
+            }
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle(I18n.t("main.filechooser.select_sql", "选择SQL文件"));
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SQL Files", "*.sql"));
+            File file = fileChooser.showOpenDialog(AppState.getWindow());
+            if (file == null) {
+                return;
+            }
+
+            Connect connect = new Connect(TreeNavigator.getMetaConnect(selectedItem));
+            TreeCrudHandler.applyDatabaseConnectionProps(connect, database, database.getName());
+            TreeViewUtil.databaseService.importSqlScript(connect, file, () ->
+                    NotificationUtil.showMainNotification(
+                            I18n.t("metadata.import_sql.notice.completed", "数据库\"%s\"导入脚本完成：%s")
+                                    .formatted(database.getName(), file.getName())
+                    ));
+            NotificationUtil.showMainNotification(
+                    I18n.t("metadata.import_sql.notice.queued", "数据库\"%s\"导入脚本任务已提交：%s")
+                            .formatted(database.getName(), file.getName())
+            );
+        });
         
         //右键连接信息点击响应
         TreeViewUtil.connectInfoItem.setOnAction(event->{
@@ -1201,6 +1243,9 @@ public class TreeContextMenuHandler {
                 if (ddlMenu.isShowing()) {
                     ddlMenu.hide();
                 }
+                if (importMenu.isShowing()) {
+                    importMenu.hide();
+                }
                 if (exportDdlMenu.isShowing()) {
                     exportDdlMenu.hide();
                 }
@@ -1230,6 +1275,7 @@ public class TreeContextMenuHandler {
                 modifyToStandardItem.setDisable(false);
                 createTableItem.setDisable(false);
                 importDataItem.setDisable(false);
+                importSqlScriptItem.setDisable(false);
 
                 if (TreeNavigator.isMultiTableSelection(selectedItems)) {
                     boolean disableByReadOnlyOrSystem = TreeNavigator.isReadOnlyConnectionSelection(selectedItems);
@@ -1283,6 +1329,7 @@ public class TreeContextMenuHandler {
                         createDatabaseItem.setDisable(true);
                         createTableItem.setDisable(true);
                         importDataItem.setDisable(true);
+                        importSqlScriptItem.setDisable(true);
                     }
                 }
                 if(selectedItem.getValue() instanceof Connect&&((Connect) selectedItem.getValue()).getReadonly()){
@@ -1312,6 +1359,7 @@ public class TreeContextMenuHandler {
                         modifyToRawItem.setDisable(true);
                         modifyToStandardItem.setDisable(true);
                         importDataItem.setDisable(true);
+                        importSqlScriptItem.setDisable(true);
                     }
                 }
 
@@ -1421,6 +1469,7 @@ public class TreeContextMenuHandler {
                     treeview_menu.getItems().add(TreeViewUtil.refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
+                    treeview_menu.getItems().add(importMenu);
                     treeview_menu.getItems().add(exportDdlMenu);
                 }
                 //对象文件夹
