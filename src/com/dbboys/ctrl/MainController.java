@@ -272,12 +272,12 @@ public class MainController {
         newSqlFileMenuItem.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_NEW_SQL, 0.55));
         menuFileOpenSql.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_OPEN_SQL, 0.62));
         menuConfigCheckEnv.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_CHECK_ENV, 0.5));
-        menuConfigInformix.setGraphic(IconFactory.group(IconPaths.DATABASE_CONNECT, 0.48));
-        menuConfigInstallInformix.setGraphic(IconFactory.group(IconPaths.DATABASE_CONNECT, 0.48));
-        menuConfigUninstallInformix.setGraphic(IconFactory.group(IconPaths.DATABASE_CONNECT, 0.48, Color.valueOf("#9f453c")));
+        menuConfigInformix.setGraphic(IconFactory.group(IconPaths.INFORMIX_LOGO, 0.15,0.12,Color.valueOf("#ff3300")));
+        menuConfigInstallInformix.setGraphic(null);
+        menuConfigUninstallInformix.setGraphic(null);
         menuConfigGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22));
-        menuConfigInstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22));
-        menuConfigUninstallGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22, Color.valueOf("#9f453c")));
+        menuConfigInstallGbase.setGraphic(null);
+        menuConfigUninstallGbase.setGraphic(null);
         menuSettingsLanguage.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_LANGUAGE, 0.68));
         menuSettingsReset.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_RESET, 0.6));
         menuHelpAbout.setGraphic(IconFactory.group(IconPaths.MAIN_MENU_HELP, 0.6));
@@ -557,37 +557,98 @@ public class MainController {
         newSqlFileMenuItem.setOnAction(event -> {
             TabpaneUtil.addCustomSqlTab(null);});
         installSettingsMenuBehavior();
+        installConfigMenuBehavior();
     }
 
     private void installSettingsMenuBehavior() {
-        menuSettings.setOnShowing(event -> {
-            ContextMenu parentPopup = menuSettingsLanguage.getParentPopup();
-            if (parentPopup == null || parentPopup.getProperties().containsKey("settingsMenuHoverFixInstalled")) {
+        installHoverHideMenuBehavior(menuSettings, "settingsMenuHoverFixInstalled", menuSettingsLanguage);
+    }
+
+    private void installConfigMenuBehavior() {
+        installHoverHideMenuBehavior(menuConfig, "configMenuHoverFixInstalled", menuConfigInformix, menuConfigGbase);
+    }
+
+    private void installHoverHideMenuBehavior(Menu ownerMenu, String propertyKey, Menu... submenus) {
+        ownerMenu.setOnShowing(event -> {
+            if (submenus == null || submenus.length == 0) {
                 return;
             }
-            parentPopup.getProperties().put("settingsMenuHoverFixInstalled", Boolean.TRUE);
-            parentPopup.skinProperty().addListener((obs, oldSkin, newSkin) -> {
-                if (newSkin == null) {
-                    return;
+            ContextMenu parentPopup = null;
+            for (Menu submenu : submenus) {
+                if (submenu != null && submenu.getParentPopup() != null) {
+                    parentPopup = submenu.getParentPopup();
+                    break;
                 }
-                Node skinRoot = newSkin.getNode();
-                skinRoot.addEventFilter(MouseEvent.MOUSE_ENTERED_TARGET, mouseEvent -> {
-                    if (!menuSettingsLanguage.isShowing()) {
-                        return;
-                    }
-                    Node target = (Node) mouseEvent.getTarget();
-                    while (target != null && target != skinRoot) {
-                        if (target.getStyleClass().contains("menu-item")) {
-                            if (!target.getStyleClass().contains("menu")) {
-                                menuSettingsLanguage.hide();
-                            }
-                            return;
-                        }
-                        target = target.getParent();
-                    }
-                });
+            }
+            if (parentPopup == null || parentPopup.getProperties().containsKey(propertyKey)) {
+                return;
+            }
+            parentPopup.getProperties().put(propertyKey, Boolean.TRUE);
+            parentPopup.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+                if (newSkin != null) {
+                    attachMenuHoverHideFilter(newSkin.getNode(), submenus);
+                }
             });
+            if (parentPopup.getSkin() != null) {
+                attachMenuHoverHideFilter(parentPopup.getSkin().getNode(), submenus);
+            }
         });
+    }
+
+    private void attachMenuHoverHideFilter(Node skinRoot, Menu... submenus) {
+        if (skinRoot == null || Boolean.TRUE.equals(skinRoot.getProperties().get("hoverHideFilterInstalled"))) {
+            return;
+        }
+        skinRoot.getProperties().put("hoverHideFilterInstalled", Boolean.TRUE);
+        skinRoot.addEventFilter(MouseEvent.MOUSE_ENTERED_TARGET, mouseEvent -> {
+            if (!(mouseEvent.getTarget() instanceof Node target)) {
+                return;
+            }
+            Node menuItemNode = findAncestorMenuItem(target, skinRoot);
+            if (menuItemNode == null) {
+                return;
+            }
+            for (Menu submenu : submenus) {
+                if (submenu != null && submenu.isShowing() && !isMenuItemNodeForMenu(menuItemNode, submenu)) {
+                    submenu.hide();
+                }
+            }
+        });
+    }
+
+    private Node findAncestorMenuItem(Node target, Node skinRoot) {
+        Node current = target;
+        while (current != null && current != skinRoot) {
+            if (current.getStyleClass().contains("menu-item")) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        return null;
+    }
+
+    private boolean isMenuItemNodeForMenu(Node menuItemNode, Menu menu) {
+        return menu != null
+                && menuItemNode != null
+                && menu.getText() != null
+                && nodeContainsText(menuItemNode, menu.getText());
+    }
+
+    private boolean nodeContainsText(Node node, String text) {
+        if (node == null || text == null) {
+            return false;
+        }
+        if (node instanceof Labeled labeled && text.equals(labeled.getText())) {
+            return true;
+        }
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                if (nodeContainsText(child, text)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void initI18nBindings() {

@@ -1885,6 +1885,9 @@ Text {
 
 .context-menu .menu > .graphic-container {
   -fx-padding: 0 0 0 2;
+  -fx-min-width: 16px;
+  -fx-pref-width: 16px;
+  -fx-max-width: 16px;
 }
 
 .context-menu .menu > .right-container > .arrow {
