@@ -23,7 +23,7 @@ public final class InformixRemoteProvider implements RemoteDatabaseProvider {
     public List<String> installWizardDescriptionLines() {
         return List.of(
                 I18n.t("remote.install.informix.desc.item1", "1、远程安装仅用于Linux或Unix系统远程安装，不适用于Windows系统。"),
-                I18n.t("remote.install.informix.desc.item2", "2、安装前请准备好已下载的Informix安装包，并在后续步骤填写本地或远程路径。"),
+                I18n.t("remote.install.informix.desc.item2", "2、安装前可准备好已下载的Informix安装包，如未准备，可在安装过程中自动下载。"),
                 I18n.t("remote.install.informix.desc.item3", "3、安装前会自动卸载之前已存在的Informix数据库安装，并清理所有相关信息。"),
                 I18n.t("remote.install.informix.desc.item4", "4、远程安装向导支持Informix 12.1以上版本安装。")
         );
@@ -36,6 +36,30 @@ public final class InformixRemoteProvider implements RemoteDatabaseProvider {
                 I18n.t("remote.uninstall.informix.desc.item2", "2、远程卸载会自动卸载之前已存在的Informix数据库安装，并清理所有相关信息。"),
                 I18n.t("remote.uninstall.informix.desc.item3", "3、远程卸载向导支持Informix 12.1以上版本卸载。")
         );
+    }
+
+    @Override
+    public boolean supportsPackageDownload() {
+        return true;
+    }
+
+    @Override
+    public String resolveDownloadUrl(String systemInfoText) {
+        if (systemInfoText == null) {
+            return null;
+        }
+        if (systemInfoText.contains("x86_64")) {
+            return "https://www.dbboys.com/dl/informix/server/x86/latest.tar";
+        }
+        //if (systemInfoText.contains("aarch64")) {
+        //    return "https://www.dbboys.com/dl/informix/server/arm/latest.tar";
+       // }
+        return null;
+    }
+
+    @Override
+    public String unsupportedPlatformMessage() {
+        return I18n.t("remote.install.informix.error.unknown_platform", "未知系统平台，请手动下载Informix安装包！");
     }
 
     @Override
