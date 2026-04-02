@@ -184,7 +184,7 @@ public class RemoteInstallerUtil {
         stopButton.getStyleClass().add("small");
         backgroundHBox = new HBox(imageHBox);
         backgroundHBox.setAlignment(Pos.CENTER);
-        backgroundHBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.3);-fx-background-radius: 2;");
+        backgroundHBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.30);-fx-background-radius: 2;");
         backgroundHBox.setVisible(false);
 
 
@@ -852,6 +852,7 @@ public class RemoteInstallerUtil {
         uploadedRadioButton.setToggleGroup(uploadToggleGroup);
         uploadedRadioButton.textProperty().bind(I18n.bind("remote.install.step3.uploaded", "我已经上传了数据库安装包"));
         remotePathField.disableProperty().bind(uploadedRadioButton.selectedProperty().not());
+        VBox.setMargin(uploadedRadioButton, new Insets(12, 0, 0, 0));
         Label uploadTitleLabel = new Label();
         uploadTitleLabel.textProperty().bind(I18n.bind("remote.install.step3.upload_title", "上传安装包到远程服务器："));
         Label uploadPathLabel = new Label();
@@ -1301,5 +1302,3 @@ public class RemoteInstallerUtil {
 
 
 }
-
-
