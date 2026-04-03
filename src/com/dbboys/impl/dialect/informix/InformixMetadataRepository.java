@@ -805,12 +805,6 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             pstmt.setString(1, databaseName);
             pstmt.executeUpdate();
         }
-        try (java.sql.PreparedStatement pstmt = conn.prepareStatement("set environment sqlmode 'gbase'")) {
-            pstmt.executeUpdate();
-        }
-        catch (SQLException e) {
-            // ignore
-        }
     }
 
     public List<String> getIndexColumnsForTable(Connection conn, String tableName) throws SQLException {

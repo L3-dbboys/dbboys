@@ -443,7 +443,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
 
     @Override
     public List<Database> getDatabases(Connection conn) throws SQLException {
-        return List.of(loadCurrentDatabase(conn));
+        return getMetadataDatabases(conn);
     }
 
     @Override

@@ -1,7 +1,11 @@
 package com.dbboys.customnode;
 
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppState;
+import com.dbboys.api.DatabasePlatform;
+import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.i18n.I18n;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.NotificationUtil;
@@ -43,7 +47,8 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private static final String INACTIVE_ICON_STYLE = "-fx-fill: #666;";
     private static final Pattern COUNT_INFO_PATTERN = Pattern.compile("^\\s*(\\d+)\\s*[个個](?:\\s*/\\s*(.+))?\\s*$");
     private static final Set<String> SYSTEM_DATABASES = Set.of(
-            "sysmaster", "sysuser", "sysadmin", "sysutils", "sysha", "syscdr", "syscdcv1", "gbasedbt", "sys"
+            "sysmaster", "sysuser", "sysadmin", "sysutils", "sysha", "syscdr", "syscdcv1",
+            "gbasedbt", "informix", "sys"
     );
     private static final double ICON_SLOT_SIZE = 16.0;
 
@@ -466,18 +471,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     }
 
     private void applyDatabaseTypeIcon(String dbType) {
-        if ("INFORMIX".equalsIgnoreCase(dbType)) {
-            nodeIcon.setContent(IconPaths.INFORMIX_LOGO);
-            nodeIcon.setScaleX(0.15);
-            nodeIcon.setScaleY(0.12);
-        } else if ("ORACLE".equalsIgnoreCase(dbType)) {
-            nodeIcon.setContent(IconPaths.ORACLE_LOGO);
-            nodeIcon.setScaleX(0.55);
-            nodeIcon.setScaleY(0.55);
-        } else if ("GBASE 8S".equalsIgnoreCase(dbType)) {
-            nodeIcon.setContent(IconPaths.GBASE_LOGO);
-            nodeIcon.setScaleX(0.22);
-            nodeIcon.setScaleY(0.22);
+        DatabasePlatform.IconInfo info = resolveIconInfo(dbType);
+        if (info != null) {
+            nodeIcon.setContent(info.svgPath());
+            nodeIcon.setScaleX(info.scaleX());
+            nodeIcon.setScaleY(info.scaleY());
         } else {
             nodeIcon.setContent(IconPaths.CONNECTION_LINK);
             nodeIcon.setScaleX(0.55);
@@ -707,6 +705,18 @@ public class CustomTreeCell extends TreeCell<TreeData> {
 
     private boolean isSystemDatabase(String dbName) {
         return SYSTEM_DATABASES.contains(dbName);
+    }
+
+    private static DatabasePlatform.IconInfo resolveIconInfo(String dbType) {
+        if (dbType == null) return null;
+        try {
+            DatabasePlatformResolver resolver = AppContext.get(DatabasePlatformResolver.class);
+            if (resolver == null) resolver = DatabasePlatforms.createDefault();
+            DatabasePlatform platform = resolver.getPlatform(dbType);
+            return platform != null ? platform.iconInfo() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String formatRowsSize(Object nrows, Object totalSize) {

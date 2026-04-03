@@ -6,6 +6,7 @@ import com.dbboys.api.DdlRepository;
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.api.MetadataRepository;
 import com.dbboys.api.SqlexeRepository;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
@@ -41,6 +42,11 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public IconInfo iconInfo() {
+        return new IconInfo(IconPaths.ORACLE_LOGO, 0.55, 0.55);
+    }
+
+    @Override
     public ConnectionSupport connection() {
         return this;
     }
@@ -61,6 +67,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
         String sessionDatabase = getSessionDatabase(connect);
         if (sessionDatabase != null && !sessionDatabase.isBlank()) {
             metadataRepository.setDatabase(conn, sessionDatabase);
+            connect.setSessionDatabase(sessionDatabase);
         }
     }
 

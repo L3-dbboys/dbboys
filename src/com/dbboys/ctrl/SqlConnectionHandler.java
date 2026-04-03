@@ -1,9 +1,13 @@
 package com.dbboys.ctrl;
 
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppExecutor;
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.ConnectionService;
+import com.dbboys.api.DatabasePlatform;
+import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.service.SqlexeService;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.app.AppErrorHandler;
@@ -77,6 +81,7 @@ public class SqlConnectionHandler {
             Platform.runLater(() -> {
                 ctrl.sqlConnectChoiceBoxDbIcon.setVisible(false);
                 ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(true);
+                ctrl.sqlSqlModeChoiceBox.setVisible(false);
             });
             Connection conn = null;
             try {
@@ -153,18 +158,11 @@ public class SqlConnectionHandler {
     }
 
     private void applyConnectIcon(String dbType) {
-        if ("INFORMIX".equalsIgnoreCase(dbType)) {
-            ctrl.sqlConnectIconPath.setContent(IconPaths.INFORMIX_LOGO);
-            ctrl.sqlConnectIconPath.setScaleX(0.15);
-            ctrl.sqlConnectIconPath.setScaleY(0.12);
-        } else if ("ORACLE".equalsIgnoreCase(dbType)) {
-            ctrl.sqlConnectIconPath.setContent(IconPaths.ORACLE_LOGO);
-            ctrl.sqlConnectIconPath.setScaleX(0.6);
-            ctrl.sqlConnectIconPath.setScaleY(0.6);
-        } else if ("GBASE 8S".equalsIgnoreCase(dbType)) {
-            ctrl.sqlConnectIconPath.setContent(IconPaths.GBASE_LOGO);
-            ctrl.sqlConnectIconPath.setScaleX(0.2);
-            ctrl.sqlConnectIconPath.setScaleY(0.2);
+        DatabasePlatform.IconInfo info = resolveIconInfo(dbType);
+        if (info != null) {
+            ctrl.sqlConnectIconPath.setContent(info.svgPath());
+            ctrl.sqlConnectIconPath.setScaleX(info.scaleX());
+            ctrl.sqlConnectIconPath.setScaleY(info.scaleY());
         } else {
             ctrl.sqlConnectIconPath.setContent(IconPaths.CONNECTION_LINK);
             ctrl.sqlConnectIconPath.setScaleX(0.6);
@@ -177,23 +175,28 @@ public class SqlConnectionHandler {
         List<Database> db_names = sqlexeService.getDatabases(ctrl.sqlConnect);
         ctrl.databaseChoiceBoxList = FXCollections.observableArrayList(db_names);
         Platform.runLater(() -> {
-            try {
-                ctrl.sqlDbChoiceBox.setValue(ctrl.defaultDatabase);
-                ctrl.sqlDbChoiceBox.setItems(ctrl.databaseChoiceBoxList);
-                int i = 0;
-                for (Database item : ctrl.databaseChoiceBoxList) {
-                    if (item.getName().equals(ctrl.sqlConnect.getDatabase())) {
-                        ctrl.sqlDbChoiceBox.getSelectionModel().select(i);
-                        break;
-                    }
-                    i++;
-                }
-            } finally {
-            }
+            ctrl.sqlDbChoiceBox.setValue(ctrl.defaultDatabase);
+            ctrl.sqlDbChoiceBox.setItems(ctrl.databaseChoiceBoxList);
+            selectCurrentDatabase();
             ctrl.sqlUserTextField.setText(ctrl.sqlConnect.getUsername());
             ctrl.sqlConnectChoiceBoxDbIcon.setVisible(true);
             ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
         });
+    }
+
+    private void selectCurrentDatabase() {
+        String sessionDb = ctrl.sqlConnect.getSessionDatabase();
+        String database = ctrl.sqlConnect.getDatabase();
+        int i = 0;
+        for (Database item : ctrl.databaseChoiceBoxList) {
+            String name = item.getName();
+            if (name.equals(database)
+                    || (sessionDb != null && !sessionDb.isBlank() && name.equalsIgnoreCase(sessionDb))) {
+                ctrl.sqlDbChoiceBox.getSelectionModel().select(i);
+                return;
+            }
+            i++;
+        }
     }
 
     public void setupDatabaseListener() {
@@ -405,5 +408,17 @@ public class SqlConnectionHandler {
         ObservableList<Connect> dbtypelist = FXCollections.observableArrayList(connect_list);
         ctrl.sqlConnectChoiceBox.getItems().retainAll(ctrl.sqlConnectChoiceBox.getSelectionModel().getSelectedItem());
         ctrl.sqlConnectChoiceBox.getItems().addAll(dbtypelist);
+    }
+
+    private static DatabasePlatform.IconInfo resolveIconInfo(String dbType) {
+        if (dbType == null) return null;
+        try {
+            DatabasePlatformResolver resolver = AppContext.get(DatabasePlatformResolver.class);
+            if (resolver == null) resolver = DatabasePlatforms.createDefault();
+            DatabasePlatform platform = resolver.getPlatform(dbType);
+            return platform != null ? platform.iconInfo() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

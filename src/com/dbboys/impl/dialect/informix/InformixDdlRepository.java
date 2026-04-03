@@ -70,12 +70,10 @@ public final class InformixDdlRepository implements DdlRepository {
     }
 
     /**
-     * 是否需要打印sqlmode？3.5.1之前无此功能。
-     * @param version
-     * @return
+     * Informix 不支持 sqlmode，始终返回 false。
      */
     public static boolean displaySqlMode(int version){
-        return (version < 30501)?false:true;
+        return false;
     }
 
     /**
@@ -85,25 +83,22 @@ public final class InformixDdlRepository implements DdlRepository {
      * @throws SQLException
      */
     public static int getDataBaseProductVersionNumber(Connection connection) {
-        String sqlstr = "select dbinfo('version_gbase','minor') as version from dual";
-        // AEE_3.5.1_3X2_8_25d861
+        String sqlstr = "select dbinfo('version','minor') as version from dual";
         String pattern = "\\d+\\.\\d+\\.\\d+";
         Pattern r = Pattern.compile(pattern);
-        String tmpversion = "TL_3.1.0_1";
-        int version = 30100;                    // version 3.2.0
+        String tmpversion = "0.0.0";
+        int version = 0;
 
-        // version_gbase 在 3.2.x及之后的版本中支持；
-        // 3.5.1及之后支持sqlmode写法
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlstr);
              ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 tmpversion = trim(resultSet.getString("version"));
             }
-        } catch (SQLException e){   // 没有version_gbase, 使用默认的tmpversion
-            // 不做任何事
+        } catch (SQLException e) {
+            // ignore
         }
         Matcher m = r.matcher(tmpversion);
-        if (m.find()){
+        if (m.find()) {
             tmpversion = m.group(0);
             String[] tmpsplit = tmpversion.split("\\.");
             version = Integer.parseInt(tmpsplit[0]) * 10000 + Integer.parseInt(tmpsplit[1]) * 100 + Integer.parseInt(tmpsplit[2]);
@@ -117,24 +112,16 @@ public final class InformixDdlRepository implements DdlRepository {
      * @return
      */
     public static String getDataBaseProductVersion(Connection connection) {
-        String version = "unkown version";
-        String sqlstr = "select dbinfo('version_gbase','full') as version from dual";
+        String version = "unknown version";
+        String sqlstr = "select dbinfo('version','full') as version from dual";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlstr);
              ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()){
+            while (resultSet.next()) {
                 version = trim(resultSet.getString("version"));
             }
-        } catch (SQLException e) {      // 版本低于3.2.x
-            sqlstr = "select dbinfo('version','full') as version from dual";
-            try (PreparedStatement preparedStatement = connection.prepareStatement(sqlstr);
-                 ResultSet resultSet = preparedStatement.executeQuery()) {
-                while (resultSet.next()){
-                    version = trim(resultSet.getString("version"));
-                }
-            } catch (SQLException e1) {
-                // 不做任何事情
-            }
+        } catch (SQLException e) {
+            // ignore
         }
         return version;
     }

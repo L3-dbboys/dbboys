@@ -49,6 +49,12 @@ public interface DatabasePlatform {
         return "数据库";
     }
 
+    record IconInfo(String svgPath, double scaleX, double scaleY) {}
+
+    default IconInfo iconInfo() {
+        return null;
+    }
+
     default <T> Optional<T> capability(Class<T> type) {
         if (type == null || !type.isInstance(this)) {
             return Optional.empty();

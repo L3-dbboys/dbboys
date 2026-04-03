@@ -11,6 +11,7 @@ import com.dbboys.api.NamedServerConnectionCapability;
 import com.dbboys.api.ReconnectFallbackCapability;
 import com.dbboys.api.SqlexeRepository;
 import com.dbboys.i18n.I18n;
+import com.dbboys.ui.IconPaths;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
@@ -39,6 +40,11 @@ public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
     @Override
     public String getDbType() {
         return DB_TYPE;
+    }
+
+    @Override
+    public IconInfo iconInfo() {
+        return new IconInfo(IconPaths.GBASE_LOGO, 0.22, 0.22);
     }
 
     @Override
