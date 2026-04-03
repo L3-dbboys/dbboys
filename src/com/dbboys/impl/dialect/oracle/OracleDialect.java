@@ -16,8 +16,19 @@ import java.util.List;
  */
 public final class OracleDialect implements DatabasePlatform, ConnectionSupport {
 
-    private static final String DB_TYPE = "oracle";
+    private static final String DB_TYPE = "ORACLE";
     private static final String DRIVER_CLASS = "oracle.jdbc.OracleDriver";
+    private static final String DEFAULT_CONNECTION_PROPS =
+            "[{\"propName\":\"oracle.net.CONNECT_TIMEOUT\",\"propValue\":\"\"}," +
+            "{\"propName\":\"oracle.jdbc.ReadTimeout\",\"propValue\":\"\"}," +
+            "{\"propName\":\"oracle.net.keepAlive\",\"propValue\":\"\"}," +
+            "{\"propName\":\"defaultRowPrefetch\",\"propValue\":\"\"}," +
+            "{\"propName\":\"defaultBatchValue\",\"propValue\":\"\"}," +
+            "{\"propName\":\"remarksReporting\",\"propValue\":\"\"}," +
+            "{\"propName\":\"includeSynonyms\",\"propValue\":\"\"}," +
+            "{\"propName\":\"defaultNChar\",\"propValue\":\"\"}," +
+            "{\"propName\":\"oracle.jdbc.timezoneAsRegion\",\"propValue\":\"\"}," +
+            "{\"propName\":\"oracle.net.disableOob\",\"propValue\":\"\"}]";
 
     private final MetadataRepository metadataRepository = new OracleMetadataRepository();
     private final SqlexeRepository sqlexeRepository = new OracleSqlexeRepository();
@@ -36,18 +47,18 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
 
     @Override
     public ConnectionParams getConnectionParams(Connect connect) throws Exception {
-        // 使用 thin：jdbc:oracle:thin:@host:port:sid 或 jdbc:oracle:thin:@//host:port/service_name
+        // 使用 thin service_name 形式：jdbc:oracle:thin:@//host:port/service_name
         String host = connect.getIp() != null ? connect.getIp() : "localhost";
         String port = connect.getPort() != null && !connect.getPort().isEmpty() ? connect.getPort() : "1521";
         String database = connect.getDatabase() != null ? connect.getDatabase() : "ORCL";
-        String url = "jdbc:oracle:thin:@" + host + ":" + port + ":" + database;
-        String jarFilePath = "file:extlib/" + connect.getDbtype() + "/" + (connect.getDriver() != null && !connect.getDriver().isEmpty() ? connect.getDriver() : "ojdbc8.jar");
+        String url = "jdbc:oracle:thin:@//" + host + ":" + port + "/" + database;
+        String jarFilePath = "file:extlib/" + DB_TYPE + "/" + (connect.getDriver() != null && !connect.getDriver().isEmpty() ? connect.getDriver() : "ojdbc8.jar");
         return new ConnectionParams(url, DRIVER_CLASS, jarFilePath);
     }
 
     @Override
     public void sessionInit(Connection conn, Connect connect) throws Exception {
-        // 占位：Oracle 可在此设置 current_schema 等
+        // Oracle 暂无额外会话初始化
     }
 
     @Override
@@ -63,6 +74,11 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     @Override
     public String defaultDatabase() {
         return "ORCL";
+    }
+
+    @Override
+    public String defaultConnectionProps() {
+        return DEFAULT_CONNECTION_PROPS;
     }
 
     @Override

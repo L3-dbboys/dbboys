@@ -159,6 +159,10 @@ public class SqlConnectionHandler {
             ctrl.sqlConnectIconPath.setContent(IconPaths.INFORMIX_LOGO);
             ctrl.sqlConnectIconPath.setScaleX(0.15);
             ctrl.sqlConnectIconPath.setScaleY(0.12);
+        } else if ("ORACLE".equalsIgnoreCase(dbType)) {
+            ctrl.sqlConnectIconPath.setContent(IconPaths.ORACLE_LOGO);
+            ctrl.sqlConnectIconPath.setScaleX(0.6);
+            ctrl.sqlConnectIconPath.setScaleY(0.6);
         } else if ("GBASE 8S".equalsIgnoreCase(dbType)) {
             ctrl.sqlConnectIconPath.setContent(IconPaths.GBASE_LOGO);
             ctrl.sqlConnectIconPath.setScaleX(0.2);

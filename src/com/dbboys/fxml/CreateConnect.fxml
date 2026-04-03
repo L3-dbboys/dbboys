@@ -67,6 +67,8 @@
                     <Label fx:id="portLabel" text="%createconnect.label.port">
                     </Label>
                     <CustomUserTextField fx:id="portTextField" promptText="%createconnect.prompt.port" prefWidth="48"></CustomUserTextField>
+                    <HBox alignment="CENTER_LEFT" fx:id="instanceHBox" spacing="8">
+                    </HBox>
                 </HBox>
                 <HBox fx:id="groupHbox" prefHeight="30" alignment="CENTER_LEFT" style="-fx-background-color: -color-bg-default" visible="false">
                     <Label fx:id="groupLabel" text="%createconnect.label.group" prefWidth="100">
@@ -86,8 +88,6 @@
                 </Button>
                 
             </StackPane>
-            <HBox alignment="CENTER_LEFT" fx:id="instanceHBox">
-            </HBox>
             <HBox prefHeight="30" alignment="CENTER_LEFT">
                 <Label fx:id="usernameLabel" text="%createconnect.label.username" prefWidth="100">
                 </Label>

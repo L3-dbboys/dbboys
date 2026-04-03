@@ -469,6 +469,10 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             nodeIcon.setContent(IconPaths.INFORMIX_LOGO);
             nodeIcon.setScaleX(0.15);
             nodeIcon.setScaleY(0.12);
+        } else if ("ORACLE".equalsIgnoreCase(dbType)) {
+            nodeIcon.setContent(IconPaths.ORACLE_LOGO);
+            nodeIcon.setScaleX(0.55);
+            nodeIcon.setScaleY(0.55);
         } else if ("GBASE 8S".equalsIgnoreCase(dbType)) {
             nodeIcon.setContent(IconPaths.GBASE_LOGO);
             nodeIcon.setScaleX(0.22);

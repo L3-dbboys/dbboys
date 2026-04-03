@@ -121,6 +121,8 @@ public class CreateConnectController {
     @FXML
     private Label groupLabel;
     @FXML
+    private HBox instanceHBox;
+    @FXML
     private Label usernameLabel;
     @FXML
     private Label passwordLabel;
@@ -140,6 +142,7 @@ public class CreateConnectController {
     public  Dialog<?> dialog;
     private Stage dialogStage;
     private boolean initializingDbTypeSelection = true;
+    private CustomUserTextField instanceNameTextField;
 
     public CreateConnectController(){
 
@@ -189,27 +192,14 @@ public class CreateConnectController {
             //driverChoiceBox.setItems会触发此事件，此时newvalue==null，需要排除
             if(newValue!=null){
                 connect.setDriver(newValue);
+            } else {
+                connect.setDriver("");
             }
         });
         //dbtype发生变化监听，变化后设置connect的dbtype属性，并改变driver驱动列表
         dbTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable,oldValue,newValue)->{
             connect.setDbtype(newValue);
-            List<String> driverList = new ArrayList<>();
-            File driverfolder = new File("extlib/"+connect.getDbtype());
-            File[] driverFiles = driverfolder.listFiles();
-            if (driverFiles != null) {
-                for (File file : driverFiles) {
-                    if (file.isFile()&&file.getName().toLowerCase().endsWith(".jar")) {
-                        driverList.add(file.getName());
-                    }
-                }
-            } else {
-                log.warn("Driver directory not found or not accessible: {}", driverfolder.getAbsolutePath());
-            }
-            Collections.sort(driverList);
-            ObservableList<String> driverItems = FXCollections.observableArrayList(driverList);
-            driverChoiceBox.setItems(driverItems); //触发内容变化监听
-            driverChoiceBox.getSelectionModel().select(driverItems.size()-1);
+            refreshDriverChoices(connect, newValue);
             applyDialectDefaults(connect, oldValue, newValue);
             refreshConnectionPropertiesForDbType(newValue, initializingDbTypeSelection && treeDataParam instanceof Connect);
             refreshDriverPropertyButton(newValue);
@@ -243,7 +233,7 @@ public class CreateConnectController {
                 int j=0;
                 ObservableList<String> items = dbTypeChoiceBox.getItems();
                 for (String item : items) {
-                    if(item.equals(((Connect) treeDataParam).getDbtype())){
+                    if(item.equalsIgnoreCase(((Connect) treeDataParam).getDbtype())){
                         dbTypeChoiceBox.getSelectionModel().select(j);
                     }
                     j++;
@@ -274,6 +264,7 @@ public class CreateConnectController {
 
         initializingDbTypeSelection = false;
         refreshDriverPropertyButton(dbTypeChoiceBox.getValue());
+        refreshInstanceField(dbTypeChoiceBox.getValue(), connect.getDatabase());
         applyTextFormatters();
 
 
@@ -356,7 +347,14 @@ public class CreateConnectController {
             }
         }
 
-        if (connect.getDatabase() == null || connect.getDatabase().isBlank()) {
+        if (isOracleDbType(connect.getDbtype())) {
+            String serviceName = instanceNameTextField == null ? "" : instanceNameTextField.getText();
+            if (serviceName == null || serviceName.isBlank()) {
+                connect.setDatabase(defaultDatabaseFor(connect.getDbtype()));
+            } else {
+                connect.setDatabase(serviceName.trim());
+            }
+        } else if (connect.getDatabase() == null || connect.getDatabase().isBlank()) {
             connect.setDatabase(defaultDatabaseFor(connect.getDbtype()));
         }
         connect.setUsername(usernameTextField.getText());
@@ -365,6 +363,17 @@ public class CreateConnectController {
             
     }
     public boolean checkInput(){
+        if(isOracleDbType(dbTypeChoiceBox.getValue())){
+            if(instanceNameTextField == null || instanceNameTextField.getText().isBlank()){
+                instanceNameTextField.requestFocus();
+                return false;
+            }
+        }
+        if(driverChoiceBox.getValue()==null || driverChoiceBox.getValue().isBlank()){
+            AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_required", "请先选择或添加驱动程序！"));
+            driverChoiceBox.requestFocus();
+            return false;
+        }
         if(groupHbox.isVisible()){
                 if(groupTextField.getText().isEmpty()){
                     groupTextField.requestFocus();
@@ -417,6 +426,7 @@ public class CreateConnectController {
                 || (oldDialect != null && connect.getDatabase().equalsIgnoreCase(oldDialect.connection().defaultDatabase()))) {
             connect.setDatabase(newDialect.connection().defaultDatabase());
         }
+        refreshInstanceField(newDbType, connect.getDatabase());
     }
 
     private void refreshConnectionPropertiesForDbType(String newDbType, boolean preserveExistingProps) {
@@ -470,34 +480,65 @@ public class CreateConnectController {
                 registeredDbTypes.add(platform.getDbType());
             }
         }
-
-        List<String> dbtypes = new ArrayList<>();
-        File folder = new File("extlib");
-        File[] dbTypeFolders = folder.listFiles();
-        if (dbTypeFolders == null) {
-            log.warn("extlib directory not found or not accessible: {}", folder.getAbsolutePath());
-            return dbtypes;
-        }
-        for (File file : dbTypeFolders) {
-            if (file.isDirectory() && registeredDbTypes.contains(file.getName()) && hasDriverJar(file)) {
-                dbtypes.add(file.getName());
-            }
-        }
+        List<String> dbtypes = new ArrayList<>(registeredDbTypes);
         dbtypes.sort(String.CASE_INSENSITIVE_ORDER);
         return dbtypes;
     }
 
-    private boolean hasDriverJar(File dbTypeFolder) {
-        File[] driverFiles = dbTypeFolder.listFiles();
+    private void refreshDriverChoices(Connect connect, String dbType) {
+        List<String> driverList = loadDriversForDbType(dbType);
+        ObservableList<String> driverItems = FXCollections.observableArrayList(driverList);
+        driverChoiceBox.setItems(driverItems);
+        if (!driverItems.isEmpty()) {
+            driverChoiceBox.getSelectionModel().select(driverItems.size() - 1);
+            if (connect != null) {
+                connect.setDriver(driverChoiceBox.getValue());
+            }
+        } else {
+            driverChoiceBox.getSelectionModel().clearSelection();
+            if (connect != null) {
+                connect.setDriver("");
+            }
+        }
+    }
+
+    private List<String> loadDriversForDbType(String dbType) {
+        List<String> driverList = new ArrayList<>();
+        File driverFolder = resolveDriverFolder(dbType);
+        File[] driverFiles = driverFolder.listFiles();
         if (driverFiles == null) {
-            return false;
+            return driverList;
         }
         for (File file : driverFiles) {
             if (file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".jar")) {
-                return true;
+                driverList.add(file.getName());
             }
         }
-        return false;
+        driverList.sort(String.CASE_INSENSITIVE_ORDER);
+        return driverList;
+    }
+
+    private File ensureDriverFolder(String dbType) throws IOException {
+        File driverFolder = resolveDriverFolder(dbType);
+        Files.createDirectories(driverFolder.toPath());
+        return driverFolder;
+    }
+
+    private File resolveDriverFolder(String dbType) {
+        File extlibFolder = new File("extlib");
+        File exactFolder = new File(extlibFolder, dbType == null ? "" : dbType);
+        if (exactFolder.exists()) {
+            return exactFolder;
+        }
+        File[] dbTypeFolders = extlibFolder.listFiles();
+        if (dbTypeFolders != null && dbType != null) {
+            for (File file : dbTypeFolders) {
+                if (file.isDirectory() && file.getName().equalsIgnoreCase(dbType)) {
+                    return file;
+                }
+            }
+        }
+        return exactFolder;
     }
 
     private void applyInstallTemplate(Connect connect, Connect template) {
@@ -512,6 +553,7 @@ public class CreateConnectController {
             selectChoiceValue(driverChoiceBox, template.getDriver());
         }
         connect.setDatabase(template.getDatabase());
+        refreshInstanceField(template.getDbtype(), template.getDatabase());
         String namedServerPropName = namedServerPropNameFor(template.getDbtype());
         if (!namedServerPropName.isEmpty()) {
             String namedServer = template.getPropByName(namedServerPropName);
@@ -536,7 +578,7 @@ public class CreateConnectController {
             return false;
         }
         for (int i = 0; i < items.size(); i++) {
-            if (value.equals(items.get(i))) {
+            if (value.equalsIgnoreCase(items.get(i))) {
                 choiceBox.getSelectionModel().select(i);
                 return true;
             }
@@ -557,6 +599,7 @@ public class CreateConnectController {
     }
 
     public void initialize() throws IOException {
+        setupInstanceField();
         setupIcons();
     }
 
@@ -583,6 +626,17 @@ public class CreateConnectController {
         connectingStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));
     }
 
+    private void setupInstanceField() {
+        instanceNameTextField = new CustomUserTextField();
+        instanceNameTextField.setPrefWidth(70);
+
+        if (instanceHBox != null) {
+            instanceHBox.getChildren().setAll(instanceNameTextField);
+            instanceHBox.managedProperty().bind(instanceHBox.visibleProperty());
+            instanceHBox.setVisible(false);
+        }
+    }
+
     private void applyTextFormatters() {
         connectNameTextField.setTextFormatter(new TextFormatter<String>(change -> {
             String text = change.getText();
@@ -605,10 +659,37 @@ public class CreateConnectController {
             }
             return change;
         }));
+        if (instanceNameTextField != null) {
+            instanceNameTextField.setTextFormatter(new TextFormatter<String>(change -> {
+                String text = change.getText();
+                if (text != null && text.contains(" ")) {
+                    change.setText(text.replace(" ", ""));
+                }
+                return change;
+            }));
+        }
         portTextField.setTextFormatter(new TextFormatter<String>(change -> {
             String newText = change.getControlNewText();
             return newText.matches("\\d*") ? change : null;
         }));
+    }
+
+    private void refreshInstanceField(String dbType, String databaseValue) {
+        if (instanceHBox == null || instanceNameTextField == null) {
+            return;
+        }
+        if (isOracleDbType(dbType)) {
+            instanceNameTextField.setPromptText(I18n.t("createconnect.prompt.service_name", "Oracle服务名，例如 ORCLPDB"));
+            instanceNameTextField.setText(databaseValue == null ? "" : databaseValue);
+            instanceHBox.setVisible(true);
+        } else {
+            instanceNameTextField.setText(databaseValue == null ? "" : databaseValue);
+            instanceHBox.setVisible(false);
+        }
+    }
+
+    private boolean isOracleDbType(String dbType) {
+        return "ORACLE".equalsIgnoreCase(dbType);
     }
 
     private void setConnectingVisible(boolean visible) {
@@ -640,15 +721,15 @@ public class CreateConnectController {
                 }else{
 
                     Path sourcePath = Paths.get(selectedFile.getAbsolutePath());
-                    Path targetPath = Paths.get("extlib/"+dbTypeChoiceBox.getValue()+"/"+selectedFile.getName());
                     Boolean md5same=false;
                     String sourceSamename=null;
                     try {
+                        Path targetPath = ensureDriverFolder(dbTypeChoiceBox.getValue()).toPath().resolve(selectedFile.getName());
                         String sourceMd5=MD5Util.getMD5Checksum(sourcePath.toFile().getAbsolutePath());
                         String targetMd5=null;
                         ObservableList<String> drivers = driverChoiceBox.getItems();
                         for (String driver : drivers) {
-                            targetMd5=MD5Util.getMD5Checksum(Paths.get("extlib/"+dbTypeChoiceBox.getValue()+"/"+driver).toFile().getAbsolutePath());
+                            targetMd5=MD5Util.getMD5Checksum(resolveDriverFolder(dbTypeChoiceBox.getValue()).toPath().resolve(driver).toFile().getAbsolutePath());
                             if(targetMd5.equals(sourceMd5)){
                                 md5same=true;
                                 sourceSamename=driver;
@@ -676,11 +757,14 @@ public class CreateConnectController {
 
         //删除当前驱动包
         public void deleteDriverClicked(){
+            if(driverChoiceBox.getItems().isEmpty() || driverChoiceBox.getValue() == null){
+                return;
+            }
             if(driverChoiceBox.getItems().size()<=1){
                 AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("createconnect.error.driver_last_one"));
             }else{
                 String currItem = driverChoiceBox.getValue();
-                File file = new File("extlib/"+dbTypeChoiceBox.getValue()+"/"+currItem);
+                File file = resolveDriverFolder(dbTypeChoiceBox.getValue()).toPath().resolve(currItem).toFile();
                 if(LocalDbRepository.checkDriverInUse(currItem)){
                     //如果正在使用，提示是否确认要删除
                     ButtonType buttonTypeOk = new ButtonType(I18n.t("createconnect.button.confirm"), ButtonBar.ButtonData.OK_DONE);

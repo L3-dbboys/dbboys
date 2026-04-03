@@ -46,7 +46,19 @@ public final class DatabasePlatforms implements DatabasePlatformResolver {
 
     @Override
     public DatabasePlatform getPlatform(String dbType) {
-        return dbType == null ? null : platformByDbType.get(dbType);
+        if (dbType == null) {
+            return null;
+        }
+        DatabasePlatform platform = platformByDbType.get(dbType);
+        if (platform != null) {
+            return platform;
+        }
+        for (Map.Entry<String, DatabasePlatform> entry : platformByDbType.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(dbType)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     @Override
