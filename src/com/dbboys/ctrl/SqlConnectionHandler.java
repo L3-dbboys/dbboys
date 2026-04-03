@@ -58,10 +58,7 @@ public class SqlConnectionHandler {
 
     private void handleDefaultConnectSelected() {
         ctrl.sqlConnect.setConn(null);
-        ctrl.sqlConnectIconPath.setContent(IconPaths.CONNECTION_LINK);
-        ctrl.sqlConnectChoiceBoxDbIcon.setGraphic(ctrl.sqlConnectIconPath);
-        ctrl.sqlConnectIconPath.setScaleX(0.6);
-        ctrl.sqlConnectIconPath.setScaleY(0.6);
+        applyConnectIcon(null);
         ctrl.sqlConnectChoiceBoxDbIcon.setVisible(true);
         ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
         try {
@@ -143,17 +140,7 @@ public class SqlConnectionHandler {
 
     private void updateConnectIcon() {
         Platform.runLater(() -> {
-            if (ctrl.sqlConnect.getDbtype().equals("GBASE 8S")) {
-                ctrl.sqlConnectIconPath.setContent(IconPaths.GBASE_LOGO);
-                ctrl.sqlConnectChoiceBoxDbIcon.setGraphic(new Group(ctrl.sqlConnectIconPath));
-                ctrl.sqlConnectIconPath.setScaleX(0.2);
-                ctrl.sqlConnectIconPath.setScaleY(0.2);
-            } else {
-                ctrl.sqlConnectIconPath.setContent(IconPaths.CONNECTION_LINK);
-                ctrl.sqlConnectChoiceBoxDbIcon.setGraphic(new Group(ctrl.sqlConnectIconPath));
-                ctrl.sqlConnectIconPath.setScaleX(0.6);
-                ctrl.sqlConnectIconPath.setScaleY(0.6);
-            }
+            applyConnectIcon(ctrl.sqlConnect == null ? null : ctrl.sqlConnect.getDbtype());
 
             if (ctrl.sqlConnect.getReadonly()) {
                 ctrl.sqlRecordButton.setVisible(false);
@@ -165,6 +152,23 @@ public class SqlConnectionHandler {
                 ctrl.sqlReadOnlyLabel.setVisible(false);
             }
         });
+    }
+
+    private void applyConnectIcon(String dbType) {
+        if ("INFORMIX".equalsIgnoreCase(dbType)) {
+            ctrl.sqlConnectIconPath.setContent(IconPaths.INFORMIX_LOGO);
+            ctrl.sqlConnectIconPath.setScaleX(0.15);
+            ctrl.sqlConnectIconPath.setScaleY(0.12);
+        } else if ("GBASE 8S".equalsIgnoreCase(dbType)) {
+            ctrl.sqlConnectIconPath.setContent(IconPaths.GBASE_LOGO);
+            ctrl.sqlConnectIconPath.setScaleX(0.2);
+            ctrl.sqlConnectIconPath.setScaleY(0.2);
+        } else {
+            ctrl.sqlConnectIconPath.setContent(IconPaths.CONNECTION_LINK);
+            ctrl.sqlConnectIconPath.setScaleX(0.6);
+            ctrl.sqlConnectIconPath.setScaleY(0.6);
+        }
+        ctrl.sqlConnectChoiceBoxDbIcon.setGraphic(new Group(ctrl.sqlConnectIconPath));
     }
 
     private void loadDatabasesForConnect() {

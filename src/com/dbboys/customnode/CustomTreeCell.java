@@ -438,8 +438,10 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     }
 
     private void renderDatabase(Database database, TreeData item, TreeItem<TreeData> treeItem) {
-        Connect connect = TreeViewUtil.getMetaConnect(treeItem);
-        applyDatabaseNodeIcon(connect == null ? null : connect.getDbtype());
+        nodeIcon.setContent(IconPaths.TREECELL_DATABASE);
+        nodeIcon.setScaleX(0.4);
+        nodeIcon.setScaleY(0.4);
+        applyPrimaryIconStyle(nodeIcon);
         bindNameLabel(item);
         String sysTag = isSystemDatabase(database.getName()) ? "(SYS)" : "";
         warnIcon.setVisible("nolog".equals(database.getDbLog()));
@@ -475,23 +477,6 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             nodeIcon.setContent(IconPaths.CONNECTION_LINK);
             nodeIcon.setScaleX(0.55);
             nodeIcon.setScaleY(0.55);
-        }
-        applyPrimaryIconStyle(nodeIcon);
-    }
-
-    private void applyDatabaseNodeIcon(String dbType) {
-        if ("INFORMIX".equalsIgnoreCase(dbType)) {
-            nodeIcon.setContent(IconPaths.INFORMIX_LOGO);
-            nodeIcon.setScaleX(0.15);
-            nodeIcon.setScaleY(0.12);
-        } else if ("GBASE 8S".equalsIgnoreCase(dbType)) {
-            nodeIcon.setContent(IconPaths.GBASE_LOGO);
-            nodeIcon.setScaleX(0.2);
-            nodeIcon.setScaleY(0.2);
-        } else {
-            nodeIcon.setContent(IconPaths.TREECELL_DATABASE);
-            nodeIcon.setScaleX(0.4);
-            nodeIcon.setScaleY(0.4);
         }
         applyPrimaryIconStyle(nodeIcon);
     }
