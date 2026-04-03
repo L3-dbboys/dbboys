@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * GBase 8S 方言：建连 URL/驱动、会话 sqlmode 初始化。
@@ -243,6 +244,23 @@ public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
     @Override
     public MetadataRepository metadata() {
         return metadataRepository;
+    }
+
+    @Override
+    public List<String> getColumnTypes() {
+        return List.of(
+                "SMALLINT", "INTEGER", "BIGINT", "SERIAL", "SERIAL8", "BIGSERIAL",
+                "DECIMAL", "NUMERIC", "FLOAT", "MONEY",
+                "CHAR", "VARCHAR", "VARCHAR2", "LVARCHAR", "NCHAR", "NVARCHAR", "NVARCHAR2",
+                "DATE", "DATETIME YEAR TO SECOND", "DATETIME YEAR TO FRACTION(5)", "INTERVAL",
+                "RAW", "TEXT", "BYTE", "BLOB", "CLOB",
+                "BOOLEAN", "JSON", "BSON"
+        );
+    }
+
+    @Override
+    public boolean supportsPackages() {
+        return true;
     }
 
     @Override

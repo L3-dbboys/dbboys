@@ -195,8 +195,10 @@ public class DatabaseService implements MetaObjectService {
         int procCount = repo.getProcedureCount(conn, filterType);
         result.add(procCount + "个");
 
-        int pkgCount = repo.getPackageCount(conn);
-        result.add(pkgCount + "个");
+        if (platformResolver.requirePlatform(connect).supportsPackages()) {
+            int pkgCount = repo.getPackageCount(conn);
+            result.add(pkgCount + "个");
+        }
 
         objectList.setSuccess(true);
         return objectList;

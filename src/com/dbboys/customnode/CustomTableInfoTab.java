@@ -1,7 +1,10 @@
 package com.dbboys.customnode;
 
+import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.service.TableService;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
@@ -65,6 +68,14 @@ import java.util.stream.Collectors;
 
 public class CustomTableInfoTab extends CustomTab {
     private static final Logger log = LogManager.getLogger(CustomTableInfoTab.class);
+    private static final List<String> DEFAULT_CREATE_TABLE_COLUMN_TYPES = List.of(
+            "SMALLINT", "INTEGER", "BIGINT", "SERIAL", "SERIAL8", "BIGSERIAL",
+            "DECIMAL", "NUMERIC", "FLOAT", "MONEY",
+            "CHAR", "VARCHAR", "VARCHAR2", "LVARCHAR", "NCHAR", "NVARCHAR", "NVARCHAR2",
+            "DATE", "DATETIME YEAR TO SECOND", "DATETIME YEAR TO FRACTION(5)", "INTERVAL",
+            "RAW", "TEXT", "BYTE", "BLOB", "CLOB",
+            "BOOLEAN", "JSON", "BSON"
+    );
     private static final String[] COLUMN_I18N_KEYS = {
             "tableinfo.column.name",
             "tableinfo.column.type",
@@ -81,6 +92,7 @@ public class CustomTableInfoTab extends CustomTab {
     };
     private TreeItem<TreeData> treeItem;
     private Connect connect;
+    private final DatabasePlatformResolver platformResolver = resolvePlatformResolver();
     // 为每个需要懒加载的 Tab 定义「已加载」标记
     private boolean ddlTabLoaded = false;
     private boolean colsTabLoaded = false;
@@ -190,20 +202,7 @@ public class CustomTableInfoTab extends CustomTab {
                             private final ChoiceBox<String> choiceBox = new ChoiceBox<>();
                               
                             {   // 初始化ChoiceBox
-                                // 添加Informix数据库支持的所有数据类型
-                                ObservableList<String> dataTypes = FXCollections.observableArrayList(
-                                    // 数值类型
-                                    "SMALLINT", "INTEGER", "BIGINT",  "SERIAL", "SERIAL8", "BIGSERIAL",
-                                    "DECIMAL", "NUMERIC", "FLOAT", "MONEY", 
-                                    // 字符串类型
-                                    "CHAR", "VARCHAR","VARCHAR2","LVARCHAR", "NCHAR", "NVARCHAR", "NVARCHAR2",
-                                    // 日期时间类型
-                                    "DATE", "DATETIME YEAR TO SECOND","DATETIME YEAR TO FRACTION(5)", "INTERVAL",
-                                    // 二进制类型
-                                    "RAW", "TEXT","BYTE", "BLOB", "CLOB",
-                                    // 其他类型
-                                    "BOOLEAN", "JSON","BSON"
-                                );
+                                ObservableList<String> dataTypes = buildCreateTableColumnTypes();
                                 choiceBox.setItems(dataTypes);
                                 choiceBox.setPrefWidth(150);
                                 choiceBox.setMinWidth(150);
@@ -1545,6 +1544,24 @@ private void waitAndSelectCreatedTableNode(String targetName) {
 private String buildTabTitle(String tableName) {
     String currentTableName = (tableName == null || tableName.trim().isEmpty()) ? this.tableName : tableName.trim();
     return "[table]" + connect + "." + database + "." + currentTableName;
+}
+
+private ObservableList<String> buildCreateTableColumnTypes() {
+    List<String> dataTypes = connect == null
+            ? DEFAULT_CREATE_TABLE_COLUMN_TYPES
+            : platformResolver.requirePlatform(connect).getColumnTypes();
+    if (dataTypes == null || dataTypes.isEmpty()) {
+        dataTypes = DEFAULT_CREATE_TABLE_COLUMN_TYPES;
+    }
+    return FXCollections.observableArrayList(dataTypes);
+}
+
+private static DatabasePlatformResolver resolvePlatformResolver() {
+    try {
+        return AppContext.get(DatabasePlatformResolver.class);
+    } catch (Exception e) {
+        return DatabasePlatforms.createDefault();
+    }
 }
 
 private String buildTableUserData(String tableName) {

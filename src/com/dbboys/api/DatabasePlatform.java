@@ -4,6 +4,7 @@ import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -30,6 +31,14 @@ public interface DatabasePlatform {
 
     default boolean isSystemDatabase(String databaseName) {
         return false;
+    }
+
+    default boolean supportsPackages() {
+        return false;
+    }
+
+    default List<String> getColumnTypes() {
+        return List.of();
     }
 
     default <T> Optional<T> capability(Class<T> type) {

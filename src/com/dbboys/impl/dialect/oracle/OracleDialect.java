@@ -9,6 +9,7 @@ import com.dbboys.api.SqlexeRepository;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
+import java.util.List;
 
 /**
  * Oracle 方言占位：建连参数与驱动占位，会话初始化暂不实现。
@@ -72,6 +73,17 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     @Override
     public MetadataRepository metadata() {
         return metadataRepository;
+    }
+
+    @Override
+    public List<String> getColumnTypes() {
+        return List.of(
+                "NUMBER", "INTEGER", "DECIMAL", "NUMERIC", "FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE",
+                "CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2",
+                "DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE",
+                "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND",
+                "RAW", "LONG", "LONG RAW", "CLOB", "NCLOB", "BLOB", "JSON"
+        );
     }
 
     @Override

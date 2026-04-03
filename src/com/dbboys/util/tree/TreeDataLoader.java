@@ -1,8 +1,11 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppErrorHandler;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.util.PopupWindowUtil;
 import com.dbboys.util.SqlParserUtil;
 import com.dbboys.vo.*;
@@ -194,9 +197,6 @@ public class TreeDataLoader {
                                     objectFolder = createObjectFolder(ObjectFolderKind.PROCEDURES);
                                     objectFolder.setDescription(objectList.getItems().get(8).toString());
                                     TreeItem<TreeData> procedureTreeItem = TreeViewBuilder.createTreeItem(objectFolder);
-                                    objectFolder = createObjectFolder(ObjectFolderKind.PACKAGES);
-                                    objectFolder.setDescription(objectList.getItems().get(9).toString());
-                                    TreeItem<TreeData> packageTreeItem = TreeViewBuilder.createTreeItem(objectFolder);
                                     treeItem.getChildren().add(systableTreeItem);
                                     treeItem.getChildren().add(tableTreeItem);
                                     treeItem.getChildren().add(viewTreeItem);
@@ -206,7 +206,13 @@ public class TreeDataLoader {
                                     treeItem.getChildren().add(triggerTreeItem);
                                     treeItem.getChildren().add(functionTreeItem);
                                     treeItem.getChildren().add(procedureTreeItem);
-                                    treeItem.getChildren().add(packageTreeItem);
+                                    if (supportsPackages(TreeNavigator.getMetaConnect(treeItem))
+                                            && objectList.getItems().size() > 9) {
+                                        objectFolder = createObjectFolder(ObjectFolderKind.PACKAGES);
+                                        objectFolder.setDescription(objectList.getItems().get(9).toString());
+                                        TreeItem<TreeData> packageTreeItem = TreeViewBuilder.createTreeItem(objectFolder);
+                                        treeItem.getChildren().add(packageTreeItem);
+                                    }
                                     //addExpandedPropertyListen(treeItem);
                                 });
                             }
@@ -489,5 +495,20 @@ public class TreeDataLoader {
                 || kind == ObjectFolderKind.FUNCTIONS
                 || kind == ObjectFolderKind.PROCEDURES
                 || kind == ObjectFolderKind.PACKAGES;
+    }
+
+    private static boolean supportsPackages(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        return resolvePlatformResolver().requirePlatform(connect).supportsPackages();
+    }
+
+    private static DatabasePlatformResolver resolvePlatformResolver() {
+        try {
+            return AppContext.get(DatabasePlatformResolver.class);
+        } catch (Exception e) {
+            return DatabasePlatforms.createDefault();
+        }
     }
 }

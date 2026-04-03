@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public final class InformixDialect implements DatabasePlatform, ConnectionSupport,
         NamedServerConnectionCapability, ReconnectFallbackCapability, InstanceManagerCapability {
@@ -223,6 +224,18 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
     @Override
     public MetadataRepository metadata() {
         return metadataRepository;
+    }
+
+    @Override
+    public List<String> getColumnTypes() {
+        return List.of(
+                "SMALLINT", "INTEGER", "BIGINT", "SERIAL", "SERIAL8", "BIGSERIAL",
+                "DECIMAL", "NUMERIC", "FLOAT", "MONEY",
+                "CHAR", "VARCHAR", "LVARCHAR", "NCHAR", "NVARCHAR",
+                "DATE", "DATETIME YEAR TO SECOND", "DATETIME YEAR TO FRACTION(5)", "INTERVAL",
+                "TEXT", "BYTE", "BLOB", "CLOB",
+                "BOOLEAN", "JSON", "BSON"
+        );
     }
 
     @Override
