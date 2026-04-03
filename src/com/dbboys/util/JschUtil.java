@@ -32,7 +32,7 @@ public class JschUtil {
     public static String extractEnvValue(String configStr) {
         // 动态拼接正则（替换 key 部分）
         String exportString="";
-        String regex = "\\b(GBASEDBTDIR|GBASEDBTSERVER|GBASEDBTSQLHOSTS|GBASEDBTTERM|PATH|TERMCAP|DB_LOCALE|CLIENT_LOCALE|NODEFDAC|ONCONFIG|GL_USEGLU|DBDELIMITER|DELIMIDENT|DBDATE)\\b\\s+(.+?)\\s*$";
+        String regex = "\\b(GBASEDBTDIR|GBASEDBTSERVER|GBASEDBTSQLHOSTS|GBASEDBTTERM|INFORMIXDIR|INFORMIXSERVER|INFORMIXSQLHOSTS|PATH|TERMCAP|DB_LOCALE|CLIENT_LOCALE|NODEFDAC|ONCONFIG|GL_USEGLU|DBDELIMITER|DELIMIDENT|DBDATE)\\b\\s+(.+?)\\s*$";
         Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
         Matcher matcher = pattern.matcher(configStr);
         while (matcher.find()){

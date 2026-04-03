@@ -4,6 +4,7 @@ import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DdlRepository;
+import com.dbboys.api.InstanceManagerCapability;
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.api.MetadataRepository;
 import com.dbboys.api.NamedServerConnectionCapability;
@@ -18,7 +19,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public final class InformixDialect implements DatabasePlatform, ConnectionSupport,
-        NamedServerConnectionCapability, ReconnectFallbackCapability {
+        NamedServerConnectionCapability, ReconnectFallbackCapability, InstanceManagerCapability {
 
     private static final String DB_TYPE = "INFORMIX";
     private static final String DRIVER_CLASS = "com.informix.jdbc.IfxDriver";
@@ -86,6 +87,26 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
     @Override
     public String defaultConnectionProps() {
         return DEFAULT_CONNECTION_PROPS;
+    }
+
+    @Override
+    public boolean supportsInstanceManager(Connect connect) {
+        return connect != null && "informix".equalsIgnoreCase(connect.getUsername());
+    }
+
+    @Override
+    public String installDirEnvName() {
+        return "INFORMIXDIR";
+    }
+
+    @Override
+    public String adminOsUser(Connect connect) {
+        return "informix";
+    }
+
+    @Override
+    public String versionExpectation() {
+        return "Informix 12.1+";
     }
 
     @Override

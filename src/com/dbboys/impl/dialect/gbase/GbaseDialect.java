@@ -4,6 +4,7 @@ import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DdlRepository;
+import com.dbboys.api.InstanceManagerCapability;
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.api.MetadataRepository;
 import com.dbboys.api.NamedServerConnectionCapability;
@@ -21,7 +22,7 @@ import java.sql.SQLException;
  * GBase 8S 方言：建连 URL/驱动、会话 sqlmode 初始化。
  */
 public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
-        NamedServerConnectionCapability, ReconnectFallbackCapability {
+        NamedServerConnectionCapability, ReconnectFallbackCapability, InstanceManagerCapability {
 
     private static final String DB_TYPE = "GBASE 8S";
     private static final String DRIVER_CLASS = "com.gbasedbt.jdbc.Driver";
@@ -88,6 +89,26 @@ public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
     @Override
     public String defaultConnectionProps() {
         return DEFAULT_CONNECTION_PROPS;
+    }
+
+    @Override
+    public boolean supportsInstanceManager(Connect connect) {
+        return connect != null && "gbasedbt".equalsIgnoreCase(connect.getUsername());
+    }
+
+    @Override
+    public String installDirEnvName() {
+        return "GBASEDBTDIR";
+    }
+
+    @Override
+    public String adminOsUser(Connect connect) {
+        return "gbasedbt";
+    }
+
+    @Override
+    public String versionExpectation() {
+        return "GBase8sV8.x";
     }
 
     @Override

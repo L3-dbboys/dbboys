@@ -1,5 +1,9 @@
 package com.dbboys.customnode;
 
+import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.api.InstanceManagerCapability;
+import com.dbboys.api.NamedServerConnectionCapability;
+import com.dbboys.app.AppContext;
 import com.dbboys.app.AppExecutor;
 import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
@@ -54,6 +58,7 @@ public class CustomInstanceTab extends CustomTab {
     private static final Logger log = LogManager.getLogger(CustomInstanceTab.class);
     private final AdminService adminService = new AdminService();
     private final ConnectionService connectionService = com.dbboys.app.AppContext.get(ConnectionService.class);
+    private final DatabasePlatformResolver platformResolver = AppContext.get(DatabasePlatformResolver.class);
     private Connect connect;
     // 为每个需要懒加载的 Tab 定义「已加载」标记
     private boolean infoTabLoaded = false;
@@ -122,7 +127,7 @@ public class CustomInstanceTab extends CustomTab {
         this.connect=connect;
 
         //实例信息tab初始化变量
-        String instanceName=connect.getInfo().split("GBASEDBTSERVER")[1].split("\n")[0].trim();
+        String instanceName = resolveInstanceName();
         instanceNameText.set(instanceName);
         instanceIpText.set(connect.getIp());
         instancePortText.set(connect.getPort());
@@ -157,7 +162,7 @@ public class CustomInstanceTab extends CustomTab {
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY && !row.isEmpty()) {
                     HealthCheck rowData = row.getItem();
-                    if("onstat -m".equals(rowData.getCmd())) {
+                    if(resolveRuntimeLogCommand().equals(rowData.getCmd())) {
                         mainTabPane.getSelectionModel().select(logTab);
                     }else
                     if(rowData.getCmdOutput()!=null&&!rowData.getCmdOutput().isEmpty()){
@@ -264,10 +269,11 @@ public class CustomInstanceTab extends CustomTab {
 
             event.getTableView().refresh();
             String cmd;
+            String installDirEnv = "$" + resolveInstallDirEnvName();
             if(paramName.equals("BUFFERPOOL")||paramName.equals("VPCLASS")){
-                cmd="sed -i \"s#^"+paramName+" *"+colvalue.toString().split(",")[0]+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" $GBASEDBTDIR/etc/$ONCONFIG";
+                cmd="sed -i \"s#^"+paramName+" *"+colvalue.toString().split(",")[0]+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" " + installDirEnv + "/etc/$ONCONFIG";
             }else{
-                cmd="onmode -wf "+paramName+"=\""+colvalue.toString()+"\";sed -i \"s#^"+paramName+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" $GBASEDBTDIR/etc/$ONCONFIG";
+                cmd="onmode -wf "+paramName+"=\""+colvalue.toString()+"\";sed -i \"s#^"+paramName+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" " + installDirEnv + "/etc/$ONCONFIG";
             }
 
             Task<Void> task = new Task<>() {
@@ -602,7 +608,8 @@ public class CustomInstanceTab extends CustomTab {
                             }
                         }
 
-                        cmd="touch "+filePathTextField.getText()+"&&chown gbasedbt:gbasedbt "+filePathTextField.getText()+"&&chmod 660 "+filePathTextField.getText()+"&&"+cmd;
+                        String adminOsUser = resolveAdminOsUser();
+                        cmd="touch "+filePathTextField.getText()+"&&chown " + adminOsUser + ":" + adminOsUser + " " + filePathTextField.getText()+"&&chmod 660 "+filePathTextField.getText()+"&&"+cmd;
                         String finalCmd = cmd;
 
                         Task<Void> task = new Task<>() {
@@ -1032,7 +1039,7 @@ public class CustomInstanceTab extends CustomTab {
        bindLazyLoadToTab(paramsTab, () -> loadParamsTabContent(paramsTab), () -> paramsTabLoaded, (loaded) -> paramsTabLoaded = loaded);
         bindLazyLoadToTab(startTab, () -> loadStartTabContent(startTab), () -> startTabLoaded, (loaded) -> startTabLoaded = loaded);
 
-        if(connect.getUsername().equals("gbasedbt")){
+        if(supportsAdminFeatures()){
             mainTabPane.getTabs().addAll(infoTab,checkTab,logTab,spaceTab,paramsTab,startTab);
         }else{
             mainTabPane.getTabs().addAll(infoTab);
@@ -1108,51 +1115,132 @@ public class CustomInstanceTab extends CustomTab {
     }
 
     private void updateGroupInstanceInfo() {
-        if(!connect.getPropByName("GBASEDBTSERVER").isEmpty()){
-            try{
-            String primaryInstance=connectionService.setConnectInfo(connect);
-            String regex = "^" + primaryInstance + "\\s+.*\\s+g=" + connect.getPropByName("GBASEDBTSERVER") + "\\s*$";
+        String namedServerProp = resolveNamedServerPropertyName();
+        if (namedServerProp.isEmpty() || connect.getPropByName(namedServerProp).isEmpty()) {
+            return;
+        }
+        try {
+            String primaryInstance = connectionService.setConnectInfo(connect);
+            if (primaryInstance == null || primaryInstance.isBlank()) {
+                return;
+            }
+            String regex = "^" + Pattern.quote(primaryInstance) + "\\s+.*\\s+g="
+                    + Pattern.quote(connect.getPropByName(namedServerProp)) + "\\s*$";
             Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
-            String sqlhostsContent = Files.readString(Paths.get("extlib/GBASE 8S/sqlhosts"));
+            String sqlhostsContent = Files.readString(Paths.get("extlib", connect.getDbtype(), "sqlhosts"));
 
             Matcher matcher = pattern.matcher(sqlhostsContent);
-            
-            // 处理匹配到的行
             while (matcher.find()) {
                 String matchedLine = matcher.group();
                 log.info("匹配到的sqlhosts行: {}", matchedLine);
-                
-                // 这里可以添加对匹配行的处理逻辑
-                // 例如：解析行中的实例信息、更新UI等
-                String[] parts = matchedLine.split("\\s+");
-                if (parts.length >= 4) {
-                    String instanceName = parts[0];
-                    String protocol = parts[1];
-                    String host = parts[2];
-                    connect.setIp(host);
-                    String port = parts[3];
-                    connect.setPort(port);
-                    connect.setInfo(connect.getInfo().replaceAll("(GBASEDBTSERVER\\s+)\\S+", "$1" + instanceName));
-                    Platform.runLater(()->{
-                        instanceNameText.set(instanceName);
-                        instanceIpText.set(connect.getIp());
-                        instancePortText.set(connect.getPort());
-                    });
 
-                    // 打印解析结果
-                    log.info("实例名: {}, 协议: {}, 主机: {}, 端口: {}", 
-                            instanceName, protocol, host, port);
-                    
-                    // 这里可以添加更新UI的逻辑
-                    // 例如：将实例信息添加到表格中
+                String[] parts = matchedLine.split("\\s+");
+                if (parts.length < 4) {
+                    continue;
                 }
+                String instanceName = parts[0];
+                String protocol = parts[1];
+                String host = parts[2];
+                String port = parts[3];
+                connect.setIp(host);
+                connect.setPort(port);
+                connect.setInfo(replaceInfoValue(connect.getInfo(), namedServerProp, instanceName));
+                Platform.runLater(() -> {
+                    instanceNameText.set(instanceName);
+                    instanceIpText.set(connect.getIp());
+                    instancePortText.set(connect.getPort());
+                });
+
+                log.info("实例名: {}, 协议: {}, 主机: {}, 端口: {}",
+                        instanceName, protocol, host, port);
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             log.error(e.getMessage(), e);
-        
         }
     }
 
+    private String resolveNamedServerPropertyName() {
+        return platformResolver.capability(connect, NamedServerConnectionCapability.class)
+                .map(NamedServerConnectionCapability::namedServerPropertyName)
+                .orElse("");
+    }
+
+    private boolean supportsAdminFeatures() {
+        return resolveInstanceManagerCapability()
+                .map(capability -> capability.supportsInstanceManager(connect))
+                .orElse(false);
+    }
+
+    private String resolveInstallDirEnvName() {
+        return resolveInstanceManagerCapability()
+                .map(InstanceManagerCapability::installDirEnvName)
+                .orElseGet(() -> {
+                    String info = connect.getInfo();
+                    if (info != null && info.contains("INFORMIXDIR")) {
+                        return "INFORMIXDIR";
+                    }
+                    if (info != null && info.contains("GBASEDBTDIR")) {
+                        return "GBASEDBTDIR";
+                    }
+                    return "INFORMIX".equalsIgnoreCase(connect.getDbtype()) ? "INFORMIXDIR" : "GBASEDBTDIR";
+                });
+    }
+
+    private String resolveAdminOsUser() {
+        String username = connect.getUsername();
+        if (username != null && !username.isBlank()) {
+            return username;
+        }
+        return resolveInstanceManagerCapability()
+                .map(capability -> capability.adminOsUser(connect))
+                .orElseGet(() -> "INFORMIX".equalsIgnoreCase(connect.getDbtype()) ? "informix" : "gbasedbt");
+    }
+
+    private String resolveRuntimeLogCommand() {
+        return resolveInstanceManagerCapability()
+                .map(InstanceManagerCapability::runtimeLogCommand)
+                .orElse("onstat -m");
+    }
+
+    private String resolveVersionExpectation() {
+        return resolveInstanceManagerCapability()
+                .map(InstanceManagerCapability::versionExpectation)
+                .filter(value -> value != null && !value.isBlank())
+                .orElse("数据库版本");
+    }
+
+    private java.util.Optional<InstanceManagerCapability> resolveInstanceManagerCapability() {
+        return platformResolver.capability(connect, InstanceManagerCapability.class);
+    }
+
+    private String resolveInstanceName() {
+        String namedServerProp = resolveNamedServerPropertyName();
+        String instanceName = extractInfoValue(connect.getInfo(), namedServerProp);
+        if (!instanceName.isEmpty()) {
+            return instanceName;
+        }
+        String propValue = namedServerProp.isEmpty() ? "" : connect.getPropByName(namedServerProp);
+        return propValue == null ? "" : propValue.trim();
+    }
+
+    private static String extractInfoValue(String info, String key) {
+        if (info == null || info.isBlank() || key == null || key.isBlank()) {
+            return "";
+        }
+        Matcher matcher = Pattern.compile("(?m)^" + Pattern.quote(key) + "\\s+(.+?)\\s*$").matcher(info);
+        if (!matcher.find()) {
+            return "";
+        }
+        return matcher.group(1).trim();
+    }
+
+    private static String replaceInfoValue(String info, String key, String value) {
+        if (info == null || info.isBlank() || key == null || key.isBlank()) {
+            return info;
+        }
+        return info.replaceAll(
+                "(?m)^(" + Pattern.quote(key) + "\\s+)\\S+\\s*$",
+                "$1" + Matcher.quoteReplacement(value == null ? "" : value));
     }
     /**
      * 通用 Tab 懒加载绑定方法（抽取公共逻辑，避免重复代码）
@@ -1345,7 +1433,7 @@ public class CustomInstanceTab extends CustomTab {
             currentValue=onstat_V;
             status="0";
         }
-        addHealthCheck(checkDatalist, "数据库版本","onstat -V", "GBase8sV8.x",currentValue,status,onstat_V);
+        addHealthCheck(checkDatalist, "数据库版本","onstat -V", resolveVersionExpectation(),currentValue,status,onstat_V);
 
         currentValue="实例状态异常";
         status="2";
@@ -1543,7 +1631,7 @@ public class CustomInstanceTab extends CustomTab {
                 status = "0";
             }
         }
-        addHealthCheck(checkDatalist, "实例运行日志", "onstat -m", "err、failed关键字数量为0", currentValue, status,onstat_m);
+        addHealthCheck(checkDatalist, "实例运行日志", resolveRuntimeLogCommand(), "err、failed关键字数量为0", currentValue, status,onstat_m);
 
         currentValue="实例状态异常";
         status="2";
