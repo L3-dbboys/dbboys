@@ -2,6 +2,7 @@ package com.dbboys.impl;
 
 import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.api.ConnectionService;
+import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.api.ReconnectFallbackCapability;
@@ -34,16 +35,16 @@ public class ConnectionServiceImpl implements ConnectionService {
     private final DatabasePlatformResolver platformResolver;
 
     public ConnectionServiceImpl() {
-        this(DialectServices.createDefault());
+        this(DatabasePlatforms.createDefault());
     }
 
     public ConnectionServiceImpl(DatabasePlatformResolver platformResolver) {
-        this.platformResolver = platformResolver != null ? platformResolver : DialectServices.createDefault();
+        this.platformResolver = platformResolver != null ? platformResolver : DatabasePlatforms.createDefault();
     }
 
     public Connection createConnection(Connect connect) throws Exception {
         DatabasePlatform dialect = platformResolver.requirePlatform(connect);
-        DatabasePlatform.ConnectionParams params = dialect.getConnectionParams(connect);
+        ConnectionSupport.ConnectionParams params = dialect.connection().getConnectionParams(connect);
         Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
         Properties info = buildConnectionProperties(connect, false);
         return driver.connect(params.getUrl(), info);
@@ -95,7 +96,7 @@ public class ConnectionServiceImpl implements ConnectionService {
 
     public Connection getConnectionWithSessionInit(Connect connect) throws Exception {
         DatabasePlatform dialect = platformResolver.requirePlatform(connect);
-        DatabasePlatform.ConnectionParams params = dialect.getConnectionParams(connect);
+        ConnectionSupport.ConnectionParams params = dialect.connection().getConnectionParams(connect);
         Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
         Properties info = buildConnectionProperties(connect, shouldIgnoreTrimTrailingSpaces(connect));
         Connection conn = driver.connect(params.getUrl(), info);
@@ -120,9 +121,9 @@ public class ConnectionServiceImpl implements ConnectionService {
             return;
         }
         DatabasePlatform dialect = platformResolver.getPlatform(connect.getDbtype());
-        if (dialect != null && dialect.supportsSessionInit()) {
+        if (dialect != null && dialect.connection().supportsSessionInit()) {
             try {
-                dialect.sessionInit(conn, connect);
+                dialect.connection().sessionInit(conn, connect);
             } catch (Exception e) {
                 // ignore
             }
@@ -163,7 +164,7 @@ public class ConnectionServiceImpl implements ConnectionService {
             }
             result.setSuccess(true);
         } catch (SQLException e) {
-            ChangeDatabaseFailureKind kind = dialect.classifyChangeDatabaseFailure(e);
+            ChangeDatabaseFailureKind kind = dialect.connection().classifyChangeDatabaseFailure(e);
             if (kind == ChangeDatabaseFailureKind.DISCONNECTED) {
                 result.setDisconnected(true);
             } else if (kind == ChangeDatabaseFailureKind.RETRY_WITH_NEW_CONNECTION) {
@@ -208,7 +209,7 @@ public class ConnectionServiceImpl implements ConnectionService {
         if (connect == null) {
             return null;
         }
-        return platformResolver.requirePlatform(connect).modifyProps(connect, propName, propValue);
+        return platformResolver.requirePlatform(connect).connection().modifyProps(connect, propName, propValue);
     }
 
     private void adjustDefaultDatabaseIsolationLevel(Connect connect,
@@ -252,7 +253,7 @@ public class ConnectionServiceImpl implements ConnectionService {
             return false;
         }
         try {
-            return dialect.testConnection(connect.getConn());
+            return dialect.connection().testConnection(connect.getConn());
         } catch (Exception e) {
             log.error("Operation failed", e);
             return false;
@@ -279,7 +280,7 @@ public class ConnectionServiceImpl implements ConnectionService {
             DatabasePlatform dialect = platformResolver.getPlatform(connect.getDbtype());
             String fallback = resolveReconnectFallbackDatabase(dialect);
             if (dialect != null
-                    && dialect.classifyChangeDatabaseFailure(e) == ChangeDatabaseFailureKind.RETRY_WITH_NEW_CONNECTION
+                    && dialect.connection().classifyChangeDatabaseFailure(e) == ChangeDatabaseFailureKind.RETRY_WITH_NEW_CONNECTION
                     && fallback != null) {
                 repo.setDatabase(connect.getConn(), fallback);
                 Connect connect1 = new Connect(connect);
@@ -344,7 +345,7 @@ public class ConnectionServiceImpl implements ConnectionService {
             return true;
         }
         DatabasePlatform platform = platformResolver.getPlatform(connect.getDbtype());
-        return platform != null && containsConnectionProperty(platform.defaultConnectionProps(), propName);
+        return platform != null && containsConnectionProperty(platform.connection().defaultConnectionProps(), propName);
     }
 
     private boolean containsConnectionProperty(String propsJson, String propName) {
@@ -366,10 +367,12 @@ public class ConnectionServiceImpl implements ConnectionService {
     }
 
     private String resolveReconnectFallbackDatabase(DatabasePlatform dialect) {
-        if (dialect instanceof ReconnectFallbackCapability capability) {
-            return capability.reconnectFallbackDatabaseName();
+        if (dialect == null) {
+            return null;
         }
-        return null;
+        return dialect.capability(ReconnectFallbackCapability.class)
+                .map(ReconnectFallbackCapability::reconnectFallbackDatabaseName)
+                .orElse(null);
     }
 
     private void applyReconnectFailure(ChangeDefaultDatabaseResult result, Exception ex) {

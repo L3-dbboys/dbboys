@@ -1,6 +1,7 @@
 package com.dbboys.impl.dialect.gbase;
 
 import com.dbboys.api.ChangeDatabaseFailureKind;
+import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DdlRepository;
 import com.dbboys.api.InstanceAdminRepository;
@@ -19,7 +20,8 @@ import java.sql.SQLException;
 /**
  * GBase 8S 方言：建连 URL/驱动、会话 sqlmode 初始化。
  */
-public final class GbaseDialect implements DatabasePlatform, NamedServerConnectionCapability, ReconnectFallbackCapability {
+public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
+        NamedServerConnectionCapability, ReconnectFallbackCapability {
 
     private static final String DB_TYPE = "GBASE 8S";
     private static final String DRIVER_CLASS = "com.gbasedbt.jdbc.Driver";
@@ -35,6 +37,11 @@ public final class GbaseDialect implements DatabasePlatform, NamedServerConnecti
     @Override
     public String getDbType() {
         return DB_TYPE;
+    }
+
+    @Override
+    public ConnectionSupport connection() {
+        return this;
     }
 
     @Override
@@ -200,7 +207,7 @@ public final class GbaseDialect implements DatabasePlatform, NamedServerConnecti
             return null;
         }
         if (!"DB_LOCALE".equals(propName)) {
-            return DatabasePlatform.super.modifyProps(connect, propName, propValue);
+            return ConnectionSupport.super.modifyProps(connect, propName, propValue);
         }
         if (propValue == null || propValue.trim().isEmpty()) {
             return connect.getProps();
@@ -209,26 +216,26 @@ public final class GbaseDialect implements DatabasePlatform, NamedServerConnecti
                 .replaceAll("(?i)" + "UTF8", "57372")
                 .replaceAll("(?i)" + "GB18030-2000", "5488")
                 .trim();
-        return DatabasePlatform.super.modifyProps(connect, propName, normalized);
+        return ConnectionSupport.super.modifyProps(connect, propName, normalized);
     }
 
     @Override
-    public MetadataRepository getMetadataRepository() {
+    public MetadataRepository metadata() {
         return metadataRepository;
     }
 
     @Override
-    public SqlexeRepository getSqlexeRepository() {
+    public SqlexeRepository sql() {
         return sqlexeRepository;
     }
 
     @Override
-    public DdlRepository getDdlRepository() {
+    public DdlRepository ddl() {
         return ddlRepository;
     }
 
     @Override
-    public InstanceAdminRepository getInstanceAdminRepository() {
+    public InstanceAdminRepository admin() {
         return instanceAdminRepository;
     }
 }

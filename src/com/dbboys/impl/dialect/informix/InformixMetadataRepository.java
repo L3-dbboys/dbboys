@@ -157,7 +157,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_SYSTEM_TABLES = """
-            select ?,dt.tabname,max(dt.owner),max(to_char(dt.created,'YYYY-MM-DD')),max(case when dt.tabtype=='V' then 'view' else 'table' end ),max(dt.locklevel) lock_level,
+            select %s,dt.tabname,max(dt.owner),max(to_char(dt.created,'YYYY-MM-DD')),max(case when dt.tabtype=='V' then 'view' else 'table' end ),max(dt.locklevel) lock_level,
             max(case when dt.partnum==0 then 1 else 0 end) isfragment,sum(ti_nextns) extents,
             sum(sin.ti_nrows) nrows,max(sin.ti_pagesize) pagesize, sum(sin.ti_nptotal) nptotal, nvl(replace(format_units(sum(sin.ti_nptotal*sin.ti_pagesize),'b'),' ','') ,'0.000B')  total_size,
             sum(sin.ti_npdata) npused,nvl(replace(format_units(sum(sin.ti_npdata*sin.ti_pagesize),'b'),' ',''),'0.000B') used_size
@@ -170,7 +170,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_USER_TABLES = """
-            select ?,tabname,max(owner),max(createtime),max(tabtype),max(locklevel),max(isfragment),
+            select %s,tabname,max(owner),max(createtime),max(tabtype),max(locklevel),max(isfragment),
             sum(ti_nextns) extents,
             sum(ti_nrows) nrows,max(ti_pagesize) pagesize, sum(ti_nptotal) nptotal,  replace(format_units(sum(ti_nptotal*ti_pagesize),'b'),' ','')  total_size,
             sum(ti_npdata) npused,replace(format_units(sum(ti_npdata*ti_pagesize),'b'),' ','')
@@ -189,7 +189,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_TABLE_DETAIL = """
-            select ?,max(tabname),max(owner),max(createtime),max(tabtype),max(locklevel),max(isfragment),
+            select %s,max(tabname),max(owner),max(createtime),max(tabtype),max(locklevel),max(isfragment),
             sum(ti_nextns) extents,
             sum(ti_nrows) nrows,max(ti_pagesize) pagesize, sum(ti_nptotal) nptotal,  replace(format_units(sum(ti_nptotal*ti_pagesize),'b'),' ','')  total_size,
             sum(ti_npdata) npused,replace(format_units(sum(ti_npdata*ti_pagesize),'b'),' ','')
@@ -212,7 +212,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_INDEXES = """
-            select ?, i.idxname, t.tabname,
+            select %s, i.idxname, t.tabname,
             trim( case when i.part1 > 0 then( select colname from syscolumns where colno = i.part1 and tabid = i.tabid ) else '' end )
             || trim( case when i.part2 > 0 then( select ',' || colname from syscolumns where colno = i.part2 and tabid = i.tabid ) else '' end )
             || trim( case when i.part3 > 0 then( select ',' || colname from syscolumns where colno = i.part3 and tabid = i.tabid ) else '' end )
@@ -259,7 +259,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_INDEX = """
-            select ?, i.idxname, t.tabname,
+            select %s, i.idxname, t.tabname,
             trim( case when i.part1 > 0 then( select colname from syscolumns where colno = i.part1 and tabid = i.tabid ) else '' end )
             || trim( case when i.part2 > 0 then( select ',' || colname from syscolumns where colno = i.part2 and tabid = i.tabid ) else '' end )
             || trim( case when i.part3 > 0 then( select ',' || colname from syscolumns where colno = i.part3 and tabid = i.tabid ) else '' end )
@@ -299,7 +299,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_SEQUENCES = """
-            select ?,tabname as seqname,min_val,max_val,inc_val,cache,cur_serial8,t.created
+            select %s,tabname as seqname,min_val,max_val,inc_val,cache,cur_serial8,t.created
             from systables t,syssequences q,sysmaster:sysptnhdr p
             where t.tabtype='Q' and t.tabid=q.tabid and t.partnum=p.partnum
             """;
@@ -309,7 +309,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_SYNONYMS = """
-            select ?,tabname,case tabtype when 'S' then 'PUBLIC' else 'PRIVATE' end,created
+            select %s,tabname,case tabtype when 'S' then 'PUBLIC' else 'PRIVATE' end,created
             from systables where tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION') and tabtype in ('P','S')
             """;
 
@@ -318,7 +318,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_TRIGGERS = """
-            select ?,tabname,trigname,
+            select %s,tabname,trigname,
             case event when 'S' then 'select' when 'D' then 'delete' when 'U' then 'update' when 'I' then 'insert' end,
             s.state
             from systriggers t,sysobjstate s,systables st
@@ -326,7 +326,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_TRIGGER = """
-            select ?,tabname,trigname,
+            select %s,tabname,trigname,
             case event when 'S' then 'select' when 'D' then 'delete' when 'U' then 'update' when 'I' then 'insert' end,
             s.state
             from systriggers t,sysobjstate s,systables st
@@ -338,7 +338,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_VIEWS = """
-            select ?,tabname,owner,to_char(created,'YYYY-MM-DD')
+            select %s,tabname,owner,to_char(created,'YYYY-MM-DD')
             from systables where tabid>(SELECT tabid FROM systables WHERE tabname = ' VERSION')  and tabtype='V'
             """;
 
@@ -355,7 +355,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_FUNCTIONS = """
-            select distinct ?,procname,owner FROM sysprocedures WHERE isproc = 'f' and mode='O'%s
+            select distinct %1$s,procname,owner FROM sysprocedures WHERE isproc = 'f' and mode='O'%2$s
             """;
 
     private static final String SQL_PROCEDURE_COUNT = """
@@ -363,7 +363,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_PROCEDURES = """
-            select distinct ?,procname,owner FROM sysprocedures WHERE isproc = 't' and mode='O'%s
+            select distinct %1$s,procname,owner FROM sysprocedures WHERE isproc = 't' and mode='O'%2$s
             """;
 
     private static final String SQL_PACKAGE_COUNT = """
@@ -371,7 +371,7 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
             """;
 
     private static final String SQL_PACKAGES = """
-            select ?,procname,owner,count(*) FROM sysprocedures WHERE mode='O' and retsize=0 group by 1,2,3 order by 1,2
+            select %s,procname,owner,count(*) FROM sysprocedures WHERE mode='O' and retsize=0 group by 1,2,3 order by 1,2
             """;
 
     private static final String SQL_PRIMARY_KEY_COLUMNS = """
@@ -496,7 +496,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<SysTable> getSystemTables(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_SYSTEM_TABLES, List.of(databaseName, databaseName), rs -> {
+        String sql = SQL_SYSTEM_TABLES.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, List.of(databaseName), rs -> {
             SysTable table = new SysTable(rs.getString(2));
             table.setTableCatalog(rs.getString(1));
             table.setTableOwner(rs.getString(3));
@@ -517,7 +518,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Table> getUserTables(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_USER_TABLES, List.of(databaseName), rs -> {
+        String sql = SQL_USER_TABLES.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, null, rs -> {
             Table table = new Table(rs.getString(2));
             table.setTableCatalog(rs.getString(1));
             table.setTableOwner(rs.getString(3));
@@ -538,7 +540,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public Table getTable(Connection conn, String databaseName, String tableName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.queryOne(SQL_TABLE_DETAIL, List.of(databaseName, tableName), rs -> {
+        String sql = SQL_TABLE_DETAIL.formatted(toSqlStringLiteral(databaseName));
+        return runner.queryOne(sql, List.of(tableName), rs -> {
             Table table = new Table(rs.getString(2));
             table.setTableCatalog(rs.getString(1));
             table.setTableOwner(rs.getString(3));
@@ -565,7 +568,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Index> getIndexes(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_INDEXES, List.of(databaseName, databaseName), rs -> {
+        String sql = SQL_INDEXES.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, List.of(databaseName), rs -> {
             Index index = new Index(rs.getString(2));
             index.setDatabase(rs.getString(1));
             index.setTabname(rs.getString(3));
@@ -594,7 +598,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public Index getIndex(Connection conn, String databaseName, String indexName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.queryOne(SQL_INDEX, List.of(databaseName, indexName), rs -> {
+        String sql = SQL_INDEX.formatted(toSqlStringLiteral(databaseName));
+        return runner.queryOne(sql, List.of(indexName), rs -> {
             Index index = new Index(rs.getString(2));
             index.setDatabase(rs.getString(1));
             index.setTabname(rs.getString(3));
@@ -618,7 +623,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Sequence> getSequences(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_SEQUENCES, List.of(databaseName), rs -> {
+        String sql = SQL_SEQUENCES.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, null, rs -> {
             Sequence sequence = new Sequence(rs.getString(2));
             sequence.setDatabase(rs.getString(1));
             sequence.setMinValue(BigInteger.valueOf(rs.getLong(3)));
@@ -643,7 +649,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Synonym> getSynonyms(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_SYNONYMS, List.of(databaseName), rs -> {
+        String sql = SQL_SYNONYMS.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, null, rs -> {
             Synonym synonym = new Synonym(rs.getString(2));
             synonym.setDatabase(rs.getString(1));
             synonym.setSynonymType(rs.getString(3));
@@ -660,7 +667,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Trigger> getTriggers(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_TRIGGERS, List.of(databaseName), rs -> {
+        String sql = SQL_TRIGGERS.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, null, rs -> {
             Trigger trigger = new Trigger(rs.getString(3));
             trigger.setDatabase(rs.getString(1));
             trigger.setTableName(rs.getString(2));
@@ -672,7 +680,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public Trigger getTrigger(Connection conn, String databaseName, String triggerName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.queryOne(SQL_TRIGGER, List.of(databaseName, triggerName), rs -> {
+        String sql = SQL_TRIGGER.formatted(toSqlStringLiteral(databaseName));
+        return runner.queryOne(sql, List.of(triggerName), rs -> {
             Trigger trigger = new Trigger(rs.getString(3));
             trigger.setDatabase(rs.getString(1));
             trigger.setTableName(rs.getString(2));
@@ -690,7 +699,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<View> getViews(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_VIEWS, List.of(databaseName), rs -> {
+        String sql = SQL_VIEWS.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, null, rs -> {
             View view = new View(rs.getString(2));
             view.setDbname(rs.getString(1));
             view.setOwner(rs.getString(3));
@@ -720,8 +730,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Function> getFunctions(Connection conn, String databaseName, boolean filterType) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        String sql = String.format(SQL_FUNCTIONS, filterType ? " and type==0" : "");
-        return runner.query(sql, List.of(databaseName), rs -> {
+        String sql = SQL_FUNCTIONS.formatted(toSqlStringLiteral(databaseName), filterType ? " and type==0" : "");
+        return runner.query(sql, null, rs -> {
             Function function = new Function(rs.getString(2));
             function.setDatabase(rs.getString(1));
             function.setOwner(rs.getString(3));
@@ -738,8 +748,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<Procedure> getProcedures(Connection conn, String databaseName, boolean filterType) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        String sql = String.format(SQL_PROCEDURES, filterType ? " and type==0" : "");
-        return runner.query(sql, List.of(databaseName), rs -> {
+        String sql = SQL_PROCEDURES.formatted(toSqlStringLiteral(databaseName), filterType ? " and type==0" : "");
+        return runner.query(sql, null, rs -> {
             Procedure procedure = new Procedure(rs.getString(2));
             procedure.setDatabase(rs.getString(1));
             procedure.setOwner(rs.getString(3));
@@ -755,7 +765,8 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     public List<DBPackage> getPackages(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
-        return runner.query(SQL_PACKAGES, List.of(databaseName), rs -> {
+        String sql = SQL_PACKAGES.formatted(toSqlStringLiteral(databaseName));
+        return runner.query(sql, null, rs -> {
             DBPackage dbpackage = new DBPackage(rs.getString(2));
             dbpackage.setDatabase(rs.getString(1));
             dbpackage.setOwner(rs.getString(3));
@@ -834,6 +845,13 @@ public class InformixMetadataRepository implements com.dbboys.api.MetadataReposi
 
     private static String normalizeIdentifier(String identifier) {
         return identifier == null ? "" : identifier.trim().replace("\"", "").toLowerCase();
+    }
+
+    private static String toSqlStringLiteral(String value) {
+        if (value == null) {
+            return "''";
+        }
+        return "'" + value.replace("'", "''") + "'";
     }
 }
 

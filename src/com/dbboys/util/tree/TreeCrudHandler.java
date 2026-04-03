@@ -485,7 +485,7 @@ public class TreeCrudHandler {
         try {
             return AppContext.get(DatabasePlatformResolver.class);
         } catch (IllegalStateException e) {
-            return com.dbboys.impl.DialectServices.createDefault();
+            return com.dbboys.impl.DatabasePlatforms.createDefault();
         }
     }
 
@@ -495,9 +495,9 @@ public class TreeCrudHandler {
         }
         try {
             var dialect = resolvePlatformResolver().requirePlatform(connect);
-            if (dialect instanceof ReconnectFallbackCapability capability) {
-                return capability.reconnectFallbackDatabaseName();
-            }
+            return dialect.capability(ReconnectFallbackCapability.class)
+                    .map(ReconnectFallbackCapability::reconnectFallbackDatabaseName)
+                    .orElse(null);
         } catch (Exception ignored) {
         }
         return null;

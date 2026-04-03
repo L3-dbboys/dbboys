@@ -11,7 +11,7 @@ import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.ConnectionService;
-import com.dbboys.impl.DialectServices;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.util.*;
@@ -1663,7 +1663,7 @@ public class TreeContextMenuHandler {
         try {
             return AppContext.get(DatabasePlatformResolver.class);
         } catch (IllegalStateException e) {
-            return DialectServices.createDefault();
+            return DatabasePlatforms.createDefault();
         }
     }
 
@@ -1673,9 +1673,9 @@ public class TreeContextMenuHandler {
         }
         try {
             var dialect = resolvePlatformResolver().requirePlatform(connect);
-            if (dialect instanceof ReconnectFallbackCapability capability) {
-                return capability.reconnectFallbackDatabaseName();
-            }
+            return dialect.capability(ReconnectFallbackCapability.class)
+                    .map(ReconnectFallbackCapability::reconnectFallbackDatabaseName)
+                    .orElse(null);
         } catch (Exception ignored) {
         }
         return null;

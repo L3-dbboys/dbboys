@@ -1,6 +1,11 @@
-package com.dbboys.impl.dialect;
+package com.dbboys.impl;
 
 import com.dbboys.api.DatabasePlatform;
+import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.api.DdlRepository;
+import com.dbboys.api.InstanceAdminRepository;
+import com.dbboys.api.MetadataRepository;
+import com.dbboys.api.SqlexeRepository;
 import com.dbboys.impl.dialect.gbase.GbaseDialect;
 import com.dbboys.impl.dialect.informix.InformixDialect;
 import com.dbboys.impl.dialect.oracle.OracleDialect;
@@ -11,13 +16,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 多库核心入口：一种 {@link Connect#getDbtype()} 对应一个 {@link DatabasePlatform}。
+ * 多库统一入口：既负责平台注册，也负责上层按 dbtype 解析平台与仓库。
  */
-public final class DatabasePlatformRegistry {
+public final class DatabasePlatforms implements DatabasePlatformResolver {
 
     private final Map<String, DatabasePlatform> platformByDbType = new ConcurrentHashMap<>();
 
-    public DatabasePlatformRegistry() {
+    public DatabasePlatforms() {
     }
 
     public void register(DatabasePlatform platform) {
@@ -34,10 +39,17 @@ public final class DatabasePlatformRegistry {
         platformByDbType.put(dbType, platform);
     }
 
+    @Override
+    public Collection<DatabasePlatform> allPlatforms() {
+        return platformByDbType.values();
+    }
+
+    @Override
     public DatabasePlatform getPlatform(String dbType) {
         return dbType == null ? null : platformByDbType.get(dbType);
     }
 
+    @Override
     public DatabasePlatform requirePlatform(Connect connect) {
         if (connect == null) {
             throw new IllegalArgumentException("connect is null");
@@ -45,6 +57,7 @@ public final class DatabasePlatformRegistry {
         return requirePlatform(connect.getDbtype());
     }
 
+    @Override
     public DatabasePlatform requirePlatform(String dbType) {
         DatabasePlatform platform = getPlatform(dbType);
         if (platform == null) {
@@ -53,15 +66,31 @@ public final class DatabasePlatformRegistry {
         return platform;
     }
 
-    public Collection<DatabasePlatform> getAllPlatforms() {
-        return platformByDbType.values();
+    @Override
+    public MetadataRepository metadata(Connect connect) {
+        return requirePlatform(connect).metadata();
     }
 
-    public static DatabasePlatformRegistry createDefault() {
-        DatabasePlatformRegistry registry = new DatabasePlatformRegistry();
-        registry.register(new GbaseDialect());
-        registry.register(new InformixDialect());
-        registry.register(new OracleDialect());
-        return registry;
+    @Override
+    public SqlexeRepository sqlexe(Connect connect) {
+        return requirePlatform(connect).sql();
+    }
+
+    @Override
+    public DdlRepository ddl(Connect connect) {
+        return requirePlatform(connect).ddl();
+    }
+
+    @Override
+    public InstanceAdminRepository admin(Connect connect) {
+        return requirePlatform(connect).admin();
+    }
+
+    public static DatabasePlatforms createDefault() {
+        DatabasePlatforms platforms = new DatabasePlatforms();
+        platforms.register(new GbaseDialect());
+        platforms.register(new InformixDialect());
+        platforms.register(new OracleDialect());
+        return platforms;
     }
 }

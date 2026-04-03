@@ -1,6 +1,7 @@
 package com.dbboys.impl.dialect.informix;
 
 import com.dbboys.api.ChangeDatabaseFailureKind;
+import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DdlRepository;
 import com.dbboys.api.InstanceAdminRepository;
@@ -16,7 +17,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public final class InformixDialect implements DatabasePlatform, NamedServerConnectionCapability, ReconnectFallbackCapability {
+public final class InformixDialect implements DatabasePlatform, ConnectionSupport,
+        NamedServerConnectionCapability, ReconnectFallbackCapability {
 
     private static final String DB_TYPE = "INFORMIX";
     private static final String DRIVER_CLASS = "com.informix.jdbc.IfxDriver";
@@ -32,6 +34,11 @@ public final class InformixDialect implements DatabasePlatform, NamedServerConne
     @Override
     public String getDbType() {
         return DB_TYPE;
+    }
+
+    @Override
+    public ConnectionSupport connection() {
+        return this;
     }
 
     @Override
@@ -180,7 +187,7 @@ public final class InformixDialect implements DatabasePlatform, NamedServerConne
             return null;
         }
         if (!"DB_LOCALE".equals(propName)) {
-            return DatabasePlatform.super.modifyProps(connect, propName, propValue);
+            return ConnectionSupport.super.modifyProps(connect, propName, propValue);
         }
         if (propValue == null || propValue.trim().isEmpty()) {
             return connect.getProps();
@@ -189,26 +196,26 @@ public final class InformixDialect implements DatabasePlatform, NamedServerConne
                 .replaceAll("(?i)" + "UTF8", "57372")
                 .replaceAll("(?i)" + "GB18030-2000", "5488")
                 .trim();
-        return DatabasePlatform.super.modifyProps(connect, propName, normalized);
+        return ConnectionSupport.super.modifyProps(connect, propName, normalized);
     }
 
     @Override
-    public MetadataRepository getMetadataRepository() {
+    public MetadataRepository metadata() {
         return metadataRepository;
     }
 
     @Override
-    public SqlexeRepository getSqlexeRepository() {
+    public SqlexeRepository sql() {
         return sqlexeRepository;
     }
 
     @Override
-    public DdlRepository getDdlRepository() {
+    public DdlRepository ddl() {
         return ddlRepository;
     }
 
     @Override
-    public InstanceAdminRepository getInstanceAdminRepository() {
+    public InstanceAdminRepository admin() {
         return instanceAdminRepository;
     }
 }

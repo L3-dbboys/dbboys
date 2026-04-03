@@ -6,7 +6,7 @@ import com.dbboys.app.AppContext;
 import com.dbboys.customnode.CustomSpaceChart;
 import com.dbboys.api.ConnectionService;
 import com.dbboys.impl.ConnectionServiceImpl;
-import com.dbboys.impl.DialectServices;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
@@ -80,7 +80,7 @@ public class AdminService {
         try {
             return AppContext.get(DatabasePlatformResolver.class);
         } catch (IllegalStateException e) {
-            return DialectServices.createDefault();
+            return DatabasePlatforms.createDefault();
         }
     }
 }

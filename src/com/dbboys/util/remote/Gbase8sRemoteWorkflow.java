@@ -167,11 +167,11 @@ public final class Gbase8sRemoteWorkflow {
         connect.setDbtype(dialect.getDbType());
         connect.setIp(ctx.host());
         connect.setPort(ctx.fieldValue(Gbase8sRemoteFields.LISTEN_PORT));
-        connect.setDatabase(resolveInstalledDatabaseName(ctx, dialect.defaultDatabase()));
+        connect.setDatabase(resolveInstalledDatabaseName(ctx, dialect.connection().defaultDatabase()));
         connect.setUsername(Gbase8sRemoteFields.LOGIN_USERNAME);
         connect.setPassword(ctx.fieldValue(Gbase8sRemoteFields.GBASEDBT_PASSWORD));
-        connect.setProps(dialect.defaultConnectionProps());
-        connect.setProps(dialect.modifyProps(connect, "DB_LOCALE", ctx.fieldValue(Gbase8sRemoteFields.DB_LOCALE)));
+        connect.setProps(dialect.connection().defaultConnectionProps());
+        connect.setProps(dialect.connection().modifyProps(connect, "DB_LOCALE", ctx.fieldValue(Gbase8sRemoteFields.DB_LOCALE)));
         return connect;
     }
 

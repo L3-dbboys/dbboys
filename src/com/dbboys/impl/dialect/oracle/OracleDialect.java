@@ -1,5 +1,6 @@
 package com.dbboys.impl.dialect.oracle;
 
+import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DdlRepository;
 import com.dbboys.api.InstanceAdminRepository;
@@ -12,7 +13,7 @@ import java.sql.Connection;
 /**
  * Oracle 方言占位：建连参数与驱动占位，会话初始化暂不实现。
  */
-public final class OracleDialect implements DatabasePlatform {
+public final class OracleDialect implements DatabasePlatform, ConnectionSupport {
 
     private static final String DB_TYPE = "oracle";
     private static final String DRIVER_CLASS = "oracle.jdbc.OracleDriver";
@@ -25,6 +26,11 @@ public final class OracleDialect implements DatabasePlatform {
     @Override
     public String getDbType() {
         return DB_TYPE;
+    }
+
+    @Override
+    public ConnectionSupport connection() {
+        return this;
     }
 
     @Override
@@ -64,22 +70,22 @@ public final class OracleDialect implements DatabasePlatform {
     }
 
     @Override
-    public MetadataRepository getMetadataRepository() {
+    public MetadataRepository metadata() {
         return metadataRepository;
     }
 
     @Override
-    public SqlexeRepository getSqlexeRepository() {
+    public SqlexeRepository sql() {
         return sqlexeRepository;
     }
 
     @Override
-    public DdlRepository getDdlRepository() {
+    public DdlRepository ddl() {
         return ddlRepository;
     }
 
     @Override
-    public InstanceAdminRepository getInstanceAdminRepository() {
+    public InstanceAdminRepository admin() {
         return instanceAdminRepository;
     }
 }

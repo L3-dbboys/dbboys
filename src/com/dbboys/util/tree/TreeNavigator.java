@@ -1,5 +1,6 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.app.AppContext;
 import com.dbboys.app.AppState;
 import com.dbboys.app.AppErrorHandler;
@@ -7,7 +8,7 @@ import com.dbboys.ctrl.CreateConnectController;
 import com.dbboys.customnode.*;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
-import com.dbboys.impl.DialectServices;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.util.*;
 import com.dbboys.vo.*;
 import javafx.application.Platform;
@@ -450,7 +451,7 @@ public class TreeNavigator {
             return true;
         }
         try {
-            return resolveDialectServices().requirePlatform(connect).isSystemDatabase(database);
+            return resolvePlatformResolver().requirePlatform(connect).isSystemDatabase(database);
         } catch (Exception ignored) {
             return false;
         }
@@ -593,11 +594,11 @@ public class TreeNavigator {
         return "object";
     }
 
-    private static DialectServices resolveDialectServices() {
+    private static DatabasePlatformResolver resolvePlatformResolver() {
         try {
-            return AppContext.get(DialectServices.class);
+            return AppContext.get(DatabasePlatformResolver.class);
         } catch (IllegalStateException e) {
-            return DialectServices.createDefault();
+            return DatabasePlatforms.createDefault();
         }
     }
 }

@@ -5,7 +5,7 @@ import com.dbboys.api.SqlModeCapability;
 import com.dbboys.api.SqlexeRepository;
 import com.dbboys.app.AppContext;
 import com.dbboys.customnode.CustomResultsetTab;
-import com.dbboys.impl.DialectServices;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.i18n.I18n;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.util.*;
@@ -537,7 +537,7 @@ public class SqlExecutionHelper {
         try {
             return AppContext.get(DatabasePlatformResolver.class);
         } catch (IllegalStateException e) {
-            return DialectServices.createDefault();
+            return DatabasePlatforms.createDefault();
         }
     }
 

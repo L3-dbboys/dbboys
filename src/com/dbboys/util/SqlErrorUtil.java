@@ -3,7 +3,7 @@ package com.dbboys.util;
 import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.app.AppContext;
-import com.dbboys.impl.DialectServices;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.vo.Connect;
 
 import java.sql.SQLException;
@@ -21,8 +21,9 @@ public final class SqlErrorUtil {
             return isDisconnectError(e);
         }
         try {
-            return resolveDialectServices()
+            return resolvePlatforms()
                     .requirePlatform(connect)
+                    .connection()
                     .classifyChangeDatabaseFailure(e) == ChangeDatabaseFailureKind.DISCONNECTED;
         } catch (Exception ex) {
             return isDisconnectError(e);
@@ -49,8 +50,8 @@ public final class SqlErrorUtil {
             return false;
         }
         try {
-            for (DatabasePlatform platform : resolveDialectServices().getPlatformRegistry().getAllPlatforms()) {
-                if (platform.classifyChangeDatabaseFailure(e) == expectedKind) {
+            for (DatabasePlatform platform : resolvePlatforms().allPlatforms()) {
+                if (platform.connection().classifyChangeDatabaseFailure(e) == expectedKind) {
                     return true;
                 }
             }
@@ -59,11 +60,11 @@ public final class SqlErrorUtil {
         return false;
     }
 
-    private static DialectServices resolveDialectServices() {
+    private static DatabasePlatforms resolvePlatforms() {
         try {
-            return AppContext.get(DialectServices.class);
+            return AppContext.get(DatabasePlatforms.class);
         } catch (IllegalStateException e) {
-            return DialectServices.createDefault();
+            return DatabasePlatforms.createDefault();
         }
     }
 }

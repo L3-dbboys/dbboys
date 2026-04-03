@@ -36,7 +36,7 @@ public final class ConnectionPropertyUtil {
             return true;
         }
         DatabasePlatform platform = platformResolver.getPlatform(connect.getDbtype());
-        return platform != null && containsConnectionProperty(platform.defaultConnectionProps(), propName);
+        return platform != null && containsConnectionProperty(platform.connection().defaultConnectionProps(), propName);
     }
 
     private static boolean containsConnectionProperty(String propsJson, String propName) {

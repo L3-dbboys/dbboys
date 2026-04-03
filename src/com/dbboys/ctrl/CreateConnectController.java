@@ -9,8 +9,9 @@ import com.dbboys.customnode.CustomTableView;
 import com.dbboys.customnode.CustomUserTextField;
 import com.dbboys.api.ConnectionService;
 import com.dbboys.api.DatabasePlatform;
+import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.api.NamedServerConnectionCapability;
-import com.dbboys.impl.DialectServices;
+import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
@@ -396,8 +397,8 @@ public class CreateConnectController {
     }
 
     private void applyDialectDefaults(Connect connect, String oldDbType, String newDbType) {
-        DatabasePlatform oldDialect = resolveDialectServices().getPlatform(oldDbType);
-        DatabasePlatform newDialect = resolveDialectServices().getPlatform(newDbType);
+        DatabasePlatform oldDialect = resolvePlatformResolver().getPlatform(oldDbType);
+        DatabasePlatform newDialect = resolvePlatformResolver().getPlatform(newDbType);
         if (newDialect == null) {
             return;
         }
@@ -405,16 +406,16 @@ public class CreateConnectController {
         if (!supportsNamedServerConnection(newDialect)) {
             groupHbox.setVisible(false);
         }
-        if (shouldReplaceField(portTextField.getText(), oldDialect == null ? null : oldDialect.defaultPort())) {
-            portTextField.setText(newDialect.defaultPort());
+        if (shouldReplaceField(portTextField.getText(), oldDialect == null ? null : oldDialect.connection().defaultPort())) {
+            portTextField.setText(newDialect.connection().defaultPort());
         }
-        if (shouldReplaceField(usernameTextField.getText(), oldDialect == null ? null : oldDialect.defaultUsername())) {
-            usernameTextField.setText(newDialect.defaultUsername());
+        if (shouldReplaceField(usernameTextField.getText(), oldDialect == null ? null : oldDialect.connection().defaultUsername())) {
+            usernameTextField.setText(newDialect.connection().defaultUsername());
         }
         if (connect.getDatabase() == null
                 || connect.getDatabase().isBlank()
-                || (oldDialect != null && connect.getDatabase().equalsIgnoreCase(oldDialect.defaultDatabase()))) {
-            connect.setDatabase(newDialect.defaultDatabase());
+                || (oldDialect != null && connect.getDatabase().equalsIgnoreCase(oldDialect.connection().defaultDatabase()))) {
+            connect.setDatabase(newDialect.connection().defaultDatabase());
         }
     }
 
@@ -426,17 +427,17 @@ public class CreateConnectController {
     }
 
     private void refreshDriverPropertyButton(String dbType) {
-        DatabasePlatform dialect = resolveDialectServices().getPlatform(dbType);
-        boolean supported = dialect != null && dialect.supportsConnectionProperties();
+        DatabasePlatform dialect = resolvePlatformResolver().getPlatform(dbType);
+        boolean supported = dialect != null && dialect.connection().supportsConnectionProperties();
         modifyDriverButton.setDisable(!supported);
     }
 
     private String defaultConnectionPropsFor(String dbType) {
-        DatabasePlatform dialect = resolveDialectServices().getPlatform(dbType);
+        DatabasePlatform dialect = resolvePlatformResolver().getPlatform(dbType);
         if (dialect == null) {
             return EMPTY_PROPS;
         }
-        String propsJson = dialect.defaultConnectionProps();
+        String propsJson = dialect.connection().defaultConnectionProps();
         return propsJson == null || propsJson.isBlank() ? EMPTY_PROPS : propsJson;
     }
 
@@ -447,24 +448,24 @@ public class CreateConnectController {
     }
 
     private String defaultDatabaseFor(String dbType) {
-        DatabasePlatform dialect = resolveDialectServices().getPlatform(dbType);
+        DatabasePlatform dialect = resolvePlatformResolver().getPlatform(dbType);
         if (dialect == null) {
             return "";
         }
-        return dialect.defaultDatabase();
+        return dialect.connection().defaultDatabase();
     }
 
-    private DialectServices resolveDialectServices() {
+    private DatabasePlatformResolver resolvePlatformResolver() {
         try {
-            return AppContext.get(DialectServices.class);
+            return AppContext.get(DatabasePlatformResolver.class);
         } catch (IllegalStateException e) {
-            return DialectServices.createDefault();
+            return DatabasePlatforms.createDefault();
         }
     }
 
     private List<String> loadAvailableDbTypes() {
         Set<String> registeredDbTypes = new HashSet<>();
-        for (DatabasePlatform platform : resolveDialectServices().getPlatformRegistry().getAllPlatforms()) {
+        for (DatabasePlatform platform : resolvePlatformResolver().allPlatforms()) {
             if (platform != null && platform.getDbType() != null && !platform.getDbType().isBlank()) {
                 registeredDbTypes.add(platform.getDbType());
             }
@@ -544,16 +545,15 @@ public class CreateConnectController {
     }
 
     private String namedServerPropNameFor(String dbType) {
-        DatabasePlatform platform = resolveDialectServices().getPlatform(dbType);
-        if (!(platform instanceof NamedServerConnectionCapability capability)) {
-            return "";
-        }
-        String propName = capability.namedServerPropertyName();
+        DatabasePlatform platform = resolvePlatformResolver().getPlatform(dbType);
+        String propName = platform == null ? null : platform.capability(NamedServerConnectionCapability.class)
+                .map(NamedServerConnectionCapability::namedServerPropertyName)
+                .orElse(null);
         return propName == null ? "" : propName;
     }
 
     private boolean supportsNamedServerConnection(DatabasePlatform platform) {
-        return platform instanceof NamedServerConnectionCapability;
+        return platform != null && platform.capability(NamedServerConnectionCapability.class).isPresent();
     }
 
     public void initialize() throws IOException {
