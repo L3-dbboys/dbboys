@@ -89,6 +89,22 @@ public interface DatabasePlatform {
         return "导出数据库";
     }
 
+    default String getExportNoticeI18nKey() {
+        return "metadata.export.ddl_data.notice.completed";
+    }
+
+    default String getExportNoticeDefaultText() {
+        return "数据库已导出到：%s";
+    }
+
+    default String getExportTaskNameI18nKey() {
+        return "metadata.export.ddl_data.task_name";
+    }
+
+    default String getExportTaskNameDefaultText() {
+        return "导出数据库\"%s\"";
+    }
+
     default String buildBootstrapSql(Database database) {
         return "";
     }
@@ -101,8 +117,32 @@ public interface DatabasePlatform {
         return "系统表/视图";
     }
 
+    default boolean supportsTableTypeModification() {
+        return true;
+    }
+
+    default boolean supportsSetDefaultDatabase() {
+        return true;
+    }
+
     default String renameObjectSql(String objectType, String oldName, String newName) {
         return "rename " + objectType + " " + oldName + " to " + newName;
+    }
+
+    default String dropObjectSql(String objectType, String objectName) {
+        return "drop " + objectType + " " + objectName;
+    }
+
+    default String truncateTableSql(String tableName) {
+        return "truncate table " + tableName;
+    }
+
+    default String toggleIndexSql(String indexName, boolean enabled) {
+        return "set indexes " + indexName + (enabled ? " enabled" : " disabled");
+    }
+
+    default String toggleTriggerSql(String triggerName, boolean enabled) {
+        return "set triggers " + triggerName + (enabled ? " enabled" : " disabled");
     }
 
     default String gatherSchemaSql(String schemaName) {

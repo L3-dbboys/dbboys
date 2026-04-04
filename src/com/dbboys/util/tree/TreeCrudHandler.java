@@ -365,10 +365,10 @@ public class TreeCrudHandler {
             return;
         }
 
-        String sql = "drop " + objectType + " " + selectedItem.getValue().getName();
-        if ("user".equalsIgnoreCase(objectType) && selectedItem.getValue() instanceof Database) {
-            sql += " cascade";
-        }
+        DatabasePlatform dropPlatform = TreeNavigator.resolvePlatform(selectedItem);
+        String sql = dropPlatform != null
+                ? dropPlatform.dropObjectSql(objectType, selectedItem.getValue().getName())
+                : "drop " + objectType + " " + selectedItem.getValue().getName();
         Connect connect = buildObjectConnect(selectedItem, useSysmaster);
         service.deleteObject(connect, sql, () -> {
             TreeItem<TreeData> parent = selectedItem.getParent();
@@ -531,16 +531,18 @@ public class TreeCrudHandler {
     public static void toggleObjectEnabled(TreeItem<TreeData> selectedItem, boolean enabled) {
         TreeData treeData = selectedItem.getValue();
         Connect connect = buildObjectConnect(selectedItem, false);
+        DatabasePlatform platform = TreeNavigator.resolvePlatform(selectedItem);
         if (treeData instanceof Index) {
-            toggleIndexEnabled(connect, treeData, enabled);
+            toggleIndexEnabled(connect, treeData, enabled, platform);
             return;
         }
         if (treeData instanceof Trigger) {
-            toggleTriggerEnabled(connect, treeData, enabled);
+            toggleTriggerEnabled(connect, treeData, enabled, platform);
         }
     }
 
-    public static void toggleIndexEnabled(Connect connect, TreeData treeData, boolean enabled) {
+    public static void toggleIndexEnabled(Connect connect, TreeData treeData, boolean enabled,
+                                             DatabasePlatform platform) {
         String action = enabled ? "enable" : "disable";
         boolean confirm = AlertUtil.CustomAlertConfirm(
                 I18n.t("metadata.alert." + action + "_index.title", enabled ? "启用索引" : "禁用索引"),
@@ -551,7 +553,9 @@ public class TreeCrudHandler {
         if (!confirm) {
             return;
         }
-        String sql = "set indexes " + treeData.getName() + (enabled ? " enabled" : " disabled");
+        String sql = platform != null
+                ? platform.toggleIndexSql(treeData.getName(), enabled)
+                : "set indexes " + treeData.getName() + (enabled ? " enabled" : " disabled");
         Runnable onSucceeded = () -> {
             ((Index)treeData).setIsdisabled(!enabled);
 
@@ -569,7 +573,8 @@ public class TreeCrudHandler {
         }
     }
 
-    public static void toggleTriggerEnabled(Connect connect, TreeData treeData, boolean enabled) {
+    public static void toggleTriggerEnabled(Connect connect, TreeData treeData, boolean enabled,
+                                               DatabasePlatform platform) {
         String action = enabled ? "enable" : "disable";
         boolean confirm = AlertUtil.CustomAlertConfirm(
                 I18n.t("metadata.alert." + action + "_trigger.title", enabled ? "启用触发器" : "禁用触发器"),
@@ -581,7 +586,9 @@ public class TreeCrudHandler {
         if (!confirm) {
             return;
         }
-        String sql = "set triggers " + treeData.getName() + (enabled ? " enabled" : " disabled");
+        String sql = platform != null
+                ? platform.toggleTriggerSql(treeData.getName(), enabled)
+                : "set triggers " + treeData.getName() + (enabled ? " enabled" : " disabled");
         Runnable onSucceeded = () -> {
             ((Trigger)treeData).setIsdisabled(!enabled);
             NotificationUtil.showMainNotification(
@@ -909,10 +916,8 @@ public class TreeCrudHandler {
                         throw new Exception(buildDatabaseExportFailureMessage(failures));
                     }
                     DatabasePlatform exportPlatform = TreeNavigator.resolvePlatform(selectedItem);
-                    String exportNoticeKey = exportPlatform != null && exportPlatform.usesSchemaModel()
-                            ? "metadata.export.ddl_schema.notice.completed" : "metadata.export.ddl_data.notice.completed";
-                    String exportNoticeDefault = exportPlatform != null && exportPlatform.usesSchemaModel()
-                            ? "模式已导出到：%s" : "数据库已导出到：%s";
+                    String exportNoticeKey = exportPlatform != null ? exportPlatform.getExportNoticeI18nKey() : "metadata.export.ddl_data.notice.completed";
+                    String exportNoticeDefault = exportPlatform != null ? exportPlatform.getExportNoticeDefaultText() : "数据库已导出到：%s";
                     Platform.runLater(() -> NotificationUtil.showMainNotification(
                             I18n.t(exportNoticeKey, exportNoticeDefault)
                                     .formatted(exportDir.getAbsolutePath())
@@ -935,10 +940,8 @@ public class TreeCrudHandler {
             }
         };
         DatabasePlatform taskPlatform = TreeNavigator.resolvePlatform(selectedItem);
-        String taskNameKey = taskPlatform != null && taskPlatform.usesSchemaModel()
-                ? "metadata.export.ddl_schema.task_name" : "metadata.export.ddl_data.task_name";
-        String taskNameDefault = taskPlatform != null && taskPlatform.usesSchemaModel()
-                ? "导出模式\"%s\"" : "导出数据库\"%s\"";
+        String taskNameKey = taskPlatform != null ? taskPlatform.getExportTaskNameI18nKey() : "metadata.export.ddl_data.task_name";
+        String taskNameDefault = taskPlatform != null ? taskPlatform.getExportTaskNameDefaultText() : "导出数据库\"%s\"";
         String taskDisplayName = I18n.t(taskNameKey, taskNameDefault).formatted(database.getName());
         DownloadManagerUtil.addCustomExportTask(taskDisplayName, preDdlFile, true, exportTask, runtime::cancel);
     }

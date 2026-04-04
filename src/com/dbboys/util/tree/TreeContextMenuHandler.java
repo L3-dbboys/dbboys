@@ -447,9 +447,12 @@ public class TreeContextMenuHandler {
                     return;
                 }
                 Connect connect = TreeCrudHandler.buildObjectConnect(selectedItems.get(0), false);
+                DatabasePlatform truncPlatform = TreeNavigator.resolvePlatform(selectedItems.get(0));
                 List<String> sqlList = new ArrayList<>();
                 for (TreeItem<TreeData> item : selectedItems) {
-                    sqlList.add("truncate table " + item.getValue().getName());
+                    sqlList.add(truncPlatform != null
+                            ? truncPlatform.truncateTableSql(item.getValue().getName())
+                            : "truncate table " + item.getValue().getName());
                 }
                 TreeViewUtil.tableService.executeObjectSqls(connect, sqlList, () -> {
                     for (TreeItem<TreeData> item : selectedItems) {
@@ -937,9 +940,12 @@ public class TreeContextMenuHandler {
                     return;
                 }
                 Connect connect = TreeCrudHandler.buildObjectConnect(selectedItems.get(0), false);
+                DatabasePlatform dropPlatform = TreeNavigator.resolvePlatform(selectedItems.get(0));
                 List<String> sqlList = new ArrayList<>();
                 for (TreeItem<TreeData> item : selectedItems) {
-                    sqlList.add("drop table " + item.getValue().getName());
+                    sqlList.add(dropPlatform != null
+                            ? dropPlatform.dropObjectSql("table", item.getValue().getName())
+                            : "drop table " + item.getValue().getName());
                 }
                 TreeViewUtil.tableService.executeObjectSqls(connect, sqlList, () -> {
                     for (TreeItem<TreeData> item : selectedItems) {
@@ -972,9 +978,12 @@ public class TreeContextMenuHandler {
                     return;
                 }
                 Connect connect = TreeCrudHandler.buildObjectConnect(firstItem, false);
+                DatabasePlatform batchDropPlatform = TreeNavigator.resolvePlatform(firstItem);
                 List<String> sqlList = new ArrayList<>();
                 for (TreeItem<TreeData> item : selectedItems) {
-                    sqlList.add("drop " + objectType + " " + item.getValue().getName());
+                    sqlList.add(batchDropPlatform != null
+                            ? batchDropPlatform.dropObjectSql(objectType, item.getValue().getName())
+                            : "drop " + objectType + " " + item.getValue().getName());
                 }
                 service.executeObjectSqls(connect, sqlList, () -> {
                     for (TreeItem<TreeData> item : selectedItems) {
@@ -1385,6 +1394,11 @@ public class TreeContextMenuHandler {
                         String menuKey = dbFolderPlatform != null ? dbFolderPlatform.getCreateDatabaseMenuI18nKey() : "metadata.menu.create_database";
                         String menuDefault = dbFolderPlatform != null ? dbFolderPlatform.getCreateDatabaseMenuDefaultText() : "新建数据库";
                         createDatabaseItem.textProperty().bind(I18n.bind(menuKey, menuDefault));
+                        if (dbFolderPlatform != null && dbFolderPlatform.usesSchemaModel()) {
+                            createDatabaseItem.setGraphic(IconFactory.group(IconPaths.METADATA_ADD_USER, 0.7, 0.7));
+                        } else {
+                            createDatabaseItem.setGraphic(IconFactory.group(IconPaths.METADATA_CREATE_DATABASE_ITEM, 0.7, 0.7));
+                        }
                         treeview_menu.getItems().add(createDatabaseItem);
 
                         importDdlAndDataItem.textProperty().unbind();
@@ -1406,9 +1420,8 @@ public class TreeContextMenuHandler {
                 //数据库
                 else if(selectedItem.getValue() instanceof Database) {
                     DatabasePlatform dbNodePlatform = TreeNavigator.resolvePlatform(selectedItem);
-                    boolean schemaModel = dbNodePlatform != null && dbNodePlatform.usesSchemaModel();
                     treeview_menu.getItems().add(TreeViewUtil.databaseOpenFileItem);
-                    if (!schemaModel) {
+                    if (dbNodePlatform == null || dbNodePlatform.supportsSetDefaultDatabase()) {
                         treeview_menu.getItems().add(setDefaultDatabaseItem);
                     }
                     treeview_menu.getItems().add(updateStatisticsItem);
@@ -1451,16 +1464,16 @@ public class TreeContextMenuHandler {
                 //表
                 else if(selectedItem.getValue() instanceof Table) {
                     DatabasePlatform tablePlatform = TreeNavigator.resolvePlatform(selectedItem);
-                    boolean schemaModel = tablePlatform != null && tablePlatform.usesSchemaModel();
+                    boolean canModifyTableType = tablePlatform == null || tablePlatform.supportsTableTypeModification();
                     if(!isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
-                        if (!schemaModel) {
+                        if (canModifyTableType) {
                             treeview_menu.getItems().add(modifyToRawItem);
                             treeview_menu.getItems().add(modifyToStandardItem);
                         }
                         treeview_menu.getItems().add(truncateItem);
                     }
-                    if (!schemaModel) {
+                    if (canModifyTableType) {
                         if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "raw")){
                             modifyToRawItem.setDisable(true);
                         }else{

@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.PushbackReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.BatchUpdateException;
 import java.sql.Connection;
@@ -108,15 +109,28 @@ public class TableService implements MetaObjectService {
     }
 
     public void modifyTableToRaw(Connect connect, String tableName, Runnable onSucceededUi) {
-        executeObjectSql(connect, "alter table " + tableName + " type(raw)", onSucceededUi);
+        var platform = platformResolver.requirePlatform(connect);
+        String sql = platform.supportsTableTypeModification()
+                ? "alter table " + tableName + " type(raw)"
+                : null;
+        if (sql != null) {
+            executeObjectSql(connect, sql, onSucceededUi);
+        }
     }
 
     public void modifyTableToStandard(Connect connect, String tableName, Runnable onSucceededUi) {
-        executeObjectSql(connect, "alter table " + tableName + " type(standard)", onSucceededUi);
+        var platform = platformResolver.requirePlatform(connect);
+        String sql = platform.supportsTableTypeModification()
+                ? "alter table " + tableName + " type(standard)"
+                : null;
+        if (sql != null) {
+            executeObjectSql(connect, sql, onSucceededUi);
+        }
     }
 
     public void truncateTable(Connect connect, String tableName, Runnable onSucceededUi) {
-        executeObjectSql(connect, "truncate table " + tableName, onSucceededUi);
+        var platform = platformResolver.requirePlatform(connect);
+        executeObjectSql(connect, platform.truncateTableSql(tableName), onSucceededUi);
     }
 
     public void updateStatisticsForTable(Connect connect, String tableName, Runnable onSucceededUi){
@@ -794,6 +808,15 @@ public class TableService implements MetaObjectService {
             preparedStatement.setBytes(parameterIndex, decodeBinaryImportValue(value));
             return;
         }
+        if (isNumericImportColumnType(columnType)) {
+            String trimmed = value.trim();
+            try {
+                preparedStatement.setBigDecimal(parameterIndex, new BigDecimal(trimmed));
+            } catch (NumberFormatException e) {
+                throw new SQLException("无法将 \"" + trimmed + "\" 转换为数字类型 " + columnType, e);
+            }
+            return;
+        }
         if (shouldTrimImportValue(columnType)) {
             preparedStatement.setString(parameterIndex, value.trim());
             return;
@@ -952,6 +975,27 @@ public class TableService implements MetaObjectService {
         return columnType.startsWith("BYTE") || columnType.startsWith("BLOB");
     }
 
+    private boolean isNumericImportColumnType(String columnType) {
+        if (columnType == null || columnType.isEmpty()) {
+            return false;
+        }
+        return columnType.startsWith("NUMBER")
+                || columnType.startsWith("NUMERIC")
+                || columnType.startsWith("DECIMAL")
+                || columnType.startsWith("INTEGER")
+                || columnType.startsWith("INT")
+                || columnType.startsWith("SMALLINT")
+                || columnType.startsWith("BIGINT")
+                || columnType.startsWith("FLOAT")
+                || columnType.startsWith("DOUBLE")
+                || columnType.startsWith("REAL")
+                || columnType.startsWith("SMALLFLOAT")
+                || columnType.startsWith("SERIAL")
+                || columnType.startsWith("BIGSERIAL")
+                || columnType.startsWith("SERIAL8")
+                || columnType.startsWith("MONEY");
+    }
+
     private boolean shouldImportBlankAsNull(String columnType, String value) {
         if (value == null || !value.isBlank()) {
             return false;
@@ -1011,7 +1055,7 @@ public class TableService implements MetaObjectService {
         if (columnType.startsWith("BIGINT") || columnType.startsWith("BIGSERIAL") || columnType.startsWith("SERIAL8")) {
             return Types.BIGINT;
         }
-        if (columnType.startsWith("DECIMAL") || columnType.startsWith("NUMERIC") || columnType.startsWith("MONEY")) {
+        if (columnType.startsWith("NUMBER") || columnType.startsWith("DECIMAL") || columnType.startsWith("NUMERIC") || columnType.startsWith("MONEY")) {
             return Types.DECIMAL;
         }
         if (columnType.startsWith("FLOAT") || columnType.startsWith("DOUBLE") || columnType.startsWith("REAL") || columnType.startsWith("SMALLFLOAT")) {

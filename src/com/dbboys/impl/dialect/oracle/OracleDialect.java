@@ -175,6 +175,26 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public String getExportNoticeI18nKey() {
+        return "metadata.export.ddl_schema.notice.completed";
+    }
+
+    @Override
+    public String getExportNoticeDefaultText() {
+        return "模式已导出到：%s";
+    }
+
+    @Override
+    public String getExportTaskNameI18nKey() {
+        return "metadata.export.ddl_schema.task_name";
+    }
+
+    @Override
+    public String getExportTaskNameDefaultText() {
+        return "导出模式\"%s\"";
+    }
+
+    @Override
     public boolean canDropDatabase() {
         return true;
     }
@@ -197,8 +217,36 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public boolean supportsTableTypeModification() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsSetDefaultDatabase() {
+        return false;
+    }
+
+    @Override
     public String renameObjectSql(String objectType, String oldName, String newName) {
         return "ALTER " + objectType.toUpperCase() + " " + oldName + " RENAME TO " + newName;
+    }
+
+    @Override
+    public String dropObjectSql(String objectType, String objectName) {
+        if ("user".equalsIgnoreCase(objectType)) {
+            return "drop user " + objectName + " cascade";
+        }
+        return "drop " + objectType + " " + objectName;
+    }
+
+    @Override
+    public String toggleIndexSql(String indexName, boolean enabled) {
+        return enabled ? "ALTER INDEX " + indexName + " REBUILD" : "ALTER INDEX " + indexName + " UNUSABLE";
+    }
+
+    @Override
+    public String toggleTriggerSql(String triggerName, boolean enabled) {
+        return "ALTER TRIGGER " + triggerName + (enabled ? " ENABLE" : " DISABLE");
     }
 
     @Override
