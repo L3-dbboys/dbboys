@@ -31,10 +31,15 @@ import javafx.util.Callback;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PopupWindowUtil {
     private static final double DDL_POPUP_WIDTH = 400;
     private static final double DDL_POPUP_HEIGHT = 300;
+
+    /** 从进度文案中提取比例（如 {@code 表 2/10}、{@code 1500/5000}），供进度条使用；取最后一次匹配的 {@code 整数/整数}。 */
+    private static final Pattern TASK_PROGRESS_FRACTION = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
 
     public static StackPane noticePane = new StackPane();
     @Deprecated
@@ -373,20 +378,22 @@ public class PopupWindowUtil {
         if (progressText == null || progressText.isBlank()) {
             return -1;
         }
-        int slashIndex = progressText.indexOf('/');
-        if (slashIndex <= 0 || slashIndex >= progressText.length() - 1) {
+        double completed = -1;
+        double total = -1;
+        Matcher m = TASK_PROGRESS_FRACTION.matcher(progressText);
+        while (m.find()) {
+            try {
+                completed = Double.parseDouble(m.group(1));
+                total = Double.parseDouble(m.group(2));
+            } catch (NumberFormatException ignored) {
+                completed = -1;
+                total = -1;
+            }
+        }
+        if (completed < 0 || total <= 0) {
             return -1;
         }
-        try {
-            double completed = Double.parseDouble(progressText.substring(0, slashIndex).trim());
-            double total = Double.parseDouble(progressText.substring(slashIndex + 1).trim());
-            if (total <= 0) {
-                return 0;
-            }
-            return Math.max(0, Math.min(1, completed / total));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+        return Math.max(0, Math.min(1, completed / total));
     }
 
     public static void openDDLWindow(String ddlSql) {

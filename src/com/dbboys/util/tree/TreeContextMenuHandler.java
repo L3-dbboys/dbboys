@@ -1395,9 +1395,9 @@ public class TreeContextMenuHandler {
                         String menuDefault = dbFolderPlatform != null ? dbFolderPlatform.getCreateDatabaseMenuDefaultText() : "新建数据库";
                         createDatabaseItem.textProperty().bind(I18n.bind(menuKey, menuDefault));
                         if (dbFolderPlatform != null && dbFolderPlatform.usesSchemaModel()) {
-                            createDatabaseItem.setGraphic(IconFactory.group(IconPaths.METADATA_ADD_USER, 0.7, 0.7));
+                            createDatabaseItem.setGraphic(IconFactory.group(IconPaths.METADATA_ADD_USER, 0.5, 0.5));
                         } else {
-                            createDatabaseItem.setGraphic(IconFactory.group(IconPaths.METADATA_CREATE_DATABASE_ITEM, 0.7, 0.7));
+                            createDatabaseItem.setGraphic(IconFactory.group(IconPaths.METADATA_CREATE_DATABASE_ITEM, 0.6, 0.6));
                         }
                         treeview_menu.getItems().add(createDatabaseItem);
 
