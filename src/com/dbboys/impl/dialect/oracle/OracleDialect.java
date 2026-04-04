@@ -197,6 +197,11 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public String renameObjectSql(String objectType, String oldName, String newName) {
+        return "ALTER " + objectType.toUpperCase() + " " + oldName + " RENAME TO " + newName;
+    }
+
+    @Override
     public String gatherSchemaSql(String schemaName) {
         return "BEGIN DBMS_STATS.GATHER_SCHEMA_STATS(ownname => '" + schemaName + "'); END;";
     }

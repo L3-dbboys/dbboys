@@ -586,7 +586,12 @@ public class SqlExecutionHelper {
     }
 
     private static String stripTrailingSemicolon(String sql) {
-        if (sql != null && sql.endsWith(";")) {
+        if (sql == null) return sql;
+        String upper = sql.stripLeading().toUpperCase();
+        if (upper.startsWith("BEGIN") || upper.startsWith("DECLARE")) {
+            return sql;
+        }
+        if (sql.endsWith(";")) {
             return sql.substring(0, sql.length() - 1).trim();
         }
         return sql;

@@ -1450,16 +1450,22 @@ public class TreeContextMenuHandler {
                 }
                 //表
                 else if(selectedItem.getValue() instanceof Table) {
+                    DatabasePlatform tablePlatform = TreeNavigator.resolvePlatform(selectedItem);
+                    boolean schemaModel = tablePlatform != null && tablePlatform.usesSchemaModel();
                     if(!isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
-                        treeview_menu.getItems().add(modifyToRawItem);
-                        treeview_menu.getItems().add(modifyToStandardItem);
+                        if (!schemaModel) {
+                            treeview_menu.getItems().add(modifyToRawItem);
+                            treeview_menu.getItems().add(modifyToStandardItem);
+                        }
                         treeview_menu.getItems().add(truncateItem);
                     }
-                    if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "raw")){
-                        modifyToRawItem.setDisable(true);
-                    }else{
-                        modifyToStandardItem.setDisable(true);
+                    if (!schemaModel) {
+                        if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "raw")){
+                            modifyToRawItem.setDisable(true);
+                        }else{
+                            modifyToStandardItem.setDisable(true);
+                        }
                     }
                     if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         importDataItem.setDisable(true);

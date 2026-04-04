@@ -84,9 +84,10 @@ public interface MetaObjectService {
                     BackgroundSqlUtil.backSqlTaskList.add(backSqlTask);
                     BackgroundSqlUtil.updateBackSqlUIOnStart();
 
+                    String execSql = stripTrailingSemicolon(sql);
                     try (Statement stmt = conn.createStatement()) {
                         backSqlTask.setStmt(stmt);
-                        int affectRows = stmt.executeUpdate(sql);
+                        int affectRows = stmt.executeUpdate(execSql);
                         updateResult.setAffectedRows(affectRows);
                     }
                     long endtime = System.currentTimeMillis();
@@ -151,24 +152,25 @@ public interface MetaObjectService {
                         if (backSqlTask.isCancelled() || isCancelled() || Thread.currentThread().isInterrupted()) {
                             break;
                         }
+                        String execSql = stripTrailingSemicolon(sql);
                         long beginTime = System.currentTimeMillis();
                         UpdateResult updateResult = new UpdateResult();
                         String effectiveDb2 = connect.getEffectiveDatabase();
                         updateResult.setConnectId(connect.getId());
                         updateResult.setDatabase(effectiveDb2);
-                        updateResult.setUpdateSql(sql);
+                        updateResult.setUpdateSql(execSql);
                         updateResult.setStartTime(sdf.format(beginTime));
 
                         backSqlTask.setBeginTime(sdf.format(beginTime));
                         backSqlTask.setConnectName(connect.getName());
                         backSqlTask.setDatabaseName(effectiveDb2);
-                        backSqlTask.setSql(sql);
+                        backSqlTask.setSql(execSql);
                         BackgroundSqlUtil.backSqlTaskList.add(backSqlTask);
                         BackgroundSqlUtil.updateBackSqlUIOnStart();
 
                         try (Statement stmt = conn.createStatement()) {
                             backSqlTask.setStmt(stmt);
-                            int affectRows = stmt.executeUpdate(sql);
+                            int affectRows = stmt.executeUpdate(execSql);
                             updateResult.setAffectedRows(affectRows);
                         } finally {
                             backSqlTask.setStmt(null);
@@ -211,6 +213,19 @@ public interface MetaObjectService {
             }
         });
         backSqlTask.setFuture(BackgroundSqlUtil.backSqlExecutor.submit(bgTask));
+    }
+
+    private static String stripTrailingSemicolon(String sql) {
+        if (sql == null) return sql;
+        String trimmed = sql.stripTrailing();
+        String upper = trimmed.stripLeading().toUpperCase();
+        if (upper.startsWith("BEGIN") || upper.startsWith("DECLARE")) {
+            return trimmed;
+        }
+        if (trimmed.endsWith(";")) {
+            return trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 
     final class Holder {

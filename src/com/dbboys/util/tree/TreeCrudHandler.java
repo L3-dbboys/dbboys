@@ -324,7 +324,12 @@ public class TreeCrudHandler {
         if ("user".equalsIgnoreCase(objectType) && selectedItem.getValue() instanceof Database) {
             sql = "ALTER USER \"" + oldName + "\" RENAME TO \"" + newName + "\"";
         } else {
-            sql = "rename " + objectType + " " + oldName + " to " + newName;
+            DatabasePlatform renamePlatform = TreeNavigator.resolvePlatform(selectedItem);
+            if (renamePlatform != null) {
+                sql = renamePlatform.renameObjectSql(objectType, oldName, newName);
+            } else {
+                sql = "rename " + objectType + " " + oldName + " to " + newName;
+            }
         }
         Connect connect = buildObjectConnect(selectedItem, useSysmaster);
         service.renameObject(connect, sql, () -> {

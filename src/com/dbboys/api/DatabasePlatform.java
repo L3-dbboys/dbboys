@@ -101,6 +101,10 @@ public interface DatabasePlatform {
         return "系统表/视图";
     }
 
+    default String renameObjectSql(String objectType, String oldName, String newName) {
+        return "rename " + objectType + " " + oldName + " to " + newName;
+    }
+
     default String gatherSchemaSql(String schemaName) {
         return "update statistics";
     }
