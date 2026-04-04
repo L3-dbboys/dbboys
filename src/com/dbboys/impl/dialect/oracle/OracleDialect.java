@@ -54,7 +54,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
 
     @Override
     public ConnectionParams getConnectionParams(Connect connect) throws Exception {
-        // 使用 thin service_name 形式：jdbc:oracle:thin:@//host:port/service_name
+        if (connect.getSessionDatabase() == null || connect.getSessionDatabase().isBlank()) {
+            String username = connect.getUsername();
+            if (username != null && !username.isBlank()) {
+                connect.setSessionDatabase(username.toUpperCase());
+            }
+        }
         String host = connect.getIp() != null ? connect.getIp() : "localhost";
         String port = connect.getPort() != null && !connect.getPort().isEmpty() ? connect.getPort() : "1521";
         String database = connect.getDatabase() != null ? connect.getDatabase() : "ORCL";
