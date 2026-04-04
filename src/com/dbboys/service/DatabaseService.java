@@ -225,7 +225,7 @@ public class DatabaseService implements MetaObjectService {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
                 UpdateResult updateResult = new UpdateResult();
                 updateResult.setConnectId(connect.getId());
-                updateResult.setDatabase(connect.getDatabase());
+                updateResult.setDatabase(connect.getEffectiveDatabase());
                 updateResult.setUpdateSql(importSummary);
                 updateResult.setStartTime(sdf.format(beginTime));
 

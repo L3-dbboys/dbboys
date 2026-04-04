@@ -157,6 +157,11 @@ public class Connect extends TreeData{
         this.sessionDatabase.set(sessionDatabase);
     }
 
+    public String getEffectiveDatabase() {
+        String sd = getSessionDatabase();
+        return sd != null && !sd.isBlank() ? sd : getDatabase();
+    }
+
     public String getUsername() {
         return username.get();
     }

@@ -71,14 +71,15 @@ public interface MetaObjectService {
                         throw new Exception("ERROR");
                     }
 
+                    String effectiveDb = connect.getEffectiveDatabase();
                     updateResult.setConnectId(connect.getId());
-                    updateResult.setDatabase(connect.getDatabase());
+                    updateResult.setDatabase(effectiveDb);
                     updateResult.setUpdateSql(sql);
                     updateResult.setStartTime(sdf.format(beginTime));
 
                     backSqlTask.setBeginTime(sdf.format(beginTime));
                     backSqlTask.setConnectName(connect.getName());
-                    backSqlTask.setDatabaseName(connect.getDatabase());
+                    backSqlTask.setDatabaseName(effectiveDb);
                     backSqlTask.setSql(sql);
                     BackgroundSqlUtil.backSqlTaskList.add(backSqlTask);
                     BackgroundSqlUtil.updateBackSqlUIOnStart();
@@ -152,14 +153,15 @@ public interface MetaObjectService {
                         }
                         long beginTime = System.currentTimeMillis();
                         UpdateResult updateResult = new UpdateResult();
+                        String effectiveDb2 = connect.getEffectiveDatabase();
                         updateResult.setConnectId(connect.getId());
-                        updateResult.setDatabase(connect.getDatabase());
+                        updateResult.setDatabase(effectiveDb2);
                         updateResult.setUpdateSql(sql);
                         updateResult.setStartTime(sdf.format(beginTime));
 
                         backSqlTask.setBeginTime(sdf.format(beginTime));
                         backSqlTask.setConnectName(connect.getName());
-                        backSqlTask.setDatabaseName(connect.getDatabase());
+                        backSqlTask.setDatabaseName(effectiveDb2);
                         backSqlTask.setSql(sql);
                         BackgroundSqlUtil.backSqlTaskList.add(backSqlTask);
                         BackgroundSqlUtil.updateBackSqlUIOnStart();

@@ -582,11 +582,7 @@ public class SqlExecutionHelper {
     }
 
     private String resolveEffectiveDatabase() {
-        String sessionDb = ctrl.sqlConnect.getSessionDatabase();
-        if (sessionDb != null && !sessionDb.isBlank()) {
-            return sessionDb;
-        }
-        return ctrl.sqlConnect.getDatabase();
+        return ctrl.sqlConnect.getEffectiveDatabase();
     }
 
     private static String stripTrailingSemicolon(String sql) {
