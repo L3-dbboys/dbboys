@@ -11,6 +11,7 @@ import com.dbboys.ui.IconPaths;
 import com.dbboys.util.NotificationUtil;
 import com.dbboys.util.PopupWindowUtil;
 import com.dbboys.util.TabpaneUtil;
+import com.dbboys.util.tree.TreeNavigator;
 import com.dbboys.util.tree.TreeViewUtil;
 import com.dbboys.vo.*;
 import javafx.beans.binding.Bindings;
@@ -34,7 +35,7 @@ import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
 import java.sql.SQLException;
-import java.util.Set;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,10 +47,6 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private static final String WARN_ICON_STYLE = "-fx-fill: -color-danger-7;";
     private static final String INACTIVE_ICON_STYLE = "-fx-fill: #666;";
     private static final Pattern COUNT_INFO_PATTERN = Pattern.compile("^\\s*(\\d+)\\s*[个個](?:\\s*/\\s*(.+))?\\s*$");
-    private static final Set<String> SYSTEM_DATABASES = Set.of(
-            "sysmaster", "sysuser", "sysadmin", "sysutils", "sysha", "syscdr", "syscdcv1",
-            "gbasedbt", "informix", "sys"
-    );
     private static final double ICON_SLOT_SIZE = 16.0;
 
     private final int iconSize = 11;
@@ -449,7 +446,8 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         nodeIcon.setScaleY(0.4);
         applyPrimaryIconStyle(nodeIcon);
         bindNameLabel(item);
-        String sysTag = isSystemDatabase(database.getName()) ? "(SYS)" : "";
+        DatabasePlatform platform = TreeNavigator.resolvePlatform(treeItem);
+        String sysTag = isSystemDatabase(platform, database.getName()) ? "(SYS)" : "";
         warnIcon.setVisible("nolog".equals(database.getDbLog()));
         descripLabel.textProperty().unbind();
         descripLabel.setText(sysTag + database.getDbSize());
@@ -460,14 +458,37 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             graphicHbox.getChildren().addAll(nodeIconStackpane, nameLabel, spacer, warnIconGroup, descripLabel);
         }
         setGraphic(graphicHbox);
-        bindTooltip("DATABASE: ", database.nameProperty(), "\n",
-                "OWNER   : ", database.dbOwnerProperty(), "\n",
-                "LOG TYPE: ", database.dbLogProperty(), "\n",
-                "DBSPACE : ", database.dbSpaceProperty(), "\n",
-                "DBSIZE  : ", database.dbSizeProperty(), "\n",
-                "CREATED : ", database.dbCreatedProperty(), "\n",
-                "CHARSET : ", database.dbLocaleProperty(), "\n",
-                "USEGLU  : ", database.dbUseGLUProperty());
+        bindDatabaseTooltip(database, platform);
+    }
+
+    private void bindDatabaseTooltip(Database database, DatabasePlatform platform) {
+        java.util.List<DatabasePlatform.TooltipField> fields = platform != null
+                ? platform.databaseTooltipFields()
+                : DatabasePlatform.DEFAULT_DATABASE_TOOLTIP_FIELDS;
+        int maxLen = fields.stream().mapToInt(f -> f.label().length()).max().orElse(0);
+        java.util.List<Object> parts = new java.util.ArrayList<>();
+        for (int i = 0; i < fields.size(); i++) {
+            DatabasePlatform.TooltipField field = fields.get(i);
+            String padded = String.format("%-" + maxLen + "s", field.label());
+            if (i > 0) parts.add("\n");
+            parts.add(padded + ": ");
+            parts.add(resolveDatabaseProperty(database, field.propertyName()));
+        }
+        bindTooltip(parts.toArray());
+    }
+
+    private static ObservableValue<?> resolveDatabaseProperty(Database db, String propertyName) {
+        return switch (propertyName) {
+            case "name"      -> db.nameProperty();
+            case "dbOwner"   -> db.dbOwnerProperty();
+            case "dbLog"     -> db.dbLogProperty();
+            case "dbSpace"   -> db.dbSpaceProperty();
+            case "dbSize"    -> db.dbSizeProperty();
+            case "dbCreated" -> db.dbCreatedProperty();
+            case "dbLocale"  -> db.dbLocaleProperty();
+            case "dbUseGLU"  -> db.dbUseGLUProperty();
+            default          -> new javafx.beans.property.SimpleStringProperty("");
+        };
     }
 
     private void applyDatabaseTypeIcon(String dbType) {
@@ -703,8 +724,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         return true;
     }
 
-    private boolean isSystemDatabase(String dbName) {
-        return SYSTEM_DATABASES.contains(dbName);
+    private boolean isSystemDatabase(DatabasePlatform platform, String dbName) {
+        if (platform != null) {
+            return platform.isSystemDatabase(dbName);
+        }
+        return false;
     }
 
     private static DatabasePlatform.IconInfo resolveIconInfo(String dbType) {

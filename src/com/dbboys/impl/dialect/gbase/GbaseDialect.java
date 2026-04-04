@@ -14,6 +14,8 @@ import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.vo.Connect;
 
+import java.util.Set;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -158,6 +160,16 @@ public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
     @Override
     public String reconnectFallbackDatabaseName() {
         return "sysmaster";
+    }
+
+    private static final Set<String> SYS_DBS = Set.of(
+            "sysmaster", "sysadmin", "sysutils", "syscdcv1", "sys",
+            "gbasedbt", "sysuser", "syscdr", "sysha"
+    );
+
+    @Override
+    public Set<String> systemDatabaseNames() {
+        return SYS_DBS;
     }
 
     @Override

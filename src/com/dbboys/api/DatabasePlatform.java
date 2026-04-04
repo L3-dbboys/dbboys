@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 一种数据库类型的完整平台适配器：与 {@link com.dbboys.vo.Connect#getDbtype()} 一一对应，
@@ -53,6 +54,55 @@ public interface DatabasePlatform {
 
     default IconInfo iconInfo() {
         return null;
+    }
+
+    default boolean usesSchemaModel() {
+        return false;
+    }
+
+    default boolean canCreateDatabase() {
+        return true;
+    }
+
+    default String getCreateDatabaseMenuI18nKey() {
+        return "metadata.menu.create_database";
+    }
+
+    default String getCreateDatabaseMenuDefaultText() {
+        return "新建数据库";
+    }
+
+    default String getImportDdlDataMenuI18nKey() {
+        return "metadata.menu.import_ddl_data";
+    }
+
+    default String getImportDdlDataMenuDefaultText() {
+        return "导入数据库";
+    }
+
+    default boolean canDropDatabase() {
+        return true;
+    }
+
+    default Set<String> systemDatabaseNames() {
+        return Set.of();
+    }
+
+    record TooltipField(String label, String propertyName) {}
+
+    List<TooltipField> DEFAULT_DATABASE_TOOLTIP_FIELDS = List.of(
+            new TooltipField("DATABASE", "name"),
+            new TooltipField("OWNER",    "dbOwner"),
+            new TooltipField("LOG TYPE", "dbLog"),
+            new TooltipField("DBSPACE",  "dbSpace"),
+            new TooltipField("DBSIZE",   "dbSize"),
+            new TooltipField("CREATED",  "dbCreated"),
+            new TooltipField("CHARSET",  "dbLocale"),
+            new TooltipField("USEGLU",   "dbUseGLU")
+    );
+
+    default List<TooltipField> databaseTooltipFields() {
+        return DEFAULT_DATABASE_TOOLTIP_FIELDS;
     }
 
     default <T> Optional<T> capability(Class<T> type) {

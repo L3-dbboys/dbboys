@@ -1,5 +1,6 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.app.AppContext;
 import com.dbboys.app.AppState;
@@ -376,8 +377,11 @@ public class TreeNavigator {
         if (isReadOnlyObject(selectedItem) || isSystemDatabaseObject(selectedItem)) {
             return false;
         }
-        if (treeData instanceof Database && isOracleSchemaNode(selectedItem)) {
-            return false;
+        if (treeData instanceof Database) {
+            DatabasePlatform platform = resolvePlatform(selectedItem);
+            if (platform != null && platform.usesSchemaModel()) {
+                return false;
+            }
         }
         if (treeData instanceof Index && !treeData.getName().isEmpty() && treeData.getName().charAt(0) == ' ') {
             return false;
@@ -417,21 +421,16 @@ public class TreeNavigator {
         if (isReadOnlyObject(selectedItem) || isSystemDatabaseObject(selectedItem)) {
             return false;
         }
-        if (treeData instanceof Database && isOracleSchemaNode(selectedItem)) {
-            return false;
+        if (treeData instanceof Database) {
+            DatabasePlatform platform = resolvePlatform(selectedItem);
+            if (platform != null && !platform.canDropDatabase()) {
+                return false;
+            }
         }
         if (treeData instanceof Index && !treeData.getName().isEmpty() && treeData.getName().charAt(0) == ' ') {
             return false;
         }
         return true;
-    }
-
-    private static boolean isOracleSchemaNode(TreeItem<TreeData> selectedItem) {
-        if (selectedItem == null || !(selectedItem.getValue() instanceof Database)) {
-            return false;
-        }
-        Connect connect = getMetaConnect(selectedItem);
-        return connect != null && "ORACLE".equalsIgnoreCase(connect.getDbtype());
     }
 
     public static boolean isReadOnlyObject(TreeItem<TreeData> selectedItem) {
@@ -606,6 +605,24 @@ public class TreeNavigator {
             return "user";
         }
         return "object";
+    }
+
+    public static DatabasePlatform resolvePlatform(TreeItem<TreeData> treeItem) {
+        try {
+            Connect connect = getMetaConnect(treeItem);
+            return resolvePlatformByDbtype(connect.getDbtype());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static DatabasePlatform resolvePlatformByDbtype(String dbtype) {
+        try {
+            DatabasePlatformResolver resolver = resolvePlatformResolver();
+            return resolver != null ? resolver.getPlatform(dbtype) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static DatabasePlatformResolver resolvePlatformResolver() {

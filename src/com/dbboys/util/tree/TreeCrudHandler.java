@@ -1,5 +1,6 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.app.AppContext;
 import com.dbboys.app.AppErrorHandler;
@@ -1027,7 +1028,11 @@ public class TreeCrudHandler {
     }
 
     private static String buildDatabaseBootstrapSql(Connect connect, Database database) {
-        if (connect == null || database == null || !"GBASE 8S".equals(connect.getDbtype())) {
+        if (connect == null || database == null) {
+            return "";
+        }
+        DatabasePlatform platform = TreeNavigator.resolvePlatformByDbtype(connect.getDbtype());
+        if (platform == null || !platform.canCreateDatabase()) {
             return "";
         }
         String databaseName = normalizeSqlToken(database.getName());

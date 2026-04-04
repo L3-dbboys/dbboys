@@ -14,6 +14,8 @@ import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.vo.Connect;
 
+import java.util.Set;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -155,24 +157,19 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
         return "sysmaster";
     }
 
+    private static final Set<String> SYS_DBS = Set.of(
+            "sysmaster", "sysadmin", "sysutils", "syscdcv1", "sys",
+            "sysuser", "syscdr", "sysha", "informix"
+    );
+
+    @Override
+    public Set<String> systemDatabaseNames() {
+        return SYS_DBS;
+    }
+
     @Override
     public boolean isSystemDatabase(String databaseName) {
-        if (databaseName == null) {
-            return false;
-        }
-        switch (databaseName) {
-            case "sysmaster":
-            case "sysadmin":
-            case "sysutils":
-            case "syscdcv1":
-            case "sys":
-            case "sysuser":
-            case "syscdr":
-            case "sysha":
-                return true;
-            default:
-                return false;
-        }
+        return databaseName != null && SYS_DBS.contains(databaseName);
     }
 
     @Override

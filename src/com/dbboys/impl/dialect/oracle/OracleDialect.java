@@ -11,6 +11,7 @@ import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Oracle 方言占位：建连参数与驱动占位，会话初始化暂不实现。
@@ -125,6 +126,58 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     @Override
     public boolean supportsPackages() {
         return true;
+    }
+
+    @Override
+    public boolean usesSchemaModel() {
+        return true;
+    }
+
+    @Override
+    public boolean canCreateDatabase() {
+        return true;
+    }
+
+    @Override
+    public String getCreateDatabaseMenuI18nKey() {
+        return "metadata.menu.create_schema";
+    }
+
+    @Override
+    public String getCreateDatabaseMenuDefaultText() {
+        return "新建模式";
+    }
+
+    @Override
+    public String getImportDdlDataMenuI18nKey() {
+        return "metadata.menu.import_ddl_schema";
+    }
+
+    @Override
+    public String getImportDdlDataMenuDefaultText() {
+        return "导入模式";
+    }
+
+    @Override
+    public boolean canDropDatabase() {
+        return false;
+    }
+
+    @Override
+    public Set<String> systemDatabaseNames() {
+        return Set.of("sys");
+    }
+
+    @Override
+    public List<TooltipField> databaseTooltipFields() {
+        return List.of(
+                new TooltipField("SCHEMA",  "name"),
+                new TooltipField("OWNER",   "dbOwner"),
+                new TooltipField("SERVICE", "dbUseGLU"),
+                new TooltipField("SIZE",    "dbSize"),
+                new TooltipField("CREATED", "dbCreated"),
+                new TooltipField("CHARSET", "dbLocale")
+        );
     }
 
     @Override
