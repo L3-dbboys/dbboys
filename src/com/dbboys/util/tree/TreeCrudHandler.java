@@ -241,8 +241,14 @@ public class TreeCrudHandler {
                 NotificationUtil.showMainNotification(
                         I18n.t("metadata.notice.connection_renamed", "连接已重命名为：%s").formatted(selectedItem.getValue().getName()));
             }else if(treeData instanceof Database){
-                renameDatabaseObject(TreeViewUtil.databaseService, selectedItem, newName, "database",
-                        true);
+                DatabasePlatform renamePlatform = TreeNavigator.resolvePlatform(selectedItem);
+                if (renamePlatform != null && renamePlatform.usesSchemaModel()) {
+                    renameDatabaseObject(TreeViewUtil.databaseService, selectedItem, newName.toUpperCase(), "user",
+                            false);
+                } else {
+                    renameDatabaseObject(TreeViewUtil.databaseService, selectedItem, newName, "database",
+                            true);
+                }
             }else if(treeData instanceof Table){
                 renameDatabaseObject(TreeViewUtil.tableService, selectedItem, newName, "table",
                         false);
@@ -314,7 +320,12 @@ public class TreeCrudHandler {
                                              boolean useSysmaster) {
         String oldName = selectedItem.getValue().getName();
         String objectDisplayName = getDeleteObjectDisplayName(objectType);
-        String sql = "rename " + objectType + " " + oldName + " to " + newName;
+        String sql;
+        if ("user".equalsIgnoreCase(objectType) && selectedItem.getValue() instanceof Database) {
+            sql = "ALTER USER \"" + oldName + "\" RENAME TO \"" + newName + "\"";
+        } else {
+            sql = "rename " + objectType + " " + oldName + " to " + newName;
+        }
         Connect connect = buildObjectConnect(selectedItem, useSysmaster);
         service.renameObject(connect, sql, () -> {
             selectedItem.getValue().setName(newName);

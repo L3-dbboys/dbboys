@@ -120,6 +120,12 @@ public class TableService implements MetaObjectService {
     }
 
     public void updateStatisticsForTable(Connect connect, String tableName, Runnable onSucceededUi){
+        updateStatisticsForTable(connect, tableName, null, null, onSucceededUi);
+    }
+
+    public void updateStatisticsForTable(Connect connect, String tableName,
+                                         com.dbboys.api.DatabasePlatform platform, String schemaName,
+                                         Runnable onSucceededUi){
         Task<List<String>> loadIndexColumnsTask = new Task<>() {
             @Override
             protected List<String> call() throws Exception {
@@ -132,9 +138,15 @@ public class TableService implements MetaObjectService {
         loadIndexColumnsTask.setOnSucceeded(event -> {
             List<String> indexColumns = loadIndexColumnsTask.getValue();
             String indexColumnsStr = String.join(",", indexColumns);
-            String sql="update statistics for table " + tableName;
-            if (!indexColumnsStr.isEmpty()) {
-                sql = "update statistics high for table " + tableName + "(" + indexColumnsStr + ")";
+            String sql;
+            if (platform != null) {
+                sql = !indexColumnsStr.isEmpty()
+                        ? platform.gatherTableHighSql(schemaName, tableName, indexColumnsStr)
+                        : platform.gatherTableSql(schemaName, tableName);
+            } else {
+                sql = !indexColumnsStr.isEmpty()
+                        ? "update statistics high for table " + tableName + "(" + indexColumnsStr + ")"
+                        : "update statistics for table " + tableName;
             }
             executeObjectSql(connect, sql, onSucceededUi);
         });

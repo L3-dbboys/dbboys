@@ -377,12 +377,7 @@ public class TreeNavigator {
         if (isReadOnlyObject(selectedItem) || isSystemDatabaseObject(selectedItem)) {
             return false;
         }
-        if (treeData instanceof Database) {
-            DatabasePlatform platform = resolvePlatform(selectedItem);
-            if (platform != null && platform.usesSchemaModel()) {
-                return false;
-            }
-        }
+        
         if (treeData instanceof Index && !treeData.getName().isEmpty() && treeData.getName().charAt(0) == ' ') {
             return false;
         }

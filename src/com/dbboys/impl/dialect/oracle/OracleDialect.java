@@ -197,6 +197,36 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public String gatherSchemaSql(String schemaName) {
+        return "BEGIN DBMS_STATS.GATHER_SCHEMA_STATS(ownname => '" + schemaName + "'); END;";
+    }
+
+    @Override
+    public String gatherTableFolderSql(String schemaName) {
+        return "BEGIN DBMS_STATS.GATHER_SCHEMA_STATS(ownname => '" + schemaName + "'); END;";
+    }
+
+    @Override
+    public String gatherTableSql(String schemaName, String tableName) {
+        return "BEGIN DBMS_STATS.GATHER_TABLE_STATS(ownname => '" + schemaName + "', tabname => '" + tableName + "'); END;";
+    }
+
+    @Override
+    public String gatherTableHighSql(String schemaName, String tableName, String indexColumns) {
+        return gatherTableSql(schemaName, tableName);
+    }
+
+    @Override
+    public String gatherProcedureFolderSql(String schemaName) {
+        return null;
+    }
+
+    @Override
+    public String gatherProcedureSql(String schemaName, String procedureName) {
+        return null;
+    }
+
+    @Override
     public Set<String> systemDatabaseNames() {
         return Set.of("sys");
     }

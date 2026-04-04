@@ -22,6 +22,7 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
@@ -169,9 +170,10 @@ public class TreeContextMenuHandler {
         exportDdlMenu.textProperty().bind(I18n.bind("metadata.menu.export_ddl.title", "导出DDL"));
         exportDdlMenu.setGraphic(IconFactory.group(IconPaths.METADATA_DDL_MENU, 0.65, 0.65));
 
+        Group exportDdlAndDataIcon = IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.6, 0.6);
+        exportDdlAndDataIcon.setTranslateX(1);
         CustomShortcutMenuItem exportDdlAndDataItem =
-                MenuItemUtil.createMenuItemI18n("metadata.menu.export_ddl_data",
-                        IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.6, 0.6));
+                MenuItemUtil.createMenuItemI18n("metadata.menu.export_ddl_data", exportDdlAndDataIcon);
 
         CustomShortcutMenuItem exportDdlToFile =
                 MenuItemUtil.createMenuItemI18n("metadata.menu.ddl.to_file", null);
@@ -759,9 +761,13 @@ public class TreeContextMenuHandler {
                     return;
                 }
                 Connect connect = TreeCrudHandler.buildObjectConnect(selectedItems.get(0), false);
+                DatabasePlatform batchPlatform = TreeNavigator.resolvePlatform(selectedItems.get(0));
+                String batchSchema = TreeNavigator.getCurrentDatabase(selectedItems.get(0)).getName();
                 List<String> sqlList = new ArrayList<>();
                 for (TreeItem<TreeData> item : selectedItems) {
-                    sqlList.add("update statistics for table " + item.getValue().getName());
+                    sqlList.add(batchPlatform != null
+                            ? batchPlatform.gatherTableSql(batchSchema, item.getValue().getName())
+                            : "update statistics for table " + item.getValue().getName());
                 }
                 TreeViewUtil.tableService.executeObjectSqls(connect, sqlList, () -> NotificationUtil.showMainNotification(
                         I18n.t("backsql.notice.batch_update_statistics_submitted", "%d个表统计更新已完成！")
@@ -772,6 +778,8 @@ public class TreeContextMenuHandler {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             TreeData treeData = selectedItem.getValue();
             Connect connect = TreeCrudHandler.buildObjectConnect(selectedItem, false);
+            DatabasePlatform platform = TreeNavigator.resolvePlatform(selectedItem);
+            String schemaName = TreeNavigator.getCurrentDatabase(selectedItem).getName();
             boolean confirm = AlertUtil.CustomAlertConfirm(
                         I18n.t("backsql.confirm.update_statistics.title", "统计更新"),
                         I18n.t("backsql.confirm.update_statistics.content", "确定要执行统计更新吗？")
@@ -780,33 +788,43 @@ public class TreeContextMenuHandler {
                     return;
                 }
             if (treeData instanceof Database) {
-                TreeViewUtil.databaseService.updateStatistics(connect, "update statistics", ()->{
+                String schemaSql = platform != null ? platform.gatherSchemaSql(schemaName) : "update statistics";
+                TreeViewUtil.databaseService.updateStatistics(connect, schemaSql, ()->{
                     NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
                 });                
             }
             else if (treeData instanceof ObjectFolder) {
                 TreeDataLoader.ObjectFolderKind objectFolderKind = TreeDataLoader.getObjectFolderKind(selectedItem);
                 if(objectFolderKind == TreeDataLoader.ObjectFolderKind.SYSTEM_TABLE_VIEW || objectFolderKind == TreeDataLoader.ObjectFolderKind.TABLES){
-                    TreeViewUtil.tableService.updateStatistics(connect, "update statistics high for table force", ()->{
+                    String tableFolderSql = platform != null ? platform.gatherTableFolderSql(schemaName) : "update statistics high for table force";
+                    TreeViewUtil.tableService.updateStatistics(connect, tableFolderSql, ()->{
                         NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
                     });    
                 }
                 else if(objectFolderKind == TreeDataLoader.ObjectFolderKind.PROCEDURES){
-                    TreeViewUtil.procedureService.updateStatistics(connect, "update statistics for procedure", ()->{
-                        NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
-                    });    
+                    String procFolderSql = platform != null ? platform.gatherProcedureFolderSql(schemaName) : "update statistics for procedure";
+                    if (procFolderSql != null) {
+                        TreeViewUtil.procedureService.updateStatistics(connect, procFolderSql, ()->{
+                            NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                        });
+                    }
                 }
             }
             else if(treeData instanceof SysTable||treeData instanceof Table){
-                    TreeViewUtil.tableService.updateStatisticsForTable(connect, treeData.getName(), ()->{
+                    TreeViewUtil.tableService.updateStatisticsForTable(connect, treeData.getName(), platform, schemaName, ()->{
                         NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
                     });
                     
             }
             else if(treeData instanceof Procedure){
-                    TreeViewUtil.procedureService.updateStatistics(connect,"update statistics for procedure "+ treeData.getName(), ()->{
-                        NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
-                    });  
+                    String procSql = platform != null
+                            ? platform.gatherProcedureSql(schemaName, treeData.getName())
+                            : "update statistics for procedure " + treeData.getName();
+                    if (procSql != null) {
+                        TreeViewUtil.procedureService.updateStatistics(connect, procSql, ()->{
+                            NotificationUtil.showMainNotification(I18n.t("backsql.notice.update_statistics_done", "统计更新执行完成！"));
+                        });
+                    }
             }
         });
 
@@ -1392,13 +1410,11 @@ public class TreeContextMenuHandler {
                     treeview_menu.getItems().add(TreeViewUtil.databaseOpenFileItem);
                     if (!schemaModel) {
                         treeview_menu.getItems().add(setDefaultDatabaseItem);
-                        treeview_menu.getItems().add(updateStatisticsItem);
                     }
+                    treeview_menu.getItems().add(updateStatisticsItem);
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(TreeViewUtil.refreshItem);
-                    if (!schemaModel) {
-                        treeview_menu.getItems().add(renameItem);
-                    }
+                    treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
                     treeview_menu.getItems().add(importMenu);
                     exportDdlAndDataItem.textProperty().unbind();
@@ -1416,7 +1432,10 @@ public class TreeContextMenuHandler {
                         treeview_menu.getItems().add(updateStatisticsItem);
 
                     }else if(objectFolderKind == TreeDataLoader.ObjectFolderKind.PROCEDURES) {
-                        treeview_menu.getItems().add(updateStatisticsItem);
+                        DatabasePlatform menuPlatform = TreeNavigator.resolvePlatform(selectedItem);
+                        if (menuPlatform == null || menuPlatform.gatherProcedureFolderSql(null) != null) {
+                            treeview_menu.getItems().add(updateStatisticsItem);
+                        }
                     }
                     treeview_menu.getItems().add(TreeViewUtil.refreshItem);
 
@@ -1516,7 +1535,10 @@ public class TreeContextMenuHandler {
                 }
                 //存储过程
                 else if(selectedItem.getValue() instanceof Procedure) {
-                    treeview_menu.getItems().add(updateStatisticsItem);
+                    DatabasePlatform procPlatform = TreeNavigator.resolvePlatform(selectedItem);
+                    if (procPlatform == null || procPlatform.gatherProcedureSql(null, null) != null) {
+                        treeview_menu.getItems().add(updateStatisticsItem);
+                    }
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(deleteItem);
                     treeview_menu.getItems().add(ddlMenu);

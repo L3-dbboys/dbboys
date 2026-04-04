@@ -93,6 +93,30 @@ public interface DatabasePlatform {
         return "";
     }
 
+    default String gatherSchemaSql(String schemaName) {
+        return "update statistics";
+    }
+
+    default String gatherTableFolderSql(String schemaName) {
+        return "update statistics high for table force";
+    }
+
+    default String gatherTableSql(String schemaName, String tableName) {
+        return "update statistics for table " + tableName;
+    }
+
+    default String gatherTableHighSql(String schemaName, String tableName, String indexColumns) {
+        return "update statistics high for table " + tableName + "(" + indexColumns + ")";
+    }
+
+    default String gatherProcedureFolderSql(String schemaName) {
+        return "update statistics for procedure";
+    }
+
+    default String gatherProcedureSql(String schemaName, String procedureName) {
+        return "update statistics for procedure " + procedureName;
+    }
+
     default boolean canDropDatabase() {
         return true;
     }
