@@ -65,6 +65,24 @@ public final class OracleMetadataRepository implements MetadataRepository {
             order by username
             """;
 
+    private static final String SQL_USERS_WITH_SIZE = """
+            select u.username, nvl(s.total_bytes, 0) as schema_bytes
+            from all_users u
+            left join (
+                select owner, sum(bytes) as total_bytes
+                from dba_segments
+                group by owner
+            ) s on s.owner = u.username
+            where u.username not in (
+                'ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSNMP','DIP','DMSYS','DVF','DVSYS',
+                'FLOWS_FILES','GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','LBACSYS','MDDATA',
+                'MDSYS','OJVMSYS','OLAPSYS','ORACLE_OCM','OUTLN','REMOTE_SCHEDULER_AGENT','SI_INFORMTN_SCHEMA',
+                'SPATIAL_CSW_ADMIN_USR','SPATIAL_WFS_ADMIN_USR','SYS','SYS$UMF','SYSBACKUP','SYSDG',
+                'SYSKM','SYSRAC','SYSTEM','WMSYS','XDB','XS$NULL'
+            )
+            order by u.username
+            """;
+
     private static final String SQL_SCHEMA_INFO = """
             select
                 username as schema_name,
@@ -349,6 +367,17 @@ public final class OracleMetadataRepository implements MetadataRepository {
               and upper(t.trigger_name) = upper(?)
             """;
 
+    private static final String SQL_DICT_VIEW_COUNT = """
+            select count(*)
+            from dictionary
+            """;
+
+    private static final String SQL_DICT_VIEWS = """
+            select table_name, comments
+            from dictionary
+            order by table_name
+            """;
+
     private static final String SQL_VIEW_COUNT = """
             select count(*)
             from all_objects
@@ -449,7 +478,16 @@ public final class OracleMetadataRepository implements MetadataRepository {
     @Override
     public List<Database> getMetadataDatabases(Connection conn) throws SQLException {
         SqlRunner runner = runner(conn);
-        List<Database> schemas = runner.query(SQL_USERS, null, rs -> mapSchemaDatabase(rs.getString(1)));
+        List<Database> schemas;
+        try {
+            schemas = runner.query(SQL_USERS_WITH_SIZE, null, rs -> {
+                Database db = mapSchemaDatabase(rs.getString(1));
+                db.setDbSize(formatBytes(rs.getBigDecimal(2)));
+                return db;
+            });
+        } catch (SQLException e) {
+            schemas = runner.query(SQL_USERS, null, rs -> mapSchemaDatabase(rs.getString(1)));
+        }
         String currentSchema = currentSchema(conn);
         boolean exists = schemas.stream().anyMatch(schema -> currentSchema.equalsIgnoreCase(schema.getName()));
         if (!exists) {
@@ -488,18 +526,28 @@ public final class OracleMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public int getSystemTablesCount(Connection conn) {
-        return 0;
+    public int getSystemTablesCount(Connection conn) throws SQLException {
+        SqlRunner runner = runner(conn);
+        Integer value = runner.queryOne(SQL_DICT_VIEW_COUNT, null, rs -> rs.getInt(1));
+        return value == null ? 0 : value;
     }
 
     @Override
     public String getSystemTablesSize(Connection conn, String databaseName) {
-        return ZERO_SIZE;
+        return null;
     }
 
     @Override
-    public List<SysTable> getSystemTables(Connection conn, String databaseName) {
-        return List.of();
+    public List<SysTable> getSystemTables(Connection conn, String databaseName) throws SQLException {
+        SqlRunner runner = runner(conn);
+        return runner.query(SQL_DICT_VIEWS, null, rs -> {
+            SysTable st = new SysTable(rs.getString("table_name"));
+            st.setTableCatalog("SYS");
+            st.setTableOwner("SYS");
+            st.setTableComm(blankToEmpty(rs.getString("comments")));
+            st.setTableTypeCode("view");
+            return st;
+        });
     }
 
     @Override
@@ -784,9 +832,12 @@ public final class OracleMetadataRepository implements MetadataRepository {
         return fallback;
     }
 
+    private static final String SQL_SCHEMA_SIZE = """
+            select nvl(sum(bytes), 0) from dba_segments where owner = ?
+            """;
+
     private Database loadSchemaInfo(Connection conn, String schemaName) throws SQLException {
         SqlRunner runner = runner(conn);
-        String sessionUser = sessionUser(conn);
         return runner.queryOne(SQL_SCHEMA_INFO, List.of(schemaName), rs -> {
             Database schema = new Database(blankToFallback(rs.getString("schema_name"), schemaName));
             schema.setDbOwner(blankToFallback(rs.getString("schema_name"), schemaName));
@@ -795,13 +846,23 @@ public final class OracleMetadataRepository implements MetadataRepository {
             schema.setDbLog("");
             schema.setDbUseGLU(blankToEmpty(rs.getString("service_name")));
             schema.setDbLocale(blankToEmpty(rs.getString("db_locale")));
-            if (schema.getName().equalsIgnoreCase(sessionUser)) {
-                schema.setDbSize(queryFormattedSize(conn, SQL_USER_TABLES_SIZE, null));
-            } else {
-                schema.setDbSize("");
-            }
+            schema.setDbSize(querySchemaSize(conn, schema.getName()));
             return schema;
         });
+    }
+
+    private String querySchemaSize(Connection conn, String schemaName) {
+        try {
+            return queryFormattedSize(conn, SQL_SCHEMA_SIZE, List.of(schemaName));
+        } catch (SQLException e) {
+            try {
+                if (schemaName.equalsIgnoreCase(sessionUser(conn))) {
+                    return queryFormattedSize(conn, SQL_USER_TABLES_SIZE, null);
+                }
+            } catch (SQLException ignored) {
+            }
+            return "";
+        }
     }
 
     private String currentSchema(Connection conn) throws SQLException {

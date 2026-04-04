@@ -227,6 +227,16 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public String getSystemTableFolderI18nKey() {
+        return "metadata.folder.dictionary";
+    }
+
+    @Override
+    public String getSystemTableFolderDefaultText() {
+        return "字典表";
+    }
+
+    @Override
     public Set<String> systemDatabaseNames() {
         return Set.of("sys");
     }

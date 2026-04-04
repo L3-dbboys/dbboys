@@ -93,6 +93,14 @@ public interface DatabasePlatform {
         return "";
     }
 
+    default String getSystemTableFolderI18nKey() {
+        return "metadata.folder.system_table_view";
+    }
+
+    default String getSystemTableFolderDefaultText() {
+        return "系统表/视图";
+    }
+
     default String gatherSchemaSql(String schemaName) {
         return "update statistics";
     }

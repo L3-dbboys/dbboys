@@ -1,5 +1,6 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.i18n.I18n;
 import com.dbboys.api.MetaObjectService;
@@ -177,7 +178,8 @@ public class TreeDataLoader {
                                     treeItem.setValue((Database) objectList.getInfo());
                                     treeItem.getChildren().clear();
                                     //查询到的结果添加到数据库条目下
-                                    ObjectFolder objectFolder = createObjectFolder(ObjectFolderKind.SYSTEM_TABLE_VIEW);
+                                    DatabasePlatform folderPlatform = TreeNavigator.resolvePlatform(treeItem);
+                                    ObjectFolder objectFolder = createObjectFolder(ObjectFolderKind.SYSTEM_TABLE_VIEW, folderPlatform);
                                     objectFolder.setDescription(objectList.getItems().get(0).toString());
                                     TreeItem<TreeData> systableTreeItem = TreeViewBuilder.createTreeItem(objectFolder);
                                     objectFolder = createObjectFolder(ObjectFolderKind.TABLES);
@@ -418,6 +420,15 @@ public class TreeDataLoader {
             default -> {
             }
         }
+    }
+
+    public static ObjectFolder createObjectFolder(ObjectFolderKind kind, DatabasePlatform platform) {
+        ObjectFolder objectFolder = new ObjectFolder();
+        if (kind == ObjectFolderKind.SYSTEM_TABLE_VIEW && platform != null) {
+            bindFolderName(objectFolder, platform.getSystemTableFolderI18nKey(), platform.getSystemTableFolderDefaultText());
+            return objectFolder;
+        }
+        return createObjectFolder(kind);
     }
 
     public static ObjectFolder createObjectFolder(ObjectFolderKind kind) {
