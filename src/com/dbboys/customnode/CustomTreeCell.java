@@ -119,9 +119,16 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 renderConnect(connect, item);
             }
             else if(item instanceof DatabaseFolder){
-                nodeIcon.setContent(IconPaths.TREECELL_DATABASE_FOLDER);
-                nodeIcon.setScaleX(0.13);
-                nodeIcon.setScaleY(0.13);
+                DatabasePlatform dbFolderPlatform = TreeNavigator.resolvePlatform(treeItem);
+                if (dbFolderPlatform != null && dbFolderPlatform.usesSchemaModel()) {
+                    nodeIcon.setContent(IconPaths.TREECELL_USER_FOLDER);
+                    nodeIcon.setScaleX(0.65);
+                    nodeIcon.setScaleY(0.65);
+                } else {
+                    nodeIcon.setContent(IconPaths.TREECELL_DATABASE_FOLDER);
+                    nodeIcon.setScaleX(0.13);
+                    nodeIcon.setScaleY(0.13);
+                }
                 applyPrimaryIconStyle(nodeIcon);
                 bindCellText(item);
                 setGraphic(nodeIconStackpane);
@@ -441,12 +448,18 @@ public class CustomTreeCell extends TreeCell<TreeData> {
 
     private void renderDatabase(Database database, TreeData item, TreeItem<TreeData> treeItem) {
         applyConnectIconSlot(false);
-        nodeIcon.setContent(IconPaths.TREECELL_DATABASE);
-        nodeIcon.setScaleX(0.4);
-        nodeIcon.setScaleY(0.4);
+        DatabasePlatform platform = TreeNavigator.resolvePlatform(treeItem);
+        if (platform != null && platform.usesSchemaModel()) {
+            nodeIcon.setContent(IconPaths.METADATA_NAME_LABEL);
+            nodeIcon.setScaleX(0.55);
+            nodeIcon.setScaleY(0.55);
+        } else {
+            nodeIcon.setContent(IconPaths.TREECELL_DATABASE);
+            nodeIcon.setScaleX(0.4);
+            nodeIcon.setScaleY(0.4);
+        }
         applyPrimaryIconStyle(nodeIcon);
         bindNameLabel(item);
-        DatabasePlatform platform = TreeNavigator.resolvePlatform(treeItem);
         String sysTag = isSystemDatabase(platform, database.getName()) ? "(SYS)" : "";
         warnIcon.setVisible("nolog".equals(database.getDbLog()));
         descripLabel.textProperty().unbind();

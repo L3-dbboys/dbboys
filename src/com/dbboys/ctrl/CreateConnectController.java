@@ -357,7 +357,11 @@ public class CreateConnectController {
         } else if (connect.getDatabase() == null || connect.getDatabase().isBlank()) {
             connect.setDatabase(defaultDatabaseFor(connect.getDbtype()));
         }
-        connect.setUsername(usernameTextField.getText());
+        String username = usernameTextField.getText();
+        if (isOracleDbType(connect.getDbtype()) && username != null) {
+            username = username.toUpperCase();
+        }
+        connect.setUsername(username);
         connect.setPassword(passwordTextField.getText());
         connect.setReadonly(readOnlyCheckBox.isSelected());
             

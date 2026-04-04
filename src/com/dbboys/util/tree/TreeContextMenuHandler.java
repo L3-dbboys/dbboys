@@ -1745,10 +1745,9 @@ public class TreeContextMenuHandler {
             } else {
                 event.consume();
                 Connect connect = new Connect((Connect) selectedItem.getParent().getValue());
-                String name = schemaName.getText().trim().toUpperCase();
-                String quotedName = "\"" + name.replace("\"", "\"\"") + "\"";
-                String quotedPassword = "\"" + passwordField1.getText().trim().replace("\"", "\"\"") + "\"";
-                String sql = "CREATE USER " + quotedName + " IDENTIFIED BY " + quotedPassword;
+                String name = schemaName.getText().trim();
+                String escapedPassword = "\"" + passwordField1.getText().trim().replace("\"", "\"\"") + "\"";
+                String sql = "CREATE USER " + name + " IDENTIFIED BY " + escapedPassword;
                 TreeViewUtil.databaseService.executeObjectSql(connect, sql, () -> {
                     selectedItem.getChildren().clear();
                     selectedItem.setExpanded(false);
