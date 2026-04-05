@@ -801,13 +801,13 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
     }
 
     @Override
-    public List<MetadataType> getObjectTypes(Connection conn, String databaseName) throws SQLException {
+    public List<Type> getObjectTypes(Connection conn, String databaseName) throws SQLException {
         try {
             SqlRunner runner = new SqlRunner(conn, DEFAULT_QUERY_TIMEOUT_SECONDS);
             String dbLit = toSqlStringLiteral(databaseName);
             String sql = SQL_XTDTYPES.formatted(dbLit);
             return runner.query(sql, null, rs -> {
-                MetadataType row = new MetadataType(rs.getString(2));
+                Type row = new Type(rs.getString(2));
                 row.setDatabase(rs.getString(1));
                 row.setOwner(rs.getString(3));
                 row.setTypeKind(gbaseXtdTypeKind(rs.getInt(4)));
@@ -824,7 +824,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
     }
 
     @Override
-    public List<MetadataQueue> getQueues(Connection conn, String databaseName) throws SQLException {
+    public List<Queue> getQueues(Connection conn, String databaseName) throws SQLException {
         return List.of();
     }
 

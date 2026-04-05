@@ -92,7 +92,7 @@ public interface MetadataRepository {
         return 0;
     }
 
-    default List<MetadataType> getObjectTypes(Connection conn, String databaseName) throws SQLException {
+    default List<Type> getObjectTypes(Connection conn, String databaseName) throws SQLException {
         return List.of();
     }
 
@@ -100,7 +100,7 @@ public interface MetadataRepository {
         return 0;
     }
 
-    default List<MetadataQueue> getQueues(Connection conn, String databaseName) throws SQLException {
+    default List<Queue> getQueues(Connection conn, String databaseName) throws SQLException {
         return List.of();
     }
 

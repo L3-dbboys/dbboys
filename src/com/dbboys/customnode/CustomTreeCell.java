@@ -243,7 +243,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                         "CREATED  : " , sequence.createdProperty()
                 );
             }
-            else if (item instanceof MetadataType metaType) {
+            else if (item instanceof Type metaType) {
                 nodeIcon.setContent(IconPaths.TREECELL_TABLE);
                 nodeIcon.setScaleX(0.38);
                 nodeIcon.setScaleY(0.38);
@@ -263,7 +263,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                         "KIND     : ", metaType.typeKindProperty()
                 );
             }
-            else if (item instanceof MetadataQueue metaQueue) {
+            else if (item instanceof Queue metaQueue) {
                 nodeIcon.setContent(IconPaths.RESULTSET_ROW_NUMBER);
                 nodeIcon.setScaleX(0.5);
                 nodeIcon.setScaleY(0.5);

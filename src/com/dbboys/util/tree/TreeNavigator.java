@@ -89,8 +89,8 @@ public class TreeNavigator {
                         retrunTreeItem.getValue() instanceof Function||
                         retrunTreeItem.getValue() instanceof Procedure||
                         retrunTreeItem.getValue() instanceof DBPackage||
-                        retrunTreeItem.getValue() instanceof MetadataType||
-                        retrunTreeItem.getValue() instanceof MetadataQueue
+                        retrunTreeItem.getValue() instanceof Type||
+                        retrunTreeItem.getValue() instanceof Queue
         ){
             return  retrunTreeItem.getParent().getParent().getParent().getParent();
         }
@@ -132,8 +132,8 @@ public class TreeNavigator {
                         retrunTreeItem.getValue() instanceof Function||
                         retrunTreeItem.getValue() instanceof Procedure||
                         retrunTreeItem.getValue() instanceof DBPackage||
-                        retrunTreeItem.getValue() instanceof MetadataType||
-                        retrunTreeItem.getValue() instanceof MetadataQueue
+                        retrunTreeItem.getValue() instanceof Type||
+                        retrunTreeItem.getValue() instanceof Queue
         ){
             return  (Database) retrunTreeItem.getParent().getParent().getValue();
         }else if(
@@ -455,8 +455,8 @@ public class TreeNavigator {
                 || treeData instanceof Function
                 || treeData instanceof Procedure
                 || treeData instanceof DBPackage
-                || treeData instanceof MetadataType
-                || treeData instanceof MetadataQueue)) {
+                || treeData instanceof Type
+                || treeData instanceof Queue)) {
             return false;
         }
         Connect connect = getMetaConnect(selectedItem);
@@ -487,8 +487,8 @@ public class TreeNavigator {
                 || treeData instanceof Function
                 || treeData instanceof Procedure
                 || treeData instanceof DBPackage
-                || treeData instanceof MetadataType
-                || treeData instanceof MetadataQueue
+                || treeData instanceof Type
+                || treeData instanceof Queue
                 || treeData instanceof PackageFunction
                 || treeData instanceof PackageProcedure;
     }

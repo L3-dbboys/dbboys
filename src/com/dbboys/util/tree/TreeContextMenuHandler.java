@@ -1334,8 +1334,8 @@ public class TreeContextMenuHandler {
                         selectedItem.getValue() instanceof Function||
                         selectedItem.getValue() instanceof Procedure||
                         selectedItem.getValue() instanceof DBPackage||
-                        selectedItem.getValue() instanceof MetadataType||
-                        selectedItem.getValue() instanceof MetadataQueue
+                        selectedItem.getValue() instanceof Type||
+                        selectedItem.getValue() instanceof Queue
                 ) {
                     if (TreeNavigator.isSystemDatabaseObject(selectedItem)) {
                         truncateItem.setDisable(true);
@@ -1588,11 +1588,11 @@ public class TreeContextMenuHandler {
                     treeview_menu.getItems().add(deleteItem);
                     treeview_menu.getItems().add(ddlMenu);
                 }
-                else if(selectedItem.getValue() instanceof MetadataType) {
+                else if(selectedItem.getValue() instanceof Type) {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(ddlMenu);
                 }
-                else if(selectedItem.getValue() instanceof MetadataQueue) {
+                else if(selectedItem.getValue() instanceof Queue) {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(ddlMenu);
                 }

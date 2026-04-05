@@ -7,8 +7,8 @@ import com.dbboys.vo.DBPackage;
 import com.dbboys.vo.Database;
 import com.dbboys.vo.Function;
 import com.dbboys.vo.Index;
-import com.dbboys.vo.MetadataQueue;
-import com.dbboys.vo.MetadataType;
+import com.dbboys.vo.Queue;
+import com.dbboys.vo.Type;
 import com.dbboys.vo.Procedure;
 import com.dbboys.vo.Sequence;
 import com.dbboys.vo.Synonym;
@@ -1147,12 +1147,12 @@ public final class OracleMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public List<MetadataType> getObjectTypes(Connection conn, String databaseName) throws SQLException {
+    public List<Type> getObjectTypes(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = runner(conn);
         String owner = (databaseName == null || databaseName.isBlank()) ? currentSchema(conn) : databaseName;
         try {
             return runner.query(SQL_TYPES, List.of(owner), rs -> {
-                MetadataType row = new MetadataType(rs.getString("type_name"));
+                Type row = new Type(rs.getString("type_name"));
                 row.setDatabase(owner);
                 row.setOwner(rs.getString("owner"));
                 row.setTypeKind(blankToEmpty(rs.getString("typecode")));
@@ -1182,12 +1182,12 @@ public final class OracleMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public List<MetadataQueue> getQueues(Connection conn, String databaseName) throws SQLException {
+    public List<Queue> getQueues(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = runner(conn);
         String owner = (databaseName == null || databaseName.isBlank()) ? currentSchema(conn) : databaseName;
         try {
             return runner.query(SQL_QUEUES, List.of(owner), rs -> {
-                MetadataQueue row = new MetadataQueue(rs.getString("name"));
+                Queue row = new Queue(rs.getString("name"));
                 row.setDatabase(owner);
                 row.setOwner(rs.getString("owner"));
                 return row;

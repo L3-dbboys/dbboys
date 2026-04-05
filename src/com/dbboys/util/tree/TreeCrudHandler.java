@@ -711,9 +711,9 @@ public class TreeCrudHandler {
                         ddlText = TreeViewUtil.triggerService.getDDL(connectParam, database, data.getName());
                     } else if (data instanceof Sequence) {
                         ddlText = TreeViewUtil.sequenceService.getDDL(connectParam, database, data.getName());
-                    } else if (data instanceof MetadataType) {
+                    } else if (data instanceof Type) {
                         ddlText = TreeViewUtil.objectTypeService.getDDL(connectParam, database, data.getName());
-                    } else if (data instanceof MetadataQueue) {
+                    } else if (data instanceof Queue) {
                         ddlText = TreeViewUtil.queueService.getDDL(connectParam, database, data.getName());
                     } else if (data instanceof Synonym) {
                         ddlText = TreeViewUtil.synonymService.getDDL(connectParam, database, data.getName());

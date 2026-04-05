@@ -4,7 +4,7 @@ import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.api.MetaObjectService;
 import com.dbboys.api.MetaObjectService.DdlFetcher;
 import com.dbboys.vo.Connect;
-import com.dbboys.vo.MetadataType;
+import com.dbboys.vo.Type;
 import com.dbboys.vo.ObjectList;
 
 import java.sql.Connection;
@@ -27,7 +27,7 @@ public class ObjectTypeService implements MetaObjectService {
     public ObjectList loadObjects(Connect connect, Connection conn, String databaseName) throws SQLException {
         var repo = platformResolver.metadata(connect);
         ObjectList objectList = new ObjectList();
-        List<MetadataType> result = new ArrayList<>();
+        List<Type> result = new ArrayList<>();
         objectList.setItems(result);
         int count = repo.getObjectTypeCount(conn, databaseName);
         objectList.setInfo(count + "个");

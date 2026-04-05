@@ -44,7 +44,7 @@ public interface DatabasePlatform {
         return false;
     }
 
-    /** When true, schema/database object tree shows a queues folder (Oracle AQ; GBase shows folder with empty list if N/A). */
+    /** When true, schema/database object tree shows a queues folder (e.g. Oracle Advanced Queuing). */
     default boolean supportsObjectQueuesFolder() {
         return false;
     }

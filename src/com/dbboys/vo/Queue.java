@@ -3,14 +3,13 @@ package com.dbboys.vo;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-/** Oracle {@code ALL_TYPES} / GBase {@code sysxtdtypes} row for metadata tree. */
-public class MetadataType extends TreeData {
+/** Oracle Advanced Queuing {@code ALL_QUEUES} row for metadata tree. */
+public class Queue extends TreeData {
 
     private final StringProperty database = new SimpleStringProperty();
     private final StringProperty owner = new SimpleStringProperty();
-    private final StringProperty typeKind = new SimpleStringProperty();
 
-    public MetadataType(String name) {
+    public Queue(String name) {
         super(name);
     }
 
@@ -36,17 +35,5 @@ public class MetadataType extends TreeData {
 
     public void setOwner(String owner) {
         this.owner.set(owner);
-    }
-
-    public String getTypeKind() {
-        return typeKind.get();
-    }
-
-    public StringProperty typeKindProperty() {
-        return typeKind;
-    }
-
-    public void setTypeKind(String typeKind) {
-        this.typeKind.set(typeKind);
     }
 }

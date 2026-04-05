@@ -419,14 +419,14 @@ public class TreeDataLoader {
                 }
             }
             case TYPES -> {
-                List<MetadataType> types = objectList.getItems();
-                for (MetadataType row : types) {
+                List<Type> types = objectList.getItems();
+                for (Type row : types) {
                     treeItem.getChildren().add(TreeViewBuilder.createLeafTreeItem(row));
                 }
             }
             case QUEUES -> {
-                List<MetadataQueue> queues = objectList.getItems();
-                for (MetadataQueue row : queues) {
+                List<Queue> queues = objectList.getItems();
+                for (Queue row : queues) {
                     treeItem.getChildren().add(TreeViewBuilder.createLeafTreeItem(row));
                 }
             }
