@@ -37,6 +37,6 @@ public class ObjectTypeService implements MetaObjectService {
 
     @Override
     public DdlFetcher ddlFetcher() {
-        return (connect, conn, objectName) -> "--";
+        return (connect, conn, objectName) -> platformResolver.ddl(connect).printType(conn, objectName);
     }
 }

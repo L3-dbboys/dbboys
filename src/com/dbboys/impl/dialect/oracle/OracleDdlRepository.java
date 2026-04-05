@@ -619,6 +619,10 @@ public final class OracleDdlRepository implements DdlRepository {
         } else if ("TRIGGER".equals(objectType)) {
             ddl = normalizeOracleTriggerAlterAndForEachRow(ddl);
             ddl = ensureTrailingSemicolon(ddl);
+        } else if ("TYPE".equals(objectType) || "TYPE_BODY".equals(objectType) || "QUEUE".equals(objectType)) {
+            ddl = normalizePlSqlInternalWhitespace(ddl);
+            ddl = collapseMetadataKeywordSpacing(ddl);
+            ddl = ensureTrailingSemicolon(ddl);
         }
         return ddl;
     }
@@ -729,6 +733,37 @@ public final class OracleDdlRepository implements DdlRepository {
             sb.append(body).append("\n/\n");
         }
         return sb.toString().stripTrailing();
+    }
+
+    @Override
+    public String printType(Connection conn, String objectName) throws SQLException {
+        String schema = currentSchema(conn);
+        configureMetadataTransform(conn);
+        String spec = getDdl(conn, "TYPE", objectName, schema);
+        String body;
+        try {
+            body = getDdl(conn, "TYPE_BODY", objectName, schema);
+        } catch (SQLException e) {
+            log.debug("No TYPE_BODY for {}.{}: {}", schema, objectName, e.getMessage());
+            body = "";
+        }
+        if (body.isBlank() || body.startsWith("-- ERROR")) {
+            return withTrailingSqlPlusSlash(spec);
+        }
+        if (spec.isBlank()) {
+            return withTrailingSqlPlusSlash(body);
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(spec).append("\n/\n");
+        sb.append(body).append("\n/\n");
+        return sb.toString().stripTrailing();
+    }
+
+    @Override
+    public String printQueue(Connection conn, String objectName) throws SQLException {
+        String schema = currentSchema(conn);
+        configureMetadataTransform(conn);
+        return getDdl(conn, "QUEUE", objectName, schema);
     }
 
     @Override

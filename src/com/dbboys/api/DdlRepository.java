@@ -61,4 +61,14 @@ public interface DdlRepository {
     String printTrigger(Connection conn, String objectName) throws Exception;
 
     String printPackage(Connection conn, String objectName) throws Exception;
+
+    /** Object / collection types (e.g. Oracle {@code TYPE} / {@code TYPE_BODY}). */
+    default String printType(Connection conn, String objectName) throws Exception {
+        return "--";
+    }
+
+    /** Queues (e.g. Oracle Advanced Queuing {@code QUEUE}). */
+    default String printQueue(Connection conn, String objectName) throws Exception {
+        return "--";
+    }
 }
