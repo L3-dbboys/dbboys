@@ -36,12 +36,69 @@ public final class OracleDdlRepository implements DdlRepository {
                     + "(?=\\s*(?:\\(|is\\b|as\\b|;|[\\r\\n]|$))"
     );
 
-    private static final String SQL_OBJECT_COUNT = """
-            SELECT COUNT(*) FROM all_objects
-            WHERE owner = ? AND object_type IN (
-                'TABLE','VIEW','INDEX','SEQUENCE','SYNONYM',
-                'FUNCTION','PROCEDURE','TRIGGER','PACKAGE'
-            ) AND secondary = 'N'
+    /**
+     * Export progress total when splitting DDL: pre-data phase + post-data (standalone indexes, constraints, triggers).
+     * Matches {@link #exportDatabaseDdlParts}; table count uses body-only DDL, indexes exclude constraint-backed ones.
+     */
+    private static final String SQL_EXPORT_ITEM_COUNT_SPLIT = """
+            SELECT
+              (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SEQUENCE' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TABLE' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'VIEW' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SYNONYM' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'FUNCTION' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PROCEDURE' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PACKAGE' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects i WHERE i.owner = ? AND i.object_type = 'INDEX' AND i.secondary = 'N'
+               AND NOT EXISTS (
+                   SELECT 1 FROM all_constraints c
+                   WHERE c.owner = i.owner
+                     AND c.index_name = i.object_name
+                     AND c.index_name IS NOT NULL))
+            + (SELECT COUNT(*) FROM all_constraints
+               WHERE owner = ? AND status = 'ENABLED'
+                 AND constraint_type IN ('P','U','C','R')
+                 AND (generated IS NULL OR generated = 'USER NAME'))
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TRIGGER' AND secondary = 'N')
+            AS cnt FROM dual
+            """;
+
+    /** Indexes not backing a constraint (PK/UK); exported in post-data phase. */
+    private static final String SQL_STANDALONE_INDEX_NAMES = """
+            SELECT i.object_name
+            FROM all_objects i
+            WHERE i.owner = ?
+              AND i.object_type = 'INDEX'
+              AND i.secondary = 'N'
+              AND NOT EXISTS (
+                  SELECT 1 FROM all_constraints c
+                  WHERE c.owner = i.owner
+                    AND c.index_name = i.object_name
+                    AND c.index_name IS NOT NULL)
+            ORDER BY i.object_name
+            """;
+
+    private static final String SQL_CONSTRAINTS_PUC = """
+            SELECT constraint_name, constraint_type
+            FROM all_constraints
+            WHERE owner = ?
+              AND status = 'ENABLED'
+              AND constraint_type IN ('P','U','C')
+              AND (generated IS NULL OR generated = 'USER NAME')
+            ORDER BY CASE constraint_type
+                       WHEN 'P' THEN 1 WHEN 'U' THEN 2 WHEN 'C' THEN 3
+                     END,
+                     constraint_name
+            """;
+
+    private static final String SQL_CONSTRAINTS_R = """
+            SELECT constraint_name
+            FROM all_constraints
+            WHERE owner = ?
+              AND status = 'ENABLED'
+              AND constraint_type = 'R'
+              AND (generated IS NULL OR generated = 'USER NAME')
+            ORDER BY constraint_name
             """;
 
     private static final String SQL_SCHEMA_OBJECTS = """
@@ -540,6 +597,20 @@ public final class OracleDdlRepository implements DdlRepository {
         }
     }
 
+    /**
+     * When {@code false}, {@code GET_DDL('TABLE', ...)} omits inline PK/UK/CK and FK clauses so data can be loaded first
+     * (second file adds constraints and standalone indexes, similar to GBase export).
+     */
+    private void setEmbeddedTableConstraintsInMetadata(Connection conn, boolean include) throws SQLException {
+        String v = include ? "TRUE" : "FALSE";
+        try (var stmt = conn.createStatement()) {
+            stmt.execute("BEGIN " +
+                    "DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM,'CONSTRAINTS'," + v + ");" +
+                    "DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM,'REF_CONSTRAINTS'," + v + ");" +
+                    "END;");
+        }
+    }
+
     @Override
     public String printTable(Connection conn, String objectName) throws SQLException {
         String schema = currentSchema(conn);
@@ -615,10 +686,51 @@ public final class OracleDdlRepository implements DdlRepository {
 
     @Override
     public long countDatabaseExportItems(Connection conn, String databaseName) throws SQLException {
-        String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn);
+        String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn).toUpperCase();
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
-        Integer count = runner.queryOne(SQL_OBJECT_COUNT, List.of(schema), rs -> rs.getInt(1));
-        return count != null ? count : 0;
+        List<Object> binds = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            binds.add(schema);
+        }
+        Long count = runner.queryOne(SQL_EXPORT_ITEM_COUNT_SPLIT, binds, rs -> Long.valueOf(rs.getLong(1)));
+        return count != null ? count : 0L;
+    }
+
+    @Override
+    public DdlRepository.DatabaseDdlParts exportDatabaseDdlParts(Connection conn,
+                                                                 String databaseName,
+                                                                 LongConsumer progressCallback) throws SQLException {
+        String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn).toUpperCase();
+        configureMetadataTransform(conn);
+        setEmbeddedTableConstraintsInMetadata(conn, true);
+
+        StringBuilder pre = new StringBuilder();
+        StringBuilder post = new StringBuilder();
+        long completed = 0;
+
+        pre.append("-- ### Phase 1: objects suitable before bulk data load\n\n");
+        completed = appendObjectsDdl(conn, pre, schema, "SEQUENCE", "Sequences", completed, progressCallback);
+
+        setEmbeddedTableConstraintsInMetadata(conn, false);
+        completed = appendObjectsDdl(conn, pre, schema, "TABLE", "Tables (columns only, no inline constraints)", completed, progressCallback);
+        setEmbeddedTableConstraintsInMetadata(conn, true);
+
+        completed = appendObjectsDdl(conn, pre, schema, "VIEW", "Views", completed, progressCallback);
+        completed = appendObjectsDdl(conn, pre, schema, "SYNONYM", "Synonyms", completed, progressCallback);
+        completed = appendObjectsDdl(conn, pre, schema, "FUNCTION", "Functions", completed, progressCallback);
+        completed = appendObjectsDdl(conn, pre, schema, "PROCEDURE", "Procedures", completed, progressCallback);
+        completed = appendPackagesDdl(conn, pre, schema, completed, progressCallback);
+        appendTableComments(conn, pre, schema);
+        appendColumnComments(conn, pre, schema);
+
+        post.append("\n-- ### Phase 2: indexes, constraints, triggers (run after data load)\n\n");
+        completed = appendStandaloneIndexesDdl(conn, post, schema, completed, progressCallback);
+        completed = appendConstraintsDdl(conn, post, schema, completed, progressCallback);
+        completed = appendObjectsDdl(conn, post, schema, "TRIGGER", "Triggers", completed, progressCallback);
+
+        pre.append("-- ### END OF PHASE 1\n");
+        post.append("-- ### END OF PHASE 2 / EXPORT\n");
+        return new DdlRepository.DatabaseDdlParts(pre.toString(), post.toString());
     }
 
     @Override
@@ -628,27 +740,88 @@ public final class OracleDdlRepository implements DdlRepository {
 
     @Override
     public String printDatabase(Connection conn, String databaseName, LongConsumer progressCallback) throws SQLException {
-        String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn);
-        configureMetadataTransform(conn);
+        DdlRepository.DatabaseDdlParts parts = exportDatabaseDdlParts(conn, databaseName, progressCallback);
+        return parts.getPreDataSql() + parts.getPostDataSql();
+    }
 
-        StringBuilder ddl = new StringBuilder();
-        long completed = 0;
+    private long appendStandaloneIndexesDdl(Connection conn, StringBuilder ddl, String schema,
+                                            long completed, LongConsumer progressCallback) throws SQLException {
+        SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+        List<String> names = runner.query(SQL_STANDALONE_INDEX_NAMES, List.of(schema), rs -> rs.getString(1));
+        if (names.isEmpty()) {
+            return completed;
+        }
+        ddl.append("-- ### Indexes (standalone, excluding constraint-backed) (").append(names.size()).append(")\n\n");
+        for (String name : names) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Export cancelled");
+            }
+            String objDdl = getDdlSafe(conn, "INDEX", name, schema);
+            if (!objDdl.isEmpty()) {
+                ddl.append(objDdl);
+                if (!objDdl.endsWith(";")) {
+                    ddl.append("\n;");
+                }
+                ddl.append("\n\n");
+            }
+            completed++;
+            if (progressCallback != null) {
+                progressCallback.accept(completed);
+            }
+        }
+        ddl.append("-- ### FINISH: standalone indexes\n\n");
+        return completed;
+    }
 
-        completed = appendObjectsDdl(conn, ddl, schema, "SEQUENCE", "Sequences", completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "TABLE", "Tables", completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "INDEX", "Indexes", completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "VIEW", "Views", completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "SYNONYM", "Synonyms", completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "FUNCTION", "Functions", completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "PROCEDURE", "Procedures", completed, progressCallback);
-        completed = appendPackagesDdl(conn, ddl, schema, completed, progressCallback);
-        completed = appendObjectsDdl(conn, ddl, schema, "TRIGGER", "Triggers", completed, progressCallback);
-
-        appendTableComments(conn, ddl, schema);
-        appendColumnComments(conn, ddl, schema);
-
-        ddl.append("-- ### END OF EXPORT\n");
-        return ddl.toString();
+    private long appendConstraintsDdl(Connection conn, StringBuilder ddl, String schema,
+                                    long completed, LongConsumer progressCallback) throws SQLException {
+        SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+        List<String[]> pucRows = runner.query(SQL_CONSTRAINTS_PUC, List.of(schema),
+                rs -> new String[]{rs.getString(1), rs.getString(2)});
+        List<String> refRows = runner.query(SQL_CONSTRAINTS_R, List.of(schema), rs -> rs.getString(1));
+        int n = pucRows.size() + refRows.size();
+        if (n == 0) {
+            return completed;
+        }
+        ddl.append("-- ### Constraints (").append(n).append(")\n\n");
+        for (String[] row : pucRows) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Export cancelled");
+            }
+            String consName = row[0];
+            String objDdl = getDdlSafe(conn, "CONSTRAINT", consName, schema);
+            if (!objDdl.isEmpty()) {
+                ddl.append(objDdl);
+                if (!objDdl.endsWith(";")) {
+                    ddl.append("\n;");
+                }
+                ddl.append("\n\n");
+            }
+            completed++;
+            if (progressCallback != null) {
+                progressCallback.accept(completed);
+            }
+        }
+        ddl.append("-- ### Referential constraints (foreign keys)\n\n");
+        for (String consName : refRows) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Export cancelled");
+            }
+            String objDdl = getDdlSafe(conn, "REF_CONSTRAINT", consName, schema);
+            if (!objDdl.isEmpty()) {
+                ddl.append(objDdl);
+                if (!objDdl.endsWith(";")) {
+                    ddl.append("\n;");
+                }
+                ddl.append("\n\n");
+            }
+            completed++;
+            if (progressCallback != null) {
+                progressCallback.accept(completed);
+            }
+        }
+        ddl.append("-- ### FINISH: constraints\n\n");
+        return completed;
     }
 
     private long appendObjectsDdl(Connection conn, StringBuilder ddl, String schema,
