@@ -66,6 +66,10 @@ public class TreeContextMenuHandler {
                 IconFactory.group(IconPaths.METADATA_MODIFY_TO_RAW_ITEM, 0.6, 0.6));
         CustomShortcutMenuItem modifyToStandardItem = MenuItemUtil.createMenuItemI18n("metadata.menu.modify_to_standard",
                 IconFactory.group(IconPaths.METADATA_MODIFY_TO_STANDARD_ITEM, 0.6, 0.6));
+        CustomShortcutMenuItem tableLoggingItem = MenuItemUtil.createMenuItemI18n("metadata.menu.table_logging",
+                IconFactory.group(IconPaths.METADATA_MODIFY_TO_STANDARD_ITEM, 0.6, 0.6));
+        CustomShortcutMenuItem tableNologgingItem = MenuItemUtil.createMenuItemI18n("metadata.menu.table_nologging",
+                IconFactory.group(IconPaths.METADATA_MODIFY_TO_RAW_ITEM, 0.6, 0.6));
         CustomShortcutMenuItem sqlHisItem = MenuItemUtil.createMenuItemI18n("metadata.menu.sql_history",
                 IconFactory.group(IconPaths.METADATA_SQL_HIS_ITEM, 0.85, 0.85));
         CustomShortcutMenuItem updateStatisticsItem = MenuItemUtil.createMenuItemI18n("metadata.menu.update_statistics",
@@ -417,6 +421,44 @@ public class TreeContextMenuHandler {
                     );
             }
             );
+            }
+        });
+
+        tableLoggingItem.setOnAction(event -> {
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            TreeData treeData = selectedItem.getValue();
+            Boolean confirm = AlertUtil.CustomAlertConfirm(
+                    I18n.t("metadata.alert.table_logging.title", "改为日志表"),
+                    I18n.t("metadata.alert.table_logging.content", "确定将表\"%s\"改为日志表（LOGGING）吗？将记录 REDO，便于恢复。")
+                            .formatted(treeData.getName())
+            );
+            if (confirm) {
+                Connect connect = TreeCrudHandler.buildObjectConnect(selectedItem, false);
+                TreeViewUtil.tableService.modifyTableLogging(connect, treeData.getName(), true, () -> {
+                    ((Table) treeData).setTableTypeCode("logging");
+                    NotificationUtil.showMainNotification(
+                            I18n.t("backsql.notice.table_logging", "表\"%s\"已改为日志表！").formatted(treeData.getName())
+                    );
+                });
+            }
+        });
+
+        tableNologgingItem.setOnAction(event -> {
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            TreeData treeData = selectedItem.getValue();
+            Boolean confirm = AlertUtil.CustomAlertConfirm(
+                    I18n.t("metadata.alert.table_nologging.title", "改为非日志表"),
+                    I18n.t("metadata.alert.table_nologging.content", "确定将表\"%s\"改为非日志表（NOLOGGING）吗？将减少 REDO，不适合需要完整恢复的生产表，请谨慎操作。")
+                            .formatted(treeData.getName())
+            );
+            if (confirm) {
+                Connect connect = TreeCrudHandler.buildObjectConnect(selectedItem, false);
+                TreeViewUtil.tableService.modifyTableLogging(connect, treeData.getName(), false, () -> {
+                    ((Table) treeData).setTableTypeCode("nologging");
+                    NotificationUtil.showMainNotification(
+                            I18n.t("backsql.notice.table_nologging", "表\"%s\"已改为非日志表！").formatted(treeData.getName())
+                    );
+                });
             }
         });
 
@@ -1210,6 +1252,8 @@ public class TreeContextMenuHandler {
                 sqlHisItem.setDisable(false);
                 modifyToRawItem.setDisable(false);
                 modifyToStandardItem.setDisable(false);
+                tableLoggingItem.setDisable(false);
+                tableNologgingItem.setDisable(false);
                 createTableItem.setDisable(false);
                 importDataItem.setDisable(false);
                 importSqlScriptItem.setDisable(false);
@@ -1264,6 +1308,8 @@ public class TreeContextMenuHandler {
                         updateStatisticsItem.setDisable(true);
                         modifyToRawItem.setDisable(true);
                         modifyToStandardItem.setDisable(true);
+                        tableLoggingItem.setDisable(true);
+                        tableNologgingItem.setDisable(true);
                         createDatabaseItem.setDisable(true);
                         createTableItem.setDisable(true);
                         importDataItem.setDisable(true);
@@ -1297,6 +1343,8 @@ public class TreeContextMenuHandler {
                         disableItem.setDisable(true);
                         modifyToRawItem.setDisable(true);
                         modifyToStandardItem.setDisable(true);
+                        tableLoggingItem.setDisable(true);
+                        tableNologgingItem.setDisable(true);
                         importDataItem.setDisable(true);
                         importSqlScriptItem.setDisable(true);
                     }
@@ -1465,11 +1513,16 @@ public class TreeContextMenuHandler {
                 else if(selectedItem.getValue() instanceof Table) {
                     DatabasePlatform tablePlatform = TreeNavigator.resolvePlatform(selectedItem);
                     boolean canModifyTableType = tablePlatform == null || tablePlatform.supportsTableTypeModification();
+                    boolean canToggleLogging = tablePlatform != null && tablePlatform.supportsTableLoggingToggle();
                     if(!isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         if (canModifyTableType) {
                             treeview_menu.getItems().add(modifyToRawItem);
                             treeview_menu.getItems().add(modifyToStandardItem);
+                        }
+                        if (canToggleLogging) {
+                            treeview_menu.getItems().add(tableLoggingItem);
+                            treeview_menu.getItems().add(tableNologgingItem);
                         }
                         treeview_menu.getItems().add(truncateItem);
                     }
@@ -1478,6 +1531,13 @@ public class TreeContextMenuHandler {
                             modifyToRawItem.setDisable(true);
                         }else{
                             modifyToStandardItem.setDisable(true);
+                        }
+                    }
+                    if (canToggleLogging) {
+                        if (isTableType(((Table) selectedItem.getValue()).getTableTypeCode(), "nologging")) {
+                            tableNologgingItem.setDisable(true);
+                        } else {
+                            tableLoggingItem.setDisable(true);
                         }
                     }
                     if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){

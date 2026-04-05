@@ -125,6 +125,32 @@ public interface DatabasePlatform {
         return true;
     }
 
+    /**
+     * When true, {@link com.dbboys.service.TableService#loadObjects} loads tables via
+     * {@link MetadataRepository#getUserTables} first and uses the list size as the folder row count,
+     * instead of calling {@link MetadataRepository#getUserTablesCount} (saves one round trip when
+     * the list query is always required).
+     */
+    default boolean prefersTableCountFromTableListQuery() {
+        return false;
+    }
+
+    /**
+     * Oracle-style {@code LOGGING} / {@code NOLOGGING} on heap tables. Unrelated to
+     * {@link #supportsTableTypeModification()} (Informix raw/standard).
+     */
+    default boolean supportsTableLoggingToggle() {
+        return false;
+    }
+
+    /**
+     * @param tableName table identifier for DDL (often schema-qualified)
+     * @param logging   {@code true} → {@code LOGGING}, {@code false} → {@code NOLOGGING}
+     */
+    default String alterTableLoggingSql(String tableName, boolean logging) {
+        return null;
+    }
+
     default String renameObjectSql(String objectType, String oldName, String newName) {
         return "rename " + objectType + " " + oldName + " to " + newName;
     }

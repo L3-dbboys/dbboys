@@ -146,6 +146,10 @@ public final class OracleMetadataRepository implements MetadataRepository {
               and (segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE')
             """;
 
+    /**
+     * Table folder list: avoid {@code ALL_SEGMENTS}/{@code USER_SEGMENTS} (full scan + group by per schema — very slow).
+     * Row size uses {@code blocks * 8192} as a coarse estimate (default block size; single-table DDL still uses exact segments).
+     */
     private static final String SQL_USER_TABLES = """
             select
                 t.owner,
@@ -154,7 +158,8 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 nvl(tc.comments, '') as table_comment,
                 nvl(t.num_rows, 0) as num_rows,
                 nvl(t.blocks, 0) as blocks,
-                nvl(s.bytes, 0) as size_bytes
+                nvl(t.logging, 'YES') as logging,
+                (nvl(t.blocks, 0) * 8192) as size_bytes
             from all_tables t
             join all_objects o
               on o.owner = t.owner
@@ -163,65 +168,24 @@ public final class OracleMetadataRepository implements MetadataRepository {
             left join all_tab_comments tc
               on tc.owner = t.owner
              and tc.table_name = t.table_name
-            left join (
-                select segment_name, sum(bytes) as bytes
-                from all_segments
-                where owner = ?
-                  and (segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE')
-                group by segment_name
-            ) s
-              on s.segment_name = t.table_name
             where t.owner = ?
             order by t.table_name
             """;
 
-    /** Fallback when {@code ALL_SEGMENTS} is not visible (ORA-00942); only valid for the login user's schema. */
-    private static final String SQL_USER_TABLES_VIA_USER_SEGMENTS = """
+    /**
+     * Minimal fallback if a dictionary join is not visible (ORA-00942); still avoids segment views.
+     */
+    private static final String SQL_USER_TABLES_MINIMAL_FALLBACK = """
             select
                 t.owner,
                 t.table_name,
-                to_char(o.created, 'YYYY-MM-DD HH24:MI:SS') as created_time,
-                nvl(tc.comments, '') as table_comment,
+                cast(null as varchar2(20)) as created_time,
+                cast(null as varchar2(1)) as table_comment,
                 nvl(t.num_rows, 0) as num_rows,
                 nvl(t.blocks, 0) as blocks,
-                nvl(s.bytes, 0) as size_bytes
+                nvl(t.logging, 'YES') as logging,
+                (nvl(t.blocks, 0) * 8192) as size_bytes
             from all_tables t
-            join all_objects o
-              on o.owner = t.owner
-             and o.object_name = t.table_name
-             and o.object_type = 'TABLE'
-            left join all_tab_comments tc
-              on tc.owner = t.owner
-             and tc.table_name = t.table_name
-            left join (
-                select segment_name, sum(bytes) as bytes
-                from user_segments
-                where segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE'
-                group by segment_name
-            ) s
-              on s.segment_name = t.table_name
-            where t.owner = ?
-            order by t.table_name
-            """;
-
-    /** No segment join — avoids ORA-00942 when neither ALL_SEGMENTS nor USER_SEGMENTS applies to the target owner. */
-    private static final String SQL_USER_TABLES_WITHOUT_SEGMENT_BYTES = """
-            select
-                t.owner,
-                t.table_name,
-                to_char(o.created, 'YYYY-MM-DD HH24:MI:SS') as created_time,
-                nvl(tc.comments, '') as table_comment,
-                nvl(t.num_rows, 0) as num_rows,
-                nvl(t.blocks, 0) as blocks,
-                cast(0 as number) as size_bytes
-            from all_tables t
-            join all_objects o
-              on o.owner = t.owner
-             and o.object_name = t.table_name
-             and o.object_type = 'TABLE'
-            left join all_tab_comments tc
-              on tc.owner = t.owner
-             and tc.table_name = t.table_name
             where t.owner = ?
             order by t.table_name
             """;
@@ -234,6 +198,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 nvl(tc.comments, '') as table_comment,
                 nvl(t.num_rows, 0) as num_rows,
                 nvl(t.blocks, 0) as blocks,
+                nvl(t.logging, 'YES') as logging,
                 nvl(s.bytes, 0) as size_bytes
             from all_tables t
             join all_objects o
@@ -263,6 +228,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 nvl(tc.comments, '') as table_comment,
                 nvl(t.num_rows, 0) as num_rows,
                 nvl(t.blocks, 0) as blocks,
+                nvl(t.logging, 'YES') as logging,
                 nvl(s.bytes, 0) as size_bytes
             from all_tables t
             join all_objects o
@@ -291,6 +257,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 nvl(tc.comments, '') as table_comment,
                 nvl(t.num_rows, 0) as num_rows,
                 nvl(t.blocks, 0) as blocks,
+                nvl(t.logging, 'YES') as logging,
                 cast(0 as number) as size_bytes
             from all_tables t
             join all_objects o
@@ -878,15 +845,12 @@ public final class OracleMetadataRepository implements MetadataRepository {
         String owner = currentSchema(conn);
         boolean includeSize = canReadSchemaSegmentSize(owner);
         try {
-            return runner.query(SQL_USER_TABLES, List.of(owner, owner), rs -> mapTable(rs, owner, includeSize));
+            return runner.query(SQL_USER_TABLES, List.of(owner), rs -> mapTable(rs, owner, includeSize));
         } catch (SQLException e) {
             if (!isOra942ObjectNotExists(e)) {
                 throw e;
             }
-            if (owner.equalsIgnoreCase(sessionUser(conn))) {
-                return runner.query(SQL_USER_TABLES_VIA_USER_SEGMENTS, List.of(owner), rs -> mapTable(rs, owner, includeSize));
-            }
-            return runner.query(SQL_USER_TABLES_WITHOUT_SEGMENT_BYTES, List.of(owner), rs -> mapTable(rs, owner, false));
+            return runner.query(SQL_USER_TABLES_MINIMAL_FALLBACK, List.of(owner), rs -> mapTable(rs, owner, includeSize));
         }
     }
 
@@ -1352,13 +1316,22 @@ public final class OracleMetadataRepository implements MetadataRepository {
         return database;
     }
 
+    private void applyOracleTableLoggingType(Table table, java.sql.ResultSet rs) throws SQLException {
+        String log = rs.getString("logging");
+        if (log != null && "NO".equalsIgnoreCase(log.trim())) {
+            table.setTableTypeCode("nologging");
+        } else {
+            table.setTableTypeCode("logging");
+        }
+    }
+
     private Table mapTable(java.sql.ResultSet rs, String databaseName, boolean includeSize) throws SQLException {
         Table table = new Table(rs.getString("table_name"));
         table.setTableCatalog(databaseName);
         table.setTableOwner(rs.getString("owner"));
         table.setCreateTime(blankToEmpty(rs.getString("created_time")));
         table.setTableComm(blankToEmpty(rs.getString("table_comment")));
-        table.setTableTypeCode("table");
+        applyOracleTableLoggingType(table, rs);
         table.setLockType("");
         table.setIsfragment(0);
         table.setExtents(0);

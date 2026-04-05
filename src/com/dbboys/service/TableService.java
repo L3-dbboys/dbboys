@@ -58,6 +58,20 @@ public class TableService implements MetaObjectService {
         ObjectList objectList = new ObjectList();
         List<Table> result = new ArrayList<>();
         objectList.setItems(result);
+
+        if (platformResolver.requirePlatform(connect).prefersTableCountFromTableListQuery()) {
+            result.addAll(repo.getUserTables(conn, databaseName));
+            int count = result.size();
+            String size = repo.getUserTablesSize(conn, databaseName);
+            String info = count + "个";
+            if (size != null) {
+                info = info + "/" + size;
+            }
+            objectList.setInfo(info);
+            LOG.info("loadObjects: " + info);
+            return objectList;
+        }
+
         int count = repo.getUserTablesCount(conn);
         String size = repo.getUserTablesSize(conn, databaseName);
         String info = count + "个";
@@ -65,7 +79,7 @@ public class TableService implements MetaObjectService {
             info = info + "/" + size;
         }
         objectList.setInfo(info);
-        LOG.info("loadObjects: " + info );
+        LOG.info("loadObjects: " + info);
         result.addAll(repo.getUserTables(conn, databaseName));
         return objectList;
     }
@@ -124,6 +138,17 @@ public class TableService implements MetaObjectService {
                 ? "alter table " + tableName + " type(standard)"
                 : null;
         if (sql != null) {
+            executeObjectSql(connect, sql, onSucceededUi);
+        }
+    }
+
+    public void modifyTableLogging(Connect connect, String tableName, boolean logging, Runnable onSucceededUi) {
+        var platform = platformResolver.requirePlatform(connect);
+        if (!platform.supportsTableLoggingToggle()) {
+            return;
+        }
+        String sql = platform.alterTableLoggingSql(tableName, logging);
+        if (sql != null && !sql.isBlank()) {
             executeObjectSql(connect, sql, onSucceededUi);
         }
     }

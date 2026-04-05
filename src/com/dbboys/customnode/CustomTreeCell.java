@@ -801,7 +801,9 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             return false;
         }
         String normalized = tableType.trim();
-        return "raw".equalsIgnoreCase(normalized) || "external".equalsIgnoreCase(normalized);
+        return "raw".equalsIgnoreCase(normalized)
+                || "external".equalsIgnoreCase(normalized)
+                || "nologging".equalsIgnoreCase(normalized);
     }
 
     private boolean isDefaultDatabase(TreeItem<TreeData> treeItem, Database database) {

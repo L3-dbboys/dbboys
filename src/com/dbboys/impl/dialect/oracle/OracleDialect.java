@@ -140,6 +140,11 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public boolean prefersTableCountFromTableListQuery() {
+        return true;
+    }
+
+    @Override
     public boolean canCreateDatabase() {
         return true;
     }
@@ -219,6 +224,19 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     @Override
     public boolean supportsTableTypeModification() {
         return false;
+    }
+
+    @Override
+    public boolean supportsTableLoggingToggle() {
+        return true;
+    }
+
+    @Override
+    public String alterTableLoggingSql(String tableName, boolean logging) {
+        if (tableName == null || tableName.isBlank()) {
+            return null;
+        }
+        return "alter table " + tableName.trim() + (logging ? " logging" : " nologging");
     }
 
     @Override
