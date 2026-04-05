@@ -428,6 +428,48 @@ public final class OracleDdlRepository implements DdlRepository {
         return t + "\n/";
     }
 
+    /** Remove {@code ENABLE}/{@code DISABLE} immediately after {@code FOR EACH ROW} (same line or next line). */
+    private static String stripForEachRowEnableDisable(String ddl) {
+        if (ddl == null || ddl.isBlank()) {
+            return ddl;
+        }
+        String s = ddl.replaceAll("(?i)(\\bfor\\s+each\\s+row)\\s+(enable|disable)\\b", "$1");
+        return s.replaceAll("(?i)(\\bfor\\s+each\\s+row)([ \t]*\\R[ \t]*)(enable|disable)\\b\\s*", "$1$2");
+    }
+
+    private static final Pattern LAST_ALTER_TRIGGER = Pattern.compile("(?is)\\balter\\s+trigger\\b");
+    private static final Pattern ALTER_TAIL_DISABLE = Pattern.compile("(?i)\\bdisable\\b");
+    private static final Pattern FOR_EACH_ROW_TOKEN = Pattern.compile("(?i)\\bfor\\s+each\\s+row\\b(?!\\s+disable\\b)");
+
+    /**
+     * {@code GET_DDL('TRIGGER', …)} often appends {@code ALTER TRIGGER … ENABLE|DISABLE}. Drop that tail; if it was
+     * {@code DISABLE}, fold state into {@code FOR EACH ROW DISABLE} on the create text.
+     */
+    private static String normalizeOracleTriggerAlterAndForEachRow(String ddl) {
+        if (ddl == null || ddl.isBlank()) {
+            return ddl;
+        }
+        Matcher alterM = LAST_ALTER_TRIGGER.matcher(ddl);
+        int cut = -1;
+        while (alterM.find()) {
+            cut = alterM.start();
+        }
+        if (cut < 0) {
+            return ddl;
+        }
+        String alterTail = ddl.substring(cut);
+        boolean alterWasDisable = ALTER_TAIL_DISABLE.matcher(alterTail).find();
+        ddl = ddl.substring(0, cut).stripTrailing();
+        ddl = stripForEachRowEnableDisable(ddl);
+        if (alterWasDisable) {
+            Matcher rowM = FOR_EACH_ROW_TOKEN.matcher(ddl);
+            if (rowM.find()) {
+                ddl = ddl.substring(0, rowM.end()) + " DISABLE" + ddl.substring(rowM.end());
+            }
+        }
+        return ddl;
+    }
+
     /**
      * {@code ALL_SOURCE} (and some {@code GET_DDL} forms) may omit {@code CREATE OR REPLACE} before
      * {@code PACKAGE} / {@code PACKAGE BODY}; prepend so exported scripts are runnable. Preserves leading comments.
@@ -572,6 +614,9 @@ public final class OracleDdlRepository implements DdlRepository {
             ddl = collapseMetadataKeywordSpacing(ddl);
             ddl = qualifyOwnerInPlSqlHeader(ddl, schema, objectName);
             ddl = ensureTrailingSemicolon(ddl);
+        } else if ("TRIGGER".equals(objectType)) {
+            ddl = normalizeOracleTriggerAlterAndForEachRow(ddl);
+            ddl = ensureTrailingSemicolon(ddl);
         }
         return ddl;
     }
@@ -660,7 +705,7 @@ public final class OracleDdlRepository implements DdlRepository {
     @Override
     public String printTrigger(Connection conn, String objectName) throws SQLException {
         String schema = currentSchema(conn);
-        return getDdl(conn, "TRIGGER", objectName.toUpperCase(), schema);
+        return withTrailingSqlPlusSlash(getDdl(conn, "TRIGGER", objectName.toUpperCase(), schema));
     }
 
     @Override

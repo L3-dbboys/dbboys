@@ -23,6 +23,8 @@ public class SqlParserUtil {
             "(?m)^\\s*/\\s*$";
     private static final String DROP_DATABASE = "(?i)(?:drop\\s+)+database\\s+(\\w+)";
     private static final String CREATE_DATABASE = "(?i)(?:create\\s+)?database\\s+(?<dbname>(\\w+))";
+    /** Optional Oracle clause after {@code CREATE [OR REPLACE]} before object kind (trigger, package, procedure, …). */
+    private static final String ORACLE_EDITION_MODIFIER = "(?:editionable\\s+|editioning\\s+|noneditionable\\s+)?";
     /** Matches {@code CREATE [OR REPLACE] [EDITIONABLE] PACKAGE BODY} with quoted or schema-qualified names. */
     private static final String PACKAGE_BODY_PATTERN =
             "(?i)\\bcreate\\s+(?:or\\s+replace\\s+)?(?:editionable\\s+|editioning\\s+|noneditionable\\s+)?package\\s+body\\s+"
@@ -35,16 +37,21 @@ public class SqlParserUtil {
     private static final Pattern COMMENT_ONLY_PATTERN = Pattern.compile(COMMENT_PATTERN_TEXT);
     private static final Pattern NO_NAME_BLOCK_PATTERN = Pattern.compile(NO_NAME_BLOCK);
     private static final Pattern ROUTINE_DECLARATION_PATTERN = Pattern.compile(
-            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?(?<TYPE>function|procedure)\\b"
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "(?<TYPE>function|procedure)\\b"
     );
     private static final Pattern PACKAGE_DECLARATION_PATTERN = Pattern.compile(
-            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?package(\\s+body)?\\b"
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "package(\\s+body)?\\b"
     );
     private static final Pattern TRIGGER_DECLARATION_PATTERN = Pattern.compile(
-            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?trigger\\b"
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "trigger\\b"
     );
     private static final Pattern BLOCK_NAME_DECLARATION_PATTERN = Pattern.compile(
-            "(?is)^\\s*create\\s+(or\\s+replace\\s+)?(?<TYPE>package(\\s+body)?|procedure|function|trigger)\\b"
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER
+                    + "(?<TYPE>package(\\s+body)?|procedure|function|trigger)\\b"
+    );
+    /** {@code CREATE [OR REPLACE] [EDITIONABLE|…] (PROCEDURE|FUNCTION|TRIGGER)} for plain {@code END;} termination. */
+    private static final Pattern ORACLE_PLAIN_BLOCK_OBJECT_HEAD_PATTERN = Pattern.compile(
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "(?:procedure|function|trigger)\\b"
     );
     private static final Pattern STATEMENT_PROTECT_PATTERN = Pattern.compile(
             STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + FANYINHAO_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
@@ -839,9 +846,7 @@ public class SqlParserUtil {
             return false;
         }
         String normalized = stripProtectedContent(addSql).trim().toLowerCase(Locale.ROOT);
-        return normalized.startsWith("create procedure ")
-                || normalized.startsWith("create function ")
-                || normalized.startsWith("create trigger ")
+        return ORACLE_PLAIN_BLOCK_OBJECT_HEAD_PATTERN.matcher(normalized).find()
                 || normalized.startsWith("create procedure if not exists ")
                 || normalized.startsWith("create function if not exists ");
     }
