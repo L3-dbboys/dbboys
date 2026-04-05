@@ -125,13 +125,58 @@ public final class OracleMetadataRepository implements MetadataRepository {
             where owner = ?
             """;
 
+    /** Logged-in user's segments only; used as last resort when not browsing own schema. */
     private static final String SQL_USER_TABLES_SIZE = """
             select nvl(sum(bytes), 0)
             from user_segments
             where segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE'
             """;
 
+    private static final String SQL_DBA_TABLE_SEGMENTS_SUM_BY_OWNER = """
+            select nvl(sum(bytes), 0)
+            from dba_segments
+            where owner = ?
+              and (segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE')
+            """;
+
+    private static final String SQL_ALL_TABLE_SEGMENTS_SUM_BY_OWNER = """
+            select nvl(sum(bytes), 0)
+            from all_segments
+            where owner = ?
+              and (segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE')
+            """;
+
     private static final String SQL_USER_TABLES = """
+            select
+                t.owner,
+                t.table_name,
+                to_char(o.created, 'YYYY-MM-DD HH24:MI:SS') as created_time,
+                nvl(tc.comments, '') as table_comment,
+                nvl(t.num_rows, 0) as num_rows,
+                nvl(t.blocks, 0) as blocks,
+                nvl(s.bytes, 0) as size_bytes
+            from all_tables t
+            join all_objects o
+              on o.owner = t.owner
+             and o.object_name = t.table_name
+             and o.object_type = 'TABLE'
+            left join all_tab_comments tc
+              on tc.owner = t.owner
+             and tc.table_name = t.table_name
+            left join (
+                select segment_name, sum(bytes) as bytes
+                from all_segments
+                where owner = ?
+                  and (segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE')
+                group by segment_name
+            ) s
+              on s.segment_name = t.table_name
+            where t.owner = ?
+            order by t.table_name
+            """;
+
+    /** Fallback when {@code ALL_SEGMENTS} is not visible (ORA-00942); only valid for the login user's schema. */
+    private static final String SQL_USER_TABLES_VIA_USER_SEGMENTS = """
             select
                 t.owner,
                 t.table_name,
@@ -159,7 +204,58 @@ public final class OracleMetadataRepository implements MetadataRepository {
             order by t.table_name
             """;
 
+    /** No segment join — avoids ORA-00942 when neither ALL_SEGMENTS nor USER_SEGMENTS applies to the target owner. */
+    private static final String SQL_USER_TABLES_WITHOUT_SEGMENT_BYTES = """
+            select
+                t.owner,
+                t.table_name,
+                to_char(o.created, 'YYYY-MM-DD HH24:MI:SS') as created_time,
+                nvl(tc.comments, '') as table_comment,
+                nvl(t.num_rows, 0) as num_rows,
+                nvl(t.blocks, 0) as blocks,
+                cast(0 as number) as size_bytes
+            from all_tables t
+            join all_objects o
+              on o.owner = t.owner
+             and o.object_name = t.table_name
+             and o.object_type = 'TABLE'
+            left join all_tab_comments tc
+              on tc.owner = t.owner
+             and tc.table_name = t.table_name
+            where t.owner = ?
+            order by t.table_name
+            """;
+
     private static final String SQL_TABLE_DETAIL = """
+            select
+                t.owner,
+                t.table_name,
+                to_char(o.created, 'YYYY-MM-DD HH24:MI:SS') as created_time,
+                nvl(tc.comments, '') as table_comment,
+                nvl(t.num_rows, 0) as num_rows,
+                nvl(t.blocks, 0) as blocks,
+                nvl(s.bytes, 0) as size_bytes
+            from all_tables t
+            join all_objects o
+              on o.owner = t.owner
+             and o.object_name = t.table_name
+             and o.object_type = 'TABLE'
+            left join all_tab_comments tc
+              on tc.owner = t.owner
+             and tc.table_name = t.table_name
+            left join (
+                select segment_name, sum(bytes) as bytes
+                from all_segments
+                where owner = ?
+                  and (segment_type like 'TABLE%%' or segment_type = 'NESTED TABLE')
+                group by segment_name
+            ) s
+              on s.segment_name = t.table_name
+            where upper(t.owner) = upper(?)
+              and upper(t.table_name) = upper(?)
+            """;
+
+    private static final String SQL_TABLE_DETAIL_VIA_USER_SEGMENTS = """
             select
                 t.owner,
                 t.table_name,
@@ -183,6 +279,27 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 group by segment_name
             ) s
               on s.segment_name = t.table_name
+            where upper(t.owner) = upper(?)
+              and upper(t.table_name) = upper(?)
+            """;
+
+    private static final String SQL_TABLE_DETAIL_WITHOUT_SEGMENT_BYTES = """
+            select
+                t.owner,
+                t.table_name,
+                to_char(o.created, 'YYYY-MM-DD HH24:MI:SS') as created_time,
+                nvl(tc.comments, '') as table_comment,
+                nvl(t.num_rows, 0) as num_rows,
+                nvl(t.blocks, 0) as blocks,
+                cast(0 as number) as size_bytes
+            from all_tables t
+            join all_objects o
+              on o.owner = t.owner
+             and o.object_name = t.table_name
+             and o.object_type = 'TABLE'
+            left join all_tab_comments tc
+              on tc.owner = t.owner
+             and tc.table_name = t.table_name
             where upper(t.owner) = upper(?)
               and upper(t.table_name) = upper(?)
             """;
@@ -244,7 +361,55 @@ public final class OracleMetadataRepository implements MetadataRepository {
             where segment_type like 'INDEX%%'
             """;
 
+    private static final String SQL_DBA_INDEX_SEGMENTS_SUM_BY_OWNER = """
+            select nvl(sum(bytes), 0)
+            from dba_segments
+            where owner = ?
+              and segment_type like 'INDEX%%'
+            """;
+
+    private static final String SQL_ALL_INDEX_SEGMENTS_SUM_BY_OWNER = """
+            select nvl(sum(bytes), 0)
+            from all_segments
+            where owner = ?
+              and segment_type like 'INDEX%%'
+            """;
+
     private static final String SQL_INDEXES = """
+            select
+                i.owner,
+                i.index_name,
+                i.table_name,
+                i.index_type,
+                nvl(cols.index_cols, '') as index_cols,
+                nvl(i.blevel, 0) as blevel,
+                nvl(i.distinct_keys, 0) as distinct_keys,
+                nvl(i.leaf_blocks, 0) as leaf_blocks,
+                nvl(s.bytes, 0) as size_bytes,
+                nvl(i.status, 'VALID') as status
+            from all_indexes i
+            left join (
+                select index_owner, index_name,
+                       listagg(column_name, ',') within group (order by column_position) as index_cols
+                from all_ind_columns
+                group by index_owner, index_name
+            ) cols
+              on cols.index_owner = i.owner
+             and cols.index_name = i.index_name
+            left join (
+                select segment_name, sum(bytes) as bytes
+                from all_segments
+                where owner = ?
+                  and segment_type like 'INDEX%%'
+                group by segment_name
+            ) s
+              on s.segment_name = i.index_name
+            where i.owner = ?
+              and i.generated = 'N'
+            order by i.index_name
+            """;
+
+    private static final String SQL_INDEXES_VIA_USER_SEGMENTS = """
             select
                 i.owner,
                 i.index_name,
@@ -277,7 +442,67 @@ public final class OracleMetadataRepository implements MetadataRepository {
             order by i.index_name
             """;
 
+    private static final String SQL_INDEXES_WITHOUT_SEGMENT_BYTES = """
+            select
+                i.owner,
+                i.index_name,
+                i.table_name,
+                i.index_type,
+                nvl(cols.index_cols, '') as index_cols,
+                nvl(i.blevel, 0) as blevel,
+                nvl(i.distinct_keys, 0) as distinct_keys,
+                nvl(i.leaf_blocks, 0) as leaf_blocks,
+                cast(0 as number) as size_bytes,
+                nvl(i.status, 'VALID') as status
+            from all_indexes i
+            left join (
+                select index_owner, index_name,
+                       listagg(column_name, ',') within group (order by column_position) as index_cols
+                from all_ind_columns
+                group by index_owner, index_name
+            ) cols
+              on cols.index_owner = i.owner
+             and cols.index_name = i.index_name
+            where i.owner = ?
+              and i.generated = 'N'
+            order by i.index_name
+            """;
+
     private static final String SQL_INDEX_DETAIL = """
+            select
+                i.owner,
+                i.index_name,
+                i.table_name,
+                i.index_type,
+                nvl(cols.index_cols, '') as index_cols,
+                nvl(i.blevel, 0) as blevel,
+                nvl(i.distinct_keys, 0) as distinct_keys,
+                nvl(i.leaf_blocks, 0) as leaf_blocks,
+                nvl(s.bytes, 0) as size_bytes,
+                nvl(i.status, 'VALID') as status
+            from all_indexes i
+            left join (
+                select index_owner, index_name,
+                       listagg(column_name, ',') within group (order by column_position) as index_cols
+                from all_ind_columns
+                group by index_owner, index_name
+            ) cols
+              on cols.index_owner = i.owner
+             and cols.index_name = i.index_name
+            left join (
+                select segment_name, sum(bytes) as bytes
+                from all_segments
+                where owner = ?
+                  and segment_type like 'INDEX%%'
+                group by segment_name
+            ) s
+              on s.segment_name = i.index_name
+            where upper(i.owner) = upper(?)
+              and upper(i.index_name) = upper(?)
+              and i.generated = 'N'
+            """;
+
+    private static final String SQL_INDEX_DETAIL_VIA_USER_SEGMENTS = """
             select
                 i.owner,
                 i.index_name,
@@ -305,6 +530,32 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 group by segment_name
             ) s
               on s.segment_name = i.index_name
+            where upper(i.owner) = upper(?)
+              and upper(i.index_name) = upper(?)
+              and i.generated = 'N'
+            """;
+
+    private static final String SQL_INDEX_DETAIL_WITHOUT_SEGMENT_BYTES = """
+            select
+                i.owner,
+                i.index_name,
+                i.table_name,
+                i.index_type,
+                nvl(cols.index_cols, '') as index_cols,
+                nvl(i.blevel, 0) as blevel,
+                nvl(i.distinct_keys, 0) as distinct_keys,
+                nvl(i.leaf_blocks, 0) as leaf_blocks,
+                cast(0 as number) as size_bytes,
+                nvl(i.status, 'VALID') as status
+            from all_indexes i
+            left join (
+                select index_owner, index_name,
+                       listagg(column_name, ',') within group (order by column_position) as index_cols
+                from all_ind_columns
+                group by index_owner, index_name
+            ) cols
+              on cols.index_owner = i.owner
+             and cols.index_name = i.index_name
             where upper(i.owner) = upper(?)
               and upper(i.index_name) = upper(?)
               and i.generated = 'N'
@@ -593,10 +844,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
 
     @Override
     public String getUserTablesSize(Connection conn, String databaseName) throws SQLException {
-        if (!canReadCurrentSchemaSegmentSize(conn)) {
-            return null;
-        }
-        return queryFormattedSize(conn, SQL_USER_TABLES_SIZE, null);
+        return queryOwnerTableSegmentsTotalSize(conn, currentSchema(conn));
     }
 
     @Override
@@ -628,8 +876,18 @@ public final class OracleMetadataRepository implements MetadataRepository {
     public List<Table> getUserTables(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = runner(conn);
         String owner = currentSchema(conn);
-        boolean includeSize = canReadSchemaSegmentSize(conn, owner);
-        return runner.query(SQL_USER_TABLES, List.of(owner), rs -> mapTable(rs, owner, includeSize));
+        boolean includeSize = canReadSchemaSegmentSize(owner);
+        try {
+            return runner.query(SQL_USER_TABLES, List.of(owner, owner), rs -> mapTable(rs, owner, includeSize));
+        } catch (SQLException e) {
+            if (!isOra942ObjectNotExists(e)) {
+                throw e;
+            }
+            if (owner.equalsIgnoreCase(sessionUser(conn))) {
+                return runner.query(SQL_USER_TABLES_VIA_USER_SEGMENTS, List.of(owner), rs -> mapTable(rs, owner, includeSize));
+            }
+            return runner.query(SQL_USER_TABLES_WITHOUT_SEGMENT_BYTES, List.of(owner), rs -> mapTable(rs, owner, false));
+        }
     }
 
     @Override
@@ -637,8 +895,19 @@ public final class OracleMetadataRepository implements MetadataRepository {
         QualifiedObjectName objectName = parseObjectName(tableName);
         SqlRunner runner = runner(conn);
         String owner = resolveOwner(conn, objectName.owner());
-        boolean includeSize = canReadSchemaSegmentSize(conn, owner);
-        return runner.queryOne(SQL_TABLE_DETAIL, List.of(owner, objectName.objectName()), rs -> mapTable(rs, owner, includeSize));
+        boolean includeSize = canReadSchemaSegmentSize(owner);
+        String tab = objectName.objectName();
+        try {
+            return runner.queryOne(SQL_TABLE_DETAIL, List.of(owner, owner, tab), rs -> mapTable(rs, owner, includeSize));
+        } catch (SQLException e) {
+            if (!isOra942ObjectNotExists(e)) {
+                throw e;
+            }
+            if (owner.equalsIgnoreCase(sessionUser(conn))) {
+                return runner.queryOne(SQL_TABLE_DETAIL_VIA_USER_SEGMENTS, List.of(owner, tab), rs -> mapTable(rs, owner, includeSize));
+            }
+            return runner.queryOne(SQL_TABLE_DETAIL_WITHOUT_SEGMENT_BYTES, List.of(owner, tab), rs -> mapTable(rs, owner, false));
+        }
     }
 
     @Override
@@ -680,8 +949,18 @@ public final class OracleMetadataRepository implements MetadataRepository {
     public List<Index> getIndexes(Connection conn, String databaseName) throws SQLException {
         SqlRunner runner = runner(conn);
         String owner = currentSchema(conn);
-        boolean includeSize = canReadSchemaSegmentSize(conn, owner);
-        return runner.query(SQL_INDEXES, List.of(owner), rs -> mapIndex(rs, owner, includeSize));
+        boolean includeSize = canReadSchemaSegmentSize(owner);
+        try {
+            return runner.query(SQL_INDEXES, List.of(owner, owner), rs -> mapIndex(rs, owner, includeSize));
+        } catch (SQLException e) {
+            if (!isOra942ObjectNotExists(e)) {
+                throw e;
+            }
+            if (owner.equalsIgnoreCase(sessionUser(conn))) {
+                return runner.query(SQL_INDEXES_VIA_USER_SEGMENTS, List.of(owner), rs -> mapIndex(rs, owner, includeSize));
+            }
+            return runner.query(SQL_INDEXES_WITHOUT_SEGMENT_BYTES, List.of(owner), rs -> mapIndex(rs, owner, false));
+        }
     }
 
     @Override
@@ -693,10 +972,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
 
     @Override
     public String getIndexSize(Connection conn) throws SQLException {
-        if (!canReadCurrentSchemaSegmentSize(conn)) {
-            return null;
-        }
-        return queryFormattedSize(conn, SQL_INDEX_SIZE, null);
+        return queryOwnerIndexSegmentsTotalSize(conn, currentSchema(conn));
     }
 
     @Override
@@ -704,8 +980,19 @@ public final class OracleMetadataRepository implements MetadataRepository {
         QualifiedObjectName objectName = parseObjectName(indexName);
         SqlRunner runner = runner(conn);
         String owner = resolveOwner(conn, objectName.owner());
-        boolean includeSize = canReadSchemaSegmentSize(conn, owner);
-        return runner.queryOne(SQL_INDEX_DETAIL, List.of(owner, objectName.objectName()), rs -> mapIndex(rs, owner, includeSize));
+        boolean includeSize = canReadSchemaSegmentSize(owner);
+        String idx = objectName.objectName();
+        try {
+            return runner.queryOne(SQL_INDEX_DETAIL, List.of(owner, owner, idx), rs -> mapIndex(rs, owner, includeSize));
+        } catch (SQLException e) {
+            if (!isOra942ObjectNotExists(e)) {
+                throw e;
+            }
+            if (owner.equalsIgnoreCase(sessionUser(conn))) {
+                return runner.queryOne(SQL_INDEX_DETAIL_VIA_USER_SEGMENTS, List.of(owner, idx), rs -> mapIndex(rs, owner, includeSize));
+            }
+            return runner.queryOne(SQL_INDEX_DETAIL_WITHOUT_SEGMENT_BYTES, List.of(owner, idx), rs -> mapIndex(rs, owner, false));
+        }
     }
 
     @Override
@@ -960,12 +1247,59 @@ public final class OracleMetadataRepository implements MetadataRepository {
         return blankToFallback(sessionUser, "ORACLE");
     }
 
-    private boolean canReadCurrentSchemaSegmentSize(Connection conn) throws SQLException {
-        return currentSchema(conn).equalsIgnoreCase(sessionUser(conn));
+    /**
+     * {@code user_segments} reflects the login user, not {@code CURRENT_SCHEMA}. List/detail SQL uses
+     * {@code all_segments} with owner so sizes can load for any schema the session can see.
+     */
+    private static boolean canReadSchemaSegmentSize(String schemaName) {
+        return schemaName != null && !schemaName.isBlank();
     }
 
-    private boolean canReadSchemaSegmentSize(Connection conn, String schemaName) throws SQLException {
-        return schemaName != null && schemaName.equalsIgnoreCase(sessionUser(conn));
+    /** Oracle ORA-00942 when referencing a dictionary view the account cannot see (often reported as missing object). */
+    private static boolean isOra942ObjectNotExists(Throwable t) {
+        while (t != null) {
+            if (t instanceof SQLException se && se.getErrorCode() == 942) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
+    private String queryOwnerTableSegmentsTotalSize(Connection conn, String owner) throws SQLException {
+        if (owner == null || owner.isBlank()) {
+            return null;
+        }
+        try {
+            return queryFormattedSize(conn, SQL_DBA_TABLE_SEGMENTS_SUM_BY_OWNER, List.of(owner));
+        } catch (SQLException e) {
+            try {
+                return queryFormattedSize(conn, SQL_ALL_TABLE_SEGMENTS_SUM_BY_OWNER, List.of(owner));
+            } catch (SQLException e2) {
+                if (owner.equalsIgnoreCase(sessionUser(conn))) {
+                    return queryFormattedSize(conn, SQL_USER_TABLES_SIZE, null);
+                }
+                return null;
+            }
+        }
+    }
+
+    private String queryOwnerIndexSegmentsTotalSize(Connection conn, String owner) throws SQLException {
+        if (owner == null || owner.isBlank()) {
+            return null;
+        }
+        try {
+            return queryFormattedSize(conn, SQL_DBA_INDEX_SEGMENTS_SUM_BY_OWNER, List.of(owner));
+        } catch (SQLException e) {
+            try {
+                return queryFormattedSize(conn, SQL_ALL_INDEX_SEGMENTS_SUM_BY_OWNER, List.of(owner));
+            } catch (SQLException e2) {
+                if (owner.equalsIgnoreCase(sessionUser(conn))) {
+                    return queryFormattedSize(conn, SQL_INDEX_SIZE, null);
+                }
+                return null;
+            }
+        }
     }
 
     private String fallbackDatabaseName(Connection conn) {
