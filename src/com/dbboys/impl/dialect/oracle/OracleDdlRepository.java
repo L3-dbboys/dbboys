@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CancellationException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -428,6 +429,47 @@ public final class OracleDdlRepository implements DdlRepository {
         return t + "\n/";
     }
 
+    /**
+     * {@code DBMS_METADATA.GET_DDL('TYPE_BODY', …)} sometimes emits the same {@code CREATE TYPE BODY} unit twice
+     * (seen with MAP/ORDER member types). When the second copy is identical, keep one.
+     */
+    private static final Pattern ORACLE_TYPE_BODY_HEADER_START = Pattern.compile(
+            "^\\s*create\\s+(?:or\\s+replace\\s+)?(?:editionable\\s+|editioning\\s+|noneditionable\\s+)*type\\s+body\\b",
+            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+
+    private static String dedupeRepeatedOracleTypeBody(String ddl) {
+        if (ddl == null || ddl.isBlank()) {
+            return ddl;
+        }
+        Matcher m = ORACLE_TYPE_BODY_HEADER_START.matcher(ddl);
+        if (!m.find()) {
+            return ddl;
+        }
+        int firstStart = m.start();
+        if (!m.find()) {
+            return ddl;
+        }
+        int secondStart = m.start();
+        String first = ddl.substring(firstStart, secondStart).stripTrailing();
+        String second = ddl.substring(secondStart).stripTrailing();
+        if (oracleTypeBodyComparable(first).equals(oracleTypeBodyComparable(second))) {
+            if (firstStart > 0) {
+                return ddl.substring(0, firstStart) + first;
+            }
+            return first;
+        }
+        return ddl;
+    }
+
+    private static String oracleTypeBodyComparable(String s) {
+        if (s == null) {
+            return "";
+        }
+        String t = s.replaceAll("(?s)/\\*.*?\\*/", " ");
+        t = t.replaceAll("(?m)^\\s*--[^\\n\\r]*", " ");
+        return t.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
+    }
+
     /** Remove {@code ENABLE}/{@code DISABLE} immediately after {@code FOR EACH ROW} (same line or next line). */
     private static String stripForEachRowEnableDisable(String ddl) {
         if (ddl == null || ddl.isBlank()) {
@@ -619,9 +661,14 @@ public final class OracleDdlRepository implements DdlRepository {
         } else if ("TRIGGER".equals(objectType)) {
             ddl = normalizeOracleTriggerAlterAndForEachRow(ddl);
             ddl = ensureTrailingSemicolon(ddl);
-        } else if ("TYPE".equals(objectType) || "TYPE_BODY".equals(objectType) || "QUEUE".equals(objectType)) {
+        } else if ("TYPE".equals(objectType) || "QUEUE".equals(objectType)) {
             ddl = normalizePlSqlInternalWhitespace(ddl);
             ddl = collapseMetadataKeywordSpacing(ddl);
+            ddl = ensureTrailingSemicolon(ddl);
+        } else if ("TYPE_BODY".equals(objectType)) {
+            ddl = normalizePlSqlInternalWhitespace(ddl);
+            ddl = collapseMetadataKeywordSpacing(ddl);
+            ddl = dedupeRepeatedOracleTypeBody(ddl);
             ddl = ensureTrailingSemicolon(ddl);
         }
         return ddl;
@@ -741,21 +788,10 @@ public final class OracleDdlRepository implements DdlRepository {
         configureMetadataTransform(conn);
         String spec = getDdl(conn, "TYPE", objectName, schema);
         String body;
-        try {
-            body = getDdl(conn, "TYPE_BODY", objectName, schema);
-        } catch (SQLException e) {
-            log.debug("No TYPE_BODY for {}.{}: {}", schema, objectName, e.getMessage());
-            body = "";
-        }
-        if (body.isBlank() || body.startsWith("-- ERROR")) {
-            return withTrailingSqlPlusSlash(spec);
-        }
-        if (spec.isBlank()) {
-            return withTrailingSqlPlusSlash(body);
-        }
+        
+        
         StringBuilder sb = new StringBuilder();
         sb.append(spec).append("\n/\n");
-        sb.append(body).append("\n/\n");
         return sb.toString().stripTrailing();
     }
 

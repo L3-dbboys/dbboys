@@ -45,13 +45,18 @@ public class SqlParserUtil {
     private static final Pattern TRIGGER_DECLARATION_PATTERN = Pattern.compile(
             "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "trigger\\b"
     );
+    /** Oracle object / collection {@code TYPE} or {@code TYPE BODY}. */
+    private static final Pattern TYPE_DECLARATION_PATTERN = Pattern.compile(
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "type(\\s+body)?\\b"
+    );
     private static final Pattern BLOCK_NAME_DECLARATION_PATTERN = Pattern.compile(
             "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER
-                    + "(?<TYPE>package(\\s+body)?|procedure|function|trigger)\\b"
+                    + "(?<TYPE>package(\\s+body)?|procedure|function|trigger|type(\\s+body)?)\\b"
     );
-    /** {@code CREATE [OR REPLACE] [EDITIONABLE|…] (PROCEDURE|FUNCTION|TRIGGER)} for plain {@code END;} termination. */
+    /** {@code CREATE [OR REPLACE] [EDITIONABLE|…] (PROCEDURE|FUNCTION|TRIGGER|TYPE BODY)} for plain {@code END;} termination. */
     private static final Pattern ORACLE_PLAIN_BLOCK_OBJECT_HEAD_PATTERN = Pattern.compile(
-            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER + "(?:procedure|function|trigger)\\b"
+            "(?is)^\\s*create\\s+(?:or\\s+replace\\s+)?" + ORACLE_EDITION_MODIFIER
+                    + "(?:procedure|function|trigger|type\\s+body)\\b"
     );
     private static final Pattern STATEMENT_PROTECT_PATTERN = Pattern.compile(
             STRING_PATTERN_TEXT + "|" + DOUBLE_STRING_PATTERN_TEXT + "|" + FANYINHAO_STRING_PATTERN_TEXT + "|" + COMMENT_PATTERN_TEXT
@@ -116,6 +121,7 @@ public class SqlParserUtil {
             "create index ",
             "create sequence ",
             "create trigger ",
+            "create type ",
             "alter table ",
             "alter fragment ",
             "rename ",
@@ -398,8 +404,23 @@ public class SqlParserUtil {
             return false;
         }
         index = skipWhitespace(sql, index + 3);
-        return startsWithIgnoreCase(sql, index, "procedure")
-                || startsWithIgnoreCase(sql, index, "function");
+        if (index >= sql.length()) {
+            return false;
+        }
+        char c = sql.charAt(index);
+        if (c == ';') {
+            return true;
+        }
+        if (startsWithIgnoreCase(sql, index, "procedure")
+                || startsWithIgnoreCase(sql, index, "function")) {
+            return true;
+        }
+        if (startsWithIgnoreCase(sql, index, "if")
+                || startsWithIgnoreCase(sql, index, "loop")
+                || startsWithIgnoreCase(sql, index, "case")) {
+            return false;
+        }
+        return Character.isJavaIdentifierStart(c) || c == '"';
     }
 
     private static int skipIgnorableSql(int index, String sql) {
@@ -739,6 +760,16 @@ public class SqlParserUtil {
         }
         if (TRIGGER_DECLARATION_PATTERN.matcher(normalized).find()) {
             return true;
+        }
+        if (TYPE_DECLARATION_PATTERN.matcher(normalized).find()) {
+            String lowerNormalized = normalized.toLowerCase(Locale.ROOT);
+            if (lowerNormalized.contains(" as") || lowerNormalized.contains(" is")) {
+                return true;
+            }
+            if (Pattern.compile("(?im)^\\s*(as|is)\\b").matcher(normalized).find()) {
+                return true;
+            }
+            return false;
         }
         if (PACKAGE_DECLARATION_PATTERN.matcher(normalized).find()) {
             String lowerNormalized = normalized.toLowerCase(Locale.ROOT);
