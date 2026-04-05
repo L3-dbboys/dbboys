@@ -728,13 +728,72 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     }
 
     private String buildSelectSql(TreeData item) {
+        DatabasePlatform platform = resolveDragPlatform();
         if (item instanceof Table table) {
+            String qual = qualifiedTableForDragSql(table);
             if (table.getIsfragment() == 1) {
-                return "select * from " + item.getName() + ";";
+                return platform != null
+                        ? platform.metadataTreeDragFragmentTableSelectSql(qual)
+                        : DatabasePlatform.defaultMetadataTreeDragStarFromSql(qual);
             }
-            return "select rowid,* from " + item.getName() + ";";
+            return platform != null
+                    ? platform.metadataTreeDragTableSelectSql(qual)
+                    : DatabasePlatform.defaultMetadataTreeDragTableSelectSql(qual);
         }
-        return "select * from " + item.getName() + ";";
+        if (item instanceof View v) {
+            String qual = platform != null && platform.usesSchemaModel()
+                    ? qualifiedViewForDragSql(v)
+                    : v.getName();
+            return platform != null
+                    ? platform.metadataTreeDragViewSelectSql(qual)
+                    : DatabasePlatform.defaultMetadataTreeDragStarFromSql(qual);
+        }
+        String name = item.getName();
+        return platform != null
+                ? platform.metadataTreeDragViewSelectSql(name)
+                : DatabasePlatform.defaultMetadataTreeDragStarFromSql(name);
+    }
+
+    private DatabasePlatform resolveDragPlatform() {
+        TreeItem<TreeData> ti = getTreeItem();
+        if (ti == null) {
+            return null;
+        }
+        try {
+            return TreeNavigator.resolvePlatform(ti);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String qualifiedTableForDragSql(Table table) {
+        String name = table.getName();
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        if (name.indexOf('.') >= 0) {
+            return name.trim();
+        }
+        String owner = table.getTableOwner();
+        if (owner != null && !owner.isBlank()) {
+            return owner.trim() + "." + name.trim();
+        }
+        return name.trim();
+    }
+
+    private static String qualifiedViewForDragSql(View view) {
+        String name = view.getName();
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        if (name.indexOf('.') >= 0) {
+            return name.trim();
+        }
+        String owner = view.getOwner();
+        if (owner != null && !owner.isBlank()) {
+            return owner.trim() + "." + name.trim();
+        }
+        return name.trim();
     }
 
     private boolean appendAndRunInCurrentSqlTab(String sql) {

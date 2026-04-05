@@ -173,6 +173,37 @@ public interface DatabasePlatform {
         return "truncate table " + tableName;
     }
 
+    /**
+     * SQL inserted when dragging a non-fragment table from the metadata tree into the SQL editor.
+     *
+     * @param qualifiedTable identifier as used in FROM (e.g. {@code owner.table} or {@code table})
+     */
+    default String metadataTreeDragTableSelectSql(String qualifiedTable) {
+        return defaultMetadataTreeDragTableSelectSql(qualifiedTable);
+    }
+
+    static String defaultMetadataTreeDragTableSelectSql(String qualifiedTable) {
+        return "select rowid,* from " + qualifiedTable + ";";
+    }
+
+    /**
+     * SQL inserted when dragging a fragment table from the metadata tree into the SQL editor.
+     */
+    default String metadataTreeDragFragmentTableSelectSql(String qualifiedTable) {
+        return defaultMetadataTreeDragStarFromSql(qualifiedTable);
+    }
+
+    /**
+     * SQL inserted when dragging a view from the metadata tree into the SQL editor.
+     */
+    default String metadataTreeDragViewSelectSql(String qualifiedView) {
+        return defaultMetadataTreeDragStarFromSql(qualifiedView);
+    }
+
+    static String defaultMetadataTreeDragStarFromSql(String qualified) {
+        return "select * from " + qualified + ";";
+    }
+
     default String toggleIndexSql(String indexName, boolean enabled) {
         return "set indexes " + indexName + (enabled ? " enabled" : " disabled");
     }

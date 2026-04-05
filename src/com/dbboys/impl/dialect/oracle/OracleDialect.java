@@ -238,6 +238,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
+    public String metadataTreeDragTableSelectSql(String qualifiedTable) {
+        String q = qualifiedTable == null ? "" : qualifiedTable.trim();
+        return "SELECT t.ROWID, t.* FROM " + q + " t;";
+    }
+
+    @Override
     public boolean supportsTableLoggingToggle() {
         return true;
     }
