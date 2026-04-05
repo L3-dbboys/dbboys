@@ -65,8 +65,18 @@ public final class OracleMetadataRepository implements MetadataRepository {
             order by username
             """;
 
+    private static final String SQL_SESSION_SCHEMA_LIST_CONTEXT = """
+            select
+                nvl(sys_context('USERENV', 'SERVICE_NAME'),
+                    nvl(sys_context('USERENV', 'CON_NAME'),
+                        sys_context('USERENV', 'DB_NAME'))) as service_name,
+                sys_context('USERENV', 'LANGUAGE') as db_locale
+            from dual
+            """;
+
     private static final String SQL_USERS_WITH_SIZE = """
-            select u.username, nvl(s.total_bytes, 0) as schema_bytes
+            select u.username, nvl(s.total_bytes, 0) as schema_bytes,
+                   to_char(u.created, 'YYYY-MM-DD') as created_time
             from all_users u
             left join (
                 select owner, sum(bytes) as total_bytes
@@ -81,6 +91,20 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 'SYSKM','SYSRAC','SYSTEM','WMSYS','XDB','XS$NULL'
             )
             order by u.username
+            """;
+
+    /** Same filter as {@link #SQL_USERS}, plus schema creation date for tree tooltips. */
+    private static final String SQL_USERS_WITH_CREATED = """
+            select username, to_char(created, 'YYYY-MM-DD') as created_time
+            from all_users
+            where username not in (
+                'ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSNMP','DIP','DMSYS','DVF','DVSYS',
+                'FLOWS_FILES','GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','LBACSYS','MDDATA',
+                'MDSYS','OJVMSYS','OLAPSYS','ORACLE_OCM','OUTLN','REMOTE_SCHEDULER_AGENT','SI_INFORMTN_SCHEMA',
+                'SPATIAL_CSW_ADMIN_USR','SPATIAL_WFS_ADMIN_USR','SYS','SYS$UMF','SYSBACKUP','SYSDG',
+                'SYSKM','SYSRAC','SYSTEM','WMSYS','XDB','XS$NULL'
+            )
+            order by username
             """;
 
     private static final String SQL_SCHEMA_INFO = """
@@ -477,23 +501,74 @@ public final class OracleMetadataRepository implements MetadataRepository {
     @Override
     public List<Database> getMetadataDatabases(Connection conn) throws SQLException {
         SqlRunner runner = runner(conn);
+        SessionSchemaListContext sessionCtx = loadSessionSchemaListContext(runner);
         List<Database> schemas;
         try {
             schemas = runner.query(SQL_USERS_WITH_SIZE, null, rs -> {
                 Database db = mapSchemaDatabase(rs.getString(1));
                 db.setDbSize(formatBytes(rs.getBigDecimal(2)));
+                db.setDbCreated(blankToEmpty(rs.getString("created_time")));
+                applySessionSchemaListContext(db, sessionCtx);
                 return db;
             });
         } catch (SQLException e) {
-            schemas = runner.query(SQL_USERS, null, rs -> mapSchemaDatabase(rs.getString(1)));
+            schemas = runner.query(SQL_USERS_WITH_CREATED, null, rs -> {
+                Database db = mapSchemaDatabase(rs.getString(1));
+                db.setDbCreated(blankToEmpty(rs.getString("created_time")));
+                applySessionSchemaListContext(db, sessionCtx);
+                return db;
+            });
         }
         String currentSchema = currentSchema(conn);
         boolean exists = schemas.stream().anyMatch(schema -> currentSchema.equalsIgnoreCase(schema.getName()));
         if (!exists) {
             schemas = new ArrayList<>(schemas);
-            schemas.add(0, mapSchemaDatabase(currentSchema));
+            Database injected = mapSchemaDatabase(currentSchema);
+            String created = querySchemaCreatedTime(runner, currentSchema);
+            if (created != null) {
+                injected.setDbCreated(blankToEmpty(created));
+            }
+            applySessionSchemaListContext(injected, sessionCtx);
+            schemas.add(0, injected);
         }
         return schemas;
+    }
+
+    private record SessionSchemaListContext(String serviceName, String dbLocale) {
+        static SessionSchemaListContext empty() {
+            return new SessionSchemaListContext("", "");
+        }
+    }
+
+    private SessionSchemaListContext loadSessionSchemaListContext(SqlRunner runner) throws SQLException {
+        try {
+            SessionSchemaListContext ctx = runner.queryOne(SQL_SESSION_SCHEMA_LIST_CONTEXT, null, rs ->
+                    new SessionSchemaListContext(
+                            blankToEmpty(rs.getString("service_name")),
+                            blankToEmpty(rs.getString("db_locale"))));
+            return ctx != null ? ctx : SessionSchemaListContext.empty();
+        } catch (SQLException e) {
+            return SessionSchemaListContext.empty();
+        }
+    }
+
+    private static void applySessionSchemaListContext(Database db, SessionSchemaListContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        db.setDbUseGLU(ctx.serviceName());
+        db.setDbLocale(ctx.dbLocale());
+    }
+
+    private String querySchemaCreatedTime(SqlRunner runner, String schemaName) throws SQLException {
+        return runner.queryOne(
+                """
+                        select to_char(created, 'YYYY-MM-DD') as created_time
+                        from all_users
+                        where upper(username) = upper(?)
+                        """,
+                List.of(schemaName),
+                rs -> rs.getString(1));
     }
 
     @Override
