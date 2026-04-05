@@ -375,13 +375,12 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             """;
 
     private static final String SQL_XTDTYPE_COUNT = """
-            select count(*) from sysxtdtypes
+            select count(*) from type$
             """;
 
     private static final String SQL_XTDTYPES = """
-            select %s, trim(name) as type_name, trim(owner) as type_owner, type as type_id
-            from sysxtdtypes
-            order by 2
+            select %s, trim(typ_name) as type_name
+            from type$
             """;
 
     private static final String SQL_PRIMARY_KEY_COLUMNS = """
@@ -809,8 +808,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             return runner.query(sql, null, rs -> {
                 Type row = new Type(rs.getString(2));
                 row.setDatabase(rs.getString(1));
-                row.setOwner(rs.getString(3));
-                row.setTypeKind(gbaseXtdTypeKind(rs.getInt(4)));
+                //row.setTypeKind(gbaseXtdTypeKind(rs.getInt(3)));
                 return row;
             });
         } catch (SQLException e) {
@@ -828,15 +826,6 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
         return List.of();
     }
 
-    private static String gbaseXtdTypeKind(int typeId) {
-        return switch (typeId) {
-            case 0 -> "DISTINCT";
-            case 1 -> "ROW";
-            case 2 -> "OPAQUE";
-            case 3 -> "COLLECTION";
-            default -> String.valueOf(typeId);
-        };
-    }
 
     public List<String> getStorageSpacesForCreateDatabase(Connection conn) throws SQLException {
         //如果连接的上一步操作是切库且报错了，如没有权限，当前连接是没有库的，直接执行会报错，需要先切到sysmaster库
