@@ -63,15 +63,18 @@ public final class OracleDdlRepository implements DdlRepository {
             """;
 
     private String currentSchema(Connection conn) throws SQLException {
-        String schema = conn.getSchema();
-        if (schema != null && !schema.isBlank()) {
-            return schema.toUpperCase();
+        try {
+            String schema = conn.getSchema();
+            if (schema != null && !schema.isBlank()) {
+                return schema.trim();
+            }
+        } catch (Exception ignored) {
         }
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
         String result = runner.queryOne(
                 "SELECT sys_context('USERENV','CURRENT_SCHEMA') FROM dual",
                 null, rs -> rs.getString(1));
-        return result != null ? result.toUpperCase() : "ORACLE";
+        return result != null && !result.isBlank() ? result.trim() : "ORACLE";
     }
 
     private static final int CLOB_READ_CHUNK = 32_767;
@@ -330,7 +333,8 @@ public final class OracleDdlRepository implements DdlRepository {
         if (parts.size() >= 2 && parts.get(0).equalsIgnoreCase(ou)) {
             return ddl;
         }
-        String qualified = oracleQuoteIdent(ou) + "." + bu;
+        // Keep object spelling from the DDL header (GET_DDL / ALL_SOURCE), not baseObjectName (may differ in case).
+        String qualified = oracleQuoteIdent(ou) + "." + last;
         int absStart = st + m.start(3);
         int absEnd = st + m.end(3);
         return ddl.substring(0, absStart) + qualified + ddl.substring(absEnd);
