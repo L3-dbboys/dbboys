@@ -18,7 +18,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class ResultSetEditHelper {
+    private static final Logger log = LogManager.getLogger(ResultSetEditHelper.class);
+
     private final ResultSetTabController ctrl;
     private final DatabasePlatformResolver platformResolver;
 
@@ -33,11 +38,16 @@ public class ResultSetEditHelper {
                                 Object oldValue,
                                 javafx.beans.property.SimpleStringProperty sqlTransactionText,
                                 ChoiceBox<?> commitmode) throws SQLException {
-        String updateCol = String.valueOf(ctrl.resultTableCols.get(columnIndex - 1));
+        String rawUpdateCol = String.valueOf(ctrl.resultTableCols.get(columnIndex - 1));
+        String updateCol = oracleBareColumnNameForUpdate(rawUpdateCol);
+        ensureNotWildcardResultColumn(updateCol);
         String updateSql = "update " + ctrl.resultFromTable + " set " + updateCol + "=? where 1=1 ";
         if (ctrl.resultTablePriNum != null && !ctrl.resultTablePriNum.isEmpty()) {
             for (Integer colnum : ctrl.resultTablePriNum) {
-                updateSql += " and " + ctrl.resultTableCols.get(colnum) + "=?";
+                String rawWhereCol = ctrl.resultTableCols.get(colnum);
+                String whereCol = oracleBareColumnNameForUpdate(rawWhereCol);
+                ensureNotWildcardResultColumn(whereCol);
+                updateSql += " and " + whereCol + "=?";
             }
         }
 
@@ -57,6 +67,11 @@ public class ResultSetEditHelper {
                 sqlParams.append(pkVal == null ? "null" : pkVal);
             }
         }
+
+        log.info("Result set edit UPDATE: {} | setParam={} | whereParams=[{}]",
+                updateSql,
+                isNull ? "[NULL]" : newValue,
+                sqlParams);
 
         if (isNull) {
             ctrl.resultSetTableView.refresh();
@@ -84,6 +99,7 @@ public class ResultSetEditHelper {
         }
         LocalDbRepository.saveSqlHistory(updateResult);
         ctrl.sqlStatement.close();
+        ctrl.sqlStatement = null;
     }
 
     public boolean prepareParams(ParameterMetaData meta, Statement stmt) {
@@ -145,21 +161,27 @@ public class ResultSetEditHelper {
         List<String> selectedCols = info.selectedColumns;
         ctrl.resultTableCols = selectedCols;
         boolean hasEditableKey = false;
-        if (primaryKeys != null && !primaryKeys.isEmpty() && selectedCols.containsAll(primaryKeys)) {
-            for (String key : primaryKeys) {
-                int columnIndex = selectedCols.indexOf(key);
-                ctrl.resultTablePriNum.add(columnIndex);
-                markPrimaryKeyColumn(columnIndex, "PRI");
+        if (primaryKeys != null && !primaryKeys.isEmpty()) {
+            boolean allPkColsInSelect = primaryKeys.stream()
+                    .allMatch(pk -> findSelectedColumnIndexMatchingPk(selectedCols, pk) >= 0);
+            if (allPkColsInSelect) {
+                for (String key : primaryKeys) {
+                    int columnIndex = findSelectedColumnIndexMatchingPk(selectedCols, key);
+                    if (columnIndex >= 0) {
+                        ctrl.resultTablePriNum.add(columnIndex);
+                        markPrimaryKeyColumn(columnIndex, "PRI");
+                    }
+                }
+                hasEditableKey = !ctrl.resultTablePriNum.isEmpty();
             }
-            hasEditableKey = true;
         }
-        if (selectedCols.contains("rowid")) {
-            int columnIndex = selectedCols.indexOf("rowid");
+        int rowidIdx = findRowidColumnIndex(selectedCols);
+        if (rowidIdx >= 0) {
             if (!hasEditableKey) {
-                ctrl.resultTablePriNum.add(columnIndex);
+                ctrl.resultTablePriNum.add(rowidIdx);
                 hasEditableKey = true;
             }
-            markPrimaryKeyColumn(columnIndex, "ROWID");
+            markPrimaryKeyColumn(rowidIdx, "ROWID");
         }
         if (!hasEditableKey) {
             ctrl.resultSetTableView.setEditable(false);
@@ -204,6 +226,71 @@ public class ResultSetEditHelper {
             }
         }
         return result;
+    }
+
+    private static void ensureNotWildcardResultColumn(String col) throws SQLException {
+        if ("*".equals(col)) {
+            throw new SQLException(
+                    "结果集列名无法解析为物理列（例如 SELECT 中的 t.* 未展开）；请改用显式列名或重新执行查询。");
+        }
+    }
+
+    /**
+     * Oracle rejects {@code SET alias.col = ?} / {@code WHERE alias.col = ?} with ORA-01747; JDBC / SELECT 解析
+     * 可能得到 {@code schema.table.col} 或 {@code t11.col}，UPDATE 中需使用裸列名（最后一段）。
+     * 双引号标识符保持原样。
+     */
+    private String oracleBareColumnNameForUpdate(String col) {
+        if (!isOracleDialect()) {
+            return col;
+        }
+        if (col == null || col.isBlank()) {
+            return col;
+        }
+        String s = col.trim();
+        if (s.startsWith("\"")) {
+            return s;
+        }
+        int idx = s.lastIndexOf('.');
+        if (idx > 0 && idx < s.length() - 1) {
+            return s.substring(idx + 1);
+        }
+        return s;
+    }
+
+    private boolean isOracleDialect() {
+        String t = ctrl.sqlConnect.getDbtype();
+        return t != null && "ORACLE".equalsIgnoreCase(t.trim());
+    }
+
+    /** Match SELECT list entry to PK name (Oracle: {@code t11.id} vs {@code id}). */
+    private int findSelectedColumnIndexMatchingPk(List<String> selectedCols, String pkKey) {
+        if (pkKey == null || pkKey.isBlank() || selectedCols == null) {
+            return -1;
+        }
+        String pkNorm = pkKey.toLowerCase(Locale.ROOT);
+        for (int i = 0; i < selectedCols.size(); i++) {
+            String c = selectedCols.get(i);
+            String cand = isOracleDialect() ? oracleBareColumnNameForUpdate(c) : c;
+            cand = cand.toLowerCase(Locale.ROOT);
+            if (cand.equals(pkNorm)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int findRowidColumnIndex(List<String> selectedCols) {
+        if (selectedCols == null) {
+            return -1;
+        }
+        for (int i = 0; i < selectedCols.size(); i++) {
+            String bare = isOracleDialect() ? oracleBareColumnNameForUpdate(selectedCols.get(i)) : selectedCols.get(i);
+            if ("rowid".equalsIgnoreCase(bare != null ? bare.trim() : "")) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static String normalizeIdentifier(String identifier) {

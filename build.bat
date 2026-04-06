@@ -27,11 +27,11 @@ jar --create --file lib/lib_nonmodular/dbboys.jar --main-class com.dbboys.app.Ma
 echo dbboys.jar created.
 
 :: Create minimized JRE
-jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core  --output jre-min --strip-debug --no-man-pages  --no-header-files
+jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core,jdk.incubator.vector  --output jre-min --strip-debug --no-man-pages  --no-header-files
 echo Minimized JRE created.
 
 :: Package exe
-jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx1024m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml"
+jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx1024m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml" --java-options "--add-modules=jdk.incubator.vector"
 echo Packaging finished.
 
 :: Delete temp file sources.txt generated during compile

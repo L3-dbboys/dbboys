@@ -1020,13 +1020,33 @@ public class SqlParserUtil {
         if (currentPart.length() > 0) {
             result.add(currentPart.toString().replaceAll("(?i)\\b+AS\\b(?s).*", "").trim().replaceAll("\\s[^\\s]*$", "").toLowerCase());
         }
+        /*
+         * Expand * and alias.* (e.g. SELECT ROWID, t.* FROM schema.t t) so result-set edit
+         * gets real column names, not "t.*" -> bare "*" -> invalid SET *=? on Oracle.
+         */
         for (int i = 0; i < result.size(); i++) {
-            if (result.get(i).trim().equals("*")) {
+            String token = result.get(i).trim();
+            if (isSelectListWildcardToken(token)) {
                 result.remove(i);
                 result.addAll(i, cols);
+                i += Math.max(0, cols.size() - 1);
             }
         }
         return result;
+    }
+
+    /**
+     * True for {@code *} or table-alias wildcard {@code t.*} / {@code alias.*} (single-segment alias).
+     */
+    public static boolean isSelectListWildcardToken(String token) {
+        if (token == null || token.isEmpty()) {
+            return false;
+        }
+        String t = token.trim();
+        if ("*".equals(t)) {
+            return true;
+        }
+        return t.matches("(?i)^[a-z0-9_$#]+\\.\\*$");
     }
 
     public static List<PackageMember> parsePackageMembers(String packageDdl) {

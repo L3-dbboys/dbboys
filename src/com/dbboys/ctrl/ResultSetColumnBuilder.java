@@ -359,6 +359,8 @@ public class ResultSetColumnBuilder {
             try {
                 ctrl.editHelper.updateCellValue(columnIndex, colvalue.toString(), event.getRowValue(), oldvalue, sqlTransactionText, commitmode);
             } catch (SQLException e) {
+                log.error("Result set cell update failed (table={}, columnIndex={}): [{}] {}",
+                        ctrl.resultFromTable, columnIndex, e.getErrorCode(), e.getMessage(), e);
                 Platform.runLater(() -> {
                     event.getRowValue().set(columnIndex, oldvalue == null ? null : oldvalue.toString());
                     event.getTableView().refresh();
@@ -370,8 +372,11 @@ public class ResultSetColumnBuilder {
                 });
             } finally {
                 try {
-                    ctrl.sqlStatement.close();
+                    if (ctrl.sqlStatement != null) {
+                        ctrl.sqlStatement.close();
+                    }
                 } catch (SQLException e) {
+                    log.error("Failed to close statement after result set cell update", e);
                     throw new RuntimeException(e);
                 }
             }
