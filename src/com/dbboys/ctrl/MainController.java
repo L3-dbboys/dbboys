@@ -54,7 +54,8 @@ public class MainController {
     private static final double AI_INPUT_HEIGHT = 90;
     private static final int AI_HISTORY_TURNS = 3;
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
-            "doubao-seed-2-0-mini-260215"
+            "doubao-seed-2-0-mini-260215",
+            "qwen3.6-plus"
             // "kimi-k2.5"
     );
 

@@ -292,6 +292,9 @@ public final class AiApiUtil {
         if (AiAuthUtil.isKimiModel()) {
             return buildKimiRequestJson(userMessage, stream);
         }
+        if (AiAuthUtil.isQwenModel()) {
+            return buildQwenRequestJson(userMessage, stream);
+        }
         return buildDoubaoRequestJson(userMessage, stream);
     }
 
@@ -348,6 +351,32 @@ public final class AiApiUtil {
         JSONObject body = new JSONObject();
         body.put("model", AiAuthUtil.getModel());
         body.put("messages", messages);
+        if (stream) {
+            body.put("stream", true);
+        }
+        return body.toString();
+    }
+
+    /** Qwen（DashScope OpenAI-compatible）请求体，启用思考模式。 */
+    private static String buildQwenRequestJson(String userMessage, boolean stream) {
+        JSONObject textContent = new JSONObject();
+        textContent.put("type", "input_text");
+        textContent.put("text", userMessage);
+
+        JSONArray contentArray = new JSONArray();
+        contentArray.put(textContent);
+
+        JSONObject userInput = new JSONObject();
+        userInput.put("role", "user");
+        userInput.put("content", contentArray);
+
+        JSONArray inputArray = new JSONArray();
+        inputArray.put(userInput);
+
+        JSONObject body = new JSONObject();
+        body.put("model", AiAuthUtil.getModel());
+        body.put("input", inputArray);
+        body.put("enable_thinking", true);
         if (stream) {
             body.put("stream", true);
         }

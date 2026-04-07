@@ -32,7 +32,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
     private static final int LOCAL_HIGHLIGHT_MAX = 4000;
     private static final int LOOKBACK_RANGE = 2000; // 上文最多回溯这么多字符尝试局部高亮
     private static final int DEFAULT_FONT_SIZE = 12;
-    private static final int MIN_FONT_SIZE = 8;
+    private static final int MIN_FONT_SIZE = 9;
     private static final int MAX_FONT_SIZE = 40;
     private static final int FONT_SIZE_STEP = 1;
     private static final String SQL_EDITOR_FONT_SIZE_KEY = "SQL_EDITOR_FONT_SIZE";
@@ -117,6 +117,18 @@ public class CustomSqlEditCodeArea extends CodeArea {
             if(event.isControlDown()&&event.getCode() == KeyCode.R){
                 onShowReplacePanel.run();
             }
+        });
+        // Ctrl + 鼠标滚轮：与 Ctrl++/Ctrl+- 相同，调整 SQL 编辑器字号
+        addEventFilter(ScrollEvent.SCROLL, event -> {
+            if (!event.isControlDown()) {
+                return;
+            }
+            double dy = event.getDeltaY();
+            if (dy == 0) {
+                return;
+            }
+            adjustFontSize(dy > 0 ? FONT_SIZE_STEP : -FONT_SIZE_STEP);
+            event.consume();
         });
         // 自动补全/跳过成对引号，避免重复插入（使用 EventFilter，先于默认处理）
         addEventFilter(KeyEvent.KEY_TYPED, event -> {

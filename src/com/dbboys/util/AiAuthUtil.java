@@ -18,8 +18,11 @@ public final class AiAuthUtil {
 
     private static final String PROVIDER_DOUBAO = "doubao";
     private static final String PROVIDER_KIMI = "kimi";
+    private static final String PROVIDER_QWEN = "qwen";
     private static final String DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
     private static final String KIMI_BASE_URL = "https://api.moonshot.cn/v1";
+    private static final String QWEN_BASE_URL =
+            "https://dashscope.aliyuncs.com/api/v2/apps/protocols/compatible-mode/v1";
     // 默认豆包模型与下拉框候选保持一致，避免配置缺失时出现额外模型项
     private static final String DOUBAO_DEFAULT_MODEL = "doubao-seed-2-0-mini-260215";
     private static final String KIMI_DEFAULT_MODEL = "kimi-k2.5";
@@ -34,7 +37,13 @@ public final class AiAuthUtil {
      * 根据当前选择的模型返回对应官方地址。
      */
     public static String getApiBaseUrl() {
-        return isKimiModel() ? KIMI_BASE_URL : DOUBAO_BASE_URL;
+        if (isKimiModel()) {
+            return KIMI_BASE_URL;
+        }
+        if (isQwenModel()) {
+            return QWEN_BASE_URL;
+        }
+        return DOUBAO_BASE_URL;
     }
 
     /**
@@ -58,6 +67,10 @@ public final class AiAuthUtil {
 
     public static boolean isDoubaoModel() {
         return PROVIDER_DOUBAO.equals(getCurrentProviderKey());
+    }
+
+    public static boolean isQwenModel() {
+        return PROVIDER_QWEN.equals(getCurrentProviderKey());
     }
 
     /**
@@ -148,6 +161,11 @@ public final class AiAuthUtil {
         }
         if (normalized.startsWith("kimi-") || normalized.startsWith("moonshot-")) {
             return PROVIDER_KIMI;
+        }
+        if (normalized.startsWith("qwen")
+                || normalized.startsWith("qwq-")
+                || normalized.startsWith("qvq-")) {
+            return PROVIDER_QWEN;
         }
         return PROVIDER_DOUBAO;
     }
