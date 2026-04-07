@@ -576,6 +576,7 @@ public class MainController {
                 aiMemoryEnabled = !aiMemoryEnabled;
                 updateAiMemoryToggleButton();
             });
+            I18n.localeProperty().addListener((obs, oldVal, newVal) -> updateAiMemoryToggleButton());
             updateAiMemoryToggleButton();
         }
 
