@@ -10,13 +10,21 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.io.InterruptedIOException;
+import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * 调用 AI 对话接口（当前支持豆包 Responses API 和 Kimi OpenAI 兼容接口）。
  */
 public final class AiApiUtil {
     private static final Logger log = LogManager.getLogger(AiApiUtil.class);
+
+    /** 从助手回复中移除模型思考/推理片段（流式过滤后仍可能残留的标记块）。 */
+    private static final Pattern THINKING_WRAPPER_MARKERS =
+            Pattern.compile(
+                    "<redacted_reasoning>[\\s\\S]*?</redacted_reasoning>|<think>[\\s\\S]*?</think>",
+                    Pattern.CASE_INSENSITIVE);
     private static final String KIMI_SYSTEM_PROMPT =
             "你是 Kimi，由 Moonshot AI 提供的人工智能助手，你更擅长中文和英文的对话。"
                     + "你会为用户提供安全，有帮助，准确的回答。"
@@ -24,6 +32,16 @@ public final class AiApiUtil {
                     + "Moonshot AI 为专有名词，不可翻译成其他语言。";
 
     private AiApiUtil() {}
+
+    /**
+     * 展示用：去掉思考过程标记块，仅保留对用户可见的正文（含最终 Markdown）。
+     */
+    public static String stripThinkingFromAssistantReply(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        return THINKING_WRAPPER_MARKERS.matcher(text).replaceAll("").trim();
+    }
 
     /**
      * 发送单条用户消息，获取助手回复文本�?
@@ -562,8 +580,32 @@ public final class AiApiUtil {
         return result.isEmpty() ? null : result;
     }
 
+    /** 流式响应中不拼接、不展示推理片段（仅保留对用户可见的正文增量）。 */
+    private static boolean shouldSkipReasoningStreamEvent(JSONObject root) {
+        if (root == null) {
+            return false;
+        }
+        String type = root.optString("type");
+        if (!type.isEmpty()) {
+            String tl = type.toLowerCase(Locale.ROOT);
+            if (tl.contains("reasoning") || tl.contains("thinking")) {
+                return true;
+            }
+        }
+        JSONObject item = root.optJSONObject("item");
+        if (item != null) {
+            if ("reasoning".equalsIgnoreCase(item.optString("type"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String extractDeltaFromStreamEvent(JSONObject root) {
         if (root == null) {
+            return null;
+        }
+        if (shouldSkipReasoningStreamEvent(root)) {
             return null;
         }
 
@@ -580,6 +622,9 @@ public final class AiApiUtil {
                     String content = deltaObj.optString("content", "");
                     if (!content.isEmpty()) {
                         return content;
+                    }
+                    if (deltaObj.has("reasoning_content")) {
+                        return null;
                     }
                 }
             }

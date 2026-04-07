@@ -1071,7 +1071,7 @@ public class MainController {
         if (content == null || content.isEmpty()) {
             return "";
         }
-        return content;
+        return com.dbboys.util.AiApiUtil.stripThinkingFromAssistantReply(content);
     }
 
     private String buildApiKeyGuideMessage() {
@@ -1127,7 +1127,8 @@ public class MainController {
 
     private AiMessageView addStreamingAiMessage(String initialContent) {
         AiMessageView[] ref = new AiMessageView[1];
-        AiMessageView view = createAiMessageView(() -> sanitizeAiReplyForDisplay(ref[0].getRaw()));
+        AiMessageView view = createAiMessageView(() ->
+                sanitizeAiReplyForDisplay(ref[0].getRaw() == null ? "" : ref[0].getRaw()));
         ref[0] = view;
         setAiMessageActionsVisible(view, false);
         aiChatMessages.getChildren().add(view.messageGroup);
@@ -1186,7 +1187,8 @@ public class MainController {
         Platform.runLater(() -> {
             try {
                 int revision = view.revision.get();
-                String displayContent = sanitizeAiReplyForDisplay(view.getRaw());
+                String displayContent = sanitizeAiReplyForDisplay(
+                        view.getRaw() == null ? "" : view.getRaw());
                 renderStreamingAiMessage(view, displayContent);
                 view.renderedRevision.set(revision);
             } finally {
@@ -1208,7 +1210,7 @@ public class MainController {
         showFinalAiContent(view);
         view.streamingLabel.setText("");
         view.area.clear();
-        view.area.parseMarkdownWithStyles(content == null ? "" : content);
+        view.area.parseMarkdownWithStyles(sanitizeAiReplyForDisplay(content == null ? "" : content));
         setAiMessageActionsVisible(view, updateRaw);
     }
 
