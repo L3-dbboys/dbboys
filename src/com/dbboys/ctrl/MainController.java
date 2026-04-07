@@ -63,6 +63,16 @@ public class MainController {
     /** 「正在思考」占位：弱化前景色，随明暗主题走 -color-fg-muted */
     private static final String AI_THINKING_LABEL_STYLE =
             "-fx-text-fill: -color-fg-muted; -fx-font-size: 10px; -fx-padding: 6 10 6 10;";
+    /** 记忆开关：关 — 与主题 surface 一致 */
+    private static final String AI_MEMORY_BTN_STYLE_OFF =
+            "-fx-background-color: -color-bg-subtle; -fx-background-radius: 6; "
+                    + "-fx-border-color: -color-border-default; -fx-border-radius: 6; -fx-border-width: 0.5; "
+                    + "-fx-text-fill: -color-fg-muted; -fx-font-size: 9px; -fx-padding: 3 8 3 8;";
+    /** 记忆开关：开 — 使用主题强调色弱背景 */
+    private static final String AI_MEMORY_BTN_STYLE_ON =
+            "-fx-background-color: -color-accent-subtle; -fx-background-radius: 6; "
+                    + "-fx-border-color: -color-accent-muted; -fx-border-radius: 6; -fx-border-width: 0.5; "
+                    + "-fx-text-fill: -color-accent-fg; -fx-font-size: 9px; -fx-padding: 3 8 3 8;";
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
             "doubao-seed-2-0-mini-260215",
             "qwen3.6-plus"
@@ -95,9 +105,12 @@ public class MainController {
     public ChoiceBox<String> aiModelChoiceBox;
     @FXML
     public Button aiSettingsButton;
+    @FXML
+    public Button aiMemoryToggleButton;
     private java.util.concurrent.Future<?> aiTaskFuture;
     private AiMessageView aiStreamingMessage;
     private volatile boolean aiCancelled = false;
+    private volatile boolean aiMemoryEnabled = false;
     private final AtomicBoolean aiScrollScheduled = new AtomicBoolean(false);
     private final List<AiConversationMessage> aiConversationHistory = new ArrayList<>();
 
@@ -558,6 +571,13 @@ public class MainController {
         if (aiSettingsButton != null) {
             aiSettingsButton.setOnAction(event -> showAiApiKeyDialog());
         }
+        if (aiMemoryToggleButton != null) {
+            aiMemoryToggleButton.setOnAction(event -> {
+                aiMemoryEnabled = !aiMemoryEnabled;
+                updateAiMemoryToggleButton();
+            });
+            updateAiMemoryToggleButton();
+        }
 
         if (aiChatScrollPane != null) {
             aiChatScrollPane.setFitToWidth(true);
@@ -955,7 +975,9 @@ public class MainController {
             // 与 Markdown 侧边栏「搜索」同一套结果：前 5 条片段入提示词，回复末尾展示前 3 条文档链接
             List<MarkdownSearchUtil.KnowledgeReference> references =
                     MarkdownSearchUtil.loadAiKnowledgeFromSearch(text);
-            List<AiConversationMessage> historySnapshot = snapshotAiConversationHistory();
+            List<AiConversationMessage> historySnapshot = aiMemoryEnabled
+                    ? snapshotAiConversationHistory()
+                    : List.of();
             String prompt = buildAiPrompt(text, references, historySnapshot);
             log.info("AI request prompt:\n{}", prompt);
             System.out.println("=== AI request prompt begin ===");
@@ -1110,6 +1132,9 @@ public class MainController {
     }
 
     private void rememberAiConversationTurn(String userText, String assistantText) {
+        if (!aiMemoryEnabled) {
+            return;
+        }
         String safeUser = userText == null ? "" : userText.trim();
         String safeAssistant = assistantText == null ? "" : assistantText.trim();
         if (safeUser.isEmpty() || safeAssistant.isEmpty()) {
@@ -1152,6 +1177,10 @@ public class MainController {
         AiMessageView streaming = aiStreamingMessage;
         if (streaming != null) {
             streaming.stopThinkingAnimation();
+            String aborted = I18n.t("ai.aborted");
+            streaming.setRaw(aborted);
+            renderStreamingAiMessage(streaming, aborted);
+            setAiMessageActionsVisible(streaming, true);
         }
         if (aiTaskFuture != null && !aiTaskFuture.isDone()) {
             aiTaskFuture.cancel(true);
@@ -1159,6 +1188,25 @@ public class MainController {
         aiTaskFuture = null;
         aiStreamingMessage = null;
         updateAiSendButtonText(false);
+    }
+
+    private void updateAiMemoryToggleButton() {
+        if (aiMemoryToggleButton == null) {
+            return;
+        }
+        aiMemoryToggleButton.setText(aiMemoryEnabled
+                ? I18n.t("ai.memory.enabled")
+                : I18n.t("ai.memory.disabled"));
+        String tooltipKey = aiMemoryEnabled
+                ? "ai.memory.toggle.disable.tooltip"
+                : "ai.memory.toggle.enable.tooltip";
+        Tooltip tooltip = aiMemoryToggleButton.getTooltip();
+        if (tooltip == null) {
+            tooltip = new Tooltip();
+            aiMemoryToggleButton.setTooltip(tooltip);
+        }
+        tooltip.setText(I18n.t(tooltipKey));
+        aiMemoryToggleButton.setStyle(aiMemoryEnabled ? AI_MEMORY_BTN_STYLE_ON : AI_MEMORY_BTN_STYLE_OFF);
     }
 
     private void updateAiSendButtonText(boolean thinking) {
