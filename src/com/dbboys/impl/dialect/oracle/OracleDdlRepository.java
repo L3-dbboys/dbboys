@@ -47,6 +47,7 @@ public final class OracleDdlRepository implements DdlRepository {
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TABLE' AND secondary = 'N')
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'VIEW' AND secondary = 'N')
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SYNONYM' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_queues WHERE owner = ?)
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'FUNCTION' AND secondary = 'N')
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PROCEDURE' AND secondary = 'N')
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PACKAGE' AND secondary = 'N')
@@ -106,6 +107,13 @@ public final class OracleDdlRepository implements DdlRepository {
             SELECT object_name, object_type FROM all_objects
             WHERE owner = ? AND object_type = ? AND secondary = 'N'
             ORDER BY object_name
+            """;
+
+    private static final String SQL_QUEUE_NAMES = """
+            SELECT name
+            FROM all_queues
+            WHERE owner = ?
+            ORDER BY name
             """;
 
     private static final String SQL_COMMENTS = """
@@ -807,7 +815,7 @@ public final class OracleDdlRepository implements DdlRepository {
         String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn).toUpperCase();
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
         List<Object> binds = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 11; i++) {
             binds.add(schema);
         }
         Long count = runner.queryOne(SQL_EXPORT_ITEM_COUNT_SPLIT, binds, rs -> Long.valueOf(rs.getLong(1)));
@@ -835,6 +843,7 @@ public final class OracleDdlRepository implements DdlRepository {
 
         completed = appendObjectsDdl(conn, pre, schema, "VIEW", "Views", completed, progressCallback);
         completed = appendObjectsDdl(conn, pre, schema, "SYNONYM", "Synonyms", completed, progressCallback);
+        completed = appendQueuesDdl(conn, pre, schema, completed, progressCallback);
         completed = appendObjectsDdl(conn, pre, schema, "FUNCTION", "Functions", completed, progressCallback);
         completed = appendObjectsDdl(conn, pre, schema, "PROCEDURE", "Procedures", completed, progressCallback);
         completed = appendPackagesDdl(conn, pre, schema, completed, progressCallback);
@@ -977,6 +986,35 @@ public final class OracleDdlRepository implements DdlRepository {
             }
         }
         ddl.append("-- ### FINISH: ").append(label).append("\n\n");
+        return completed;
+    }
+
+    private long appendQueuesDdl(Connection conn, StringBuilder ddl, String schema,
+                                 long completed, LongConsumer progressCallback) throws SQLException {
+        SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+        List<String> names = runner.query(SQL_QUEUE_NAMES, List.of(schema), rs -> rs.getString("name"));
+        if (names.isEmpty()) {
+            return completed;
+        }
+        ddl.append("-- ### Queues (").append(names.size()).append(")\n\n");
+        for (String name : names) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Export cancelled");
+            }
+            String objDdl = getDdlSafe(conn, "AQ_QUEUE", name, schema);
+            if (!objDdl.isEmpty()) {
+                ddl.append(objDdl);
+                if (!objDdl.endsWith(";")) {
+                    ddl.append("\n;");
+                }
+                ddl.append("\n\n");
+            }
+            completed++;
+            if (progressCallback != null) {
+                progressCallback.accept(completed);
+            }
+        }
+        ddl.append("-- ### FINISH: Queues\n\n");
         return completed;
     }
 
