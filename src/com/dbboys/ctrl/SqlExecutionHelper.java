@@ -456,8 +456,9 @@ public class SqlExecutionHelper {
         ctrl.sqlTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                if (!SqlParserUtil.isSingleStatement(ctrl.sqlText)) {
-                    Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.explain.single_only")));
+                String explainValidationError = validateExplainSql(ctrl.sqlText);
+                if (explainValidationError != null) {
+                    Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t(explainValidationError)));
                 } else {
                     try {
                         String explainText = sqlexeRepository().explain(ctrl.sqlConnect.getConn(), ctrl.sqlText);
@@ -488,6 +489,20 @@ public class SqlExecutionHelper {
         ctrl.sqlTask.setOnFailed(event1 -> ctrl.hideExecuteProcess());
 
         return ctrl.sqlTask;
+    }
+
+    private String validateExplainSql(String sqlText) {
+        if (!SqlParserUtil.isSingleStatement(sqlText)) {
+            return "sql.explain.single_only";
+        }
+        String normalizedSql = sqlText == null ? "" : stripTrailingExplainDelimiter(sqlText.trim());
+        if (!SqlParserUtil.isExecutableStatement(normalizedSql)) {
+            return "sql.explain.not_supported";
+        }
+        if (isDdlStatement(normalizedSql.toUpperCase())) {
+            return "sql.explain.not_supported";
+        }
+        return null;
     }
 
     // --- createSqlModeTask ---
@@ -595,5 +610,16 @@ public class SqlExecutionHelper {
             return sql.substring(0, sql.length() - 1).trim();
         }
         return sql;
+    }
+
+    private static String stripTrailingExplainDelimiter(String sql) {
+        if (sql == null) {
+            return "";
+        }
+        String normalized = sql.trim();
+        while (normalized.endsWith(";") || normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1).trim();
+        }
+        return normalized;
     }
 }
