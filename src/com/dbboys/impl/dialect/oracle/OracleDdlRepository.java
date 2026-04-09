@@ -807,7 +807,7 @@ public final class OracleDdlRepository implements DdlRepository {
     public String printQueue(Connection conn, String objectName) throws SQLException {
         String schema = currentSchema(conn);
         configureMetadataTransform(conn);
-        return getDdl(conn, "AQ_QUEUE", objectName.toUpperCase(), schema);
+        return withTrailingSqlPlusSlash(getDdl(conn, "AQ_QUEUE", objectName.toUpperCase(), schema));
     }
 
     @Override
