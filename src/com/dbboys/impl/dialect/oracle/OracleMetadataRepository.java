@@ -40,7 +40,9 @@ public final class OracleMetadataRepository implements MetadataRepository {
                 username as owner,
                 to_char(created, 'YYYY-MM-DD') as created_time,
                 default_tablespace as dbspace,
-                sys_context('USERENV', 'CON_NAME') as con_name,
+                nvl(sys_context('USERENV', 'SERVICE_NAME'),
+                    nvl(sys_context('USERENV', 'CON_NAME'),
+                        sys_context('USERENV', 'DB_NAME'))) as service_name,
                 sys_context('USERENV', 'LANGUAGE') as db_locale,
                 nvl((select sum(bytes) from user_segments), 0) as schema_bytes
             from user_users
@@ -1339,7 +1341,7 @@ public final class OracleMetadataRepository implements MetadataRepository {
             row.setDbCreated(blankToEmpty(rs.getString("created_time")));
             row.setDbSpace(blankToEmpty(rs.getString("dbspace")));
             row.setDbLog("");
-            row.setDbUseGLU(blankToEmpty(rs.getString("con_name")));
+            row.setDbUseGLU(blankToEmpty(rs.getString("service_name")));
             row.setDbLocale(blankToEmpty(rs.getString("db_locale")));
             row.setDbSize(formatBytes(rs.getBigDecimal("schema_bytes")));
             return row;

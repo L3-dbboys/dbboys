@@ -34,7 +34,9 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
+import java.lang.reflect.Method;
 import java.sql.SQLException;
+import java.util.List;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -154,9 +156,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 nodeIcon.setScaleY(0.38);
                 applyPrimaryIconStyle(nodeIcon);
                 bindNameLabel(item);
-                if (isRawOrExternal(sysTable.getTableTypeCode())) {
-                    warnIcon.setVisible(true);
-                }
+                warnIcon.visibleProperty().unbind();
+                warnIcon.visibleProperty().bind(Bindings.createBooleanBinding(
+                        () -> isDangerousTableType(sysTable.getTableTypeCode()),
+                        sysTable.tableTypeCodeProperty()
+                ));
                 descripLabel.textProperty().unbind();
                 if ("view".equals(sysTable.getTableTypeCode())) {
                     nodeIcon.setContent(IconPaths.TREECELL_VIEW);
@@ -166,22 +170,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 }else{
                     bindRowsSizeText(descripLabel, sysTable.nrowsProperty(), sysTable.totalsizeProperty());
                 }
-                bindTooltip(
-                        metadataCatalogTooltipLabelWide() , sysTable.getTableCatalog() , "\n" ,
-                        "TABLENAME : " , sysTable.nameProperty() , "\n" ,
-                        "OWNER     : " , sysTable.tableOwnerProperty() , "\n" ,
-                        "CREATED   : " , sysTable.createTimeProperty() , "\n" ,
-                        "TYPE      : " , sysTable.tableTypeCodeProperty() , "\n" ,
-                        "LOCKMODE  : " , sysTable.lockTypeProperty() , "\n" ,
-                        "FRAGMENTED: " , sysTable.isfragmentProperty() , "\n" ,
-                        "EXTENTS   : " , sysTable.extentsProperty() , "\n" ,
-                        "NROWS     : " , sysTable.nrowsProperty() , "\n" ,
-                        "PAGESIZE  : " , sysTable.pagesizeProperty() , "\n" ,
-                        "TOTALPAGES: " , sysTable.nptotalProperty() , "\n" ,
-                        "TOTALSIZE : " , sysTable.totalsizeProperty() , "\n" ,
-                        "DATAPAGES : " , sysTable.npdataProperty() , "\n" ,
-                        "DATASIZE  : " , sysTable.usedsizeProperty() , "\n"
-                );
+                bindMetadataTooltip(sysTable, DatabasePlatform.MetadataObjectType.SYS_TABLE);
 
             }
             else if(item instanceof Table table){
@@ -209,19 +198,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                                 .then("DISABLED")
                                 .otherwise(index.totalsizeProperty())
                 );
-                bindTooltip(
-                        metadataCatalogTooltipLabelWide(), index.databaseProperty(), "\n",
-                        "INDEXNAME : ", index.nameProperty(), "\n",
-                        "TABLENAME : ", index.tabnameProperty(), "\n",
-                        "COLS      : ", index.colsProperty(), "\n",
-                        "IDXTYPE   : ", index.idxtypeProperty(), "\n",
-                        "LEVELS    : ", index.levelsProperty(), "\n",
-                        "UNIQVALES : ", index.uniqvaluesProperty(), "\n",
-                        "PAGESIZE  : ", index.pagesizeProperty(), "\n",
-                        "TOTALPAGES: ", index.totalpagesProperty(), "\n",
-                        "TOTALSIZE : ", index.totalsizeProperty(), "\n",
-                        "DISABLED  : ", index.isdisabledProperty()
-                );
+                bindMetadataTooltip(index, DatabasePlatform.MetadataObjectType.INDEX);
             }
             else if(item instanceof Sequence){
                 Sequence sequence=(Sequence)item;
@@ -232,16 +209,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 bindNameLabel(item);
                 descripLabel.textProperty().unbind();
                 descripLabel.setText("SEQ");
-                bindTooltip(
-                        metadataCatalogTooltipLabelMid() , sequence.databaseProperty() , "\n" ,
-                        "SEQNAME  : " , sequence.nameProperty() , "\n" ,
-                        "MINVALUE : " , sequence.minValueProperty() , "\n" ,
-                        "MAXVALUE : " , sequence.maxValueProperty() , "\n" ,
-                        "INCVALUE : " , sequence.incValueProperty() , "\n" ,
-                        "CACHE    : " , sequence.cacheProperty() , "\n" ,
-                        "NEXTCACHE: " , sequence.nextValProperty() , "\n" ,
-                        "CREATED  : " , sequence.createdProperty()
-                );
+                bindMetadataTooltip(sequence, DatabasePlatform.MetadataObjectType.SEQUENCE);
             }
             else if (item instanceof Type metaType) {
                 nodeIcon.setContent(IconPaths.TREECELL_TABLE);
@@ -256,12 +224,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                             return k == null || k.isBlank() ? "TYPE" : k;
                         }, metaType.typeKindProperty())
                 );
-                bindTooltip(
-                        metadataCatalogTooltipLabelMid(), metaType.databaseProperty(), "\n",
-                        "TYPE     : ", metaType.nameProperty(), "\n",
-                        "OWNER    : ", metaType.ownerProperty(), "\n",
-                        "KIND     : ", metaType.typeKindProperty()
-                );
+                bindMetadataTooltip(metaType, DatabasePlatform.MetadataObjectType.TYPE);
             }
             else if (item instanceof Queue metaQueue) {
                 nodeIcon.setContent(IconPaths.RESULTSET_ROW_NUMBER);
@@ -271,11 +234,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 bindNameLabel(item);
                 descripLabel.textProperty().unbind();
                 descripLabel.setText("QUEUE");
-                bindTooltip(
-                        metadataCatalogTooltipLabelMid(), metaQueue.databaseProperty(), "\n",
-                        "QUEUE    : ", metaQueue.nameProperty(), "\n",
-                        "OWNER    : ", metaQueue.ownerProperty()
-                );
+                bindMetadataTooltip(metaQueue, DatabasePlatform.MetadataObjectType.QUEUE);
             }
             else if (item instanceof SchedulerJob job) {
                 nodeIcon.setContent(IconPaths.TREECELL_PROCEDURE);
@@ -304,12 +263,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 nodeIcon.setScaleY(0.35);
                 applyPrimaryIconStyle(nodeIcon);
                 bindNameLabel(item);
-                bindTooltip(
-                        metadataCatalogTooltipLabelTight() , synonym.databaseProperty() , "\n" ,
-                        "SYNNAME : " , synonym.nameProperty() , "\n" ,
-                        "SYNTYPE : " , synonym.synonymTypeProperty() , "\n" ,
-                        "CREATED : " , synonym.createdProperty()
-                );
+                bindMetadataTooltip(synonym, DatabasePlatform.MetadataObjectType.SYNONYM);
                 descripLabel.textProperty().unbind();
                 descripLabel.textProperty().bind(synonym.synonymTypeProperty());
             }
@@ -322,13 +276,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 warnIcon.visibleProperty().unbind();
                 warnIcon.visibleProperty().bind(trigger.isdisabledProperty());
                 bindNameLabel(item);
-                bindTooltip(
-                        metadataCatalogTooltipLabelTight() , trigger.databaseProperty() , "\n" ,
-                        "TABNAME : " , trigger.tableNameProperty() , "\n" ,
-                        "TRINAME : " , trigger.nameProperty() , "\n" ,
-                        "TRITYPE : " , trigger.triggerTypeProperty() , "\n" ,
-                        "DISABLED: " , trigger.isdisabledProperty()
-                );
+                bindMetadataTooltip(trigger, DatabasePlatform.MetadataObjectType.TRIGGER);
                 descripLabel.textProperty().unbind();
                 descripLabel.textProperty().bind(
                         Bindings.when(trigger.isdisabledProperty())
@@ -343,11 +291,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 nodeIcon.setScaleY(0.6);
                 applyPrimaryIconStyle(nodeIcon);
                 bindNameLabel(item);
-                bindTooltip(
-                        metadataCatalogTooltipLabelTight(),function.databaseProperty(),"\n",
-                        "OWNER   : ",function.ownerProperty(),"\n",
-                        "FUNCNAME: ",function.nameProperty()
-                );
+                bindMetadataTooltip(function, DatabasePlatform.MetadataObjectType.FUNCTION);
                 descripLabel.textProperty().unbind();
                 descripLabel.setText("FUNC");
             }
@@ -358,11 +302,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 nodeIcon.setScaleY(0.55);
                 applyPrimaryIconStyle(nodeIcon);
                 bindNameLabel(item);
-                bindTooltip(
-                        metadataCatalogTooltipLabelTight(),procedure.databaseProperty(),"\n",
-                        "OWNER   : ",procedure.ownerProperty(),"\n",
-                        "PROCNAME: ",procedure.nameProperty()
-                );
+                bindMetadataTooltip(procedure, DatabasePlatform.MetadataObjectType.PROCEDURE);
                 descripLabel.textProperty().unbind();
                 descripLabel.setText("PROC");
             }
@@ -375,11 +315,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 warnIcon.visibleProperty().unbind();
                 warnIcon.visibleProperty().bind(dbPackage.isEmptyProperty());
                 bindNameLabel(item);
-                bindTooltip(
-                        metadataCatalogTooltipLabelTight(),dbPackage.databaseProperty(),"\n",
-                        "OWNER   : ",dbPackage.ownerProperty(),"\n",
-                        "PKGNAME : ",dbPackage.nameProperty()
-                );
+                bindMetadataTooltip(dbPackage, DatabasePlatform.MetadataObjectType.PACKAGE);
                 descripLabel.textProperty().unbind();
                 descripLabel.setText("PACKAGE");
                 graphicHbox.getChildren().clear();
@@ -525,7 +461,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             graphicHbox.getChildren().addAll(nodeIconStackpane, nameLabel, spacer, warnIconGroup, descripLabel);
         }
         setGraphic(graphicHbox);
-        bindDatabaseTooltip(database, platform);
+        bindMetadataTooltip(database, DatabasePlatform.MetadataObjectType.DATABASE);
     }
 
     private String resolveMetadataCatalogTooltipLabel() {
@@ -541,49 +477,71 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         }
     }
 
-    /** Matches former {@code "DATABASE  : "} width for table/index/sys-table tooltips. */
+    /** Aligns with wide labels such as {@code TABLENAME : }. */
     private String metadataCatalogTooltipLabelWide() {
-        return resolveMetadataCatalogTooltipLabel() + "  : ";
+        return String.format("%-9s : ", resolveMetadataCatalogTooltipLabel());
     }
 
-    /** Matches former {@code "DATABASE : "} for sequence/type/queue tooltips. */
+    /** Aligns with mid-width labels such as {@code TYPE     : }. */
     private String metadataCatalogTooltipLabelMid() {
-        return resolveMetadataCatalogTooltipLabel() + " : ";
+        return String.format("%-8s: ", resolveMetadataCatalogTooltipLabel());
     }
 
-    /** Matches former {@code "DATABASE: "} for synonym/trigger/func/proc/package/view tooltips. */
+    /** Aligns with tight labels such as {@code FUNCNAME: }. */
     private String metadataCatalogTooltipLabelTight() {
-        return resolveMetadataCatalogTooltipLabel() + ": ";
+        return String.format("%-8s: ", resolveMetadataCatalogTooltipLabel());
     }
 
-    private void bindDatabaseTooltip(Database database, DatabasePlatform platform) {
-        java.util.List<DatabasePlatform.TooltipField> fields = platform != null
-                ? platform.databaseTooltipFields()
-                : DatabasePlatform.DEFAULT_DATABASE_TOOLTIP_FIELDS;
+    private void bindMetadataTooltip(Object bean, DatabasePlatform.MetadataObjectType type) {
+        DatabasePlatform platform = null;
+        try {
+            TreeItem<TreeData> treeItem = getTreeItem();
+            if (treeItem != null) {
+                platform = TreeNavigator.resolvePlatform(treeItem);
+            }
+        } catch (Exception ignored) {
+        }
+        java.util.List<DatabasePlatform.TooltipFieldDef> fields = platform != null
+                ? platform.tooltipFields(type)
+                : List.of();
+        if (fields.isEmpty()) {
+            setTooltip(null);
+            return;
+        }
         int maxLen = fields.stream().mapToInt(f -> f.label().length()).max().orElse(0);
         java.util.List<Object> parts = new java.util.ArrayList<>();
         for (int i = 0; i < fields.size(); i++) {
-            DatabasePlatform.TooltipField field = fields.get(i);
+            DatabasePlatform.TooltipFieldDef field = fields.get(i);
             String padded = String.format("%-" + maxLen + "s", field.label());
             if (i > 0) parts.add("\n");
             parts.add(padded + ": ");
-            parts.add(resolveDatabaseProperty(database, field.propertyName()));
+            parts.add(resolveTooltipProperty(bean, field.propertyName()));
         }
         bindTooltip(parts.toArray());
     }
 
-    private static ObservableValue<?> resolveDatabaseProperty(Database db, String propertyName) {
-        return switch (propertyName) {
-            case "name"      -> db.nameProperty();
-            case "dbOwner"   -> db.dbOwnerProperty();
-            case "dbLog"     -> db.dbLogProperty();
-            case "dbSpace"   -> db.dbSpaceProperty();
-            case "dbSize"    -> db.dbSizeProperty();
-            case "dbCreated" -> db.dbCreatedProperty();
-            case "dbLocale"  -> db.dbLocaleProperty();
-            case "dbUseGLU"  -> db.dbUseGLUProperty();
-            default          -> new javafx.beans.property.SimpleStringProperty("");
-        };
+    private static ObservableValue<?> resolveTooltipProperty(Object bean, String propertyName) {
+        if (bean == null || propertyName == null || propertyName.isBlank()) {
+            return new javafx.beans.property.SimpleStringProperty("");
+        }
+        try {
+            Method propertyMethod = bean.getClass().getMethod(propertyName + "Property");
+            Object value = propertyMethod.invoke(bean);
+            if (value instanceof ObservableValue<?> observableValue) {
+                return observableValue;
+            }
+        } catch (Exception ignored) {
+        }
+        String suffix = Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
+        for (String methodName : new String[]{"get" + suffix, "is" + suffix}) {
+            try {
+                Method getter = bean.getClass().getMethod(methodName);
+                Object value = getter.invoke(bean);
+                return new javafx.beans.property.SimpleStringProperty(value == null ? "" : String.valueOf(value));
+            } catch (Exception ignored) {
+            }
+        }
+        return new javafx.beans.property.SimpleStringProperty("");
     }
 
     private void applyDatabaseTypeIcon(String dbType) {
@@ -608,24 +566,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         bindNameLabel(item);
         warnIcon.visibleProperty().unbind();
         warnIcon.visibleProperty().bind(Bindings.createBooleanBinding(
-                () -> isRawOrExternal(table.getTableTypeCode()),
+                () -> isDangerousTableType(table.getTableTypeCode()),
                 table.tableTypeCodeProperty()
         ));
         bindRowsSizeText(descripLabel, table.nrowsProperty(), table.totalsizeProperty());
-        bindTooltip(metadataCatalogTooltipLabelWide(), table.getTableCatalog(), "\n",
-                "TABLENAME : ", table.nameProperty(), "\n",
-                "OWNER     : ", table.tableOwnerProperty(), "\n",
-                "CREATED   : ", table.createTimeProperty(), "\n",
-                "TYPE      : ", table.tableTypeCodeProperty(), "\n",
-                "LOCKMODE  : ", table.lockTypeProperty(), "\n",
-                "FRAGMENTED: ", table.isfragmentProperty(), "\n",
-                "EXTENTS   : ", table.extentsProperty(), "\n",
-                "NROWS     : ", table.nrowsProperty(), "\n",
-                "PAGESIZE  : ", table.pagesizeProperty(), "\n",
-                "TOTALPAGES: ", table.nptotalProperty(), "\n",
-                "TOTALSIZE : ", table.totalsizeProperty(), "\n",
-                "DATAPAGES : ", table.npdataProperty(), "\n",
-                "DATASIZE  : ", table.usedsizeProperty(), "\n");
+        bindMetadataTooltip(table, DatabasePlatform.MetadataObjectType.TABLE);
     }
 
     private void renderView(View view, TreeData item) {
@@ -636,10 +581,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         bindNameLabel(item);
         descripLabel.textProperty().unbind();
         descripLabel.setText("VIEW");
-        bindTooltip(metadataCatalogTooltipLabelTight(), view.dbnameProperty(), "\n",
-                "VIEWNAME: ", view.nameProperty(), "\n",
-                "OWNER   : ", view.ownerProperty(), "\n",
-                "CREATED : ", view.createTimeProperty(), "\n");
+        bindMetadataTooltip(view, DatabasePlatform.MetadataObjectType.VIEW);
     }
 
     private void resetCellVisualState() {
@@ -937,7 +879,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         return (size == null || size.isBlank()) ? (count + unit) : (count + unit + separator + size);
     }
 
-    private boolean isRawOrExternal(String tableType) {
+    private boolean isDangerousTableType(String tableType) {
         if (tableType == null) {
             return false;
         }
@@ -999,6 +941,3 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         applyInactiveIconStyle(lockIcon);
     }
 }
-
-
-

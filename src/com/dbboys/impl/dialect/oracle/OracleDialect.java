@@ -345,15 +345,59 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     }
 
     @Override
-    public List<TooltipField> databaseTooltipFields() {
-        return List.of(
-                new TooltipField("SCHEMA",  "name"),
-                new TooltipField("OWNER",   "dbOwner"),
-                new TooltipField("SERVICE", "dbUseGLU"),
-                new TooltipField("SIZE",    "dbSize"),
-                new TooltipField("CREATED", "dbCreated"),
-                new TooltipField("CHARSET", "dbLocale")
-        );
+    public List<TooltipFieldDef> tooltipFields(MetadataObjectType type) {
+        if (type == null) {
+            return List.of();
+        }
+        return switch (type) {
+            case DATABASE -> List.of(
+                    new TooltipFieldDef("SCHEMA", "name"),
+                    new TooltipFieldDef("SIZE", "dbSize"),
+                    new TooltipFieldDef("CREATED", "dbCreated"),
+                    new TooltipFieldDef("CHARSET", "dbLocale")
+            );
+            case SYS_TABLE, TABLE -> List.of(
+                    new TooltipFieldDef("SCHEMA", "tableCatalog"),
+                    new TooltipFieldDef("TABLENAME", "name"),
+                    new TooltipFieldDef("CREATED", "createTime"),
+                    new TooltipFieldDef("TYPE", "tableTypeCode"),
+                    new TooltipFieldDef("FRAGMENTED", "isfragment"),
+                    new TooltipFieldDef("EXTENTS", "extents"),
+                    new TooltipFieldDef("NROWS", "nrows"),
+                    new TooltipFieldDef("PAGESIZE", "pagesize"),
+                    new TooltipFieldDef("TOTALPAGES", "nptotal"),
+                    new TooltipFieldDef("TOTALSIZE", "totalsize"),
+                    new TooltipFieldDef("DATAPAGES", "npdata"),
+                    new TooltipFieldDef("DATASIZE", "usedsize")
+            );
+            case VIEW -> List.of(
+                    new TooltipFieldDef("SCHEMA", "dbname"),
+                    new TooltipFieldDef("VIEWNAME", "name"),
+                    new TooltipFieldDef("CREATED", "createTime")
+            );
+            case TYPE -> List.of(
+                    new TooltipFieldDef("SCHEMA", "database"),
+                    new TooltipFieldDef("TYPE", "name"),
+                    new TooltipFieldDef("KIND", "typeKind")
+            );
+            case QUEUE -> List.of(
+                    new TooltipFieldDef("SCHEMA", "database"),
+                    new TooltipFieldDef("QUEUE", "name")
+            );
+            case FUNCTION -> List.of(
+                    new TooltipFieldDef("SCHEMA", "database"),
+                    new TooltipFieldDef("FUNCNAME", "name")
+            );
+            case PROCEDURE -> List.of(
+                    new TooltipFieldDef("SCHEMA", "database"),
+                    new TooltipFieldDef("PROCNAME", "name")
+            );
+            case PACKAGE -> List.of(
+                    new TooltipFieldDef("SCHEMA", "database"),
+                    new TooltipFieldDef("PKGNAME", "name")
+            );
+            default -> DatabasePlatform.super.tooltipFields(type);
+        };
     }
 
     @Override

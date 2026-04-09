@@ -254,7 +254,25 @@ public interface DatabasePlatform {
         return Set.of();
     }
 
+    enum MetadataObjectType {
+        DATABASE,
+        SYS_TABLE,
+        TABLE,
+        VIEW,
+        INDEX,
+        SEQUENCE,
+        TYPE,
+        QUEUE,
+        SYNONYM,
+        TRIGGER,
+        FUNCTION,
+        PROCEDURE,
+        PACKAGE
+    }
+
     record TooltipField(String label, String propertyName) {}
+
+    record TooltipFieldDef(String label, String propertyName) {}
 
     List<TooltipField> DEFAULT_DATABASE_TOOLTIP_FIELDS = List.of(
             new TooltipField("DATABASE", "name"),
@@ -269,6 +287,101 @@ public interface DatabasePlatform {
 
     default List<TooltipField> databaseTooltipFields() {
         return DEFAULT_DATABASE_TOOLTIP_FIELDS;
+    }
+
+    default List<TooltipFieldDef> tooltipFields(MetadataObjectType type) {
+        if (type == null) {
+            return List.of();
+        }
+        return switch (type) {
+            case DATABASE -> databaseTooltipFields().stream()
+                    .map(field -> new TooltipFieldDef(field.label(), field.propertyName()))
+                    .toList();
+            case SYS_TABLE, TABLE -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "tableCatalog"),
+                    new TooltipFieldDef("TABLENAME", "name"),
+                    new TooltipFieldDef("OWNER", "tableOwner"),
+                    new TooltipFieldDef("CREATED", "createTime"),
+                    new TooltipFieldDef("TYPE", "tableTypeCode"),
+                    new TooltipFieldDef("LOCKMODE", "lockType"),
+                    new TooltipFieldDef("FRAGMENTED", "isfragment"),
+                    new TooltipFieldDef("EXTENTS", "extents"),
+                    new TooltipFieldDef("NROWS", "nrows"),
+                    new TooltipFieldDef("PAGESIZE", "pagesize"),
+                    new TooltipFieldDef("TOTALPAGES", "nptotal"),
+                    new TooltipFieldDef("TOTALSIZE", "totalsize"),
+                    new TooltipFieldDef("DATAPAGES", "npdata"),
+                    new TooltipFieldDef("DATASIZE", "usedsize")
+            );
+            case VIEW -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "dbname"),
+                    new TooltipFieldDef("VIEWNAME", "name"),
+                    new TooltipFieldDef("OWNER", "owner"),
+                    new TooltipFieldDef("CREATED", "createTime")
+            );
+            case INDEX -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("INDEXNAME", "name"),
+                    new TooltipFieldDef("TABLENAME", "tabname"),
+                    new TooltipFieldDef("COLS", "cols"),
+                    new TooltipFieldDef("IDXTYPE", "idxtype"),
+                    new TooltipFieldDef("LEVELS", "levels"),
+                    new TooltipFieldDef("UNIQVALES", "uniqvalues"),
+                    new TooltipFieldDef("PAGESIZE", "pagesize"),
+                    new TooltipFieldDef("TOTALPAGES", "totalpages"),
+                    new TooltipFieldDef("TOTALSIZE", "totalsize"),
+                    new TooltipFieldDef("DISABLED", "isdisabled")
+            );
+            case SEQUENCE -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("SEQNAME", "name"),
+                    new TooltipFieldDef("MINVALUE", "minValue"),
+                    new TooltipFieldDef("MAXVALUE", "maxValue"),
+                    new TooltipFieldDef("INCVALUE", "incValue"),
+                    new TooltipFieldDef("CACHE", "cache"),
+                    new TooltipFieldDef("NEXTCACHE", "nextVal"),
+                    new TooltipFieldDef("CREATED", "created")
+            );
+            case TYPE -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("TYPE", "name"),
+                    new TooltipFieldDef("OWNER", "owner"),
+                    new TooltipFieldDef("KIND", "typeKind")
+            );
+            case QUEUE -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("QUEUE", "name"),
+                    new TooltipFieldDef("OWNER", "owner")
+            );
+            case SYNONYM -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("SYNNAME", "name"),
+                    new TooltipFieldDef("SYNTYPE", "synonymType"),
+                    new TooltipFieldDef("CREATED", "created")
+            );
+            case TRIGGER -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("TABNAME", "tableName"),
+                    new TooltipFieldDef("TRINAME", "name"),
+                    new TooltipFieldDef("TRITYPE", "triggerType"),
+                    new TooltipFieldDef("DISABLED", "isdisabled")
+            );
+            case FUNCTION -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("OWNER", "owner"),
+                    new TooltipFieldDef("FUNCNAME", "name")
+            );
+            case PROCEDURE -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("OWNER", "owner"),
+                    new TooltipFieldDef("PROCNAME", "name")
+            );
+            case PACKAGE -> List.of(
+                    new TooltipFieldDef(metadataTooltipCatalogLabel(), "database"),
+                    new TooltipFieldDef("OWNER", "owner"),
+                    new TooltipFieldDef("PKGNAME", "name")
+            );
+        };
     }
 
     /**
