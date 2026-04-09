@@ -16,9 +16,10 @@ dir /b /s src\*.java > sources.txt
 javac -encoding UTF-8 -d bin -sourcepath src -cp lib\lib_modular\*;lib\lib_nonmodular\* @sources.txt
 echo Source compilation completed.
 
-:: Copy fxml and css folders to bin
+:: Copy runtime resources to bin
 xcopy /e /h /y /q "src\com\dbboys\fxml\*" "bin\com\dbboys\fxml\"
 xcopy /e /h /y /q "src\com\dbboys\css\*" "bin\com\dbboys\css\"
+xcopy /e /h /y /q "src\com\dbboys\i18n\*.properties" "bin\com\dbboys\i18n\"
 copy /y "src\IKAnalyzer.cfg.xml" "bin\" >nul
 copy /y "src\ik-stopwords.dic" "bin\" >nul
 
@@ -27,11 +28,11 @@ jar --create --file lib/lib_nonmodular/dbboys.jar --main-class com.dbboys.app.Ma
 echo dbboys.jar created.
 
 :: Create minimized JRE
-jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core,jdk.incubator.vector  --output jre-min --strip-debug --no-man-pages  --no-header-files
+jlink  --module-path "%JAVAFX_JMODS%;lib\lib_modular"  --add-modules javafx.fxml,org.json,net.sf.jsqlparser,javafx.swing,org.controlsfx.controls,org.commonmark,java.sql,java.naming,java.management,java.security.jgss,java.transaction.xa,java.xml,jdk.crypto.ec,jdk.security.auth,org.apache.lucene.queryparser,org.apache.lucene.sandbox,org.apache.lucene.core,org.apache.logging.log4j,org.apache.logging.log4j.core  --output jre-min --strip-debug --no-man-pages  --no-header-files
 echo Minimized JRE created.
 
 :: Package exe
-jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx1024m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml" --java-options "--add-modules=jdk.incubator.vector"
+jpackage --type app-image --name dbboys --input lib\lib_nonmodular --main-jar dbboys.jar --main-class com.dbboys.app.Main --runtime-image jre-min --icon images\dbboys.ico --java-options "-Xmx1024m" --java-options "-Dlog4j2.configurationFile=etc/log4j2.xml"
 echo Packaging finished.
 
 :: Delete temp file sources.txt generated during compile
