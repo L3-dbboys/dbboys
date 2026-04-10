@@ -401,6 +401,9 @@ public class SqlTabController {
                     }
 
                     sqlExecuteProcessStackPane.setVisible(true);
+                    if (currentResultSetTabController != null) {
+                        currentResultSetTabController.cancel();
+                    }
                     sqlTask = executionHelper.createExecuteSqlTask();
                     closeResultSet();
                     resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
@@ -424,6 +427,9 @@ public class SqlTabController {
                         executionHelper.cancelCurrentExecution();
                     }
                     sqlExecuteProcessStackPane.setVisible(true);
+                    if (currentResultSetTabController != null) {
+                        currentResultSetTabController.cancel();
+                    }
                     sqlTask = executionHelper.createExplainTask();
                     closeResultSet();
                     resultsetTabPane.getTabs().subList(1, resultsetTabPane.getTabs().size()).clear();
