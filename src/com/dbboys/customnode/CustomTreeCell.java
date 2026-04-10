@@ -212,9 +212,9 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 bindMetadataTooltip(sequence, DatabasePlatform.MetadataObjectType.SEQUENCE);
             }
             else if (item instanceof Type metaType) {
-                nodeIcon.setContent(IconPaths.TREECELL_TABLE);
-                nodeIcon.setScaleX(0.38);
-                nodeIcon.setScaleY(0.38);
+                nodeIcon.setContent(IconPaths.TREECELL_TYPE);
+                nodeIcon.setScaleX(0.4);
+                nodeIcon.setScaleY(0.4);
                 applyPrimaryIconStyle(nodeIcon);
                 bindNameLabel(item);
                 descripLabel.textProperty().unbind();
@@ -237,7 +237,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 bindMetadataTooltip(metaQueue, DatabasePlatform.MetadataObjectType.QUEUE);
             }
             else if (item instanceof SchedulerJob job) {
-                nodeIcon.setContent(IconPaths.TREECELL_PROCEDURE);
+                nodeIcon.setContent(IconPaths.TREECELL_JOB);
                 nodeIcon.setScaleX(0.5);
                 nodeIcon.setScaleY(0.5);
                 applyPrimaryIconStyle(nodeIcon);
