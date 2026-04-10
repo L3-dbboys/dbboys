@@ -94,7 +94,7 @@ public class CustomSqlEditCodeArea extends CodeArea {
                 event.consume();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.ENTER){
-                fireExecuteCurrentAtCaret();
+                fireExecute();
             }
             if(event.isControlDown()&&event.getCode() == KeyCode.M){
                 codeAreaFormatItem.fire();
@@ -390,20 +390,6 @@ public class CustomSqlEditCodeArea extends CodeArea {
             return;
         }
         if (getSelectedText().isEmpty() && !selectCurrentStatementAtCaret()) {
-            return;
-        }
-        onExecuteRequest.run();
-    }
-
-    /**
-     * Ctrl+Enter 始终按光标定位当前可执行语句并执行，
-     * 不受已有选区影响，保证与 SQL 解析范围一致。
-     */
-    private void fireExecuteCurrentAtCaret() {
-        if (executeDisabledSupplier.getAsBoolean()) {
-            return;
-        }
-        if (!selectCurrentStatementAtCaret()) {
             return;
         }
         onExecuteRequest.run();
