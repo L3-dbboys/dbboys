@@ -47,7 +47,8 @@ public class SqlExecutionHelper {
 
     public void cancelCurrentExecution() {
         if (ctrl.sqlTask != null) {
-            ctrl.sqlTask.cancel();
+            //必须设置为false，否则oracle会中断连接
+            ctrl.sqlTask.cancel(false);
         }
         try {
             if (ctrl.sqlStatement != null) {

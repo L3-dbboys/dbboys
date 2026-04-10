@@ -33,7 +33,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
             "{\"propName\":\"includeSynonyms\",\"propValue\":\"\"}," +
             "{\"propName\":\"defaultNChar\",\"propValue\":\"\"}," +
             "{\"propName\":\"oracle.jdbc.timezoneAsRegion\",\"propValue\":\"\"}," +
-            "{\"propName\":\"oracle.net.disableOob\",\"propValue\":\"\"}]";
+            "{\"propName\":\"oracle.net.disableOob\",\"propValue\":\"true\"}]";
 
     private final MetadataRepository metadataRepository = new OracleMetadataRepository();
     private final SqlexeRepository sqlexeRepository = new OracleSqlexeRepository();

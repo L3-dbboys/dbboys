@@ -754,10 +754,10 @@ public class TreeCrudHandler {
         };
 
         AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask, () -> {
-            ddlTask.cancel(true);
+            ddlTask.cancel(false);
             Future<?> future = ddlFuture.get();
             if (future != null) {
-                future.cancel(true);
+                future.cancel(false);
             }
         });
         ddlTask.setOnSucceeded(event1 -> {
@@ -820,10 +820,10 @@ public class TreeCrudHandler {
         };
 
         AlertUtil.ContentDialog loadingDialog = createDdlLoadingDialog(ddlTask, () -> {
-            ddlTask.cancel(true);
+            ddlTask.cancel(false);
             Future<?> future = ddlFuture.get();
             if (future != null) {
-                future.cancel(true);
+                future.cancel(false);
             }
         });
         ddlTask.setOnSucceeded(event1 -> {
