@@ -71,4 +71,9 @@ public interface DdlRepository {
     default String printQueue(Connection conn, String objectName) throws Exception {
         return "--";
     }
+
+    /** Scheduler jobs (e.g. Oracle DBMS_SCHEDULER jobs). */
+    default String printSchedulerJob(Connection conn, String objectName) throws Exception {
+        return "--";
+    }
 }

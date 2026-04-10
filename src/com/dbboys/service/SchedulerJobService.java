@@ -41,6 +41,6 @@ public class SchedulerJobService implements MetaObjectService {
 
     @Override
     public DdlFetcher ddlFetcher() {
-        return (connect, conn, objectName) -> "--";
+        return (connect, conn, objectName) -> platformResolver.ddl(connect).printSchedulerJob(conn, objectName);
     }
 }

@@ -51,6 +51,7 @@ public final class OracleDdlRepository implements DdlRepository {
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'FUNCTION' AND secondary = 'N')
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PROCEDURE' AND secondary = 'N')
             + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PACKAGE' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_scheduler_jobs WHERE owner = ?)
             + (SELECT COUNT(*) FROM all_objects i WHERE i.owner = ? AND i.object_type = 'INDEX' AND i.secondary = 'N'
                AND NOT EXISTS (
                    SELECT 1 FROM all_constraints c
@@ -114,6 +115,13 @@ public final class OracleDdlRepository implements DdlRepository {
             FROM all_queues
             WHERE owner = ?
             ORDER BY name
+            """;
+
+    private static final String SQL_SCHEDULER_JOB_NAMES = """
+            SELECT job_name
+            FROM all_scheduler_jobs
+            WHERE owner = ?
+            ORDER BY job_name
             """;
 
     private static final String SQL_COMMENTS = """
@@ -811,11 +819,18 @@ public final class OracleDdlRepository implements DdlRepository {
     }
 
     @Override
+    public String printSchedulerJob(Connection conn, String objectName) throws SQLException {
+        String schema = currentSchema(conn);
+        configureMetadataTransform(conn);
+        return withTrailingSqlPlusSlash(getDdl(conn, "PROCOBJ", objectName.toUpperCase(), schema));
+    }
+
+    @Override
     public long countDatabaseExportItems(Connection conn, String databaseName) throws SQLException {
         String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn).toUpperCase();
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
         List<Object> binds = new ArrayList<>();
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < 12; i++) {
             binds.add(schema);
         }
         Long count = runner.queryOne(SQL_EXPORT_ITEM_COUNT_SPLIT, binds, rs -> Long.valueOf(rs.getLong(1)));
@@ -847,6 +862,7 @@ public final class OracleDdlRepository implements DdlRepository {
         completed = appendObjectsDdl(conn, pre, schema, "FUNCTION", "Functions", completed, progressCallback);
         completed = appendObjectsDdl(conn, pre, schema, "PROCEDURE", "Procedures", completed, progressCallback);
         completed = appendPackagesDdl(conn, pre, schema, completed, progressCallback);
+        completed = appendSchedulerJobsDdl(conn, pre, schema, completed, progressCallback);
         appendTableComments(conn, pre, schema);
         appendColumnComments(conn, pre, schema);
 
@@ -1047,6 +1063,33 @@ public final class OracleDdlRepository implements DdlRepository {
             }
         }
         ddl.append("-- ### FINISH: Packages\n\n");
+        return completed;
+    }
+
+    private long appendSchedulerJobsDdl(Connection conn, StringBuilder ddl, String schema,
+                                        long completed, LongConsumer progressCallback) throws SQLException {
+        SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+        List<String> names = runner.query(SQL_SCHEDULER_JOB_NAMES, List.of(schema), rs -> rs.getString("job_name"));
+        if (names.isEmpty()) {
+            return completed;
+        }
+
+        ddl.append("-- ### Scheduler Jobs (").append(names.size()).append(")\n\n");
+        for (String name : names) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Export cancelled");
+            }
+            String objDdl = withTrailingSqlPlusSlash(getDdlSafe(conn, "PROCOBJ", name, schema));
+            if (!objDdl.isEmpty()) {
+                ddl.append(objDdl);
+                ddl.append("\n\n");
+            }
+            completed++;
+            if (progressCallback != null) {
+                progressCallback.accept(completed);
+            }
+        }
+        ddl.append("-- ### FINISH: Scheduler Jobs\n\n");
         return completed;
     }
 
