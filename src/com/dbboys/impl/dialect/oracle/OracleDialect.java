@@ -12,6 +12,7 @@ import com.dbboys.vo.Connect;
 import com.dbboys.vo.Catalog;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +35,29 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
             "{\"propName\":\"defaultNChar\",\"propValue\":\"\"}," +
             "{\"propName\":\"oracle.jdbc.timezoneAsRegion\",\"propValue\":\"\"}," +
             "{\"propName\":\"oracle.net.disableOob\",\"propValue\":\"true\"}]";
+    private static final String SQL_INSTANCE_INFO = """
+            select
+                instance_name,
+                host_name,
+                version,
+                status,
+                parallel,
+                archiver,
+                to_char(startup_time, 'YYYY-MM-DD HH24:MI:SS') as startup_time
+            from v$instance
+            """;
+    private static final String SQL_DATABASE_INFO = """
+            select
+                name,
+                db_unique_name,
+                open_mode,
+                database_role,
+                log_mode,
+                flashback_on,
+                platform_name,
+                to_char(created, 'YYYY-MM-DD HH24:MI:SS') as created_time
+            from v$database
+            """;
 
     private final MetadataRepository metadataRepository = new OracleMetadataRepository();
     private final SqlexeRepository sqlexeRepository = new OracleSqlexeRepository();
@@ -103,6 +127,25 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     @Override
     public String testConnectionSql() {
         return "SELECT 1 FROM DUAL";
+    }
+
+    @Override
+    public String populateConnectInfo(Connection connection, Connect connect) throws Exception {
+        if (connection == null || connect == null) {
+            return "";
+        }
+        java.sql.DatabaseMetaData metaData = connection.getMetaData();
+        connect.setDbversion((metaData.getDatabaseProductName() == null ? "" : metaData.getDatabaseProductName()) + " "
+                + (metaData.getDatabaseProductVersion() == null ? "" : metaData.getDatabaseProductVersion()));
+
+        StringBuilder info = new StringBuilder();
+        String primaryInstance = "";
+
+        appendOptionalOracleSection(info, "Instance Information", connection, SQL_INSTANCE_INFO);
+        appendOptionalOracleSection(info, "Database Information", connection, SQL_DATABASE_INFO);
+
+        connect.setInfo(info.toString());
+        return primaryInstance;
     }
 
     @Override
@@ -448,5 +491,36 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport 
     @Override
     public InstanceAdminRepository admin() {
         return instanceAdminRepository;
+    }
+
+    private void appendOptionalOracleSection(StringBuilder info,
+                                             String title,
+                                             Connection connection,
+                                             String sql) {
+        try (ResultSet rs = connection.createStatement().executeQuery(sql)) {
+            if (!rs.next()) {
+                return;
+            }
+            info.append("\n##########################################################################################\n");
+            info.append(title).append("\n");
+            info.append("##########################################################################################\n");
+            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+                appendInfoLine(info, rs.getMetaData().getColumnLabel(i), rs.getString(i));
+            }
+        } catch (SQLException ignored) {
+            // Optional Oracle views like v$instance / v$database may be inaccessible to low-privilege accounts.
+        }
+    }
+
+    private void appendInfoLine(StringBuilder info, String label, String value) {
+        String normalizedValue = trimToEmpty(value);
+        if (label == null || label.isBlank() || normalizedValue.isEmpty()) {
+            return;
+        }
+        info.append(String.format("%-30s", label.trim())).append(normalizedValue).append("\n");
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 }
