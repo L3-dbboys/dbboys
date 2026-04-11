@@ -143,6 +143,16 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
     }
 
     @Override
+    public String metadataTreeDragTableSelectSql(String qualifiedTable) {
+        return DatabasePlatform.defaultMetadataTreeDragTableSelectSql(stripOwnerForDragSql(qualifiedTable));
+    }
+
+    @Override
+    public String metadataTreeDragFragmentTableSelectSql(String qualifiedTable) {
+        return DatabasePlatform.defaultMetadataTreeDragStarFromSql(stripOwnerForDragSql(qualifiedTable));
+    }
+
+    @Override
     public ChangeDatabaseFailureKind classifyChangeDatabaseFailure(SQLException e) {
         int code = e.getErrorCode();
         if (code == -79716 || code == -79730) {
@@ -157,6 +167,17 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
     @Override
     public String reconnectFallbackDatabaseName() {
         return "sysmaster";
+    }
+
+    private String stripOwnerForDragSql(String qualifiedTable) {
+        if (qualifiedTable == null || qualifiedTable.isBlank()) {
+            return qualifiedTable;
+        }
+        int dotIndex = qualifiedTable.indexOf('.');
+        if (dotIndex < 0 || dotIndex >= qualifiedTable.length() - 1) {
+            return qualifiedTable;
+        }
+        return qualifiedTable.substring(dotIndex + 1).trim();
     }
 
     private static final Set<String> SYS_DBS = Set.of(

@@ -500,6 +500,21 @@ public class TreeCrudHandler {
         }
     }
 
+    private static void applyImportBootstrapConnectionProps(Connect connect) {
+        if (connect == null) {
+            return;
+        }
+        var platform = resolvePlatformResolver().getPlatform(connect.getDbtype());
+        if (platform == null) {
+            return;
+        }
+        String bootstrapCatalog = platform.connection().defaultDatabase();
+        if (bootstrapCatalog == null || bootstrapCatalog.isBlank()) {
+            return;
+        }
+        platform.connection().setSessionCatalog(connect, bootstrapCatalog);
+    }
+
     private static boolean isNoLogDatabase(Catalog database) {
         return database != null
                 && database.getDbLog() != null
@@ -1654,6 +1669,7 @@ public class TreeCrudHandler {
         database.setDbLocale(bundle.dbLocale);
         database.setDbLog(bundle.dbLog);
         Connect bootstrapConnect = new Connect(baseConnect);
+        applyImportBootstrapConnectionProps(bootstrapConnect);
         if (bundle.dbLocale != null && !bundle.dbLocale.isBlank()) {
             ConnectionPropertyUtil.applySupportedConnectionProperty(
                     TreeViewUtil.connectionService,
