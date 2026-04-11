@@ -37,10 +37,13 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SqlTabController {
     private static final Logger log = LogManager.getLogger(SqlTabController.class);
     static final String SQL_EXECUTE_PROCESS_TASK_LABEL_KEY = "sqlExecuteProcessTaskLabel";
+    private static final String SQL_PANEL_KEEPALIVE_INTERVAL_CONFIG_KEY = "CONNECT_KEEPALIVE_SECONDS";
+    private static final int DEFAULT_SQL_PANEL_KEEPALIVE_INTERVAL_SECONDS = 180;
 
     @FXML
     public Button sqlRunButton;
@@ -163,6 +166,8 @@ public class SqlTabController {
     Label sqlConnectChoiceBoxDbIcon;
     Label sqlConnectChoiceBoxLoadingIcon;
     SVGPath sqlConnectIconPath;
+    Timeline sqlPanelKeepAliveTimeline;
+    final AtomicBoolean sqlPanelKeepAliveChecking = new AtomicBoolean(false);
 
     SqlExecutionHelper executionHelper;
     SqlTabUiHelper uiHelper;
@@ -374,6 +379,7 @@ public class SqlTabController {
         });
 
         searchReplaceBox.setCodeArea(sqlEditCodeArea);
+        startSqlPanelKeepAliveCheck();
     }
 
 
@@ -507,6 +513,7 @@ public class SqlTabController {
 
     public void closeConn() {
         try {
+            stopSqlPanelKeepAliveCheck();
             if (!sqlStopButton.isDisable()) {
                 sqlStopButton.fire();
             }
@@ -528,6 +535,76 @@ public class SqlTabController {
 
     public void initializeConnectList() {
         connectionHandler.initializeConnectList();
+    }
+
+    private void startSqlPanelKeepAliveCheck() {
+        stopSqlPanelKeepAliveCheck();
+        int intervalSeconds = resolveSqlPanelKeepAliveIntervalSeconds();
+        if (intervalSeconds <= 0) {
+            return;
+        }
+        sqlPanelKeepAliveTimeline = new Timeline(
+                new KeyFrame(Duration.seconds(intervalSeconds), event -> checkSqlPanelKeepAlive())
+        );
+        sqlPanelKeepAliveTimeline.setCycleCount(Timeline.INDEFINITE);
+        sqlPanelKeepAliveTimeline.play();
+    }
+
+    private void stopSqlPanelKeepAliveCheck() {
+        if (sqlPanelKeepAliveTimeline != null) {
+            sqlPanelKeepAliveTimeline.stop();
+            sqlPanelKeepAliveTimeline = null;
+        }
+        sqlPanelKeepAliveChecking.set(false);
+    }
+
+    private int resolveSqlPanelKeepAliveIntervalSeconds() {
+        String configured = ConfigManagerUtil.getProperty(
+                SQL_PANEL_KEEPALIVE_INTERVAL_CONFIG_KEY,
+                String.valueOf(DEFAULT_SQL_PANEL_KEEPALIVE_INTERVAL_SECONDS)
+        );
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_SQL_PANEL_KEEPALIVE_INTERVAL_SECONDS;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(configured.trim()));
+        } catch (NumberFormatException e) {
+            log.warn("Invalid {} value: {}", SQL_PANEL_KEEPALIVE_INTERVAL_CONFIG_KEY, configured);
+            return DEFAULT_SQL_PANEL_KEEPALIVE_INTERVAL_SECONDS;
+        }
+    }
+
+    private void checkSqlPanelKeepAlive() {
+        if (sqlPanelKeepAliveChecking.get()) {
+            return;
+        }
+        if (sqlConnect == null || sqlConnect == defaultConnect || sqlConnect.getConn() == null) {
+            return;
+        }
+        if (sqlTask != null && sqlTask.isRunning()) {
+            return;
+        }
+        if (sqlExecuteProcessStackPane != null && sqlExecuteProcessStackPane.isVisible()) {
+            return;
+        }
+        if (!sqlPanelKeepAliveChecking.compareAndSet(false, true)) {
+            return;
+        }
+        AppExecutor.runAsync(() -> {
+            try {
+                if (sqlConnect == null || sqlConnect == defaultConnect || sqlConnect.getConn() == null) {
+                    return;
+                }
+                boolean alive = connectionService.testConn(sqlConnect);
+                if (!alive) {
+                    log.warn("SQL panel keepalive test failed: {}", sqlConnect.getName());
+                }
+            } catch (Exception e) {
+                log.warn("SQL panel keepalive check failed", e);
+            } finally {
+                sqlPanelKeepAliveChecking.set(false);
+            }
+        });
     }
 
 

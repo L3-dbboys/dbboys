@@ -59,7 +59,9 @@ public class TreeNavigator {
                 treeItem.getChildren().clear();
                 treeItem.setExpanded(false);
                 treeItem.setExpanded(true);
-
+            } else {
+                treeItem.setExpanded(false);
+                treeItem.getChildren().clear();
             }
         });
     }

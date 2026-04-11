@@ -1,9 +1,10 @@
-### 20260410
+### 20260412
 增加gbase mysql模式ddl支持  
 完善oracle支持  
 database类修改为catalog  
 AI增加qwen3.6大模型、支持记忆开关  
 帮助里增加适配列表  
+增加长连接保活   
 
 ### 20260406
 增加informix支持  

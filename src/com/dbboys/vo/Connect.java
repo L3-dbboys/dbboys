@@ -1,16 +1,38 @@
 package com.dbboys.vo;
 
+import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.app.AppContext;
+import com.dbboys.impl.DatabasePlatforms;
+import com.dbboys.util.ConfigManagerUtil;
 import javafx.beans.property.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 public class Connect extends TreeData{
+    private static final Logger log = LogManager.getLogger(Connect.class);
+    private static final String KEEPALIVE_INTERVAL_CONFIG_KEY = "CONNECT_KEEPALIVE_SECONDS";
+    private static final long DEFAULT_KEEPALIVE_INTERVAL_SECONDS = 180L;
+    private static final ScheduledExecutorService KEEPALIVE_SCHEDULER =
+            Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread thread = new Thread(r, "dbboys-connect-keepalive");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            });
+    private static volatile DatabasePlatformResolver platformResolver;
 
     private IntegerProperty  id=new SimpleIntegerProperty();
     private IntegerProperty  parentId=new SimpleIntegerProperty();
@@ -28,6 +50,7 @@ public class Connect extends TreeData{
     private StringProperty  drivermd5=new SimpleStringProperty();
     private StringProperty  dbversion=new SimpleStringProperty();
     private BooleanProperty readonly=new SimpleBooleanProperty();
+    private volatile ScheduledFuture<?> keepAliveFuture;
     //每个连接一个顺序执行线程，对于目录树耗时的加载，顺序执行，避免同一个连接多个任务导致问题
     public ExecutorService executorService= Executors.newSingleThreadExecutor();
 
@@ -70,7 +93,11 @@ public class Connect extends TreeData{
         return conn;
     }
     public void setConn(Connection conn) {
+        cancelKeepAlive();
         this.conn = conn;
+        if (conn != null) {
+            scheduleKeepAlive();
+        }
     }
 
     public int getId() {
@@ -293,5 +320,86 @@ public class Connect extends TreeData{
                 com.dbboys.app.AppErrorHandler.handle(e);
             }
         });
+    }
+
+    private void scheduleKeepAlive() {
+        long intervalSeconds = resolveKeepAliveIntervalSeconds();
+        if (intervalSeconds <= 0 || conn == null) {
+            return;
+        }
+        keepAliveFuture = KEEPALIVE_SCHEDULER.schedule(this::submitKeepAliveTask, intervalSeconds, TimeUnit.SECONDS);
+    }
+
+    private void submitKeepAliveTask() {
+        if (conn == null) {
+            return;
+        }
+        executeSqlTask(() -> {
+            try {
+                if (conn == null || conn.isClosed()) {
+                    return;
+                }
+                DatabasePlatformResolver resolver = resolvePlatformResolver();
+                var platform = resolver.getPlatform(getDbtype());
+                if (platform == null) {
+                    return;
+                }
+                boolean alive = platform.connection().testConnection(conn);
+                if (!alive) {
+                    log.warn("Connection keepalive test failed: {}", getName());
+                }
+            } catch (Exception e) {
+                log.warn("Connection keepalive task failed: {}", getName(), e);
+            } finally {
+                cancelKeepAlive();
+                if (conn != null) {
+                    scheduleKeepAlive();
+                }
+            }
+        });
+    }
+
+    private void cancelKeepAlive() {
+        ScheduledFuture<?> future = keepAliveFuture;
+        if (future != null) {
+            future.cancel(false);
+            keepAliveFuture = null;
+        }
+    }
+
+    private long resolveKeepAliveIntervalSeconds() {
+        String configured = ConfigManagerUtil.getProperty(
+                KEEPALIVE_INTERVAL_CONFIG_KEY,
+                String.valueOf(DEFAULT_KEEPALIVE_INTERVAL_SECONDS)
+        );
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_KEEPALIVE_INTERVAL_SECONDS;
+        }
+        try {
+            return Math.max(0L, Long.parseLong(configured.trim()));
+        } catch (NumberFormatException e) {
+            log.warn("Invalid {} value: {}", KEEPALIVE_INTERVAL_CONFIG_KEY, configured);
+            return DEFAULT_KEEPALIVE_INTERVAL_SECONDS;
+        }
+    }
+
+    private static DatabasePlatformResolver resolvePlatformResolver() {
+        DatabasePlatformResolver cached = platformResolver;
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (Connect.class) {
+            cached = platformResolver;
+            if (cached != null) {
+                return cached;
+            }
+            try {
+                cached = AppContext.get(DatabasePlatformResolver.class);
+            } catch (IllegalStateException e) {
+                cached = DatabasePlatforms.createDefault();
+            }
+            platformResolver = cached;
+            return cached;
+        }
     }
 }
