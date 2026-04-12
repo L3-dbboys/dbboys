@@ -1,4 +1,4 @@
-﻿package com.dbboys.api;
+package com.dbboys.api;
 
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.HealthCheck;

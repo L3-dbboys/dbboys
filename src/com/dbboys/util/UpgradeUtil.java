@@ -251,6 +251,9 @@ public class UpgradeUtil {
 
     public static void initDefaultConfig() {
         LocalDbRepository.initDB();
+        // 与 etc/config.properties 中出厂默认一致
+        ConfigManagerUtil.setProperty("AI_MODEL", "qwen3.6-plus");
+        ConfigManagerUtil.setProperty("CONNECT_KEEPALIVE_SECONDS", "180");
         ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB", "0");
         ConfigManagerUtil.setProperty("RESULT_FETCH_PER_TIME", "200");
         ConfigManagerUtil.setProperty("SPLIT_DRIVER_MAIN", "0.2");

@@ -1,4 +1,4 @@
-﻿package com.dbboys.impl.dialect.gbase;
+package com.dbboys.impl.dialect.gbase;
 
 import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.vo.Catalog;

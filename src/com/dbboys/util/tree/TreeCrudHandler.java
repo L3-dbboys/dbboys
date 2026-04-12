@@ -1596,7 +1596,9 @@ public class TreeCrudHandler {
                     DatabaseImportBundle bundle = resolveDatabaseImportBundle(dir);
                     bundleRef.set(bundle);
                     backSqlTask.setDatabaseName(bundle.databaseName);
-                    backSqlTask.setSql(I18n.t("metadata.import_ddl_data.phase.preparing", "准备导入"));
+                    int flowTotalSteps = resolveDatabaseImportFlowTotalSteps(bundle);
+                    String preparingSql = formatDatabaseImportPreparingStep(bundle.databaseName, flowTotalSteps);
+                    Platform.runLater(() -> backSqlTask.setSql(preparingSql));
                     updateResult.setDatabase(bundle.databaseName);
                     updateResult.setUpdateSql(buildDatabaseImportTaskTitle(bundle.databaseName, null));
                     BackgroundSqlUtil.updateTaskProgress(
@@ -1678,11 +1680,17 @@ public class TreeCrudHandler {
         }
 
         int affectedRows = 0;
+        int flowTotalSteps = resolveDatabaseImportFlowTotalSteps(bundle);
         updateDatabaseImportTask(
                 backSqlTask,
                 bootstrapConnect,
                 database.getName(),
-                I18n.t("metadata.import_ddl_data.phase.pre", "DDL预处理")
+                formatDatabaseImportFlowStep(
+                        database.getName(),
+                        1,
+                        flowTotalSteps,
+                        "metadata.import_ddl_data.task.flow.phase_ddl",
+                        "导入DDL")
         );
         affectedRows += TreeViewUtil.databaseService.importSqlScriptSync(
                 new Connect(bootstrapConnect),
@@ -1694,7 +1702,13 @@ public class TreeCrudHandler {
 
         Connect databaseConnect = new Connect(baseConnect);
         applyDatabaseConnectionProps(databaseConnect, database, database.getName());
-        affectedRows += importDatabaseDataFilesParallel(databaseConnect, database, bundle.dataFiles, backSqlTask, runtime);
+        affectedRows += importDatabaseDataFilesParallel(
+                databaseConnect,
+                database,
+                bundle.dataFiles,
+                backSqlTask,
+                runtime,
+                flowTotalSteps);
 
         if (bundle.postDdlFile != null) {
             throwIfDatabaseImportCancelled(backSqlTask);
@@ -1702,7 +1716,12 @@ public class TreeCrudHandler {
                     backSqlTask,
                     databaseConnect,
                     database.getName(),
-                    I18n.t("metadata.import_ddl_data.phase.post", "DDL后处理")
+                    formatDatabaseImportFlowStep(
+                            database.getName(),
+                            flowTotalSteps,
+                            flowTotalSteps,
+                            "metadata.import_ddl_data.task.flow.phase_constraints",
+                            "导入约束/索引/触发器")
             );
             affectedRows += TreeViewUtil.databaseService.importSqlScriptSync(
                     new Connect(databaseConnect),
@@ -1719,7 +1738,8 @@ public class TreeCrudHandler {
                                                        Catalog database,
                                                        List<File> dataFiles,
                                                        BackgroundSqlTask backSqlTask,
-                                                       DatabaseImportRuntime runtime) throws Exception {
+                                                       DatabaseImportRuntime runtime,
+                                                       int flowTotalSteps) throws Exception {
         List<File> validFiles = new ArrayList<>();
         if (dataFiles != null) {
             for (File dataFile : dataFiles) {
@@ -1731,17 +1751,22 @@ public class TreeCrudHandler {
                 }
             }
         }
+        updateDatabaseImportTask(
+                backSqlTask,
+                databaseConnect,
+                database.getName(),
+                formatDatabaseImportFlowStep(
+                        database.getName(),
+                        2,
+                        flowTotalSteps,
+                        "metadata.import_ddl_data.task.flow.phase_data",
+                        "导入数据")
+        );
         if (validFiles.isEmpty()) {
             return 0;
         }
 
         int totalTables = validFiles.size();
-        updateDatabaseImportTask(
-                backSqlTask,
-                databaseConnect,
-                database.getName(),
-                I18n.t("metadata.import_ddl_data.phase.tables", "表数据导入")
-        );
         BackgroundSqlUtil.updateTaskProgress(backSqlTask, formatDatabaseImportTableProgress(0, totalTables));
 
         int maxConcurrency = Math.min(8, totalTables);
@@ -2084,17 +2109,46 @@ public class TreeCrudHandler {
             backSqlTask.setConnectName(connect.getName());
         }
         backSqlTask.setDatabaseName(databaseName);
-        // 「SQL任务」列展示当前导入流程（阶段名）；库名在「库名」列
-        backSqlTask.setSql(phaseLabel == null || phaseLabel.isBlank()
+        // 「SQL任务」列与进度在 JavaFX 线程更新，否则 TableView 对 sql 列可能仍停留在上一阶段（如「导入 DDL」）
+        final String sqlText = phaseLabel == null || phaseLabel.isBlank()
                 ? buildDatabaseImportTaskTitle(databaseName, null)
-                : phaseLabel.trim());
-        BackgroundSqlUtil.updateTaskProgress(backSqlTask, I18n.t("metadata.import_ddl_data.progress.running", "执行中"));
+                : phaseLabel.trim();
+        final String runningProgress = I18n.t("metadata.import_ddl_data.progress.running", "执行中");
+        Platform.runLater(() -> {
+            if (backSqlTask.isCancelled()) {
+                return;
+            }
+            backSqlTask.setSql(sqlText);
+            backSqlTask.setProgress(runningProgress);
+        });
+    }
+
+    private static String safeImportDatabaseDisplayName(String databaseName) {
+        return databaseName == null || databaseName.isBlank() ? "?" : databaseName.trim();
+    }
+
+    /** 有 02_post 脚本为 3 步（DDL / 数据 / 约束索引触发器），否则为 2 步。 */
+    private static int resolveDatabaseImportFlowTotalSteps(DatabaseImportBundle bundle) {
+        return bundle != null && bundle.postDdlFile != null ? 3 : 2;
+    }
+
+    private static String formatDatabaseImportFlowStep(String databaseName,
+                                                       int step,
+                                                       int totalSteps,
+                                                       String phaseKey,
+                                                       String phaseFallback) {
+        String phase = I18n.t(phaseKey, phaseFallback);
+        return I18n.t("metadata.import_ddl_data.task.flow.step_line", "导入数据库 %s %d/%d - %s")
+                .formatted(safeImportDatabaseDisplayName(databaseName), step, totalSteps, phase);
+    }
+
+    private static String formatDatabaseImportPreparingStep(String databaseName, int totalSteps) {
+        return I18n.t("metadata.import_ddl_data.task.flow.preparing_step", "导入数据库 %s 0/%d - 准备导入")
+                .formatted(safeImportDatabaseDisplayName(databaseName), totalSteps);
     }
 
     private static String buildDatabaseImportTaskTitle(String databaseName, String phaseLabel) {
-        String safeDatabaseName = databaseName == null || databaseName.isBlank()
-                ? "?"
-                : databaseName.trim();
+        String safeDatabaseName = safeImportDatabaseDisplayName(databaseName);
         String title = I18n.t("metadata.import_ddl_data.task.summary", "导入数据库\"%s\"")
                 .formatted(safeDatabaseName);
         if (phaseLabel == null || phaseLabel.isBlank()) {

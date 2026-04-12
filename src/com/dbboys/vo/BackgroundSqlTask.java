@@ -13,7 +13,7 @@ public class BackgroundSqlTask {
     private String beginTime;
     private String connectName;
     private String databaseName;
-    private String sql;
+    private final StringProperty sql = new SimpleStringProperty("");
     private final StringProperty progress = new SimpleStringProperty("");
     private String operate;
     private Connect connect;
@@ -68,11 +68,15 @@ public class BackgroundSqlTask {
 
 
     public String getSql() {
-        return sql;
+        return sql.get();
     }
 
-    public void setSql(String sql) {
-        this.sql = sql;
+    public void setSql(String value) {
+        sql.set(value == null ? "" : value);
+    }
+
+    public StringProperty sqlProperty() {
+        return sql;
     }
 
     public String getOperate() {

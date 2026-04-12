@@ -1,4 +1,4 @@
-﻿package com.dbboys.customnode;
+package com.dbboys.customnode;
 
 import com.dbboys.service.AdminService;
 import com.dbboys.vo.Connect;

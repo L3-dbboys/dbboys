@@ -1,4 +1,4 @@
-﻿package com.dbboys.impl.dialect.informix;
+package com.dbboys.impl.dialect.informix;
 
 import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.vo.Catalog;

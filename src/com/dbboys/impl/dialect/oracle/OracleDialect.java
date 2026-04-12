@@ -476,7 +476,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public String getDatabaseFolderDefaultText() {
-        return "妯″紡";
+        return "模式";
     }
 
     @Override
@@ -526,7 +526,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public String getCreateDatabaseMenuDefaultText() {
-        return "鏂板缓妯″紡";
+        return "新建模式";
     }
 
     @Override
@@ -536,7 +536,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public String getImportDdlDataMenuDefaultText() {
-        return "瀵煎叆妯″紡";
+        return "导入模式";
     }
 
     @Override
@@ -546,7 +546,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public String getExportDdlDataMenuDefaultText() {
-        return "瀵煎嚭妯″紡";
+        return "导出模式";
     }
 
     @Override
@@ -566,7 +566,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public String getExportTaskNameDefaultText() {
-        return "瀵煎嚭妯″紡\"%s\"";
+        return "导出模式\"%s\"";
     }
 
     @Override
