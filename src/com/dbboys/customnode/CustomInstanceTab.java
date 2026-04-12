@@ -267,9 +267,13 @@ public class CustomInstanceTab extends CustomTab {
         });
 
         //鍒濆鍖杝pacetab UI
-        dbspaceChart =new CustomSpaceChart(dbspaceChartList, CustomSpaceChart.ColorMode.DBSPACE);
-        Node dbspaceChartLegend = dbspaceChart.createLegend();
         InstanceTabCapability.SpaceLabels spaceLabels = resolveSpaceLabels();
+        dbspaceChart = new CustomSpaceChart(
+                dbspaceChartList,
+                CustomSpaceChart.ColorMode.DBSPACE,
+                spaceLabels.unusedBarLabelI18nKey(),
+                spaceLabels.unusedBarLabelFallback());
+        Node dbspaceChartLegend = dbspaceChart.createLegend();
         Label spaceType=new Label();
         bindSpaceLabel(spaceType, spaceLabels.legendI18nKey(), spaceLabels.legendText());
         spaceType.setVisible(spaceLabels.legendText() != null && !spaceLabels.legendText().isBlank());
@@ -279,19 +283,31 @@ public class CustomInstanceTab extends CustomTab {
         bindSpaceLabel(dbspaceTitleLabel, spaceLabels.dbspaceTitleI18nKey(), spaceLabels.dbspaceTitle());
         VBox dbspaceChartVbox = new VBox(dbspaceChart,dbspaceChartLegend,spaceType,dbspaceTitleLabel);
         dbspaceChartVbox.setAlignment(Pos.CENTER);
-        chunkChart =new CustomSpaceChart(chunkChartList, CustomSpaceChart.ColorMode.CHUNK);
+        chunkChart = new CustomSpaceChart(
+                chunkChartList,
+                CustomSpaceChart.ColorMode.CHUNK,
+                spaceLabels.unusedBarLabelI18nKey(),
+                spaceLabels.unusedBarLabelFallback());
         Node chunkChartLegend = chunkChart.createLegend();
         Label chunkTitleLabel = new Label();
         bindSpaceLabel(chunkTitleLabel, spaceLabels.chunkTitleI18nKey(), spaceLabels.chunkTitle());
         VBox chunkChartVbox = new VBox(chunkChart,chunkChartLegend,chunkTitleLabel);
         chunkChartVbox.setAlignment(Pos.CENTER);
-        databaseChart =new CustomSpaceChart(databaseChartList, CustomSpaceChart.ColorMode.DATABASE);
+        databaseChart = new CustomSpaceChart(
+                databaseChartList,
+                CustomSpaceChart.ColorMode.DATABASE,
+                spaceLabels.unusedBarLabelI18nKey(),
+                spaceLabels.unusedBarLabelFallback());
         Node databaseChartLegend = databaseChart.createLegend();
         Label databaseTitleLabel = new Label();
         bindSpaceLabel(databaseTitleLabel, spaceLabels.databaseTitleI18nKey(), spaceLabels.databaseTitle());
         VBox databaseChartVbox = new VBox(databaseChart,databaseChartLegend,databaseTitleLabel);
         databaseChartVbox.setAlignment(Pos.CENTER);
-        tabChart =new CustomSpaceChart(tabChartList, CustomSpaceChart.ColorMode.TABLE);
+        tabChart = new CustomSpaceChart(
+                tabChartList,
+                CustomSpaceChart.ColorMode.TABLE,
+                spaceLabels.unusedBarLabelI18nKey(),
+                spaceLabels.unusedBarLabelFallback());
         Node tabChartLegend = tabChart.createLegend();
         Label tableTitleLabel = new Label();
         bindSpaceLabel(tableTitleLabel, spaceLabels.tableTitleI18nKey(), spaceLabels.tableTitle());
@@ -1143,7 +1159,9 @@ public class CustomInstanceTab extends CustomTab {
                         "instance.space.chart.database",
                         "数据库使用空间情况(GB)",
                         "instance.space.chart.table",
-                        "表/索引空间使用情况图TOP20(GB)"
+                        "表/索引空间使用情况图TOP20(GB)",
+                        "",
+                        ""
                 ));
     }
 

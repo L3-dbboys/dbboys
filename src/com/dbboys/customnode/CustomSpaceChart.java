@@ -91,6 +91,9 @@ public class CustomSpaceChart extends BarChart<Number, String> {
     private final XYChart.Series<Number, String> series = new XYChart.Series<>();
     private NumberAxis xAxis;
     private ColorMode colorMode = ColorMode.DBSPACE;
+    /** 非空时：灰色条图例与「总减已用」tooltip 用该 i18n（Oracle 为「可增长大小」）；空则沿用 space.legend / space.tooltip 默认键。 */
+    private final String unusedBarLabelKeyOverride;
+    private final String unusedBarLabelFallbackOverride;
     private boolean menuItemsDisabled = false;  //用于外部控制菜单是否需要禁用，如connect是只读，需要禁用但显示
 
     // 右键菜单事件回调接口（用于外部处理菜单点击逻辑）
@@ -119,10 +122,21 @@ public class CustomSpaceChart extends BarChart<Number, String> {
 
     /* ===================== 构造器 ===================== */
     public CustomSpaceChart(List<SpaceUsage> data, ColorMode colorMode) {
+        this(data, colorMode, null, null);
+    }
+
+    public CustomSpaceChart(List<SpaceUsage> data, ColorMode colorMode, String unusedBarLabelKey, String unusedBarLabelFallback) {
         super(new NumberAxis(), createYAxis(data));
 
         this.xAxis = (NumberAxis) getXAxis();
         this.colorMode = colorMode;
+        if (unusedBarLabelKey != null && !unusedBarLabelKey.isBlank()) {
+            this.unusedBarLabelKeyOverride = unusedBarLabelKey;
+            this.unusedBarLabelFallbackOverride = unusedBarLabelFallback != null ? unusedBarLabelFallback : "";
+        } else {
+            this.unusedBarLabelKeyOverride = null;
+            this.unusedBarLabelFallbackOverride = "";
+        }
         setAnimated(false);
         setBarGap(10);
         setCategoryGap(10);
@@ -132,6 +146,22 @@ public class CustomSpaceChart extends BarChart<Number, String> {
 
         updateXAxis(data);
         render(data);
+    }
+
+    private String resolveUnusedLegendI18nKey() {
+        return unusedBarLabelKeyOverride != null ? unusedBarLabelKeyOverride : "space.legend.allocated_unused";
+    }
+
+    private String resolveUnusedLegendFallback() {
+        return unusedBarLabelKeyOverride != null ? unusedBarLabelFallbackOverride : "已分配未使用";
+    }
+
+    private String resolveUnusedTooltipI18nKey() {
+        return unusedBarLabelKeyOverride != null ? unusedBarLabelKeyOverride : "space.tooltip.unused";
+    }
+
+    private String resolveUnusedTooltipFallback() {
+        return unusedBarLabelKeyOverride != null ? unusedBarLabelFallbackOverride : "未使用";
     }
 
     private void updateXAxis(List<SpaceUsage> data) {
@@ -494,7 +524,8 @@ public class CustomSpaceChart extends BarChart<Number, String> {
                 sb.append(kv("space.tooltip.space_name", "空间名", u.getName())).append('\n');
                 sb.append(kv("space.tooltip.total", "总容量", String.format("%.2f GB", u.getTotal() - u.getMetaTotal()))).append('\n');
                 sb.append(kv("space.tooltip.used", "已使用", String.format("%.2f GB（%.1f%%）", u.getUsed(), u.getUsed() / (u.getTotal() - u.getMetaTotal())))).append('\n');
-                sb.append(kv("space.tooltip.unused", "未使用", String.format("%.2f GB", u.getTotal() - u.getMetaTotal() - u.getUsed()))).append('\n');
+                sb.append(kv(resolveUnusedTooltipI18nKey(), resolveUnusedTooltipFallback(),
+                        String.format("%.2f GB", u.getTotal() - u.getMetaTotal() - u.getUsed()))).append('\n');
                 sb.append(kv("space.tooltip.extendable", "可扩展", u.getIsExtendable() > 0 ? yesText : noText)).append('\n');
                 sb.append("--------------------").append('\n');
                 sb.append(kv("space.tooltip.meta_total", "元数据总大小", String.format("%.2f GB", u.getMetaTotal()))).append('\n');
@@ -509,7 +540,8 @@ public class CustomSpaceChart extends BarChart<Number, String> {
             sb.append(kv("space.tooltip.space_name", "空间名", u.getName())).append('\n');
             sb.append(kv("space.tooltip.total", "总容量", String.format("%.2f GB", u.getTotal()))).append('\n');
             sb.append(kv("space.tooltip.used", "已使用", String.format("%.2f GB（%.1f%%）", u.getUsed(), u.getUsagePercent()))).append('\n');
-            sb.append(kv("space.tooltip.unused", "未使用", String.format("%.2f GB", u.getUnused()))).append('\n');
+            sb.append(kv(resolveUnusedTooltipI18nKey(), resolveUnusedTooltipFallback(),
+                    String.format("%.2f GB", u.getUnused()))).append('\n');
             sb.append(kv("space.tooltip.extendable", "可扩展", u.getIsExtendable() > 0 ? yesText : noText));
             if (u.getLimitSize() > 0) {
                 sb.append('\n').append("--------------------").append('\n');
@@ -523,7 +555,8 @@ public class CustomSpaceChart extends BarChart<Number, String> {
                 sb.append(kv("space.tooltip.space_name", "空间名", u.getName())).append('\n');
                 sb.append(kv("space.tooltip.total", "总容量", String.format("%.2f GB", u.getTotal() - u.getMetaTotal()))).append('\n');
                 sb.append(kv("space.tooltip.used", "已使用", String.format("%.2f GB（%.1f%%）", u.getUsed(), u.getUsed() / (u.getTotal() - u.getMetaTotal())))).append('\n');
-                sb.append(kv("space.tooltip.unused", "未使用", String.format("%.2f GB", u.getTotal() - u.getMetaTotal() - u.getUsed()))).append('\n');
+                sb.append(kv(resolveUnusedTooltipI18nKey(), resolveUnusedTooltipFallback(),
+                        String.format("%.2f GB", u.getTotal() - u.getMetaTotal() - u.getUsed()))).append('\n');
                 sb.append(kv("space.tooltip.extendable", "可扩展", u.getIsExtendable() > 0 ? yesText : noText)).append('\n');
                 sb.append("--------------------").append('\n');
                 sb.append(kv("space.tooltip.meta_total", "元数据总大小", String.format("%.2f GB", u.getMetaTotal()))).append('\n');
@@ -534,7 +567,8 @@ public class CustomSpaceChart extends BarChart<Number, String> {
             sb.append(kv("space.tooltip.file_name", "文件名", u.getName())).append('\n');
             sb.append(kv("space.tooltip.total", "总容量", String.format("%.2f GB", u.getTotal()))).append('\n');
             sb.append(kv("space.tooltip.used", "已使用", String.format("%.2f GB（%.1f%%）", u.getUsed(), u.getUsagePercent()))).append('\n');
-            sb.append(kv("space.tooltip.unused", "未使用", String.format("%.2f GB", u.getUnused()))).append('\n');
+            sb.append(kv(resolveUnusedTooltipI18nKey(), resolveUnusedTooltipFallback(),
+                    String.format("%.2f GB", u.getUnused()))).append('\n');
             sb.append(kv("space.tooltip.extendable", "可扩展", u.getIsExtendable() > 0 ? yesText : noText));
             return sb.toString();
         }
@@ -543,7 +577,8 @@ public class CustomSpaceChart extends BarChart<Number, String> {
             sb.append(kv("space.tooltip.db_name", "库名", u.getName())).append('\n');
             sb.append(kv("space.tooltip.total", "总容量", String.format("%.2f GB", u.getTotal()))).append('\n');
             sb.append(kv("space.tooltip.used", "已使用", String.format("%.2f GB（%.1f%%）", u.getUsed(), u.getUsagePercent()))).append('\n');
-            sb.append(kv("space.tooltip.unused", "未使用", String.format("%.2f GB", u.getUnused())));
+            sb.append(kv(resolveUnusedTooltipI18nKey(), resolveUnusedTooltipFallback(),
+                    String.format("%.2f GB", u.getUnused())));
             return sb.toString();
         }
 
@@ -551,7 +586,8 @@ public class CustomSpaceChart extends BarChart<Number, String> {
             sb.append(kv("space.tooltip.object_name", "对象名", u.getName())).append('\n');
             sb.append(kv("space.tooltip.total", "总容量", String.format("%.2f GB", u.getTotal()))).append('\n');
             sb.append(kv("space.tooltip.used", "已使用", String.format("%.2f GB（%.1f%%）", u.getUsed(), u.getUsagePercent()))).append('\n');
-            sb.append(kv("space.tooltip.unused", "未使用", String.format("%.2f GB", u.getUnused()))).append('\n');
+            sb.append(kv(resolveUnusedTooltipI18nKey(), resolveUnusedTooltipFallback(),
+                    String.format("%.2f GB", u.getUnused()))).append('\n');
             sb.append(kv("space.tooltip.allocated_pages", "分配页", String.valueOf(u.getTotalPages()))).append('\n');
             sb.append(kv("space.tooltip.data_pages", "数据页", String.valueOf(u.getUsedPages())));
             return sb.toString();
@@ -666,7 +702,7 @@ public class CustomSpaceChart extends BarChart<Number, String> {
                         createLegendItem(COLOR_WARNING, "space.legend.warning", "警告 (80% ~ 90%)"),
                         createLegendItem(COLOR_DANGER, "space.legend.danger", "危险 (≥ 90%)"),
                         createLegendItem(COLOR_EXTENDABLE, "space.legend.extendable", "可自动扩展"),
-                        createLegendItem(COLOR_UNUSED, "space.legend.allocated_unused", "已分配未使用")
+                        createLegendItem(COLOR_UNUSED, resolveUnusedLegendI18nKey(), resolveUnusedLegendFallback())
                 );
             }
 
@@ -674,14 +710,14 @@ public class CustomSpaceChart extends BarChart<Number, String> {
                 legend.getChildren().addAll(
                         createLegendItem(COLOR_NORMAL, "space.legend.not_extendable", "不自动扩展"),
                         createLegendItem(COLOR_EXTENDABLE, "space.legend.extendable", "可自动扩展"),
-                        createLegendItem(COLOR_UNUSED, "space.legend.allocated_unused", "已分配未使用")
+                        createLegendItem(COLOR_UNUSED, resolveUnusedLegendI18nKey(), resolveUnusedLegendFallback())
                 );
             }
 
             case DATABASE -> {
                 legend.getChildren().addAll(
                         createLegendItem(COLOR_NORMAL, "space.legend.used", "已使用"),
-                        createLegendItem(COLOR_UNUSED, "space.legend.allocated_unused", "已分配未使用")
+                        createLegendItem(COLOR_UNUSED, resolveUnusedLegendI18nKey(), resolveUnusedLegendFallback())
                 );
             }
 
@@ -690,7 +726,7 @@ public class CustomSpaceChart extends BarChart<Number, String> {
                         createLegendItem(COLOR_NORMAL, "space.legend.page_lt_10m", "使用页 < 10,000,000"),
                         createLegendItem(COLOR_WARNING, "space.legend.page_ge_10m", "使用页 ≥ 10,000,000"),
                         createLegendItem(COLOR_DANGER, "space.legend.page_ge_12m", "使用页 ≥ 12,000,000"),
-                        createLegendItem(COLOR_UNUSED, "space.legend.allocated_unused", "已分配未使用")
+                        createLegendItem(COLOR_UNUSED, resolveUnusedLegendI18nKey(), resolveUnusedLegendFallback())
                 );
             }
         }

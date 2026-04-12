@@ -162,7 +162,9 @@ public interface InstanceTabCapability {
                 "instance.space.chart.database",
                 "数据库使用空间情况(GB)",
                 "instance.space.chart.table",
-                "表/索引空间使用情况图TOP20(GB)"
+                "表/索引空间使用情况图TOP20(GB)",
+                "",
+                ""
         );
     }
 
@@ -226,6 +228,10 @@ public interface InstanceTabCapability {
         BLOB
     }
 
+    /**
+     * @param unusedBarLabelI18nKey 非空时：图例中灰色条与 tooltip 中「总减已用」一行均使用该 key（如 Oracle 用「可增长大小」）；
+     *                              空串时使用通用 {@code space.legend.allocated_unused} / {@code space.tooltip.unused}。
+     */
     record SpaceLabels(String legendI18nKey,
                        String legendText,
                        String dbspaceTitleI18nKey,
@@ -235,7 +241,9 @@ public interface InstanceTabCapability {
                        String databaseTitleI18nKey,
                        String databaseTitle,
                        String tableTitleI18nKey,
-                       String tableTitle) {
+                       String tableTitle,
+                       String unusedBarLabelI18nKey,
+                       String unusedBarLabelFallback) {
     }
 
     static String extractInfoValue(String info, String key) {
