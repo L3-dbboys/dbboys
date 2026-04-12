@@ -1596,10 +1596,7 @@ public class TreeCrudHandler {
                     DatabaseImportBundle bundle = resolveDatabaseImportBundle(dir);
                     bundleRef.set(bundle);
                     backSqlTask.setDatabaseName(bundle.databaseName);
-                    backSqlTask.setSql(buildDatabaseImportTaskTitle(
-                            bundle.databaseName,
-                            I18n.t("metadata.import_ddl_data.phase.preparing", "准备导入")
-                    ));
+                    backSqlTask.setSql(I18n.t("metadata.import_ddl_data.phase.preparing", "准备导入"));
                     updateResult.setDatabase(bundle.databaseName);
                     updateResult.setUpdateSql(buildDatabaseImportTaskTitle(bundle.databaseName, null));
                     BackgroundSqlUtil.updateTaskProgress(
@@ -1870,11 +1867,11 @@ public class TreeCrudHandler {
         return copy;
     }
 
+    /** 并行导入表阶段：进度列仅显示数字比例，流程文案在「SQL任务」列（{@link #updateDatabaseImportTask} 的 phase）。 */
     private static String formatDatabaseImportTableProgress(int completedTables, int totalTables) {
         int safeCompleted = Math.max(0, completedTables);
         int safeTotal = Math.max(safeCompleted, Math.max(0, totalTables));
-        return I18n.t("metadata.import_ddl_data.progress.tables", "表 %d/%d")
-                .formatted(safeCompleted, safeTotal);
+        return "%d/%d".formatted(safeCompleted, safeTotal);
     }
 
     private static String buildDatabaseImportFailureMessage(List<String> failures) {
@@ -2087,7 +2084,10 @@ public class TreeCrudHandler {
             backSqlTask.setConnectName(connect.getName());
         }
         backSqlTask.setDatabaseName(databaseName);
-        backSqlTask.setSql(buildDatabaseImportTaskTitle(databaseName, phaseLabel));
+        // 「SQL任务」列展示当前导入流程（阶段名）；库名在「库名」列
+        backSqlTask.setSql(phaseLabel == null || phaseLabel.isBlank()
+                ? buildDatabaseImportTaskTitle(databaseName, null)
+                : phaseLabel.trim());
         BackgroundSqlUtil.updateTaskProgress(backSqlTask, I18n.t("metadata.import_ddl_data.progress.running", "执行中"));
     }
 
