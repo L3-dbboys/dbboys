@@ -128,7 +128,12 @@ public class PopupWindowUtil {
             new CompatibilityFeatureDef("main.compatibility.feature.execute_sql", "执行SQL"),
             new CompatibilityFeatureDef("main.compatibility.feature.execution_plan", "执行计划"),
             new CompatibilityFeatureDef("main.compatibility.feature.import_export", "导入导出"),
-            new CompatibilityFeatureDef("main.compatibility.feature.instance_manager", "实例管理")
+            new CompatibilityFeatureDef("main.compatibility.feature.instance_info", "实例信息"),
+            new CompatibilityFeatureDef("main.compatibility.feature.instance_space", "空间管理"),
+            new CompatibilityFeatureDef("main.compatibility.feature.instance_log", "日志管理"),
+            new CompatibilityFeatureDef("main.compatibility.feature.instance_params", "参数管理"),
+            new CompatibilityFeatureDef("main.compatibility.feature.instance_inspection", "一键巡检"),
+            new CompatibilityFeatureDef("main.compatibility.feature.instance_start_stop", "实例启停")
     );
     private static final List<String> COMPATIBILITY_FEATURE_LABELS = COMPATIBILITY_FEATURE_DEFS.stream()
             .map(CompatibilityFeatureDef::fallback)
@@ -707,7 +712,12 @@ public class PopupWindowUtil {
                         "main.compatibility.feature.execute_sql",
                         "main.compatibility.feature.execution_plan",
                         "main.compatibility.feature.import_export",
-                        "main.compatibility.feature.instance_manager")),
+                        "main.compatibility.feature.instance_info",
+                        "main.compatibility.feature.instance_space",
+                        "main.compatibility.feature.instance_log",
+                        "main.compatibility.feature.instance_params",
+                        "main.compatibility.feature.instance_inspection",
+                        "main.compatibility.feature.instance_start_stop")),
                 new CompatibilityRow("INFORMIX", "12.1", compatibilityFeaturesByKey(
                         "main.compatibility.feature.install",
                         "main.compatibility.feature.uninstall",
@@ -717,14 +727,24 @@ public class PopupWindowUtil {
                         "main.compatibility.feature.execute_sql",
                         "main.compatibility.feature.execution_plan",
                         "main.compatibility.feature.import_export",
-                        "main.compatibility.feature.instance_manager")),
+                        "main.compatibility.feature.instance_info",
+                        "main.compatibility.feature.instance_space",
+                        "main.compatibility.feature.instance_log",
+                        "main.compatibility.feature.instance_params",
+                        "main.compatibility.feature.instance_inspection",
+                        "main.compatibility.feature.instance_start_stop")),
                 new CompatibilityRow("ORACLE", "19C", compatibilityFeaturesByKey(
                         "main.compatibility.feature.metadata_list",
                         "main.compatibility.feature.metadata_detail",
                         "main.compatibility.feature.metadata_change",
                         "main.compatibility.feature.execute_sql",
                         "main.compatibility.feature.execution_plan",
-                        "main.compatibility.feature.import_export"))
+                        "main.compatibility.feature.import_export",
+                        "main.compatibility.feature.instance_info",
+                        "main.compatibility.feature.instance_space",
+                        "main.compatibility.feature.instance_log",
+                        "main.compatibility.feature.instance_params",
+                        "main.compatibility.feature.instance_inspection"))
         );
     }
 
@@ -744,18 +764,21 @@ public class PopupWindowUtil {
     private static List<CompatibilityRow> buildCompatibilityRows() {
         return List.of(
                 new CompatibilityRow("GBASE 8S", "8.7 / 8.8", compatibilityFeatures(
-                        "元数据列表", "元数据详细信息", "元数据变更", "执行SQL", "执行计划", "导入导出", "实例管理")),
+                        "元数据列表", "元数据详细信息", "元数据变更", "执行SQL", "执行计划", "导入导出",
+                        "实例信息", "空间管理", "日志管理", "参数管理", "一键巡检", "实例启停")),
                 new CompatibilityRow("INFORMIX", "12.1", compatibilityFeatures(
-                        "元数据列表", "元数据详细信息", "元数据变更", "执行SQL", "执行计划", "导入导出", "实例管理")),
+                        "元数据列表", "元数据详细信息", "元数据变更", "执行SQL", "执行计划", "导入导出",
+                        "实例信息", "空间管理", "日志管理", "参数管理", "一键巡检", "实例启停")),
                 new CompatibilityRow("ORACLE", "19C", compatibilityFeatures(
-                        "元数据列表", "元数据详细信息", "元数据变更", "执行SQL", "执行计划", "导入导出"))
+                        "元数据列表", "元数据详细信息", "元数据变更", "执行SQL", "执行计划", "导入导出",
+                        "实例信息", "空间管理", "日志管理", "参数管理", "一键巡检"))
         );
     }
 
     private static List<CompatibilityFeature> compatibilityFeatures(String... labels) {
         List<CompatibilityFeature> features = new ArrayList<>();
         List<String> supportedLabels = labels == null ? List.of() : List.of(labels);
-        boolean supportsInstallLifecycle = supportedLabels.contains("瀹炰緥绠＄悊");
+        boolean supportsInstallLifecycle = supportedLabels.contains("实例启停");
         for (String label : COMPATIBILITY_FEATURE_LABELS) {
             boolean supported = supportedLabels.contains(label);
             if (("安装".equals(label) || "卸载".equals(label)) && supportsInstallLifecycle) {
