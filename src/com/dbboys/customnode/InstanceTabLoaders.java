@@ -46,6 +46,8 @@ final class InstanceTabLoaders {
             if (disableMenu) {
                 dbspaceChart.setMenuItemsDisabled(true);
                 chunkChart.setMenuItemsDisabled(true);
+                databaseChart.setMenuItemsDisabled(true);
+                tabChart.setMenuItemsDisabled(true);
             }
             spaceTab.setContent(dbspaceStackPane);
         });

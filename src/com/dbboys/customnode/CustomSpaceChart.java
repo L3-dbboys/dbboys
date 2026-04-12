@@ -10,6 +10,8 @@ import javafx.scene.Node;
 import javafx.scene.chart.*;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
@@ -91,6 +93,7 @@ public class CustomSpaceChart extends BarChart<Number, String> {
     private final XYChart.Series<Number, String> series = new XYChart.Series<>();
     private NumberAxis xAxis;
     private ColorMode colorMode = ColorMode.DBSPACE;
+    private final SpaceContextMenuPolicy spaceContextMenuPolicy;
     /** 非空时：灰色条图例与「总减已用」tooltip 用该 i18n（Oracle 为「可增长大小」）；空则沿用 space.legend / space.tooltip 默认键。 */
     private final String unusedBarLabelKeyOverride;
     private final String unusedBarLabelFallbackOverride;
@@ -120,16 +123,33 @@ public class CustomSpaceChart extends BarChart<Number, String> {
         TABLE      // 按总容量
     }
 
+    /** 容量图右键：Informix/GBase 可变空间；Oracle 仅字典查看，用复制等安全项。 */
+    public enum SpaceContextMenuPolicy {
+        INFORMIX_LIKE,
+        ORACLE_READONLY
+    }
+
     /* ===================== 构造器 ===================== */
     public CustomSpaceChart(List<SpaceUsage> data, ColorMode colorMode) {
-        this(data, colorMode, null, null);
+        this(data, colorMode, null, null, SpaceContextMenuPolicy.INFORMIX_LIKE);
     }
 
     public CustomSpaceChart(List<SpaceUsage> data, ColorMode colorMode, String unusedBarLabelKey, String unusedBarLabelFallback) {
+        this(data, colorMode, unusedBarLabelKey, unusedBarLabelFallback, SpaceContextMenuPolicy.INFORMIX_LIKE);
+    }
+
+    public CustomSpaceChart(List<SpaceUsage> data,
+                             ColorMode colorMode,
+                             String unusedBarLabelKey,
+                             String unusedBarLabelFallback,
+                             SpaceContextMenuPolicy spaceContextMenuPolicy) {
         super(new NumberAxis(), createYAxis(data));
 
         this.xAxis = (NumberAxis) getXAxis();
         this.colorMode = colorMode;
+        this.spaceContextMenuPolicy = spaceContextMenuPolicy != null
+                ? spaceContextMenuPolicy
+                : SpaceContextMenuPolicy.INFORMIX_LIKE;
         if (unusedBarLabelKey != null && !unusedBarLabelKey.isBlank()) {
             this.unusedBarLabelKeyOverride = unusedBarLabelKey;
             this.unusedBarLabelFallbackOverride = unusedBarLabelFallback != null ? unusedBarLabelFallback : "";
@@ -273,6 +293,61 @@ public class CustomSpaceChart extends BarChart<Number, String> {
         refreshAllBars(data);
     }
 
+    private static void copyPlainText(String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ClipboardContent content = new ClipboardContent();
+        content.putString(text);
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    /** Oracle：不提供 Informix 式增删改空间，仅复制字典中的名称/路径便于在 SQL 窗口中使用。 */
+    private void buildOracleReadonlySpaceMenu(ContextMenu contextMenu, SpaceUsage spaceUsage, boolean[] isMenuShowing) {
+        switch (colorMode) {
+            case DBSPACE -> {
+                CustomShortcutMenuItem copy = MenuItemUtil.createMenuItemI18n(
+                        "instance.space.oracle.menu.copy_tablespace",
+                        IconFactory.group(IconPaths.METADATA_COPY_ITEM, 0.55));
+                copy.setOnAction(e -> {
+                    copyPlainText(spaceUsage.getName());
+                    isMenuShowing[0] = false;
+                });
+                contextMenu.getItems().add(copy);
+            }
+            case CHUNK -> {
+                CustomShortcutMenuItem copy = MenuItemUtil.createMenuItemI18n(
+                        "instance.space.oracle.menu.copy_datafile_path",
+                        IconFactory.group(IconPaths.METADATA_COPY_ITEM, 0.55));
+                copy.setOnAction(e -> {
+                    copyPlainText(spaceUsage.getName());
+                    isMenuShowing[0] = false;
+                });
+                contextMenu.getItems().add(copy);
+            }
+            case DATABASE -> {
+                CustomShortcutMenuItem copy = MenuItemUtil.createMenuItemI18n(
+                        "instance.space.oracle.menu.copy_schema",
+                        IconFactory.group(IconPaths.METADATA_COPY_ITEM, 0.55));
+                copy.setOnAction(e -> {
+                    copyPlainText(spaceUsage.getName());
+                    isMenuShowing[0] = false;
+                });
+                contextMenu.getItems().add(copy);
+            }
+            case TABLE -> {
+                CustomShortcutMenuItem copy = MenuItemUtil.createMenuItemI18n(
+                        "instance.space.oracle.menu.copy_segment_label",
+                        IconFactory.group(IconPaths.METADATA_COPY_ITEM, 0.55));
+                copy.setOnAction(e -> {
+                    copyPlainText(spaceUsage.getLabel());
+                    isMenuShowing[0] = false;
+                });
+                contextMenu.getItems().add(copy);
+            }
+        }
+    }
+
     /* ===================== 缩放+右键菜单组合功能（核心修改） ===================== */
     private void addHoverScaleAndContextMenuEffect(Region bar, SpaceUsage spaceUsage) {
         // 1. 缩放效果（保留原有逻辑）
@@ -318,97 +393,100 @@ public class CustomSpaceChart extends BarChart<Number, String> {
         // 2. 右键菜单功能（使用统一 MenuItem + Icon 工厂）
         ContextMenu contextMenu = new ContextMenu();
 
-        CustomShortcutMenuItem createDbspace = MenuItemUtil.createMenuItemI18n(
-                "space.menu.create_dbspace",
-                IconFactory.group(IconPaths.MARKDOWN_NEW_FOLDER_ITEM, 0.55)
-        );
-        createDbspace.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onCreateDbspace(spaceUsage, false);
-            }
-            isMenuShowing[0] = false;
-        });
+        if (spaceContextMenuPolicy == SpaceContextMenuPolicy.ORACLE_READONLY) {
+            buildOracleReadonlySpaceMenu(contextMenu, spaceUsage, isMenuShowing);
+        } else {
+            CustomShortcutMenuItem createDbspace = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.create_dbspace",
+                    IconFactory.group(IconPaths.MARKDOWN_NEW_FOLDER_ITEM, 0.55)
+            );
+            createDbspace.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onCreateDbspace(spaceUsage, false);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        CustomShortcutMenuItem deleteDbspace = MenuItemUtil.createMenuItemI18n(
-                "space.menu.drop_dbspace",
-                IconFactory.group(IconPaths.METADATA_TRUNCATE_ITEM, 0.55, IconFactory.dangerColor())
-        );
-        deleteDbspace.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onDropDbspace(spaceUsage);
-            }
-            isMenuShowing[0] = false;
-        });
+            CustomShortcutMenuItem deleteDbspace = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.drop_dbspace",
+                    IconFactory.group(IconPaths.METADATA_TRUNCATE_ITEM, 0.55, IconFactory.dangerColor())
+            );
+            deleteDbspace.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onDropDbspace(spaceUsage);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        CustomShortcutMenuItem unlimitSizeItem = MenuItemUtil.createMenuItemI18n(
-                "space.menu.unlimit_size",
-                IconFactory.group(IconPaths.METADATA_MODIFY_TO_STANDARD_ITEM, 0.6)
-        );
-        unlimitSizeItem.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onUnlimitedSpaceSize(spaceUsage);
-            }
-            isMenuShowing[0] = false;
-        });
+            CustomShortcutMenuItem unlimitSizeItem = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.unlimit_size",
+                    IconFactory.group(IconPaths.METADATA_MODIFY_TO_STANDARD_ITEM, 0.6)
+            );
+            unlimitSizeItem.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onUnlimitedSpaceSize(spaceUsage);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        CustomShortcutMenuItem addDatafile = MenuItemUtil.createMenuItemI18n(
-                "space.menu.add_data_file",
-                IconFactory.group(IconPaths.MARKDOWN_NEW_FILE_ITEM, 0.55)
-        );
-        addDatafile.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onCreateDbspace(spaceUsage, true);
-            }
-            isMenuShowing[0] = false;
-        });
+            CustomShortcutMenuItem addDatafile = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.add_data_file",
+                    IconFactory.group(IconPaths.MARKDOWN_NEW_FILE_ITEM, 0.55)
+            );
+            addDatafile.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onCreateDbspace(spaceUsage, true);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        CustomShortcutMenuItem expandDatafile = MenuItemUtil.createMenuItemI18n(
-                "space.menu.set_extendable",
-                IconFactory.group(IconPaths.INSTANCE_SPACE_EXTENDABLE, 0.6)
-        );
-        expandDatafile.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onExpandDatafile(spaceUsage);
-            }
-            isMenuShowing[0] = false;
-        });
+            CustomShortcutMenuItem expandDatafile = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.set_extendable",
+                    IconFactory.group(IconPaths.INSTANCE_SPACE_EXTENDABLE, 0.6)
+            );
+            expandDatafile.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onExpandDatafile(spaceUsage);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        CustomShortcutMenuItem unExpandDatafile = MenuItemUtil.createMenuItemI18n(
-                "space.menu.set_unextendable",
-                IconFactory.group(IconPaths.INSTANCE_SPACE_UNEXTENDABLE, 0.6)
-        );
-        unExpandDatafile.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onUnExpandDatafile(spaceUsage);
-            }
-            isMenuShowing[0] = false;
-        });
+            CustomShortcutMenuItem unExpandDatafile = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.set_unextendable",
+                    IconFactory.group(IconPaths.INSTANCE_SPACE_UNEXTENDABLE, 0.6)
+            );
+            unExpandDatafile.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onUnExpandDatafile(spaceUsage);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        CustomShortcutMenuItem deleteDatafile = MenuItemUtil.createMenuItemI18n(
-                "space.menu.drop_data_file",
-                IconFactory.group(IconPaths.METADATA_TRUNCATE_ITEM, 0.55, IconFactory.dangerColor())
-        );
-        deleteDatafile.setOnAction(e -> {
-            if (contextMenuListener != null) {
-                contextMenuListener.onDropDatafile(spaceUsage);
-            }
-            isMenuShowing[0] = false;
-        });
+            CustomShortcutMenuItem deleteDatafile = MenuItemUtil.createMenuItemI18n(
+                    "space.menu.drop_data_file",
+                    IconFactory.group(IconPaths.METADATA_TRUNCATE_ITEM, 0.55, IconFactory.dangerColor())
+            );
+            deleteDatafile.setOnAction(e -> {
+                if (contextMenuListener != null) {
+                    contextMenuListener.onDropDatafile(spaceUsage);
+                }
+                isMenuShowing[0] = false;
+            });
 
-        if (spaceUsage.getIsExtendable() > 0) {
-            expandDatafile.setDisable(true);
-        }else{
-            unExpandDatafile.setDisable(true);
-        }
-        // 添加菜单选项
-        if (colorMode.equals(ColorMode.DBSPACE)) {
-            if (spaceUsage.getLimitSize() > 0) {
-                contextMenu.getItems().addAll(createDbspace, addDatafile, unlimitSizeItem,deleteDbspace);
-            }else{
-                contextMenu.getItems().addAll(createDbspace, addDatafile, deleteDbspace);
+            if (spaceUsage.getIsExtendable() > 0) {
+                expandDatafile.setDisable(true);
+            } else {
+                unExpandDatafile.setDisable(true);
             }
-        }else if(colorMode.equals(ColorMode.CHUNK)){
-            contextMenu.getItems().addAll(expandDatafile,unExpandDatafile,deleteDatafile);
+            if (colorMode.equals(ColorMode.DBSPACE)) {
+                if (spaceUsage.getLimitSize() > 0) {
+                    contextMenu.getItems().addAll(createDbspace, addDatafile, unlimitSizeItem, deleteDbspace);
+                } else {
+                    contextMenu.getItems().addAll(createDbspace, addDatafile, deleteDbspace);
+                }
+            } else if (colorMode.equals(ColorMode.CHUNK)) {
+                contextMenu.getItems().addAll(expandDatafile, unExpandDatafile, deleteDatafile);
+            }
         }
         for (javafx.scene.control.MenuItem item : contextMenu.getItems()) {
             item.getProperties().put("baseDisabled", item.isDisable());
@@ -436,7 +514,9 @@ public class CustomSpaceChart extends BarChart<Number, String> {
                 // 在鼠标位置显示菜单
                 for (javafx.scene.control.MenuItem item : contextMenu.getItems()) {
                     boolean baseDisabled = Boolean.TRUE.equals(item.getProperties().get("baseDisabled"));
-                    item.setDisable(menuItemsDisabled || baseDisabled);
+                    boolean blockByReadonly = menuItemsDisabled
+                            && spaceContextMenuPolicy != SpaceContextMenuPolicy.ORACLE_READONLY;
+                    item.setDisable(blockByReadonly || baseDisabled);
                 }
                 contextMenu.show(bar, e.getScreenX(), e.getScreenY());
             }

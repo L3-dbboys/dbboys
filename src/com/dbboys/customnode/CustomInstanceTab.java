@@ -268,11 +268,15 @@ public class CustomInstanceTab extends CustomTab {
 
         //鍒濆鍖杝pacetab UI
         InstanceTabCapability.SpaceLabels spaceLabels = resolveSpaceLabels();
+        CustomSpaceChart.SpaceContextMenuPolicy spaceMenuPolicy = isOracleConnection()
+                ? CustomSpaceChart.SpaceContextMenuPolicy.ORACLE_READONLY
+                : CustomSpaceChart.SpaceContextMenuPolicy.INFORMIX_LIKE;
         dbspaceChart = new CustomSpaceChart(
                 dbspaceChartList,
                 CustomSpaceChart.ColorMode.DBSPACE,
                 spaceLabels.unusedBarLabelI18nKey(),
-                spaceLabels.unusedBarLabelFallback());
+                spaceLabels.unusedBarLabelFallback(),
+                spaceMenuPolicy);
         Node dbspaceChartLegend = dbspaceChart.createLegend();
         Label spaceType=new Label();
         bindSpaceLabel(spaceType, spaceLabels.legendI18nKey(), spaceLabels.legendText());
@@ -287,7 +291,8 @@ public class CustomInstanceTab extends CustomTab {
                 chunkChartList,
                 CustomSpaceChart.ColorMode.CHUNK,
                 spaceLabels.unusedBarLabelI18nKey(),
-                spaceLabels.unusedBarLabelFallback());
+                spaceLabels.unusedBarLabelFallback(),
+                spaceMenuPolicy);
         Node chunkChartLegend = chunkChart.createLegend();
         Label chunkTitleLabel = new Label();
         bindSpaceLabel(chunkTitleLabel, spaceLabels.chunkTitleI18nKey(), spaceLabels.chunkTitle());
@@ -297,7 +302,8 @@ public class CustomInstanceTab extends CustomTab {
                 databaseChartList,
                 CustomSpaceChart.ColorMode.DATABASE,
                 spaceLabels.unusedBarLabelI18nKey(),
-                spaceLabels.unusedBarLabelFallback());
+                spaceLabels.unusedBarLabelFallback(),
+                spaceMenuPolicy);
         Node databaseChartLegend = databaseChart.createLegend();
         Label databaseTitleLabel = new Label();
         bindSpaceLabel(databaseTitleLabel, spaceLabels.databaseTitleI18nKey(), spaceLabels.databaseTitle());
@@ -307,7 +313,8 @@ public class CustomInstanceTab extends CustomTab {
                 tabChartList,
                 CustomSpaceChart.ColorMode.TABLE,
                 spaceLabels.unusedBarLabelI18nKey(),
-                spaceLabels.unusedBarLabelFallback());
+                spaceLabels.unusedBarLabelFallback(),
+                spaceMenuPolicy);
         Node tabChartLegend = tabChart.createLegend();
         Label tableTitleLabel = new Label();
         bindSpaceLabel(tableTitleLabel, spaceLabels.tableTitleI18nKey(), spaceLabels.tableTitle());
@@ -1144,6 +1151,10 @@ public class CustomInstanceTab extends CustomTab {
 
     private java.util.Optional<InstanceTabCapability> resolveInstanceTabCapability() {
         return platformResolver.capability(connect, InstanceTabCapability.class);
+    }
+
+    private boolean isOracleConnection() {
+        return connect.getDbtype() != null && "ORACLE".equalsIgnoreCase(connect.getDbtype().trim());
     }
 
     private InstanceTabCapability.SpaceLabels resolveSpaceLabels() {

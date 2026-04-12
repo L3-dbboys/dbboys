@@ -183,6 +183,10 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
         if (connect == null) {
             return "";
         }
+        String catalog = connect.getCatalog();
+        if (catalog != null && !catalog.isBlank()) {
+            return catalog.trim();
+        }
         return InstanceTabCapability.extractInfoValue(connect.getInfo(), "instance_name");
     }
 
