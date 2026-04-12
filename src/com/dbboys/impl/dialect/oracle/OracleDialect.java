@@ -206,12 +206,13 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
     public CheckTableModel buildCheckTable(Connect connect) {
         List<CheckColumn> columns = List.of(
                 new CheckColumn("entry", "instance.check.oracle.column.item", "检查项", CheckColumnKind.TEXT, 220),
-                new CheckColumn("currentValue", "instance.check.oracle.column.current", "当前值", CheckColumnKind.TEXT, 260),
+                new CheckColumn("currentValue", "instance.check.oracle.column.current", "当前值", CheckColumnKind.TEXT, 420),
                 new CheckColumn("expectedValue", "instance.check.oracle.column.expected", "期望值", CheckColumnKind.TEXT, 260),
                 new CheckColumn("status", "instance.check.oracle.column.result", "结果", CheckColumnKind.STATUS, 100)
         );
 
         Map<String, String> infoMap = new LinkedHashMap<>(parseOracleInfo(connect == null ? "" : connect.getInfo()));
+        List<OracleWaitClassRow> waitClassRows = new ArrayList<>();
         if (connect != null) {
             try {
                 ConnectionService connectionService = AppContext.get(ConnectionService.class);
@@ -221,6 +222,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                             infoMap.put(k.toLowerCase(java.util.Locale.ROOT), v.trim());
                         }
                     });
+                    waitClassRows.addAll(queryOracleWaitClassRows(jdbc));
                 }
             } catch (Exception ignored) {
                 // 未连接或连接失败时仅依赖已缓存的 connect.getInfo()
@@ -357,6 +359,28 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                 "ARCHIVELOG时路径有效且启用",
                 "instance.check.oracle.expected.archive_dest_ok",
                 evaluateOracleArchiveDest(logMode, archDest, archState)));
+        rows.add(buildOracleCheckRow("非空闲等待会话数",
+                "instance.check.oracle.item.wait_sess",
+                infoMap.get("wait_sess_cnt"),
+                "建议<500（视负载）",
+                "instance.check.oracle.expected.wait_sess_normal",
+                evaluateOracleWaitSessionCount(infoMap.get("wait_sess_cnt"))));
+        for (OracleWaitClassRow wc : waitClassRows) {
+            String entryLabel = "等待类 · " + wc.className();
+            String current = formatOracleWaitClassCurrent(wc);
+            rows.add(buildOracleCheckRow(entryLabel,
+                    "",
+                    current,
+                    "应可统计次数与时间",
+                    "instance.check.oracle.expected.wait_class_line",
+                    evaluatePresent(current)));
+        }
+        rows.add(buildOracleCheckRow("等待事件累计次数(Top)",
+                "instance.check.oracle.item.wait_events_top",
+                infoMap.get("wait_events_top"),
+                "应可读取v$system_event",
+                "instance.check.oracle.expected.wait_events_readable",
+                evaluatePresent(infoMap.get("wait_events_top"))));
         return new CheckTableModel(columns, rows);
     }
 
@@ -801,7 +825,101 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                 queryScalar(connection,
                         "SELECT value FROM gv$parameter WHERE LOWER(TRIM(name)) = 'log_archive_dest_state_1' "
                                 + "AND inst_id = (SELECT instance_number FROM v$instance WHERE ROWNUM = 1)")));
+
+        putIfNonBlank(m, "wait_sess_cnt", queryScalar(connection,
+                "SELECT TO_CHAR(COUNT(*)) FROM v$session WHERE status = 'WAITING' "
+                        + "AND NVL(wait_class, 'x') <> 'Idle'"));
+        putIfNonBlank(m, "wait_events_top", buildOracleWaitEventsTop(connection));
         return m;
+    }
+
+    private record OracleWaitClassRow(String className, long totalWaits, double waitSeconds) {
+    }
+
+    private List<OracleWaitClassRow> queryOracleWaitClassRows(Connection connection) {
+        List<OracleWaitClassRow> out = new ArrayList<>();
+        if (connection == null) {
+            return out;
+        }
+        String sql = """
+                SELECT wait_class,
+                       SUM(total_waits) AS tw,
+                       ROUND(SUM(NVL(time_waited_micro, NVL(time_waited, 0) * 10000)) / 1000000, 4) AS wsec
+                FROM v$system_event
+                WHERE NVL(wait_class, 'Other') <> 'Idle'
+                GROUP BY wait_class
+                ORDER BY SUM(NVL(time_waited_micro, NVL(time_waited, 0) * 10000)) DESC NULLS LAST,
+                         SUM(total_waits) DESC
+                """;
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                String wc = trimToEmptyStatic(rs.getString(1));
+                if (wc.isEmpty()) {
+                    continue;
+                }
+                long tw = rs.getLong(2);
+                double sec = rs.getDouble(3);
+                if (rs.wasNull()) {
+                    sec = 0;
+                }
+                out.add(new OracleWaitClassRow(wc, tw, sec));
+            }
+        } catch (SQLException ignored) {
+            // 无 wait_class / time_waited_micro 等列时跳过
+        }
+        return out;
+    }
+
+    private static String formatOracleWaitClassCurrent(OracleWaitClassRow wc) {
+        return String.format("累计 %,d 次；等待时间约 %,.2f 秒", wc.totalWaits(), wc.waitSeconds());
+    }
+
+    /** 非 Idle 等待事件中 total_waits 最高的若干项：事件名=累计次数。 */
+    private static String buildOracleWaitEventsTop(Connection connection) {
+        if (connection == null) {
+            return null;
+        }
+        String sql = """
+                SELECT event, total_waits
+                FROM (
+                    SELECT event, total_waits,
+                           ROW_NUMBER() OVER (ORDER BY total_waits DESC) rn
+                    FROM v$system_event
+                    WHERE NVL(wait_class, 'Other') <> 'Idle'
+                ) sub
+                WHERE sub.rn <= 18
+                ORDER BY sub.total_waits DESC
+                """;
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            StringBuilder sb = new StringBuilder();
+            while (rs.next()) {
+                if (sb.length() > 0) {
+                    sb.append("; ");
+                }
+                String ev = trimToEmptyStatic(rs.getString(1));
+                if (ev.length() > 42) {
+                    ev = ev.substring(0, 39) + "...";
+                }
+                sb.append(ev).append('=').append(rs.getString(2));
+            }
+            String out = sb.length() > 0 ? sb.toString() : null;
+            return out == null ? null : truncateMetric(out, 900);
+        } catch (SQLException ignored) {
+            return null;
+        }
+    }
+
+    private static String truncateMetric(String s, int maxLen) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.trim();
+        if (t.length() <= maxLen) {
+            return t;
+        }
+        return t.substring(0, maxLen - 3) + "...";
     }
 
     private static String queryScalar(Connection connection, String sql) {
@@ -910,6 +1028,19 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
             return days > 7 ? "1" : "0";
         } catch (ParseException e) {
             return "0";
+        }
+    }
+
+    private String evaluateOracleWaitSessionCount(String raw) {
+        String v = trimToEmpty(raw);
+        if (v.isEmpty()) {
+            return "2";
+        }
+        try {
+            long n = Long.parseLong(v.replace(",", ""));
+            return n > 500 ? "1" : "0";
+        } catch (NumberFormatException e) {
+            return "2";
         }
     }
 
