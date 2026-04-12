@@ -1,4 +1,4 @@
-﻿package com.dbboys.impl.dialect.oracle;
+package com.dbboys.impl.dialect.oracle;
 
 import com.dbboys.api.ChangeDatabaseFailureKind;
 import com.dbboys.api.ConnectionService;
