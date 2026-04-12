@@ -1,9 +1,14 @@
 package com.dbboys.util;
 
+import com.dbboys.api.ConnectionService;
 import com.dbboys.api.InstanceTabCapability;
+import com.dbboys.app.AppContext;
 import com.dbboys.vo.Connect;
 import com.jcraft.jsch.Session;
 
+import java.lang.reflect.Method;
+import java.sql.Connection;
+import java.sql.Statement;
 import java.util.List;
 
 public final class InstanceMutationUtil {
@@ -147,5 +152,94 @@ public final class InstanceMutationUtil {
         } finally {
             JschUtil.disConnect(session);
         }
+    }
+
+    public static InstanceTabCapability.ConfigUpdateResult updateOracleConfig(Connect connect,
+                                                                              String paramName,
+                                                                              String newValue) throws Exception {
+        ConnectionService connectionService = AppContext.get(ConnectionService.class);
+        String sql = "alter system set " + paramName + " = " + toOracleAlterSystemLiteral(newValue) + " scope=both sid='*'";
+        try (Connection conn = connectionService.getConnectionWithSessionInit(connect);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            return new InstanceTabCapability.ConfigUpdateResult(
+                    InstanceTabCapability.ConfigUpdateStatus.APPLIED,
+                    "参数已修改生效"
+            );
+        }
+    }
+
+    public static void startOracleInstance(Connect connect) throws Exception {
+        Connect prelimConnect = cloneConnectWithOracleProp(connect, "prelim_auth", "true");
+        prelimConnect = cloneConnectWithOracleProp(prelimConnect, "internal_logon", "sysdba");
+        try (Connection prelimConn = AppContext.get(ConnectionService.class).createConnection(prelimConnect)) {
+            Object oracleConnection = unwrapOracleConnection(prelimConn);
+            Class<?> startupModeClass = loadOracleClass(oracleConnection, "oracle.jdbc.OracleConnection$DatabaseStartupMode");
+            Object noRestriction = Enum.valueOf((Class<Enum>) startupModeClass.asSubclass(Enum.class), "NO_RESTRICTION");
+            Method startup = oracleConnection.getClass().getMethod("startup", startupModeClass);
+            startup.invoke(oracleConnection, noRestriction);
+        }
+
+        Connect sysdbaConnect = cloneConnectWithOracleProp(connect, "internal_logon", "sysdba");
+        try (Connection conn = AppContext.get(ConnectionService.class).createConnection(sysdbaConnect);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("alter database mount");
+            stmt.execute("alter database open");
+        }
+    }
+
+    public static void stopOracleInstance(Connect connect) throws Exception {
+        Connect sysdbaConnect = cloneConnectWithOracleProp(connect, "internal_logon", "sysdba");
+        try (Connection conn = AppContext.get(ConnectionService.class).createConnection(sysdbaConnect);
+             Statement stmt = conn.createStatement()) {
+            Object oracleConnection = unwrapOracleConnection(conn);
+            Class<?> shutdownModeClass = loadOracleClass(oracleConnection, "oracle.jdbc.OracleConnection$DatabaseShutdownMode");
+            Object immediate = Enum.valueOf((Class<Enum>) shutdownModeClass.asSubclass(Enum.class), "IMMEDIATE");
+            Object finalMode = Enum.valueOf((Class<Enum>) shutdownModeClass.asSubclass(Enum.class), "FINAL");
+            Method shutdown = oracleConnection.getClass().getMethod("shutdown", shutdownModeClass);
+            shutdown.invoke(oracleConnection, immediate);
+            stmt.execute("alter database close normal");
+            stmt.execute("alter database dismount");
+            shutdown.invoke(oracleConnection, finalMode);
+        }
+    }
+
+    private static Connect cloneConnectWithOracleProp(Connect connect, String propName, String propValue) {
+        Connect clone = new Connect(connect);
+        ConnectionService connectionService = AppContext.get(ConnectionService.class);
+        clone.setProps(connectionService.modifyProps(clone, propName, propValue));
+        return clone;
+    }
+
+    private static Object unwrapOracleConnection(Connection conn) throws Exception {
+        Class<?> oracleConnectionClass = Class.forName("oracle.jdbc.OracleConnection", true, conn.getClass().getClassLoader());
+        if (oracleConnectionClass.isInstance(conn)) {
+            return conn;
+        }
+        return conn.unwrap((Class<?>) oracleConnectionClass);
+    }
+
+    private static Class<?> loadOracleClass(Object oracleConnection, String className) throws ClassNotFoundException {
+        return Class.forName(className, true, oracleConnection.getClass().getClassLoader());
+    }
+
+    private static String toOracleAlterSystemLiteral(String value) {
+        if (value == null) {
+            return "''";
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return "''";
+        }
+        if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length() >= 2) {
+            return trimmed;
+        }
+        if (trimmed.matches("^[+-]?\\d+(\\.\\d+)?([KMGTP]?)$")) {
+            return trimmed;
+        }
+        if (trimmed.matches("(?i)^(true|false|immediate|deferred|memory|spfile|both)$")) {
+            return trimmed.toUpperCase();
+        }
+        return "'" + trimmed.replace("'", "''") + "'";
     }
 }

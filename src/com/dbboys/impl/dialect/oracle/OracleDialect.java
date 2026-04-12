@@ -153,17 +153,22 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public boolean supportsLogTab(Connect connect) {
-        return false;
+        return resolveOracleAdminPrivileges(connect).canViewInstance();
     }
 
     @Override
     public boolean supportsConfigTab(Connect connect) {
-        return false;
+        return resolveOracleAdminPrivileges(connect).canViewInstance();
+    }
+
+    @Override
+    public boolean canEditConfig(Connect connect) {
+        return resolveOracleAdminPrivileges(connect).canManageConfig();
     }
 
     @Override
     public boolean supportsStartStopTab(Connect connect) {
-        return false;
+        return resolveOracleAdminPrivileges(connect).canStartStopInstance();
     }
 
     @Override
@@ -255,6 +260,36 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                         evaluatePresent(infoMap.get("platform_name")))
         );
         return new CheckTableModel(columns, rows);
+    }
+
+    @Override
+    public List<ConfigEntry> loadConfigEntries(Connect connect) throws Exception {
+        return com.dbboys.util.InstanceRuntimeUtil.loadOracleConfigEntries(connect);
+    }
+
+    @Override
+    public String loadRuntimeLog(Connect connect) throws Exception {
+        return com.dbboys.util.InstanceRuntimeUtil.loadOracleRuntimeLog(connect);
+    }
+
+    @Override
+    public boolean isInstanceOnline(Connect connect) throws Exception {
+        return com.dbboys.util.InstanceRuntimeUtil.isOracleInstanceOnline(connect);
+    }
+
+    @Override
+    public ConfigUpdateResult updateConfig(Connect connect, String paramName, String newValue) throws Exception {
+        return com.dbboys.util.InstanceMutationUtil.updateOracleConfig(connect, paramName, newValue);
+    }
+
+    @Override
+    public void startInstance(Connect connect) throws Exception {
+        com.dbboys.util.InstanceMutationUtil.startOracleInstance(connect);
+    }
+
+    @Override
+    public void stopInstance(Connect connect) throws Exception {
+        com.dbboys.util.InstanceMutationUtil.stopOracleInstance(connect);
     }
 
     @Override
@@ -517,7 +552,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public String getSystemTableFolderDefaultText() {
-        return "瀛楀吀琛?;
+        return "字典表";
     }
 
     @Override
@@ -658,6 +693,8 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
         boolean canViewInstance = parseBooleanFlag(info, "can_view_instance");
         boolean canViewSpace = parseBooleanFlag(info, "can_view_space_manager");
         boolean canMutateSpace = parseBooleanFlag(info, "can_mutate_space");
+        boolean canManageConfig = parseBooleanFlag(info, "can_manage_config");
+        boolean canStartStopInstance = parseBooleanFlag(info, "can_start_stop_instance");
         boolean hasDetectedFlags = containsPrivilegeFlags(info);
 
         if (hasDetectedFlags) {
@@ -669,9 +706,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                     parseBooleanFlag(info, "has_create_tablespace"),
                     parseBooleanFlag(info, "has_drop_tablespace"),
                     parseBooleanFlag(info, "has_alter_database"),
+                    parseBooleanFlag(info, "has_alter_system"),
                     canViewInstance,
                     canViewSpace,
                     canMutateSpace,
+                    canManageConfig,
+                    canStartStopInstance,
                     Set.of(),
                     Set.of()
             );
@@ -680,6 +720,9 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
         String username = connect == null ? "" : trimToEmptyStatic(connect.getUsername());
         boolean privilegedUser = "sys".equalsIgnoreCase(username) || "system".equalsIgnoreCase(username);
         return new OracleAdminPrivileges(
+                privilegedUser,
+                privilegedUser,
+                privilegedUser,
                 privilegedUser,
                 privilegedUser,
                 privilegedUser,
@@ -706,9 +749,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
         boolean hasCreateTablespace = privilegedUser || privileges.contains("CREATE TABLESPACE");
         boolean hasDropTablespace = privilegedUser || privileges.contains("DROP TABLESPACE");
         boolean hasAlterDatabase = privilegedUser || privileges.contains("ALTER DATABASE");
+        boolean hasAlterSystem = privilegedUser || privileges.contains("ALTER SYSTEM");
         boolean canViewInstance = privilegedUser || hasDbaRole || hasSelectCatalogRole || hasAlterDatabase;
         boolean canViewSpace = privilegedUser || hasDbaRole || hasSelectCatalogRole || hasAlterTablespace || hasCreateTablespace || hasDropTablespace;
         boolean canMutateSpace = privilegedUser || hasDbaRole || hasAlterTablespace || hasCreateTablespace || hasDropTablespace;
+        boolean canManageConfig = privilegedUser || hasDbaRole || hasAlterSystem;
+        boolean canStartStopInstance = privilegedUser || hasDbaRole || hasAlterDatabase;
         return new OracleAdminPrivileges(
                 privilegedUser,
                 hasDbaRole,
@@ -717,9 +763,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                 hasCreateTablespace,
                 hasDropTablespace,
                 hasAlterDatabase,
+                hasAlterSystem,
                 canViewInstance,
                 canViewSpace,
                 canMutateSpace,
+                canManageConfig,
+                canStartStopInstance,
                 roles,
                 privileges
         );
@@ -739,9 +788,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
         appendInfoLine(info, "has_create_tablespace", toFlag(privileges.hasCreateTablespace()));
         appendInfoLine(info, "has_drop_tablespace", toFlag(privileges.hasDropTablespace()));
         appendInfoLine(info, "has_alter_database", toFlag(privileges.hasAlterDatabase()));
+        appendInfoLine(info, "has_alter_system", toFlag(privileges.hasAlterSystem()));
         appendInfoLine(info, "can_view_instance", toFlag(privileges.canViewInstance()));
         appendInfoLine(info, "can_view_space_manager", toFlag(privileges.canViewSpaceManager()));
         appendInfoLine(info, "can_mutate_space", toFlag(privileges.canMutateSpace()));
+        appendInfoLine(info, "can_manage_config", toFlag(privileges.canManageConfig()));
+        appendInfoLine(info, "can_start_stop_instance", toFlag(privileges.canStartStopInstance()));
         appendInfoLine(info, "session_roles", joinAuthorities(privileges.roles()));
         appendInfoLine(info, "session_privs", joinAuthorities(privileges.privileges()));
     }
@@ -776,7 +828,9 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
     private static boolean containsPrivilegeFlags(String info) {
         return !InstanceTabCapability.extractInfoValue(info, "can_view_instance").isEmpty()
                 || !InstanceTabCapability.extractInfoValue(info, "can_view_space_manager").isEmpty()
-                || !InstanceTabCapability.extractInfoValue(info, "can_mutate_space").isEmpty();
+                || !InstanceTabCapability.extractInfoValue(info, "can_mutate_space").isEmpty()
+                || !InstanceTabCapability.extractInfoValue(info, "can_manage_config").isEmpty()
+                || !InstanceTabCapability.extractInfoValue(info, "can_start_stop_instance").isEmpty();
     }
 
     private static String toFlag(boolean value) {
@@ -923,9 +977,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                                  boolean hasCreateTablespace,
                                  boolean hasDropTablespace,
                                  boolean hasAlterDatabase,
+                                 boolean hasAlterSystem,
                                  boolean canViewInstance,
                                  boolean canViewSpaceManager,
                                  boolean canMutateSpace,
+                                 boolean canManageConfig,
+                                 boolean canStartStopInstance,
                                  Set<String> roles,
                                  Set<String> privileges) {
     }

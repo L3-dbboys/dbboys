@@ -33,6 +33,10 @@ public interface InstanceTabCapability {
         return false;
     }
 
+    default boolean canEditConfig(Connect connect) {
+        return supportsConfigTab(connect);
+    }
+
     default boolean supportsStartStopTab(Connect connect) {
         return false;
     }

@@ -184,7 +184,7 @@ public class CustomInstanceTab extends CustomTab {
         });
 
         // 参数优化 UI
-        configTableView.setEditable(true);
+        configTableView.setEditable(canEditConfig());
         configTableView.setSortPolicy((param) -> false);// 禁用排序
         TableColumn<ObservableList<String>, Object> configNameColumn = new TableColumn<>();
         configNameColumn.textProperty().bind(I18n.bind("instance.config.column.name", "参数名"));
@@ -199,11 +199,15 @@ public class CustomInstanceTab extends CustomTab {
         configValueColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
         configValueColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(2)));
         configValueColumn.setReorderable(false); // 绂佺敤鎷栧姩
-        configValueColumn.setEditable(true);
+        configValueColumn.setEditable(canEditConfig());
         configValueColumn.setReorderable(false);
         configValueColumn.setPrefWidth(500);
 
         configValueColumn.setOnEditCommit(event -> {
+            if (!canEditConfig()) {
+                event.getTableView().refresh();
+                return;
+            }
             String paramName=event.getRowValue().get(1).toString();
             Object oldvalue = event.getOldValue();
             //Object colvalue = event.getNewValue();
@@ -1074,6 +1078,12 @@ public class CustomInstanceTab extends CustomTab {
         return resolveInstanceTabCapability()
                 .map(cap -> cap.supportsConfigTab(connect))
                 .orElseGet(() -> resolveInstanceAdminRepository().supportsConfigManagement(connect));
+    }
+
+    private boolean canEditConfig() {
+        return resolveInstanceTabCapability()
+                .map(cap -> cap.canEditConfig(connect))
+                .orElseGet(this::supportsConfigManagement);
     }
 
     private boolean supportsStartStop() {

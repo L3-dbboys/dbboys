@@ -1,13 +1,44 @@
 package com.dbboys.util;
 
+import com.dbboys.api.ConnectionService;
 import com.dbboys.api.InstanceTabCapability;
+import com.dbboys.app.AppContext;
 import com.dbboys.vo.Connect;
 import com.jcraft.jsch.Session;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class InstanceRuntimeUtil {
+    private static final String SQL_ORACLE_PARAMETERS = """
+            select name, nvl(display_value, value) as value
+            from v$parameter
+            where issys_modifiable in ('IMMEDIATE', 'DEFERRED')
+            order by name
+            """;
+    private static final String SQL_ORACLE_ALERT_LOG = """
+            select line from (
+                select to_char(originating_timestamp, 'YYYY-MM-DD HH24:MI:SS') || ' ' || message_text as line
+                from v$diag_alert_ext
+                where message_text is not null
+                order by originating_timestamp desc
+            )
+            where rownum <= 500
+            """;
+    private static final String SQL_ORACLE_DIAG_TRACE = """
+            select value
+            from v$diag_info
+            where name = 'Diag Trace'
+            """;
+    private static final String SQL_ORACLE_INSTANCE_STATUS = """
+            select status
+            from v$instance
+            """;
+
     private InstanceRuntimeUtil() {
     }
 
@@ -43,6 +74,68 @@ public final class InstanceRuntimeUtil {
             return instanceStatus.contains("On-Line") || instanceStatus.contains("Read-Only");
         } finally {
             JschUtil.disConnect(session);
+        }
+    }
+
+    public static List<InstanceTabCapability.ConfigEntry> loadOracleConfigEntries(Connect connect) throws Exception {
+        ConnectionService connectionService = AppContext.get(ConnectionService.class);
+        try (Connection conn = connectionService.getConnectionWithSessionInit(connect);
+             PreparedStatement pstmt = conn.prepareStatement(SQL_ORACLE_PARAMETERS);
+             ResultSet rs = pstmt.executeQuery()) {
+            List<InstanceTabCapability.ConfigEntry> result = new ArrayList<>();
+            while (rs.next()) {
+                result.add(new InstanceTabCapability.ConfigEntry(
+                        rs.getString("name"),
+                        rs.getString("value")
+                ));
+            }
+            return result;
+        }
+    }
+
+    public static String loadOracleRuntimeLog(Connect connect) throws Exception {
+        ConnectionService connectionService = AppContext.get(ConnectionService.class);
+        try (Connection conn = connectionService.getConnectionWithSessionInit(connect)) {
+            List<String> lines = new ArrayList<>();
+            try (PreparedStatement pstmt = conn.prepareStatement(SQL_ORACLE_ALERT_LOG);
+                 ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String line = rs.getString(1);
+                    if (line != null && !line.isBlank()) {
+                        lines.add(line);
+                    }
+                }
+            }
+            if (!lines.isEmpty()) {
+                Collections.reverse(lines);
+                return String.join("\n", lines);
+            }
+
+            try (PreparedStatement pstmt = conn.prepareStatement(SQL_ORACLE_DIAG_TRACE);
+                 ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String tracePath = rs.getString(1);
+                    if (tracePath != null && !tracePath.isBlank()) {
+                        return "Diag Trace Path: " + tracePath.trim();
+                    }
+                }
+            }
+            return "";
+        }
+    }
+
+    public static boolean isOracleInstanceOnline(Connect connect) throws Exception {
+        ConnectionService connectionService = AppContext.get(ConnectionService.class);
+        try (Connection conn = connectionService.getConnectionWithSessionInit(connect);
+             PreparedStatement pstmt = conn.prepareStatement(SQL_ORACLE_INSTANCE_STATUS);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.next()) {
+                return false;
+            }
+            String status = rs.getString(1);
+            return status != null && !status.isBlank();
+        } catch (Exception e) {
+            return false;
         }
     }
 
