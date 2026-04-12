@@ -16,6 +16,30 @@ public interface InstanceAdminRepository {
         return false;
     }
 
+    default boolean supportsHealthCheck(Connect connect) {
+        return supportsAdminFeatures(connect);
+    }
+
+    default boolean supportsOnlineLog(Connect connect) {
+        return supportsAdminFeatures(connect);
+    }
+
+    default boolean supportsSpaceManager(Connect connect) {
+        return supportsAdminFeatures(connect);
+    }
+
+    default boolean supportsConfigManagement(Connect connect) {
+        return supportsAdminFeatures(connect);
+    }
+
+    default boolean supportsStartStop(Connect connect) {
+        return supportsAdminFeatures(connect);
+    }
+
+    default boolean supportsSpaceMutation(Connect connect) {
+        return supportsSpaceManager(connect);
+    }
+
     void setStorageSegmentExtendable(Connection conn, int segmentId, boolean extendable) throws SQLException;
 
     void resizeStorageSpace(Connection conn, String storageSpaceName, int size1, int size2, int size3) throws SQLException;

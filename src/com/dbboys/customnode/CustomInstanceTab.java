@@ -1,11 +1,12 @@
-package com.dbboys.customnode;
+﻿package com.dbboys.customnode;
 
 import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.api.InstanceManagerCapability;
+import com.dbboys.api.InstanceTabCapability;
 import com.dbboys.api.NamedServerConnectionCapability;
 import com.dbboys.app.AppContext;
 import com.dbboys.app.AppExecutor;
-import com.dbboys.app.AppState;
 import com.dbboys.i18n.I18n;
 import com.dbboys.service.AdminService;
 import com.dbboys.ui.IconFactory;
@@ -13,7 +14,6 @@ import com.dbboys.ui.IconPaths;
 import com.dbboys.api.ConnectionService;
 import com.dbboys.util.*;
 import com.dbboys.vo.Connect;
-import com.dbboys.vo.HealthCheck;
 import com.jcraft.jsch.Session;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -38,16 +38,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.SQLException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -60,7 +54,7 @@ public class CustomInstanceTab extends CustomTab {
     private final ConnectionService connectionService = com.dbboys.app.AppContext.get(ConnectionService.class);
     private final DatabasePlatformResolver platformResolver = AppContext.get(DatabasePlatformResolver.class);
     private Connect connect;
-    // 为每个需要懒加载的 Tab 定义「已加载」标记
+    // 为每个需要懒加载的 Tab 定义“已加载”标记
     private boolean infoTabLoaded = false;
     private boolean checkTabLoaded = false;
     private boolean logTabLoaded = false;
@@ -78,20 +72,19 @@ public class CustomInstanceTab extends CustomTab {
     private Label instanceInfoLabel;
     private Button refreshButton;
     //private Session session;
-    private String onlinelog;
 
     //checktab
 
-    private CustomTableView<HealthCheck> checkTableView = new CustomTableView<>();
-    private List<HealthCheck> checkDatalist = FXCollections.observableArrayList();//如果确认，返回更新后的list
+    private CustomTableView<InstanceTabCapability.CheckRow> checkTableView = new CustomTableView<>();
+    private List<InstanceTabCapability.CheckRow> checkDatalist = FXCollections.observableArrayList();// 如果确认，返回更新后的 list
     private StackPane checkStackPane;
 
     //configtab
     private CustomTableView<ObservableList<String>> configTableView = new CustomTableView<>();
-    private List<ObservableList<String>> configDatalist = FXCollections.observableArrayList();//如果确认，返回更新后的list
+    private List<ObservableList<String>> configDatalist = FXCollections.observableArrayList();// 如果确认，返回更新后的 list
     private StackPane configStackPane;
 
-    //spacetab变量
+    // space tab 变量
     private CustomSpaceChart.ContextMenuListener menuListener;
     private CustomSpaceChart dbspaceChart;
     private CustomSpaceChart chunkChart;
@@ -102,13 +95,11 @@ public class CustomInstanceTab extends CustomTab {
     List<CustomSpaceChart.SpaceUsage> chunkChartList = new ArrayList<>();
     List<CustomSpaceChart.SpaceUsage> databaseChartList = new ArrayList<>();
     List<CustomSpaceChart.SpaceUsage> tabChartList = new ArrayList<>();
-    List<List<CustomSpaceChart.SpaceUsage>> dataList = new ArrayList<>();
     String datafilePath="";
 
 
 
-    //启停变量
-    private String instanceStatus="";
+    // 启停变量
     private Button startButton;
     private Button stopButton;
     private Label statusLabel;
@@ -126,7 +117,7 @@ public class CustomInstanceTab extends CustomTab {
         super("[instance]"+connect.getName());
         this.connect=connect;
 
-        //实例信息tab初始化变量
+        // 实例信息 tab 初始化变量
         String instanceName = resolveInstanceName();
         instanceNameText.set(instanceName);
         instanceIpText.set(connect.getIp());
@@ -156,65 +147,23 @@ public class CustomInstanceTab extends CustomTab {
 
         //UI
         checkTableView.setEditable(false);
-        checkTableView.setSortPolicy((param) -> false);//禁用排序
+        checkTableView.setSortPolicy((param) -> false);// 禁用排序
         checkTableView.setRowFactory(tv -> {
-            TableRow<HealthCheck> row = new TableRow<>();
+            TableRow<InstanceTabCapability.CheckRow> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY && !row.isEmpty()) {
-                    HealthCheck rowData = row.getItem();
-                    if(resolveRuntimeLogCommand().equals(rowData.getCmd())) {
+                    InstanceTabCapability.CheckRow rowData = row.getItem();
+                    if(rowData.openLogOnDoubleClick()) {
                         mainTabPane.getSelectionModel().select(logTab);
-                    }else
-                    if(rowData.getCmdOutput()!=null&&!rowData.getCmdOutput().isEmpty()){
-                            PopupWindowUtil.openCmdOutputPopupWindow(rowData.getCmdOutput());
+                    }else if(rowData.cmdOutput()!=null&&!rowData.cmdOutput().isEmpty()){
+                            PopupWindowUtil.openCmdOutputPopupWindow(rowData.cmdOutput());
                     }
                 }
             });
             return row;
         });
-        TableColumn<HealthCheck, Object> nameColumn = new TableColumn<>();
-        nameColumn.textProperty().bind(I18n.bind("instance.check.column.item", "巡检项"));
-        nameColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("entry"));
-        nameColumn.setReorderable(false); // 禁用拖动
-        nameColumn.setEditable(false);
-        nameColumn.setReorderable(false);
-        nameColumn.setPrefWidth(200);
-        TableColumn<HealthCheck, Object> cmdColumn = new TableColumn<>();
-        cmdColumn.textProperty().bind(I18n.bind("instance.check.column.cmd", "巡检命令"));
-        cmdColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
-        cmdColumn.setCellValueFactory(new PropertyValueFactory<>("cmd"));
-        cmdColumn.setReorderable(false); // 禁用拖动
-        cmdColumn.setEditable(false);
-        cmdColumn.setReorderable(false);
-        cmdColumn.setPrefWidth(100);
-        TableColumn<HealthCheck, Object> valueColumn = new TableColumn<>();
-        valueColumn.textProperty().bind(I18n.bind("instance.check.column.expected", "正常值"));
-        valueColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
-        valueColumn.setCellValueFactory(new PropertyValueFactory<>("healthValue"));
-        valueColumn.setReorderable(false); // 禁用拖动
-        valueColumn.setEditable(false);
-        valueColumn.setReorderable(false);
-        valueColumn.setPrefWidth(300);
-        TableColumn<HealthCheck, Object> currentColumn = new TableColumn<>();
-        currentColumn.textProperty().bind(I18n.bind("instance.check.column.current", "当前值"));
-        currentColumn.setCellFactory(col -> new CustomTableCell<HealthCheck, Object>());
-        currentColumn.setCellValueFactory(new PropertyValueFactory<>("currentValue"));
-        currentColumn.setReorderable(false); // 禁用拖动
-        currentColumn.setEditable(false);
-        currentColumn.setReorderable(false);
-        currentColumn.setPrefWidth(300);
-
-        TableColumn<HealthCheck, Object> resultColumn = new TableColumn<>();
-        resultColumn.textProperty().bind(I18n.bind("instance.check.column.result", "巡检结论"));
-        resultColumn.setCellFactory(col -> new CustomCheckTableCell<HealthCheck, Object>());
-        resultColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
-        resultColumn.setReorderable(false); // 禁用拖动
-        resultColumn.setEditable(false);
-        resultColumn.setReorderable(false);
-        resultColumn.setPrefWidth(100);
-        checkTableView.getColumns().addAll(nameColumn, cmdColumn, valueColumn, currentColumn, resultColumn);
-        initDatalist(checkDatalist);
+        initCheckTableColumns();
+        initCheckDatalist(checkDatalist);
         checkTableView.getItems().addAll(checkDatalist);
         checkTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         ImageView loading_icon = IconFactory.loadingImageView(0.7);
@@ -234,14 +183,14 @@ public class CustomInstanceTab extends CustomTab {
             SnapshotUtil.snapshotTableView(checkTableView);
         });
 
-        //参数优化UI
+        // 参数优化 UI
         configTableView.setEditable(true);
-        configTableView.setSortPolicy((param) -> false);//禁用排序
+        configTableView.setSortPolicy((param) -> false);// 禁用排序
         TableColumn<ObservableList<String>, Object> configNameColumn = new TableColumn<>();
         configNameColumn.textProperty().bind(I18n.bind("instance.config.column.name", "参数名"));
         configNameColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
         configNameColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(1)));
-        configNameColumn.setReorderable(false); // 禁用拖动
+        configNameColumn.setReorderable(false); // 绂佺敤鎷栧姩
         configNameColumn.setEditable(false);
         configNameColumn.setReorderable(false);
         configNameColumn.setPrefWidth(300);
@@ -249,7 +198,7 @@ public class CustomInstanceTab extends CustomTab {
         configValueColumn.textProperty().bind(I18n.bind("instance.config.column.value", "参数值"));
         configValueColumn.setCellFactory(col -> new CustomTableCell<ObservableList<String>, Object>());
         configValueColumn.setCellValueFactory(data -> Bindings.createObjectBinding(() -> data.getValue().get(2)));
-        configValueColumn.setReorderable(false); // 禁用拖动
+        configValueColumn.setReorderable(false); // 绂佺敤鎷栧姩
         configValueColumn.setEditable(true);
         configValueColumn.setReorderable(false);
         configValueColumn.setPrefWidth(500);
@@ -258,51 +207,29 @@ public class CustomInstanceTab extends CustomTab {
             String paramName=event.getRowValue().get(1).toString();
             Object oldvalue = event.getOldValue();
             //Object colvalue = event.getNewValue();
-            //替换换行
+            //鏇挎崲鎹㈣
             Object colvalue = event.getNewValue().toString();
 
-            //替换换行后显示
+            // 替换换行后显示
             if(oldvalue.equals(colvalue)){
                 return;
             }
             event.getRowValue().set(2, colvalue.toString());
 
             event.getTableView().refresh();
-            String cmd;
-            String installDirEnv = "$" + resolveInstallDirEnvName();
-            if(paramName.equals("BUFFERPOOL")||paramName.equals("VPCLASS")){
-                cmd="sed -i \"s#^"+paramName+" *"+colvalue.toString().split(",")[0]+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" " + installDirEnv + "/etc/$ONCONFIG";
-            }else{
-                cmd="onmode -wf "+paramName+"=\""+colvalue.toString()+"\";sed -i \"s#^"+paramName+".*#"+paramName+" "+colvalue.toString().replace("$","\\$")+"#g\" " + installDirEnv + "/etc/$ONCONFIG";
-            }
 
             Task<Void> task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
-                    try {
-                        Session session=JschUtil.getConnect(connect);
-                        String result = JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+ cmd,true);
-                        JschUtil.disConnect(session);
-                        //if (result != 0) throw new Exception("创建数据库空间失败，请检查日志错误！");
-                        if(result.contains("has been changed to")){
-                            Platform.runLater(()->{
-                                NotificationUtil.showMainNotification("参数已修改生效！");
-                            });
-                        }else if(result.contains("shared memory not initialized")){
-                            Platform.runLater(()->{
-                                NotificationUtil.showMainNotification("配置文件已修改，数据库未启动，下次启动后生效！");
-                            });
-                        }else{
-                            Platform.runLater(()->{
-                                AlertUtil.CustomAlert("提醒", "参数已修改，请重启数据库生效！");
-                            });
+                    InstanceTabCapability capability = resolveInstanceTabCapability()
+                            .orElseThrow(() -> new UnsupportedOperationException("Config update is not supported"));
+                    InstanceTabCapability.ConfigUpdateResult result = capability.updateConfig(connect, paramName, colvalue.toString());
+                    Platform.runLater(() -> {
+                        switch (result.status()) {
+                            case APPLIED, FILE_ONLY -> NotificationUtil.showMainNotification(result.message());
+                            case RESTART_REQUIRED -> AlertUtil.CustomAlert("提醒", result.message());
                         }
-                    } catch (Exception e) {
-                        log.error(e.getMessage(), e);
-
-                        //throw new Exception("ssh登录失败，请检查网络！");
-                        throw new RuntimeException(e);
-                    }
+                    });
                     return null;
                 }
             };
@@ -335,32 +262,35 @@ public class CustomInstanceTab extends CustomTab {
             SnapshotUtil.snapshotTableView(configTableView);
         });
 
-        //初始化spacetab UI
+        //鍒濆鍖杝pacetab UI
         dbspaceChart =new CustomSpaceChart(dbspaceChartList, CustomSpaceChart.ColorMode.DBSPACE);
         Node dbspaceChartLegend = dbspaceChart.createLegend();
+        InstanceTabCapability.SpaceLabels spaceLabels = resolveSpaceLabels();
         Label spaceType=new Label();
-        spaceType.textProperty().bind(I18n.bind("instance.space.type.legend", "[T] 临时空间   [S] 智能大对象空间   [B] 简单大对象空间   [L] 空间大小已限制   [*k] 空间页大小为*KB"));
+        bindSpaceLabel(spaceType, spaceLabels.legendI18nKey(), spaceLabels.legendText());
+        spaceType.setVisible(spaceLabels.legendText() != null && !spaceLabels.legendText().isBlank());
+        spaceType.setManaged(spaceType.isVisible());
         spaceType.setStyle("-fx-font-size: 9;-fx-padding: 0 0 5 0");
         Label dbspaceTitleLabel = new Label();
-        dbspaceTitleLabel.textProperty().bind(I18n.bind("instance.space.chart.dbspace", "数据库空间使用情况图(GB)"));
+        bindSpaceLabel(dbspaceTitleLabel, spaceLabels.dbspaceTitleI18nKey(), spaceLabels.dbspaceTitle());
         VBox dbspaceChartVbox = new VBox(dbspaceChart,dbspaceChartLegend,spaceType,dbspaceTitleLabel);
         dbspaceChartVbox.setAlignment(Pos.CENTER);
         chunkChart =new CustomSpaceChart(chunkChartList, CustomSpaceChart.ColorMode.CHUNK);
         Node chunkChartLegend = chunkChart.createLegend();
         Label chunkTitleLabel = new Label();
-        chunkTitleLabel.textProperty().bind(I18n.bind("instance.space.chart.chunk", "数据文件使用情况图(GB)"));
+        bindSpaceLabel(chunkTitleLabel, spaceLabels.chunkTitleI18nKey(), spaceLabels.chunkTitle());
         VBox chunkChartVbox = new VBox(chunkChart,chunkChartLegend,chunkTitleLabel);
         chunkChartVbox.setAlignment(Pos.CENTER);
         databaseChart =new CustomSpaceChart(databaseChartList, CustomSpaceChart.ColorMode.DATABASE);
         Node databaseChartLegend = databaseChart.createLegend();
         Label databaseTitleLabel = new Label();
-        databaseTitleLabel.textProperty().bind(I18n.bind("instance.space.chart.database", "数据库使用空间情况(GB)"));
+        bindSpaceLabel(databaseTitleLabel, spaceLabels.databaseTitleI18nKey(), spaceLabels.databaseTitle());
         VBox databaseChartVbox = new VBox(databaseChart,databaseChartLegend,databaseTitleLabel);
         databaseChartVbox.setAlignment(Pos.CENTER);
         tabChart =new CustomSpaceChart(tabChartList, CustomSpaceChart.ColorMode.TABLE);
         Node tabChartLegend = tabChart.createLegend();
         Label tableTitleLabel = new Label();
-        tableTitleLabel.textProperty().bind(I18n.bind("instance.space.chart.table", "表/索引空间使用情况图TOP20(GB)"));
+        bindSpaceLabel(tableTitleLabel, spaceLabels.tableTitleI18nKey(), spaceLabels.tableTitle());
         VBox tabChartVbox = new VBox(tabChart,tabChartLegend,tableTitleLabel);
         tabChartVbox.setAlignment(Pos.CENTER);
         VBox charts=new VBox(50,dbspaceChartVbox,chunkChartVbox,databaseChartVbox,tabChartVbox);
@@ -387,7 +317,7 @@ public class CustomInstanceTab extends CustomTab {
             // -------------------------- onViewDetail 实现 --------------------------
             @Override
             public void onCreateDbspace(CustomSpaceChart.SpaceUsage spaceUsage,boolean isAddFile) {
-                //加载指示器
+                //鍔犺浇鎸囩ず鍣?
                 ImageView imageView = IconFactory.imageView(IconPaths.LOADING_GIF, 12, 12, true);
                 Button processStopButton = new Button("");
                 processStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));
@@ -437,7 +367,7 @@ public class CustomInstanceTab extends CustomTab {
                 CustomUserTextField filePathTextField = new CustomUserTextField();
                 for(CustomSpaceChart.SpaceUsage u:chunkChartList){
                     int lastSlashIndex = u.getName().lastIndexOf("/");
-                    // 若截取后仍只有根目录（如 "/opt//" → 截取后 "/opt" → lastSlashIndex=4 → 返回 "/opt"）
+                    // 鑻ユ埅鍙栧悗浠嶅彧鏈夋牴鐩綍锛堝 "/opt//" 鈫?鎴彇鍚?"/opt" 鈫?lastSlashIndex=4 鈫?杩斿洖 "/opt"锛?
                     datafilePath=u.getName().substring(0, lastSlashIndex + 1);
                     //break;
                 }
@@ -561,7 +491,6 @@ public class CustomInstanceTab extends CustomTab {
                             }
                         }
 
-                        String cmd="";
                         String pagesize="";
                         switch (pagesizeChoiceBox.getSelectionModel().getSelectedIndex()){
                             case 0:
@@ -591,40 +520,27 @@ public class CustomInstanceTab extends CustomTab {
                             default:
                                 break;
                         }
-                        if(isAddFile){
-                            cmd="onspaces -a  "+nameTextField.getText()+" -p "+filePathTextField.getText()+" -o 0 -s "+sizeTextField.getText();
-                        }else{
-                            switch (spaceTypeChoiceBox.getSelectionModel().getSelectedIndex()){
-                                case 0:
-                                    cmd="onspaces -c -d "+nameTextField.getText()+" -p "+filePathTextField.getText()+" -o 0 -s "+sizeTextField.getText()+" -k "+pagesize;
-                                    break;
-                                case 1:
-                                    cmd="onspaces -c -d "+nameTextField.getText()+" -p "+filePathTextField.getText()+" -o 0 -s "+sizeTextField.getText() +" -k "+pagesize+" -t";
-                                    break;
-                                case 2:
-                                    cmd="onspaces -c -S "+nameTextField.getText()+" -p "+filePathTextField.getText()+" -o 0 -s "+sizeTextField.getText()+" -Df \"LOGGING = ON, AVG_LO_SIZE=1\"";
-                                default:
-                                    break;
-                            }
-                        }
-
-                        String adminOsUser = resolveAdminOsUser();
-                        cmd="touch "+filePathTextField.getText()+"&&chown " + adminOsUser + ":" + adminOsUser + " " + filePathTextField.getText()+"&&chmod 660 "+filePathTextField.getText()+"&&"+cmd;
-                        String finalCmd = cmd;
+                        InstanceTabCapability.SpaceType spaceTypeValue = switch (spaceTypeChoiceBox.getSelectionModel().getSelectedIndex()) {
+                            case 1 -> InstanceTabCapability.SpaceType.TEMP;
+                            case 2 -> InstanceTabCapability.SpaceType.BLOB;
+                            default -> InstanceTabCapability.SpaceType.STANDARD;
+                        };
+                        InstanceTabCapability.SpaceMutationRequest request = new InstanceTabCapability.SpaceMutationRequest(
+                                isAddFile,
+                                nameTextField.getText(),
+                                filePathTextField.getText(),
+                                sizeTextField.getText(),
+                                pagesize,
+                                spaceTypeValue,
+                                resolveAdminOsUser()
+                        );
 
                         Task<Void> task = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
-                                try {
-                                    Session session=JschUtil.getConnect(connect);
-                                    String result = JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+ finalCmd);
-                                    JschUtil.disConnect(session);
-                                    if(!(result.contains("Space successfully added")||result.contains("Chunk successfully added"))){
-                                        throw new Exception(result);
-                                    }
-                                } catch (Exception e) {
-                                    throw new RuntimeException(e);
-                                }
+                                InstanceTabCapability capability = resolveInstanceTabCapability()
+                                        .orElseThrow(() -> new UnsupportedOperationException("Space mutation is not supported"));
+                                capability.createOrAddSpace(connect, request);
                                 return null;
                             }
                         };
@@ -646,7 +562,7 @@ public class CustomInstanceTab extends CustomTab {
                                         }
                                         Double finalResult = currentSize;
                                         Platform.runLater(()->{
-                                            runningLabel.setText(I18n.t("instance.dialog.init.progress.prefix", " 正在初始化...")+String.format("%.2f",Math.min(1,finalResult/Double.parseDouble(sizeTextField.getText()))*100)+"%");
+                                            runningLabel.setText(I18n.t("instance.dialog.init.progress.prefix", " 姝ｅ湪鍒濆鍖?..")+String.format("%.2f",Math.min(1,finalResult/Double.parseDouble(sizeTextField.getText()))*100)+"%");
                                         });
 
                                     }
@@ -683,16 +599,9 @@ public class CustomInstanceTab extends CustomTab {
                             Task<Void> stopTask = new Task<>() {
                                 @Override
                                 protected Void call() throws Exception {
-                                    try {
-                                        Session session=JschUtil.getConnect(connect);
-                                        int result = JschUtil.executeCommandWithExitStatus(session,"ps -ef |grep onspaces|grep -v grep |awk '{print \"kill -9 \"$2}' |sh ");
-                                        JschUtil.disConnect(session);
-                                        if(result!=0){
-                                            throw new Exception(I18n.t("instance.error.stop_create_space_failed", "停止创建空间失败！"));
-                                        }
-                                    } catch (Exception e) {
-                                        throw new RuntimeException(e);
-                                    }
+                                    InstanceTabCapability capability = resolveInstanceTabCapability()
+                                            .orElseThrow(() -> new UnsupportedOperationException("Space mutation abort is not supported"));
+                                    capability.abortCreateOrAddSpace(connect);
                                     return null;
                                 }
                             };
@@ -712,30 +621,20 @@ public class CustomInstanceTab extends CustomTab {
             // -------------------------- 其他接口方法实现 --------------------------
             @Override
             public void onDropDbspace(CustomSpaceChart.SpaceUsage spaceUsage) {
-                // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
+                // 删除数据库空间
                 if(AlertUtil.CustomAlertConfirm(I18n.t("instance.confirm.drop_space.title", "删除空间"), String.format(I18n.t("instance.confirm.drop_space.content", "确定要删除空间\"%s\"吗？"), spaceUsage.getName()))){
-                    String cmd="onspaces -d "+spaceUsage.getName()+" -y ";
-
+                    List<String> datafilePaths = new ArrayList<>();
                     for(CustomSpaceChart.SpaceUsage u:chunkChartList){
                         if(u.getLabel().trim().endsWith("[ "+spaceUsage.getName()+" ]")){
-                            cmd+="&& rm -rf "+u.getName();
+                            datafilePaths.add(u.getName());
                         }
                     }
-                    String finalCmd = cmd;
                     Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            try {
-                                Session session=JschUtil.getConnect(connect);
-                                String result = JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+ finalCmd);
-                                JschUtil.disConnect(session);
-                                if(!result.contains("Space successfully dropped")) {
-                                        throw new Exception(result);
-                                }
-                            } catch (Exception e) {
-                                //throw new Exception("ssh登录失败，请检查网络！");
-                                throw new RuntimeException(e);
-                            }
+                            InstanceTabCapability capability = resolveInstanceTabCapability()
+                                    .orElseThrow(() -> new UnsupportedOperationException("Drop space is not supported"));
+                            capability.dropSpace(connect, spaceUsage.getName(), datafilePaths);
                             return null;
                         }
                     };
@@ -750,32 +649,21 @@ public class CustomInstanceTab extends CustomTab {
                     });
                     AppExecutor.runTask(task);
                 }
-                // 后续可添加：调用删除接口、刷新图表数据等逻辑
+                // 后续可补充更多删除后的刷新逻辑
             }
 
 
             @Override
             public void onDropDatafile(CustomSpaceChart.SpaceUsage spaceUsage) {
-                // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
+                // 删除数据文件
                 if(AlertUtil.CustomAlertConfirm(I18n.t("instance.confirm.drop_datafile.title", "删除数据文件"), String.format(I18n.t("instance.confirm.drop_datafile.content", "确定要删除数据文件\"%s\"吗？"), spaceUsage.getName()))){
                     String dbspace=spaceUsage.getLabel().trim().split(" ")[2].trim();
-                    String cmd="onspaces -d "+dbspace+" -p "+spaceUsage.getName()+" -o 0 -y";
-                    cmd+="&& rm -rf "+spaceUsage.getName();
-                    String finalCmd = cmd;
                     Task<Void> task = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            try {
-                                Session session=JschUtil.getConnect(connect);
-                                String result = JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+ finalCmd);
-                                JschUtil.disConnect(session);
-                                if(!result.contains("Chunk successfully dropped")) {
-                                    throw new Exception(result);
-                                }
-                            } catch (Exception e) {
-                                //throw new Exception("ssh登录失败，请检查网络！");
-                                throw new RuntimeException(e);
-                            }
+                            InstanceTabCapability capability = resolveInstanceTabCapability()
+                                    .orElseThrow(() -> new UnsupportedOperationException("Drop datafile is not supported"));
+                            capability.dropDatafile(connect, dbspace, spaceUsage.getName());
                             return null;
                         }
                     };
@@ -790,13 +678,13 @@ public class CustomInstanceTab extends CustomTab {
                     });
                     AppExecutor.runTask(task);
                 }
-                // 后续可添加：调用删除接口、刷新图表数据等逻辑
+                // 后续可补充更多删除后的刷新逻辑
             }
 
 
             @Override
             public void onExpandDatafile(CustomSpaceChart.SpaceUsage spaceUsage) {
-                // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
+                // 设置数据文件自动扩展
                 if(AlertUtil.CustomAlertConfirm(I18n.t("instance.confirm.expand_datafile.title", "数据文件自动扩展"), String.format(I18n.t("instance.confirm.expand_datafile.content", "确定要设置数据文件\"%s\"自动扩展吗？"), spaceUsage.getName()))){
                     int chunkId=spaceUsage.getNumber();
                     Task<Void> task = new Task<>() {
@@ -821,13 +709,13 @@ public class CustomInstanceTab extends CustomTab {
                     });
                     AppExecutor.runTask(task);
                 }
-                // 后续可添加：调用删除接口、刷新图表数据等逻辑
+                // 后续可补充更多刷新逻辑
             }
 
 
             @Override
             public void onUnExpandDatafile(CustomSpaceChart.SpaceUsage spaceUsage) {
-                // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
+                // 关闭数据文件自动扩展
                 if(AlertUtil.CustomAlertConfirm(I18n.t("instance.confirm.unexpand_datafile.title", "数据文件关闭自动扩展"), String.format(I18n.t("instance.confirm.unexpand_datafile.content", "确定要关闭数据文件\"%s\"自动扩展吗？"), spaceUsage.getName()))){
                     int chunkId=spaceUsage.getNumber();
                     Task<Void> task = new Task<>() {
@@ -852,11 +740,11 @@ public class CustomInstanceTab extends CustomTab {
                     });
                     AppExecutor.runTask(task);
                 }
-                // 后续可添加：调用删除接口、刷新图表数据等逻辑
+                // 后续可补充更多刷新逻辑
             }
             @Override
             public void onUnlimitedSpaceSize(CustomSpaceChart.SpaceUsage spaceUsage) {
-                // 「删除数据库空间」的业务逻辑（示例：弹出确认弹窗）
+                // 銆屽垹闄ゆ暟鎹簱绌洪棿銆嶇殑涓氬姟閫昏緫锛堢ず渚嬶細寮瑰嚭纭寮圭獥锛?
                 if(AlertUtil.CustomAlertConfirm(I18n.t("instance.confirm.unlimit_space.title", "解除大小限制"), String.format(I18n.t("instance.confirm.unlimit_space.content", "确定要解除数据库空间\"%s\"的大小限制吗？"), spaceUsage.getName()))){
                     Task<Void> task = new Task<>() {
                         @Override
@@ -880,7 +768,7 @@ public class CustomInstanceTab extends CustomTab {
                     });
                     AppExecutor.runTask(task);
                 }
-                // 后续可添加：调用删除接口、刷新图表数据等逻辑
+                // 后续可补充更多刷新逻辑
             }
 
 
@@ -889,7 +777,7 @@ public class CustomInstanceTab extends CustomTab {
 
         };
 
-        //启停tab初始化变量
+        // 启停 tab 初始化变量
         startStackPane=new StackPane();
         startButton=new Button();
         startButton.getStyleClass().add("custom-button");
@@ -937,14 +825,9 @@ public class CustomInstanceTab extends CustomTab {
             Task<Void> instanceInfoTask = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
-                    try {
-                        Session session=JschUtil.getConnect(connect);
-                        int result=JschUtil.executeCommandWithExitStatus(session,JschUtil.extractEnvValue(connect.getInfo())+"oninit");
-                        JschUtil.disConnect(session);
-                        if(result!=0)throw new Exception(I18n.t("instance.error.start_failed", "启动数据库失败，请检查日志错误！"));
-                    }catch (Exception e){
-                        throw new Exception(I18n.t("instance.error.ssh_login", "ssh登录失败，请检查网络！"));
-                    }
+                    InstanceTabCapability capability = resolveInstanceTabCapability()
+                            .orElseThrow(() -> new UnsupportedOperationException("Instance start is not supported"));
+                    capability.startInstance(connect);
                     return null;
                 }
             };
@@ -970,14 +853,9 @@ public class CustomInstanceTab extends CustomTab {
                 Task<Void> instanceInfoTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        try {
-                            Session session=JschUtil.getConnect(connect);
-                            int result = JschUtil.executeCommandWithExitStatus(session,JschUtil.extractEnvValue(connect.getInfo())+"onmode -ky&&onclean -ky");
-                            JschUtil.disConnect(session);
-                            if (result != 0) throw new Exception(I18n.t("instance.error.stop_failed", "关闭数据库失败，请检查日志错误！"));
-                        } catch (Exception e) {
-                            throw new Exception(I18n.t("instance.error.ssh_login", "ssh登录失败，请检查网络！"));
-                        }
+                        InstanceTabCapability capability = resolveInstanceTabCapability()
+                                .orElseThrow(() -> new UnsupportedOperationException("Instance stop is not supported"));
+                        capability.stopInstance(connect);
                         return null;
                     }
                 };
@@ -999,7 +877,7 @@ public class CustomInstanceTab extends CustomTab {
         });
         StackPane.setAlignment(hbox, Pos.CENTER);
 
-        //主tabpane初始化
+        //涓籺abpane鍒濆鍖?
         mainTabPane=new TabPane();
         infoTab=new CustomTab(I18n.t("metadata.menu.instance_info", "实例信息"));
         checkTab=new CustomTab(I18n.t("metadata.menu.health_check", "一键巡检"));
@@ -1031,20 +909,31 @@ public class CustomInstanceTab extends CustomTab {
 
 
 
-        // 给每个 Tab 绑定「首次选中加载」逻辑
+        // 给每个 Tab 绑定“首次选中加载”逻辑
         bindLazyLoadToTab(infoTab, () -> loadInfoTabContent(infoTab), () -> infoTabLoaded, (loaded) -> infoTabLoaded = loaded);
-       bindLazyLoadToTab(checkTab, () -> loadCheckTabContent(checkTab), () -> checkTabLoaded, (loaded) -> checkTabLoaded = loaded);
-        bindLazyLoadToTab(logTab, () -> loadLogTabContent(logTab), () -> logTabLoaded, (loaded) -> logTabLoaded = loaded);
-        bindLazyLoadToTab(spaceTab, () -> loadSpaceTabContent(spaceTab), () -> spaceTabLoaded, (loaded) -> spaceTabLoaded = loaded);
-       bindLazyLoadToTab(paramsTab, () -> loadParamsTabContent(paramsTab), () -> paramsTabLoaded, (loaded) -> paramsTabLoaded = loaded);
-        bindLazyLoadToTab(startTab, () -> loadStartTabContent(startTab), () -> startTabLoaded, (loaded) -> startTabLoaded = loaded);
+       bindLazyLoadToTab(checkTab, this::loadCheckTabThroughCapability, () -> checkTabLoaded, (loaded) -> checkTabLoaded = loaded);
+        bindLazyLoadToTab(logTab, this::loadLogTabThroughCapability, () -> logTabLoaded, (loaded) -> logTabLoaded = loaded);
+        bindLazyLoadToTab(spaceTab, () -> loadSpaceTabThroughLoader(spaceTab), () -> spaceTabLoaded, (loaded) -> spaceTabLoaded = loaded);
+       bindLazyLoadToTab(paramsTab, this::loadParamsTabThroughCapability, () -> paramsTabLoaded, (loaded) -> paramsTabLoaded = loaded);
+        bindLazyLoadToTab(startTab, this::loadStartTabThroughCapability, () -> startTabLoaded, (loaded) -> startTabLoaded = loaded);
 
-        if(supportsAdminFeatures()){
-            mainTabPane.getTabs().addAll(infoTab,checkTab,logTab,spaceTab,paramsTab,startTab);
-        }else{
-            mainTabPane.getTabs().addAll(infoTab);
+        mainTabPane.getTabs().add(infoTab);
+        if (supportsHealthCheck()) {
+            mainTabPane.getTabs().add(checkTab);
         }
-        //实例信息子 tab 不需要右键菜单
+        if (supportsOnlineLog()) {
+            mainTabPane.getTabs().add(logTab);
+        }
+        if (supportsSpaceManager()) {
+            mainTabPane.getTabs().add(spaceTab);
+        }
+        if (supportsConfigManagement()) {
+            mainTabPane.getTabs().add(paramsTab);
+        }
+        if (supportsStartStop()) {
+            mainTabPane.getTabs().add(startTab);
+        }
+        // 实例信息子 tab 不需要右键菜单
         mainTabPane.setContextMenu(null);
         mainTabPane.setStyle("-fx-background-color: -color-bg-content;");
         StackPane  stackPane=new StackPane(mainTabPane,refreshButton,instanceInfoLabel);
@@ -1062,7 +951,7 @@ public class CustomInstanceTab extends CustomTab {
         mainTabPane.getSelectionModel().select(tabNum);
         // 方式2.1：直接添加样式字符串
 
-        //如果是只读，禁用一些东西
+        // 如果是只读，禁用一些操作
         if(connect.getReadonly()) {
             configTableView.setEditable(false);
             startButton.setDisable(true);
@@ -1078,7 +967,7 @@ public class CustomInstanceTab extends CustomTab {
         Tab currentTab = mainTabPane.getSelectionModel().getSelectedItem();
         if (currentTab == null) return;
 
-        // 显示加载占位符
+        // 鏄剧ず鍔犺浇鍗犱綅绗?
         Node currentContent = currentTab.getContent();
         if (currentContent != null && "loadingNode".equals(currentContent.getId())) {
             // 可选：提示用户正在加载中
@@ -1086,23 +975,23 @@ public class CustomInstanceTab extends CustomTab {
         }
         currentTab.setContent(createLoadingNode());
 
-        // 异步刷新（避免阻塞 UI）
+        // 异步刷新，避免阻塞 UI
         AppExecutor.runAsync(() -> {
             try {
                 updateGroupInstanceInfo();
-                // 根据当前 Tab 类型执行刷新
+                // 鏍规嵁褰撳墠 Tab 绫诲瀷鎵ц鍒锋柊
                 if (currentTab == infoTab) {
                     loadInfoTabContent(infoTab);
                 } else if (currentTab == checkTab) {
-                    loadCheckTabContent(checkTab);
+                    loadCheckTabThroughCapability();
                 } else if (currentTab == logTab) {
-                    loadLogTabContent(logTab);
+                    loadLogTabThroughCapability();
                 } else if (currentTab == spaceTab) {
-                   loadSpaceTabContent(spaceTab);
+                   loadSpaceTabThroughLoader(spaceTab);
                 } else if (currentTab == paramsTab) {
-                    loadParamsTabContent(paramsTab);
+                    loadParamsTabThroughCapability();
                 } else if (currentTab == startTab) {
-                    loadStartTabContent(startTab);
+                    loadStartTabThroughCapability();
                 }
 
             } catch (Exception e) {
@@ -1132,7 +1021,7 @@ public class CustomInstanceTab extends CustomTab {
             Matcher matcher = pattern.matcher(sqlhostsContent);
             while (matcher.find()) {
                 String matchedLine = matcher.group();
-                log.info("匹配到的sqlhosts行: {}", matchedLine);
+                log.info("鍖归厤鍒扮殑sqlhosts琛? {}", matchedLine);
 
                 String[] parts = matchedLine.split("\\s+");
                 if (parts.length < 4) {
@@ -1165,25 +1054,40 @@ public class CustomInstanceTab extends CustomTab {
                 .orElse("");
     }
 
-    private boolean supportsAdminFeatures() {
-        return resolveInstanceManagerCapability()
-                .map(capability -> capability.supportsInstanceManager(connect))
-                .orElse(false);
+    private boolean supportsHealthCheck() {
+        return resolveInstanceTabCapability()
+                .map(cap -> cap.supportsHealthCheckTab(connect))
+                .orElseGet(() -> resolveInstanceAdminRepository().supportsHealthCheck(connect));
     }
 
-    private String resolveInstallDirEnvName() {
-        return resolveInstanceManagerCapability()
-                .map(InstanceManagerCapability::installDirEnvName)
-                .orElseGet(() -> {
-                    String info = connect.getInfo();
-                    if (info != null && info.contains("INFORMIXDIR")) {
-                        return "INFORMIXDIR";
-                    }
-                    if (info != null && info.contains("GBASEDBTDIR")) {
-                        return "GBASEDBTDIR";
-                    }
-                    return "INFORMIX".equalsIgnoreCase(connect.getDbtype()) ? "INFORMIXDIR" : "GBASEDBTDIR";
-                });
+    private boolean supportsOnlineLog() {
+        return resolveInstanceTabCapability()
+                .map(cap -> cap.supportsLogTab(connect))
+                .orElseGet(() -> resolveInstanceAdminRepository().supportsOnlineLog(connect));
+    }
+
+    private boolean supportsSpaceManager() {
+        return resolveInstanceAdminRepository().supportsSpaceManager(connect);
+    }
+
+    private boolean supportsConfigManagement() {
+        return resolveInstanceTabCapability()
+                .map(cap -> cap.supportsConfigTab(connect))
+                .orElseGet(() -> resolveInstanceAdminRepository().supportsConfigManagement(connect));
+    }
+
+    private boolean supportsStartStop() {
+        return resolveInstanceTabCapability()
+                .map(cap -> cap.supportsStartStopTab(connect))
+                .orElseGet(() -> resolveInstanceAdminRepository().supportsStartStop(connect));
+    }
+
+    private boolean supportsSpaceMutation() {
+        return resolveInstanceAdminRepository().supportsSpaceMutation(connect);
+    }
+
+    private InstanceAdminRepository resolveInstanceAdminRepository() {
+        return platformResolver.admin(connect);
     }
 
     private String resolveAdminOsUser() {
@@ -1191,31 +1095,66 @@ public class CustomInstanceTab extends CustomTab {
         if (username != null && !username.isBlank()) {
             return username;
         }
-        return resolveInstanceManagerCapability()
+        return resolveInstanceTabCapability()
                 .map(capability -> capability.adminOsUser(connect))
-                .orElseGet(() -> "INFORMIX".equalsIgnoreCase(connect.getDbtype()) ? "informix" : "gbasedbt");
+                .filter(value -> value != null && !value.isBlank())
+                .orElseGet(() -> resolveInstanceManagerCapability()
+                        .map(capability -> capability.adminOsUser(connect))
+                        .orElseGet(() -> "INFORMIX".equalsIgnoreCase(connect.getDbtype()) ? "informix" : "gbasedbt"));
     }
 
     private String resolveRuntimeLogCommand() {
-        return resolveInstanceManagerCapability()
-                .map(InstanceManagerCapability::runtimeLogCommand)
-                .orElse("onstat -m");
-    }
-
-    private String resolveVersionExpectation() {
-        return resolveInstanceManagerCapability()
-                .map(InstanceManagerCapability::versionExpectation)
+        return resolveInstanceTabCapability()
+                .map(capability -> capability.runtimeLogCommand(connect))
                 .filter(value -> value != null && !value.isBlank())
-                .orElse("数据库版本");
+                .orElseGet(() -> resolveInstanceManagerCapability()
+                        .map(InstanceManagerCapability::runtimeLogCommand)
+                        .orElse("onstat -m"));
     }
 
     private java.util.Optional<InstanceManagerCapability> resolveInstanceManagerCapability() {
         return platformResolver.capability(connect, InstanceManagerCapability.class);
     }
 
+    private java.util.Optional<InstanceTabCapability> resolveInstanceTabCapability() {
+        return platformResolver.capability(connect, InstanceTabCapability.class);
+    }
+
+    private InstanceTabCapability.SpaceLabels resolveSpaceLabels() {
+        return resolveInstanceTabCapability()
+                .map(capability -> capability.spaceLabels(connect))
+                .orElseGet(() -> new InstanceTabCapability.SpaceLabels(
+                        "instance.space.type.legend",
+                        "[T] 临时空间   [S] 智能大对象空间   [B] 简单大对象空间   [L] 空间大小已限制   [*k] 空间页大小为*KB",
+                        "instance.space.chart.dbspace",
+                        "数据库空间使用情况图(GB)",
+                        "instance.space.chart.chunk",
+                        "数据文件使用情况图(GB)",
+                        "instance.space.chart.database",
+                        "数据库使用空间情况(GB)",
+                        "instance.space.chart.table",
+                        "表/索引空间使用情况图TOP20(GB)"
+                ));
+    }
+
+    private void bindSpaceLabel(Label label, String i18nKey, String fallback) {
+        if (i18nKey != null && !i18nKey.isBlank()) {
+            label.textProperty().bind(I18n.bind(i18nKey, fallback));
+        } else {
+            label.setText(fallback);
+        }
+    }
+
     private String resolveInstanceName() {
+        String instanceName = resolveInstanceTabCapability()
+                .map(capability -> capability.instanceName(connect))
+                .filter(value -> value != null && !value.isBlank())
+                .orElse("");
+        if (!instanceName.isEmpty()) {
+            return instanceName;
+        }
         String namedServerProp = resolveNamedServerPropertyName();
-        String instanceName = extractInfoValue(connect.getInfo(), namedServerProp);
+        instanceName = extractInfoValue(connect.getInfo(), namedServerProp);
         if (!instanceName.isEmpty()) {
             return instanceName;
         }
@@ -1243,21 +1182,21 @@ public class CustomInstanceTab extends CustomTab {
                 "$1" + Matcher.quoteReplacement(value == null ? "" : value));
     }
     /**
-     * 通用 Tab 懒加载绑定方法（抽取公共逻辑，避免重复代码）
+     * 通用 Tab 懒加载绑定方法
      * @param tab 目标 Tab
-     * @param loadTask 加载内容的任务（无返回值）
+     * @param loadTask 加载内容的任务
      * @param isLoaded 判断是否已加载的回调
      * @param setLoaded 设置已加载状态的回调
      */
     private void bindLazyLoadToTab(Tab tab, Runnable loadTask, Supplier<Boolean> isLoaded, Consumer<Boolean> setLoaded) {
-        // 初始化 Tab 内容为「加载占位符」（可选，提升体验）
+        // 初始化 Tab 内容为加载占位符
         tab.setContent(createLoadingNode());
 
         // 绑定选中状态监听器
         tab.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            // 仅当「首次选中」（newVal 为 true，且未加载）时触发加载
+            // 仅当首次选中且未加载时触发加载
             if (newVal && !isLoaded.get()) {
-                // 启动线程执行加载任务（避免阻塞 UI）
+                // 异步执行加载任务，避免阻塞 UI
                 AppExecutor.runAsync(() -> {
                     try {
                         updateGroupInstanceInfo();
@@ -1265,7 +1204,7 @@ public class CustomInstanceTab extends CustomTab {
                         loadTask.run(); // 执行加载逻辑
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
-                        // 加载失败：显示错误信息
+                        // 加载失败时显示错误信息
                         Platform.runLater(() -> {
                             tab.setContent(createErrorNode(e.getMessage()));
                         });
@@ -1277,763 +1216,189 @@ public class CustomInstanceTab extends CustomTab {
 
     // ------------------------------ 各个 Tab 的加载逻辑 ------------------------------
     /**
-     * 加载「实例信息」Tab 内容（示例，需根据实际业务补充）
+     * 加载“实例信息”Tab 内容
      */
     private void loadInfoTabContent(CustomTab infoTab) {
 
-        //信息框绑定
+        // 信息框绑定
         Platform.runLater(() -> {
-            String textArarText="";
-            textArarText+=("##########################################################################################\n");
-            textArarText+="Connection Information\n";
-            textArarText+=("##########################################################################################\n");
-            textArarText+=String.format("%-30s","Connection Name")+connect.getName()+"\n";
-            textArarText+=String.format("%-30s","Database Type")+connect.getDbtype()+"\n";
-            textArarText+=String.format("%-30s","JDBC Driver")+connect.getDriver()+"  (MD5:"+connect.getDrivermd5()+")\n";
-            textArarText+=String.format("%-30s","IP Address")+connect.getIp()+"\n";
-            textArarText+=String.format("%-30s","Port")+connect.getPort()+"\n";
-            textArarText+=String.format("%-30s","Database User")+connect.getUsername()+"\n";
-            String props="";
-            JSONArray jsonArray=new JSONArray(connect.getProps());
-            for(int i=0;i<jsonArray.length();i++){
-                JSONObject jsonObject=jsonArray.getJSONObject(i);
-                if(jsonObject.getString("propValue")!=null&&(!jsonObject.getString("propValue").equals(""))){
-                    props+=jsonObject.getString("propName")+"="+jsonObject.getString("propValue")+";";
-                }
-            }
-            textArarText+=String.format("%-30s","Driver Properties")+props+"\n";
-            textArarText+=String.format("%-30s","Database Version")+connect.getDbversion()+"\n";
-            textArarText+=(connect.getInfo()+"\n");
+            String textArarText = resolveInstanceTabCapability()
+                    .map(capability -> capability.buildInfoText(connect))
+                    .orElse("");
 
-            //实例信息界面
+            // 实例信息界面
             CustomInfoStackPane instance_info_codearea = new CustomInfoStackPane(new CustomInfoCodeArea());
 
-            //实例信息界面结束
-            instance_info_codearea.codeArea.replaceText(textArarText); //如果不用settext，而是appendtext追加，会导致setScrollTop无效
+            // 实例信息界面结束
+            instance_info_codearea.codeArea.replaceText(textArarText); // 使用 replaceText，避免滚动定位失效
             infoTab.setContent(instance_info_codearea);
 
-            instance_info_codearea.codeArea.showParagraphAtTop(0); //此方法有效
+            instance_info_codearea.codeArea.showParagraphAtTop(0); //姝ゆ柟娉曟湁鏁?
             instance_info_codearea.codeArea.setStyleSpans(0, KeywordsHighlightUtil.applyHighlightingInfo(instance_info_codearea.codeArea.getText()));
         });
 
     }
 
-    private void loadCheckTabContent(CustomTab checkTab)  {
-        log.info("loadCheckTabContent in,connect.getip is:"+connect.getIp());
+    private void loadSpaceTabThroughLoader(CustomTab spaceTab) {
+        InstanceTabLoaders.SpaceTabData data = InstanceTabLoaders.loadSpaceTabData(log, connect, adminService);
+        dbspaceChartList = data.dbspaceList();
+        chunkChartList = data.chunkChartList();
+        databaseChartList = data.databaseChartList();
+        tabChartList = data.tabChartList();
+        InstanceTabLoaders.renderSpaceTab(
+                data,
+                dbspaceChart,
+                chunkChart,
+                databaseChart,
+                tabChart,
+                menuListener,
+                dbspaceStackPane,
+                spaceTab,
+                connect.getReadonly() || !supportsSpaceMutation()
+        );
+    }
 
-        checkDatalist.clear();
-        //initDatalist(checkDatalist);
-        String instanceStatus="";
-        String onstat_g_osi="";
-        String onstat_g_osi_machine="";
-        String onstat_g_osi_cpu="";
-        String onstat_g_osi_mem="";
-        String onstat_V="";
-        String onstat_="";
-        String onstat_g_seg_greped="";
-        String onstat_g_seg="";
-        String onstat_g_cluster="";
-        String onstat_l="";
-        String onstat_l_llog="";
-        String onstat_d_greped="";
-        String onstat_d="";
-        double spaceTopPercent=0;
-        String onstat_g_arc_greped="onstat_g_arc_greped";
-        String onstat_g_arc="";
-        String onstat_m="";
-        String onstat_g_sql_greped="";
-        String onstat_g_sql="";
-        String onstat_g_act_greped="";
-        String onstat_g_act="";
-        String onstat_g_rea_greped="";
-        String onstat_g_rea="";
-        String onstat_g_wai="";
-        String onstat_g_wai_logio="";
-        String onstat_g_wai_lockwait="";
-        String onstat_g_wai_bufwait="";
-        String onstat_g_wai_iowait="";
-        String onstat_x_greped="";
-        String onstat_x="";
-        String onstat_p="";
-        String onstat_p_greped="";
-        String onstat_p_deadlks="";
-        try {
-            Session session= JschUtil.getConnect(connect);
-            onstat_g_osi=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g osi");
-            onstat_g_osi_machine=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g osi |awk '/OS Machine/ {print $3}'");
-            onstat_g_osi_cpu=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g osi |awk '/Number of online processors/{print $5}'");
-            onstat_g_osi_mem=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g osi |grep -v 'System memory page size' |awk '/System memory/{print $3$4}'");
-            onstat_V=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -V");
-            onstat_=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -",true);
-            onstat_g_seg_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g seg|grep -c ' V '");
-            onstat_g_seg=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g seg");
-            onstat_g_cluster=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g cluster");
-            onstat_l=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -l");
-            onstat_l_llog=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -l |grep -c 'U------'");
-            onstat_d_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -d|grep -c PD");
-            onstat_d=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -d");
-            spaceTopPercent = adminService.getMaxStorageSpaceUsage(connect);
-            onstat_g_arc_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g arc |grep -A 1 ' level ' |sed -n '2p' |awk '{print $4}'");
-            onstat_g_arc=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g arc");
-            onstat_m=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -c |awk '/^MSGPATH/ {print \"tail -1000 \"$2}' |sh|egrep -ic 'err|failed|warning|allocated|full|long|down|Died|Aborting|Abort'");
-            onstat_g_sql_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g sql |egrep -v 'On-Line|Read-Only|Current|Database|^$' |wc -l");
-            onstat_g_sql=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g sql");
-            onstat_g_act_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g act |grep -v soctcppoll |grep -v '^$'|wc -l");
-            onstat_g_act=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g act");
-            onstat_g_rea_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g rea|grep -v '^$'| wc -l");
-            onstat_g_rea=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g rea");
-            onstat_g_wai=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g wai");
-            onstat_g_wai_logio=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g wai|grep -c 'logio cond'");
-            onstat_g_wai_lockwait=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g wai|grep -c 'yield lockwait'");
-            onstat_g_wai_bufwait=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g wai|grep -c 'yield bufwait'");
-            onstat_g_wai_iowait=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -g wai|grep -c 'IO Wait'");
-            onstat_x_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -x |grep -v '^$' |grep -v ' - ' |wc -l");
-            onstat_x=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -x");
-            onstat_p=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -p");
-            onstat_p_greped=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -p |grep -A 1 rewrite |sed -n '2p' |awk '{print $4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9}'");
-            onstat_p_deadlks=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -p |grep -A 1 deadlks |sed -n '2p' |awk '{print $4}'");
-            JschUtil.disConnect(session);
-        }catch (SQLException e){
-            log.error(e.getMessage(), e);
-        }
-        catch (Exception e){
-            log.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-
-        String currentValue;
-        String status ;
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_g_osi_machine.isEmpty()){
-            currentValue=onstat_g_osi_machine;
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "系统架构","onstat -g osi", "x86_64/aarch64",currentValue,status,onstat_g_osi);
-
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_g_osi_cpu.isEmpty()){
-            currentValue=onstat_g_osi_cpu;
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "CPU数量","onstat -g osi", "1核心以上",currentValue,status,onstat_g_osi);
-
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_g_osi_mem.isEmpty()){
-            currentValue=onstat_g_osi_mem;
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "内存大小","onstat -g osi", "2GB以上",currentValue,status,onstat_g_osi);
-
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_V.isEmpty()){
-            currentValue=onstat_V;
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "数据库版本","onstat -V", resolveVersionExpectation(),currentValue,status,onstat_V);
-
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_.isEmpty()) {
-            if (onstat_.contains("Your evaluation license")) {
-                currentValue = onstat_.split("Your evaluation license will expire on ")[1];
-                status = "1";
-            } else {
-                currentValue = "Permanent";
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "软件授权有效期","onstat -", "永久",currentValue,status,onstat_);
-
-        String strictRegex = "((?:On-Line|Read-Only)(?:\\s+\\(.*\\))?)\\s+--"; // 转义\为\\（Java字符串语法）
-        Pattern strictPattern = Pattern.compile(strictRegex);
-        Matcher strictMatcher = strictPattern.matcher(onstat_);
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_.isEmpty()) {
-            if (strictMatcher.find()) {
-                currentValue = strictMatcher.group(1);
-                status = "0";
-            } else {
-                currentValue = "Off-Line";
-                instanceStatus="Off-Line";
-                status = "2";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例状态", "onstat -", "主节点或单机On-Line，集群备机Read-Only", currentValue, status,onstat_);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_)) {
-            strictRegex = "(Blocked:.*)"; // 转义\为\\（Java字符串语法）
-            strictPattern = Pattern.compile(strictRegex);
-            strictMatcher = strictPattern.matcher(onstat_);
-            if (strictMatcher.find()) {
-                currentValue = strictMatcher.group(1);
-                status = "2";
-            } else {
-                currentValue = "Not Blocked";
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例是否BLOCKED", "onstat -", "正常无Blocked:显示", currentValue, status,onstat_);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_)) {
-            strictRegex = "--\\s+Up\\s+(.*)\\s+--"; // 转义\为\\（Java字符串语法）
-            strictPattern = Pattern.compile(strictRegex);
-            strictMatcher = strictPattern.matcher(onstat_);
-            if (strictMatcher.find()) {
-                currentValue = strictMatcher.group(1);
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例运行天数", "onstat -", "xxx Days", currentValue, status,onstat_);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_)) {
-            strictRegex = "--\\s+([0-9]*\\s+Kbytes)"; // 转义\为\\（Java字符串语法）
-            strictPattern = Pattern.compile(strictRegex);
-            strictMatcher = strictPattern.matcher(onstat_);
-            if (strictMatcher.find()) {
-                currentValue = strictMatcher.group(1);
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例内存总量", "onstat -", "xxx Kbytes", currentValue, status,onstat_);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_seg_greped)) {
-            currentValue = onstat_g_seg_greped;
-            int segments = parseIntOrDefault(currentValue, 0);
-            if (segments > 3) {
-                status = "1";
-            }else{
-                status="0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例内存段数量", "onstat -g seg", "V段不超过3个", currentValue, status,onstat_g_seg);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_cluster)) {
-            currentValue = onstat_g_cluster;
-            if (currentValue.contains("Disconnected")) {
-                currentValue = "Disconnected";
-                status = "2";
-            } else if (currentValue.contains("Connected")) {
-                currentValue = "Connected";
-                status = "0";
-            } else {
-                currentValue = "Not Clustered";
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例集群状态", "onstat -g cluster", "无集群或Connected", currentValue, status,onstat_g_cluster);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_l)) {
-            String plogsize = onstat_l.split("Physical Logging")[1].split("Logical Logging")[0];
-            strictRegex = "^\\s*\\d+:\\d+\\s+(\\d+)"; // 转义\为\\（Java字符串语法）
-            strictPattern = Pattern.compile(strictRegex);
-            strictMatcher = strictPattern.matcher(plogsize.split("\n")[4]);
-            if (strictMatcher.find()) {
-                // 拼接匹配结果，统一格式为 On-Line
-                int psize = parseIntOrDefault(strictMatcher.group(1), 0) * 2;
-                currentValue = psize + "k";
-                status = "0";
-                if (psize < 512000 * 2) {
-                    status = "1";
-                }
-            }
-        }
-        addHealthCheck(checkDatalist, "实例物理日志", "onstat -l", "physize不小于1G", currentValue, status,onstat_l);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_l_llog)) {
-            currentValue = onstat_l_llog;
-            if (parseIntOrDefault(onstat_l_llog, 0) > 0) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例逻辑日志", "onstat -l", "U------状态日志为0", currentValue, status,onstat_l);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_d_greped)) {
-            currentValue = onstat_d_greped;
-            if (parseIntOrDefault(currentValue, 0) > 0) {
-                status = "2";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例空间状态", "onstat -d", "无PD状态", currentValue, status,onstat_d);
-
-        currentValue="实例状态异常";
-        status="2";
-        if(spaceTopPercent!=0) {
-            currentValue = String.valueOf(spaceTopPercent) + "%";
-            status = "0";
-            if (spaceTopPercent > 80) {
-                status = "1";
-            }
-            if (spaceTopPercent > 90) {
-                status = "2";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例空间使用率", "onstat -d", "使用率小于80%", currentValue, status,onstat_d);
-
-        currentValue="实例状态异常";
-        status="2";
-        if(!onstat_g_arc_greped.equals("onstat_g_arc_greped") && instanceStatus != null && !instanceStatus.contains("Off-Line")) {
-            currentValue = onstat_g_arc_greped;
-            SimpleDateFormat SDF = new SimpleDateFormat("MM/dd/yyyy.HH:mm");
-            boolean isOver1Day = false;
-            if (!currentValue.equals("")) {
-                try {
-                    Date date = SDF.parse(currentValue);
-                    long oneDayMs = 24 * 60 * 60 * 1000L; // 1天的毫秒数
-                    long timeDiffMs = new Date().getTime() - date.getTime();
-                    isOver1Day = timeDiffMs > oneDayMs;
-                } catch (ParseException e1) {
-                    throw new RuntimeException(e1);
-                }
-            }
-            status = "0";
-
-            if (isOver1Day || currentValue.equals("")) {
-                status = "1";
-            }
-            if (currentValue.equals("")) {
-                currentValue = "Never Archived";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例空间备份", "onstat -g arc", "最后一次备份时间在24小时内", currentValue, status,onstat_g_arc);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_m)) {
-            currentValue = onstat_m;
-            if (parseIntOrDefault(onstat_m, 0) > 0) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例运行日志", resolveRuntimeLogCommand(), "err、failed关键字数量为0", currentValue, status,onstat_m);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_sql_greped)) {
-            currentValue = onstat_g_sql_greped;
-            int totalConnectionCount = parseIntOrDefault(currentValue, 0);
-            if (totalConnectionCount >= 10000) {
-                status = "1";
-            }else{
-                status="0";
-            }
-            currentValue=String.valueOf(totalConnectionCount);
-        }
-        addHealthCheck(checkDatalist, "实例总连接数", "onstat -g sql", "<10000", currentValue, status,onstat_g_sql);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_act_greped)) {
-            currentValue = onstat_g_act_greped;
-            int activeConnectionCount = parseIntOrDefault(currentValue, 0);
-            if (activeConnectionCount >= 1003) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-            currentValue=String.valueOf(activeConnectionCount - 3);
-        }
-        addHealthCheck(checkDatalist, "实例活动连接数", "onstat -g act", "<1000", currentValue, status,onstat_g_act);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_rea_greped)) {
-            currentValue = onstat_g_rea_greped;
-            int queueCount = parseIntOrDefault(currentValue, 0);
-            if (queueCount > 3) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-            currentValue=String.valueOf(queueCount - 3);
-        }
-        addHealthCheck(checkDatalist, "实例队列数量", "onstat -g rea", "0或少量", currentValue, status,onstat_g_rea);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_wai_logio)) {
-            currentValue = onstat_g_wai_logio;
-            if (parseIntOrDefault(currentValue, 0) > 0) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例逻辑日志等待logio cond", "onstat -g wai", "0或少量", currentValue, status,onstat_g_wai);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_wai_lockwait)) {
-            currentValue = onstat_g_wai_lockwait;
-            if (parseIntOrDefault(currentValue, 0) > 0) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例锁等待yield lockwait", "onstat -g wai", "0或少量", currentValue, status,onstat_g_wai);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_wai_bufwait)) {
-            currentValue = onstat_g_wai_bufwait;
-            if (parseIntOrDefault(currentValue, 0) > 0) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例buf等待yield bufwait", "onstat -g wai", "0或少量", currentValue, status,onstat_g_wai);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_g_wai_iowait)) {
-            currentValue = onstat_g_wai_iowait;
-            if (parseIntOrDefault(currentValue, 0) > 0) {
-                status = "1";
-            } else {
-                status = "0";
-            }
-        }
-        addHealthCheck(checkDatalist, "实例IO等待IO Wait", "onstat -g wai", "0或少量", currentValue, status,onstat_g_wai);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_x_greped)) {
-            currentValue = String.valueOf(parseIntOrDefault(onstat_x_greped, 0) - 5);
-            status = "0";
-        }
-        addHealthCheck(checkDatalist, "实例打开未提交事务数", "onstat -x", "少量", currentValue, status,onstat_x);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_p_greped)) {
-            currentValue = tokenAt(onstat_p_greped, 4, currentValue);
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "实例已提交事务数", "onstat -p", "业务繁忙度决定", currentValue, status,onstat_p);
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_p_greped)) {
-            currentValue = tokenAt(onstat_p_greped, 5, currentValue);
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "实例回滚事务数", "onstat -p", "少量", currentValue, status,onstat_p);
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_p_greped)) {
-            currentValue = tokenAt(onstat_p_greped, 1, currentValue);
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "实例插入数量", "onstat -p", "业务繁忙度决定", currentValue, status,onstat_p);
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_p_greped)) {
-            currentValue = tokenAt(onstat_p_greped, 2, currentValue);
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "实例更新数量", "onstat -p", "业务繁忙度决定", currentValue, status,onstat_p);
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_p_greped)) {
-            currentValue = tokenAt(onstat_p_greped, 3, currentValue);
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "实例删除数量", "onstat -p", "业务繁忙度决定", currentValue, status,onstat_p);
-
-        currentValue="实例状态异常";
-        status="2";
-        if (canEvaluateCheck(onstat_p_deadlks)) {
-            currentValue = onstat_p_deadlks;
-            status="0";
-        }
-        addHealthCheck(checkDatalist, "实例死锁数量", "onstat -p", "业务逻辑决定", currentValue, status,onstat_p);
+    private void loadCheckTabThroughCapability() {
+        InstanceTabCapability.CheckTableModel model = resolveInstanceTabCapability()
+                .map(capability -> {
+                    try {
+                        return capability.buildCheckTable(connect);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .orElse(new InstanceTabCapability.CheckTableModel(List.of(), List.of()));
 
         Platform.runLater(() -> {
+            applyCheckTableColumns(model.columns());
+            checkDatalist.clear();
+            checkDatalist.addAll(model.rows());
             checkTableView.getItems().clear();
             checkTableView.getItems().setAll(checkDatalist);
             checkTableView.refresh();
             checkTab.setContent(checkStackPane);
         });
-
-
     }
 
-    private void    loadParamsTabContent(CustomTab checkTab)  {
+    private void loadLogTabThroughCapability() {
+        String onlineLog = resolveInstanceTabCapability()
+                .map(capability -> {
+                    try {
+                        return capability.loadRuntimeLog(connect);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .orElse("");
 
-        configTableView.getItems().clear();
-        String config="";
+        Platform.runLater(() -> {
+            CustomInfoCodeArea logCodeArea = new CustomInfoCodeArea();
+            CustomInfoStackPane customInfoStackPane = new CustomInfoStackPane(logCodeArea);
+            StackPane stackPane = new StackPane(customInfoStackPane);
+            logCodeArea.replaceText(onlineLog);
+            logCodeArea.setStyleSpans(0, KeywordsHighlightUtil.applyHighlightingOnlinelog(logCodeArea.getText()));
+            logCodeArea.showParagraphAtBottom(logCodeArea.getParagraphs().size() - 1);
+            logTab.setContent(stackPane);
+        });
+    }
 
-        try {
-            Session session= JschUtil.getConnect(connect);
-            config=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -c |grep -v '^$' |grep -v '^#' |sed '1,2d'");
-            JschUtil.disConnect(session);
-        }catch (Exception e){
-            log.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-        String finalConfig = config;
+    private void loadParamsTabThroughCapability() {
+        List<InstanceTabCapability.ConfigEntry> rows = resolveInstanceTabCapability()
+                .map(capability -> {
+                    try {
+                        return capability.loadConfigEntries(connect);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .orElse(List.of());
+
         Platform.runLater(() -> {
             configDatalist.clear();
-            configDatalist=parseConfigData(finalConfig);
+            for (InstanceTabCapability.ConfigEntry row : rows) {
+                configDatalist.add(FXCollections.observableArrayList(null, row.name(), row.value()));
+            }
             configTableView.getItems().setAll(configDatalist);
             configTableView.refresh();
             configTableView.setVisible(true);
             paramsTab.setContent(configStackPane);
         });
-
-
     }
 
-    private ObservableList<ObservableList<String>> parseConfigData(String rawData) {
-        ObservableList<ObservableList<String>> configItems = FXCollections.observableArrayList();
-
-        // 按行分割数据（处理换行符兼容：\n、\r\n）
-        String[] lines = rawData.replaceAll("\r\n", "\n").split("\n");
-
-        for (String line : lines) {
-            // 去除行首尾空白
-            String trimmedLine = line.trim();
-            if (trimmedLine.isEmpty()) {
-                continue; // 跳过空行
-            }
-
-            // 分割参数名和参数值（按第一个空格/制表符分割，兼容多空格/制表符）
-            String[] parts = trimmedLine.split("\\s+", 2); // 分割为2部分，保留值中的空格
-            String paramName = parts[0];
-            String paramValue = parts.length > 1 ? parts[1] : ""; // 无值则为空字符串
-
-            // 添加到列表
-            configItems.add(FXCollections.observableArrayList(null, paramName,paramValue) );
-        }
-
-        return configItems;
-    }
-
-    private void loadLogTabContent(CustomTab logTab){
-
-        try {
-            Session session= JschUtil.getConnect(connect);
-            onlinelog=JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -c |awk '/^MSGPATH/ {print \"tail -1000 \"$2}' |sh");
-            JschUtil.disConnect(session);
-        }catch (Exception e){
-            log.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-        Platform.runLater(()->{
-            CustomInfoCodeArea logCodeArea=new CustomInfoCodeArea();
-            CustomInfoStackPane customInfoStackPane=new CustomInfoStackPane(logCodeArea);
-            StackPane stackPane=new StackPane();
-            stackPane.getChildren().add(customInfoStackPane);
-            logCodeArea.replaceText(onlinelog);
-            logCodeArea.setStyleSpans(0,KeywordsHighlightUtil.applyHighlightingOnlinelog(logCodeArea.getText()));
-            logCodeArea.showParagraphAtBottom(logCodeArea.getParagraphs().size() - 1);
-            logTab.setContent(stackPane);
-        });
-
-    }
-
-
-    private void loadSpaceTabContent(CustomTab spaceTab) {
-        try {
-            dataList = adminService.getStorageSpaceUsage(connect);
-        }
-        catch (Exception e){
-            log.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-
-
-        Platform.runLater(()->{
-
-            dbspaceChartList=dataList.get(0);
-            chunkChartList=dataList.get(1);
-            databaseChartList=dataList.get(2);
-            tabChartList=dataList.get(3);
-            dbspaceChart.render(dbspaceChartList);
-            chunkChart.render(chunkChartList);
-            databaseChart.render(databaseChartList);
-            tabChart.render(tabChartList);
-            dbspaceChart.setContextMenuListener(menuListener);
-            chunkChart.setContextMenuListener(menuListener);
-
-
-            if(connect.getReadonly()){
-                dbspaceChart.setMenuItemsDisabled(true);
-                chunkChart.setMenuItemsDisabled(true);
-            }
-
-
-
-                        /*
-            ImageView loading_icon = IconFactory.loadingImageView(0.7);
-            StackPane stackPane=new StackPane(loading_icon);
-
-             */
-
-            // 5. 填充数据+添加百分比
-
-            spaceTab.setContent(dbspaceStackPane);
-        });
-    }
-
-    private void loadStartTabContent(CustomTab startTab) {
-
-
-        try {
-            Session session=JschUtil.getConnect(connect);
-            instanceStatus = JschUtil.executeCommand(session,JschUtil.extractEnvValue(connect.getInfo())+"onstat -");
-            JschUtil.disConnect(session);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    private void loadStartTabThroughCapability() {
+        boolean online = resolveInstanceTabCapability()
+                .map(capability -> {
+                    try {
+                        return capability.isInstanceOnline(connect);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .orElse(false);
 
         Platform.runLater(() -> {
-            if (instanceStatus.contains("On-Line")||instanceStatus.contains("Read-Only")) {
+            if (online) {
                 stopButton.setVisible(true);
                 startButton.setVisible(false);
                 instanceStatusTextCode.set("online");
-            } else  {
+            } else {
                 startButton.setVisible(true);
                 stopButton.setVisible(false);
                 instanceStatusTextCode.set("offline");
-
             }
             startTab.setContent(startStackPane);
         });
     }
-    public void initDatalist(List<HealthCheck> datalist){
+
+
+    private void initCheckTableColumns() {
+        applyCheckTableColumns(List.of(
+                new InstanceTabCapability.CheckColumn("entry", "instance.check.column.item", "巡检项", InstanceTabCapability.CheckColumnKind.TEXT, 200),
+                new InstanceTabCapability.CheckColumn("cmd", "instance.check.column.cmd", "巡检命令", InstanceTabCapability.CheckColumnKind.TEXT, 100),
+                new InstanceTabCapability.CheckColumn("healthValue", "instance.check.column.expected", "正常值", InstanceTabCapability.CheckColumnKind.TEXT, 300),
+                new InstanceTabCapability.CheckColumn("currentValue", "instance.check.column.current", "当前值", InstanceTabCapability.CheckColumnKind.TEXT, 300),
+                new InstanceTabCapability.CheckColumn("status", "instance.check.column.result", "巡检结论", InstanceTabCapability.CheckColumnKind.STATUS, 100)
+        ));
+    }
+
+    private void applyCheckTableColumns(List<InstanceTabCapability.CheckColumn> columns) {
+        checkTableView.getColumns().removeIf(column -> column != null && !"".equals(column.getText()));
+        if (columns == null || columns.isEmpty()) {
+            return;
+        }
+        for (InstanceTabCapability.CheckColumn columnDef : columns) {
+            TableColumn<InstanceTabCapability.CheckRow, Object> column = new TableColumn<>();
+            if (columnDef.titleI18nKey() != null && !columnDef.titleI18nKey().isBlank()) {
+                column.textProperty().bind(I18n.bind(columnDef.titleI18nKey(), columnDef.title()));
+            } else {
+                column.setText(columnDef.title());
+            }
+            if (columnDef.kind() == InstanceTabCapability.CheckColumnKind.STATUS) {
+                column.setCellFactory(col -> new CustomCheckTableCell<InstanceTabCapability.CheckRow, Object>());
+            } else {
+                column.setCellFactory(col -> new CustomTableCell<InstanceTabCapability.CheckRow, Object>());
+            }
+            column.setCellValueFactory(data -> Bindings.createObjectBinding(() -> {
+                String value = data.getValue().value(columnDef.key());
+                String valueI18nKey = data.getValue().valueI18nKey(columnDef.key());
+                if (valueI18nKey != null && !valueI18nKey.isBlank()) {
+                    return I18n.t(valueI18nKey, value);
+                }
+                return value;
+            }, I18n.localeProperty()));
+            column.setReorderable(false);
+            column.setEditable(false);
+            column.setPrefWidth(columnDef.prefWidth());
+            checkTableView.getColumns().add(column);
+        }
+        if (!checkTableView.getColumns().isEmpty()) {
+            ((TableColumn<?, ?>) checkTableView.getColumns().get(0)).setMaxWidth(30);
+            ((TableColumn<?, ?>) checkTableView.getColumns().get(0)).setMinWidth(30);
+        }
+    }
+
+    public void initCheckDatalist(List<InstanceTabCapability.CheckRow> datalist){
         datalist.clear();
-
-    }
-
-    private void addHealthCheck(List<HealthCheck> datalist, String entry, String cmd, String expectedValue, String currentValue, String status, String cmdOutput) {
-        HealthCheck healthCheck = new HealthCheck(
-                entry,
-                cmd,
-                expectedValue,
-                currentValue,
-                status,
-                cmdOutput
-        );
-        healthCheck.entryProperty().bind(Bindings.createStringBinding(
-                () -> i18nCheckEntry(entry),
-                I18n.localeProperty()
-        ));
-        healthCheck.healthValueProperty().bind(Bindings.createStringBinding(
-                () -> i18nCheckExpected(expectedValue),
-                I18n.localeProperty()
-        ));
-        datalist.add(healthCheck);
-    }
-
-    private boolean canEvaluateCheck(String value) {
-        return value != null && !value.isEmpty() && instanceStatus != null && !instanceStatus.contains("Off-Line");
-    }
-
-    private int parseIntOrDefault(String value, int defaultValue) {
-        try {
-            return Integer.parseInt(value.trim());
-        } catch (Exception e) {
-            return defaultValue;
-        }
-    }
-
-    private String tokenAt(String value, int index, String defaultValue) {
-        if (value == null) {
-            return defaultValue;
-        }
-        String[] tokens = value.trim().split("\\s+");
-        if (index < 0 || index >= tokens.length) {
-            return defaultValue;
-        }
-        return tokens[index];
-    }
-
-    private String i18nCheckEntry(String text) {
-        return switch (text) {
-            case "系统架构" -> I18n.t("instance.check.item.system_arch", text);
-            case "CPU数量" -> I18n.t("instance.check.item.cpu_count", text);
-            case "内存大小" -> I18n.t("instance.check.item.memory_size", text);
-            case "数据库版本" -> I18n.t("instance.check.item.db_version", text);
-            case "软件授权有效期" -> I18n.t("instance.check.item.license_expiry", text);
-            case "实例状态" -> I18n.t("instance.check.item.instance_status", text);
-            case "实例是否BLOCKED" -> I18n.t("instance.check.item.instance_blocked", text);
-            case "实例运行天数" -> I18n.t("instance.check.item.instance_uptime_days", text);
-            case "实例内存总量" -> I18n.t("instance.check.item.instance_memory_total", text);
-            case "实例内存段数量" -> I18n.t("instance.check.item.instance_memory_segments", text);
-            case "实例集群状态" -> I18n.t("instance.check.item.instance_cluster_status", text);
-            case "实例物理日志" -> I18n.t("instance.check.item.instance_physical_log", text);
-            case "实例逻辑日志" -> I18n.t("instance.check.item.instance_logical_log", text);
-            case "实例空间状态" -> I18n.t("instance.check.item.instance_space_status", text);
-            case "实例空间使用率" -> I18n.t("instance.check.item.instance_space_usage", text);
-            case "实例空间备份" -> I18n.t("instance.check.item.instance_space_backup", text);
-            case "实例运行日志" -> I18n.t("instance.check.item.instance_runtime_log", text);
-            case "实例总连接数" -> I18n.t("instance.check.item.instance_total_connections", text);
-            case "实例活动连接数" -> I18n.t("instance.check.item.instance_active_connections", text);
-            case "实例队列数量" -> I18n.t("instance.check.item.instance_queue_count", text);
-            case "实例逻辑日志等待logio cond" -> I18n.t("instance.check.item.instance_wait_logio", text);
-            case "实例锁等待yield lockwait" -> I18n.t("instance.check.item.instance_wait_lock", text);
-            case "实例buf等待yield bufwait" -> I18n.t("instance.check.item.instance_wait_buf", text);
-            case "实例IO等待IO Wait" -> I18n.t("instance.check.item.instance_wait_io", text);
-            case "实例打开未提交事务数" -> I18n.t("instance.check.item.instance_open_txn", text);
-            case "实例已提交事务数" -> I18n.t("instance.check.item.instance_committed_txn", text);
-            case "实例回滚事务数" -> I18n.t("instance.check.item.instance_rollback_txn", text);
-            case "实例插入数量" -> I18n.t("instance.check.item.instance_insert_count", text);
-            case "实例更新数量" -> I18n.t("instance.check.item.instance_update_count", text);
-            case "实例删除数量" -> I18n.t("instance.check.item.instance_delete_count", text);
-            case "实例死锁数量" -> I18n.t("instance.check.item.instance_deadlock_count", text);
-            default -> text;
-        };
-    }
-
-    private String i18nCheckExpected(String text) {
-        return switch (text) {
-            case "1核心以上" -> I18n.t("instance.check.expected.cpu_above_1", text);
-            case "2GB以上" -> I18n.t("instance.check.expected.memory_above_2g", text);
-            case "永久" -> I18n.t("instance.check.expected.license_permanent", text);
-            case "主节点或单机On-Line，集群备机Read-Only" -> I18n.t("instance.check.expected.instance_online_or_readonly", text);
-            case "正常无Blocked:显示" -> I18n.t("instance.check.expected.no_blocked", text);
-            case "V段不超过3个" -> I18n.t("instance.check.expected.memory_segments_le_3", text);
-            case "无集群或Connected" -> I18n.t("instance.check.expected.cluster_connected", text);
-            case "physize不小于1G" -> I18n.t("instance.check.expected.physize_ge_1g", text);
-            case "U------状态日志为0" -> I18n.t("instance.check.expected.logical_log_zero", text);
-            case "无PD状态" -> I18n.t("instance.check.expected.no_pd", text);
-            case "使用率小于80%" -> I18n.t("instance.check.expected.usage_lt_80", text);
-            case "最后一次备份时间在24小时内" -> I18n.t("instance.check.expected.backup_within_24h", text);
-            case "err、failed关键字数量为0" -> I18n.t("instance.check.expected.log_error_zero", text);
-            case "0或少量" -> I18n.t("instance.check.expected.zero_or_few", text);
-            case "少量" -> I18n.t("instance.check.expected.few", text);
-            case "业务繁忙度决定" -> I18n.t("instance.check.expected.depends_on_business_load", text);
-            case "业务逻辑决定" -> I18n.t("instance.check.expected.depends_on_business_logic", text);
-            default -> text;
-        };
     }
 
     private Node createLoadingNode() {
@@ -2052,3 +1417,6 @@ public class CustomInstanceTab extends CustomTab {
         return errorPane;
     }
 }
+
+
+

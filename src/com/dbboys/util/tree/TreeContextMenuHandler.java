@@ -1382,19 +1382,11 @@ public class TreeContextMenuHandler {
                 //连接
                 else if(selectedItem.getValue() instanceof Connect){
                     Connect connect =(Connect)selectedItem.getValue();
-                    if (!supportsInstanceAdmin(connect)) {
-                        healthCheckItem.setDisable(true);
-                        onlinelogItem.setDisable(true);
-                        spaceManagerItem.setDisable(true);
-                        onconfigItem.setDisable(true);
-                        instanceStopItem.setDisable(true);
-                    }else{
-                        healthCheckItem.setDisable(false);
-                        onlinelogItem.setDisable(false);
-                        spaceManagerItem.setDisable(false);
-                        onconfigItem.setDisable(false);
-                        instanceStopItem.setDisable(false);
-                    }
+                    healthCheckItem.setDisable(!supportsHealthCheck(connect));
+                    onlinelogItem.setDisable(!supportsOnlineLog(connect));
+                    spaceManagerItem.setDisable(!supportsSpaceManager(connect));
+                    onconfigItem.setDisable(!supportsConfigManagement(connect));
+                    instanceStopItem.setDisable(!supportsStartStop(connect));
                     //treeview_menu.getItems().add(createConnectItem);
                     treeview_menu.getItems().add(sqlHisItem);
                     treeview_menu.getItems().add(separator1);
@@ -1881,6 +1873,61 @@ public class TreeContextMenuHandler {
         }
         try {
             return resolvePlatformResolver().admin(connect).supportsAdminFeatures(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean supportsHealthCheck(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        try {
+            return resolvePlatformResolver().admin(connect).supportsHealthCheck(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean supportsOnlineLog(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        try {
+            return resolvePlatformResolver().admin(connect).supportsOnlineLog(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean supportsSpaceManager(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        try {
+            return resolvePlatformResolver().admin(connect).supportsSpaceManager(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean supportsConfigManagement(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        try {
+            return resolvePlatformResolver().admin(connect).supportsConfigManagement(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean supportsStartStop(Connect connect) {
+        if (connect == null) {
+            return false;
+        }
+        try {
+            return resolvePlatformResolver().admin(connect).supportsStartStop(connect);
         } catch (Exception ignored) {
             return false;
         }

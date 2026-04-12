@@ -1,5 +1,9 @@
 package com.dbboys.customnode;
 
+import com.dbboys.api.InstanceAdminRepository;
+import com.dbboys.app.AppContext;
+import com.dbboys.impl.DatabasePlatforms;
+import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
@@ -21,7 +25,6 @@ public class CustomInstanceInfoTableView extends CustomTableView {
     private static final int TAB_SPACE_MANAGER = 3;
     private static final int TAB_ONCONFIG = 4;
     private static final int TAB_INSTANCE_START_STOP = 5;
-    private static final String GBASEDBT_USER = "gbasedbt";
 
     public CustomInstanceInfoTableView() {
         super();
@@ -174,12 +177,12 @@ public class CustomInstanceInfoTableView extends CustomTableView {
         );
         contextMenu.setOnShowing(event -> {
             Connect selectedConnect = getSelectedConnect();
-            boolean isGbaseSystemUser = selectedConnect != null && GBASEDBT_USER.equals(selectedConnect.getUsername());
-            healthCheckItem.setDisable(!isGbaseSystemUser);
-            onlineLogItem.setDisable(!isGbaseSystemUser);
-            spaceManagerItem.setDisable(!isGbaseSystemUser);
-            onconfigItem.setDisable(!isGbaseSystemUser);
-            instanceStartStopItem.setDisable(!isGbaseSystemUser);
+            InstanceAdminRepository admin = resolveAdminRepository(selectedConnect);
+            healthCheckItem.setDisable(selectedConnect == null || !admin.supportsHealthCheck(selectedConnect));
+            onlineLogItem.setDisable(selectedConnect == null || !admin.supportsOnlineLog(selectedConnect));
+            spaceManagerItem.setDisable(selectedConnect == null || !admin.supportsSpaceManager(selectedConnect));
+            onconfigItem.setDisable(selectedConnect == null || !admin.supportsConfigManagement(selectedConnect));
+            instanceStartStopItem.setDisable(selectedConnect == null || !admin.supportsStartStop(selectedConnect));
             copyItem.setDisable(getSelectionModel().getSelectedCells().isEmpty());
         });
 
@@ -227,6 +230,39 @@ public class CustomInstanceInfoTableView extends CustomTableView {
         Connect selectedConnect = getSelectedConnect();
         if (selectedConnect != null) {
             TabpaneUtil.addCustomInstanceTab(selectedConnect, tabIndex);
+        }
+    }
+
+    private InstanceAdminRepository resolveAdminRepository(Connect connect) {
+        if (connect == null) {
+            return new InstanceAdminRepository() {
+                @Override
+                public void setStorageSegmentExtendable(java.sql.Connection conn, int segmentId, boolean extendable) {
+                }
+
+                @Override
+                public void resizeStorageSpace(java.sql.Connection conn, String storageSpaceName, int size1, int size2, int size3) {
+                }
+
+                @Override
+                public java.util.List<java.util.List<CustomSpaceChart.SpaceUsage>> getStorageSpaceUsage(java.sql.Connection conn) {
+                    return java.util.List.of();
+                }
+
+                @Override
+                public double getMaxStorageSpaceUsage(java.sql.Connection conn) {
+                    return 0;
+                }
+            };
+        }
+        return resolvePlatformResolver().admin(connect);
+    }
+
+    private DatabasePlatformResolver resolvePlatformResolver() {
+        try {
+            return AppContext.get(DatabasePlatformResolver.class);
+        } catch (IllegalStateException e) {
+            return DatabasePlatforms.createDefault();
         }
     }
 }
