@@ -278,17 +278,38 @@ public class ConnectionServiceImpl implements ConnectionService {
         }
         try {
             String sqlhostsContent = Files.readString(Paths.get("extlib", connect.getDbtype(), "sqlhosts"));
-            Pattern pattern = Pattern.compile(
-                    "^" + Pattern.quote(primaryInstance.trim()) + "\\s+\\S+\\s+(\\S+)\\s+(\\S+)\\s+g="
-                            + Pattern.quote(groupName.trim()) + "\\s*$",
-                    Pattern.MULTILINE);
-            Matcher matcher = pattern.matcher(sqlhostsContent);
-            if (!matcher.find()) {
+            String normalizedInstance = primaryInstance.trim();
+            String normalizedGroup = groupName.trim();
+            for (String line : sqlhostsContent.split("\\R")) {
+                if (line == null || line.isBlank()) {
+                    continue;
+                }
+                String trimmed = line.trim();
+                if (trimmed.startsWith("#")) {
+                    continue;
+                }
+                String[] parts = trimmed.split("\\s+");
+                if (parts.length < 5) {
+                    continue;
+                }
+                if (!normalizedInstance.equals(parts[0])) {
+                    continue;
+                }
+                boolean inGroup = false;
+                for (int i = 4; i < parts.length; i++) {
+                    if (("g=" + normalizedGroup).equalsIgnoreCase(parts[i])) {
+                        inGroup = true;
+                        break;
+                    }
+                }
+                if (!inGroup) {
+                    continue;
+                }
+                connect.setIp(parts[2].trim());
+                connect.setPort(parts[3].trim());
+                connect.setInfo(replaceInfoValue(connect.getInfo(), namedServerProp, normalizedInstance));
                 return;
             }
-            connect.setIp(matcher.group(1).trim());
-            connect.setPort(matcher.group(2).trim());
-            connect.setInfo(replaceInfoValue(connect.getInfo(), namedServerProp, primaryInstance.trim()));
         } catch (Exception e) {
             log.debug("Populate named-server address info skipped", e);
         }
@@ -298,9 +319,13 @@ public class ConnectionServiceImpl implements ConnectionService {
         if (info == null || info.isBlank() || key == null || key.isBlank()) {
             return info;
         }
-        return info.replaceAll(
-                "(?m)^(" + Pattern.quote(key) + "\\s+)\\S+\\s*$",
-                "$1" + Matcher.quoteReplacement(value == null ? "" : value));
+        Pattern pattern = Pattern.compile("(?m)^(" + Pattern.quote(key) + "\\s+)\\S+\\s*$");
+        Matcher matcher = pattern.matcher(info);
+        if (matcher.find()) {
+            return matcher.replaceAll("$1" + Matcher.quoteReplacement(value == null ? "" : value));
+        }
+        String suffix = info.endsWith("\n") ? "" : "\n";
+        return info + suffix + String.format("%-30s", key) + (value == null ? "" : value) + "\n";
     }
 
     public Boolean testConn(Connect connect) {

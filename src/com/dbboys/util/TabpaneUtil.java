@@ -1,5 +1,8 @@
 package com.dbboys.util;
 
+import com.dbboys.api.ConnectionService;
+import com.dbboys.app.AppContext;
+import com.dbboys.app.AppExecutor;
 import com.dbboys.app.AppState;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.customnode.*;
@@ -107,18 +110,25 @@ public class TabpaneUtil {
     }
 
     public static void addCustomInstanceTab(Connect connect, int tabNum) {
-        Platform.runLater(() -> {
-            String tabKey = TAB_KEY_INSTANCE + connect.getName();
-            Tab existing = findTabByUserData(tabKey);
-            if (existing instanceof CustomInstanceTab) {
-                tabPane().getSelectionModel().select(existing);
-                ((CustomInstanceTab) existing).mainTabPane.getSelectionModel().select(tabNum);
-                return;
+        AppExecutor.runAsync(() -> {
+            try {
+                AppContext.get(ConnectionService.class).refreshRuntimeConnectInfo(connect);
+            } catch (Exception ignored) {
             }
-            CustomInstanceTab newtab = new CustomInstanceTab(connect, tabNum);
-            newtab.setUserData(tabKey);
-            tabPane().getTabs().add(newtab);
-            tabPane().getSelectionModel().select(newtab);
+            Platform.runLater(() -> {
+                refreshOpenConnectsInfoTables(connect);
+                String tabKey = TAB_KEY_INSTANCE + connect.getName();
+                Tab existing = findTabByUserData(tabKey);
+                if (existing instanceof CustomInstanceTab) {
+                    tabPane().getSelectionModel().select(existing);
+                    ((CustomInstanceTab) existing).mainTabPane.getSelectionModel().select(tabNum);
+                    return;
+                }
+                CustomInstanceTab newtab = new CustomInstanceTab(connect, tabNum);
+                newtab.setUserData(tabKey);
+                tabPane().getTabs().add(newtab);
+                tabPane().getSelectionModel().select(newtab);
+            });
         });
     }
 
@@ -336,5 +346,34 @@ public class TabpaneUtil {
             }
         }
         return null;
+    }
+
+    private static void refreshOpenConnectsInfoTables(Connect updatedConnect) {
+        for (Tab tab : tabPane().getTabs()) {
+            if (!(tab.getContent() instanceof CustomInstanceInfoTableView tableView)) {
+                continue;
+            }
+            for (Object item : tableView.getItems()) {
+                if (!(item instanceof Connect rowConnect) || !isSameConnect(rowConnect, updatedConnect)) {
+                    continue;
+                }
+                rowConnect.setIp(updatedConnect.getIp());
+                rowConnect.setPort(updatedConnect.getPort());
+                rowConnect.setInfo(updatedConnect.getInfo());
+                rowConnect.setDbversion(updatedConnect.getDbversion());
+                tableView.refresh();
+                break;
+            }
+        }
+    }
+
+    private static boolean isSameConnect(Connect rowConnect, Connect updatedConnect) {
+        if (rowConnect == null || updatedConnect == null) {
+            return false;
+        }
+        if (rowConnect.getId() > 0 && updatedConnect.getId() > 0) {
+            return rowConnect.getId() == updatedConnect.getId();
+        }
+        return rowConnect.getName() != null && rowConnect.getName().equals(updatedConnect.getName());
     }
 }

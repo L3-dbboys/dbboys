@@ -446,7 +446,11 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
                 info.append(String.format("%-30s", envName)).append(envValue).append("\n");
                 if ("DB_LOCALE".equals(envName)) {
                     connect.setProps(modifyProps(connect, "DB_LOCALE", envValue.toUpperCase().trim()));
-                } else if ("DBSERVERNAME".equalsIgnoreCase(envName) && envValue != null && !envValue.isBlank()) {
+                } else if (!connect.getPropByName(NAMED_SERVER_PROP).isEmpty()
+                        && envValue != null
+                        && !envValue.isBlank()
+                        && (NAMED_SERVER_PROP.equalsIgnoreCase(envName)
+                        || "DBSERVERNAME".equalsIgnoreCase(envName))) {
                     primaryInstance = envValue.trim();
                 }
             }

@@ -1640,7 +1640,7 @@ public class CustomInstanceTab extends CustomTab {
             return;
         }
         try {
-            String primaryInstance = connectionService.setConnectInfo(connect);
+            String primaryInstance = connectionService.refreshRuntimeConnectInfo(connect);
             if (primaryInstance == null || primaryInstance.isBlank()) {
                 return;
             }
@@ -2130,6 +2130,5 @@ public class CustomInstanceTab extends CustomTab {
         return errorPane;
     }
 }
-
 
 
