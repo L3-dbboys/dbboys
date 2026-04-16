@@ -326,30 +326,73 @@ public final class GbaseDdlRepository implements DdlRepository {
      */
     private static int getLength(String coltype, int collength, int dbver){
         int mycollen = collength;
-        if     ("SMALLINT".equals(coltype) || "BOOLEAN".equals(coltype)){ mycollen=5; }
-        else if("INTEGER".equals(coltype) || "SERIAL".equals(coltype) || "DATE".equals(coltype)){ mycollen=10; }
-        else if("INT8".equals(coltype) || "SERIAL8".equals(coltype) || "BIGINT".equals(coltype) || "BIGSERIAL".equals(coltype)){ mycollen=19; }
-        else if("FLOAT".equals(coltype)){ mycollen=17; }
-        else if("SMALLFLOAT".equals(coltype)){ mycollen=7; }
-        else if("DECIMAL".equals(coltype) || "MONEY".equals(coltype)){ mycollen=collength/256; }
-        else if("TEXT".equals(coltype) || "BYTE".equals(coltype) || "BLOB".equals(coltype) || "CLOB".equals(coltype)) { mycollen=2147483647; }
-        // collength = (min_space * 256) + max_size （对于2.0及之前），collength = (min_space * 65536) + max_size（3.0及之后）
-        else if("VARCHAR".equals(coltype) || "NVARCHAR".equals(coltype) || "VARCHAR2".equals(coltype) || "NVARCHAR2".equals(coltype)){
-            if (dbver > 30000) {
-                if(collength > 0){
-                    mycollen = collength%65536;
+        switch (coltype) {
+            case "TINYINT":
+                mycollen = 3;
+                break;
+            case "SMALLINT":
+            case "BOOLEAN":
+                mycollen = 5;
+                break;
+            case "MEDIUMINT":
+            	mycollen = 8;
+            	break;
+            case "INTEGER":
+            case "SERIAL":
+            case "DATE":
+                mycollen = 10;
+                break;
+            case "INT8":
+            case "SERIAL8":
+            case "BIGINT":
+            case "BIGSERIAL":
+            case "BIGINT UNSIGNED":
+                mycollen = 19;
+                break;
+            case "FLOAT":
+                mycollen = 17;
+                break;
+            case "SMALLFLOAT":
+                mycollen = 7;
+                break;
+            case "DECIMAL":
+            case "MONEY":
+                mycollen = collength / 256;
+                break;
+            case "TEXT":
+            case "BYTE":
+            case "BLOB":
+            case "CLOB":
+                mycollen = 2147483647;
+                break;
+            case "VARCHAR":
+            case "NVARCHAR":
+            case "VARCHAR2":
+            case "NVARCHAR2":
+                // collength = (min_space * 256) + max_size （对于2.0及之前），collength = (min_space * 65536) + max_size（3.0及之后）
+                if (dbver > 30000) {
+                    if (collength > 0) {
+                        mycollen = collength % 65536;
+                    } else {
+                        mycollen = Long.valueOf((collength + 4294967296L) % 65536).intValue();
+                    }
                 } else {
-                    mycollen = Long.valueOf((collength + 4294967296L) % 65536).intValue();
+                    if (collength > 0) {
+                        mycollen = collength % 256;
+                    } else {
+                        mycollen = (collength + 65536) % 256;
+                    }
                 }
-            } else {
-                if(collength > 0){
-                    mycollen=collength%256;
-                } else {
-                    mycollen = (collength + 65536) % 256;
-                }
-            }
+                break;
+            default:
+                break;
         }
-        else if(coltype.startsWith("DATETIME")){ mycollen=getDTLength(collength); }
+        // datetime 类型特殊处理
+        if(coltype.startsWith("DATETIME") || coltype.startsWith("TIMESTAMP")){ 
+            mycollen = getDTLength(collength); 
+        } else if (coltype.startsWith("TIMESTAMP")){
+            mycollen = 26 ;
+        }
         return mycollen;
     }
 
@@ -401,10 +444,9 @@ public final class GbaseDdlRepository implements DdlRepository {
             case 9:
                 coltypeName = "NULL";               break;
             case 10:
-                if ("MySQL".equals(sqlmode)){
+                coltypeName = "DATETIME" + getDTColTypeName(collength);
+                if ("MySQL".equals(sqlmode) && "DATETIME YEAR TO SECOND".equals(coltypeName)){
                     coltypeName = "DATETIME";
-                } else {
-                    coltypeName = "DATETIME" + getDTColTypeName(collength);
                 }
                 break;
             case 11:
@@ -455,6 +497,14 @@ public final class GbaseDdlRepository implements DdlRepository {
                 coltypeName = "NVARCHAR2";          break;
             case 65:
                 coltypeName = "TIMESTAMP WITH TIME ZONE"; break;
+            case 66:
+                coltypeName = "BIGINT UNSIGNED";    break;
+            case 67:
+                coltypeName = "TINYINT";            break;
+            case 68:
+                coltypeName = "MEDIUMINT";          break;
+            case 69:
+                coltypeName = "BIT";                break;
             default:
                 break;
         }
@@ -770,6 +820,8 @@ public final class GbaseDdlRepository implements DdlRepository {
             }
         } else if ("LVARCHAR".equals(coltype) || "CHAR".equals(coltype) || "NCHAR".equals(coltype) || "RAW".equals(coltype)) {
             coltypename = coltypename + "(" + collength + ")";
+        } else if ("BIT".equals(coltype)){
+            coltypename = coltypename + "(" + collength/256 + ")";
         }
         return coltypename;
     }
@@ -826,14 +878,14 @@ public final class GbaseDdlRepository implements DdlRepository {
      * @throws SQLException
      */
     private static ArrayList<PrimaryKeyInfo> getPrimaryKey(Connection connection, ArrayList<ColumnsInfo> columns, String tablename, String sqlmode) throws SQLException {
-        // 去除虚拟字段产生的约束
+        // 去除虚拟字段产生的约束，增加mysqlmode下K（key）,Q（unique key）的约束类型
         String sql = """
                 SELECT con.constrname,con.constrtype,cast(idx.indexkeys as lvarchar) as idxcols
                 FROM sysconstraints con, sysindices idx, systables t
                 WHERE con.idxname = idx.idxname
                 AND con.tabid = t.tabid
                 AND t.tabname = ?
-                AND con.constrtype in ('P','U')
+                AND con.constrtype in ('P','U','K','Q')
                 AND LEFT(con.constrname,1) != ' '
                 """;
         SqlRunner runner = new SqlRunner(connection, DEFAULT_QUERY_TIMEOUT_SECONDS);
@@ -908,13 +960,27 @@ public final class GbaseDdlRepository implements DdlRepository {
             }
         } else if ("L".equals(coldeftype)) {
             // INT..., DEC...,BIG...,SMALL
-            if ("SMALLINT".equals(coltype) || "INTEGER".equals(coltype) || "SERIAL".equals(coltype) || "SERIAL8".equals(coltype) ||
-                    "INT8".equals(coltype) || "BIGSERIAL".equals(coltype) || "BIGINT".equals(coltype) || "FLOAT".equals(coltype) ||
-                    "SMALLFLOAT".equals(coltype) || "MONEY".equals(coltype) || "DECIMAL".equals(coltype)) {
-                strdef = coldef;
-
-            } else {
-                strdef = "\'" + coldef.replace("'", "''") + "\'";
+            switch (coltype) {
+                case "SMALLINT":
+                case "INTEGER":
+                case "SERIAL": 
+                case "SERIAL8":
+                case "INT8":
+                case "BIGSERIAL":
+                case "BIGINT":
+                case "FLOAT":
+                case "SMALLFLOAT":
+                case "MONEY":
+                case "DECIMAL":
+                case "BIT":
+                case "TINYINT":
+                case "MEDIUMINT":
+                case "BIGINT UNSIGNED":
+                    strdef = coldef;
+                    break;           
+                default:
+                    strdef = "\'" + coldef.replace("'", "''") + "\'";
+                    break;
             }
         } else if ("N".equals(coldeftype)){
             strdef = "NULL";
@@ -1212,6 +1278,15 @@ public final class GbaseDdlRepository implements DdlRepository {
                     }
                     ddl.append(primaryKey.getIdxCols()).append(")");
                 }
+            } else if ("MySQL".equals(sqlmode)) {                   // mysql模式下，主键显示为P，唯一索引显示为K，普通索引显示为Q
+                if ("P".equals(primaryKey.getConstrType())) {
+                    ddl.append(",\n  PRIMARY KEY");
+                } else if ("K".equals(primaryKey.getConstrType())) {
+                    ddl.append(",\n  KEY ").append(getName(getIndexNameBySqlMode(primaryKey.getConstrName(),sqlmode),sqlmode));
+                } else if ("Q".equals(primaryKey.getConstrType())) {
+                    ddl.append(",\n  UNIQUE KEY ").append(getName(getIndexNameBySqlMode(primaryKey.getConstrName(),sqlmode),sqlmode));
+                }
+                ddl.append(" (").append(primaryKey.getIdxCols()).append(")");
             } else {
                 if ("P".equals(primaryKey.getConstrType())) {
                     ddl.append(",\n  PRIMARY KEY(");
@@ -1351,7 +1426,7 @@ public final class GbaseDdlRepository implements DdlRepository {
         }
         // 增加mysql模式下表的comment
         if ("MySQL".equals(sqlmode) && tableInfo.getTableComm() != null){
-            ddl.append("COMMENT='").append(tableInfo.getTableComm()).append("' ");
+            ddl.append("COMMENT '").append(tableInfo.getTableComm()).append("' ");
         }
         ddl.append("EXTENT SIZE ").append(tableInfo.getFirstExtSize()).append(" NEXT SIZE ").append(tableInfo.getNextExtSize());
         if ("MySQL".equals(sqlmode)){
@@ -1858,7 +1933,7 @@ public final class GbaseDdlRepository implements DdlRepository {
             ddl.append(" INDEX");
         }
         // 索引名称  属主.索引名
-        ddl.append(" ").append(getName(indexInfo.getName(),indexInfo.getTableSqlMode())).append(" ON ");
+        ddl.append(" ").append(getName(getIndexNameBySqlMode(indexInfo.getName(),indexInfo.getTableSqlMode()),indexInfo.getTableSqlMode())).append(" ON ");
         // 表名(索引字段（函数索引字段）列表)
         ddl.append(getName(indexInfo.getTableName(),indexInfo.getTableSqlMode())).append("(").append(indexInfo.getIndexCols()).append(")");
         // 索引分片规则或者存储

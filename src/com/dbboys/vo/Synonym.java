@@ -20,6 +20,7 @@ public class Synonym extends TreeData{
     /*
      * 表标识(smallint两字节)：
      * 1, 最高位开始第一位是1时（位与16384值为16384时），SQLMODE=Oracle，
+     * 2，MySQL似乎不支持同义词
      */
     private IntegerProperty flags = new SimpleIntegerProperty();
     private StringProperty synonymSqlMode = new SimpleStringProperty();

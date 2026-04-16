@@ -92,11 +92,19 @@ public class ColumnsInfo {
     public void setColTypePS(int colLength,String colType,int dbVersion){
         // this.colLength.set(colLength);
         this.typeP.set(getPrecision(colType,colLength,dbVersion));
-        if(("DECIMAL".equals(colType) || "MONEY".equals(colType)) && colLength % 256 != 255){
-            this.typeS.set(colLength % 256);
-        } else if("VARCHAR".equals(colType) || "NVARCHAR".equals(colType) || 
-                  "VARCHAR2".equals(colType) || "NVARCHAR2".equals(colType)) {
-            this.typeS.set(colLength/65536);
+        switch (colType) {
+            case "DECIMAL":
+            case "MONEY":
+                this.typeS.set(colLength % 256);              
+                break;
+            case "VARCHAR":
+            case "NVARCHAR":
+            case "VARCHAR2":
+            case "NVARCHAR2":
+                this.typeS.set(colLength/65536);
+                break;
+            default:
+                break;
         }
     }
 
@@ -227,6 +235,7 @@ public class ColumnsInfo {
         switch (coltype) {
             case "DECIMAL":
             case "MONEY":
+            case "BIT":
                 myp=collength/256;
                 break;
             case "FLOAT":

@@ -20,10 +20,14 @@ public class Trigger extends TreeData{
      * 返回触发器的数据库模式
      */
     public String getTriggerSqlMode() {
-        if ("O".equals(this.triggerMode.get())) {
-            return "Oracle";
+        switch (this.triggerMode.get()) {
+            case "O":
+                return "Oracle";
+            case "M":
+                return "MySQL";                
+            default:
+                return "GBase";
         }
-        return "GBase";
     }
 
     public String getTriggerMode() {
