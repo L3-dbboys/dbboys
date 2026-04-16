@@ -5,11 +5,13 @@ import com.dbboys.api.ConnectionService;
 import com.dbboys.api.ConnectionSupport;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
+import com.dbboys.api.NamedServerConnectionCapability;
 import com.dbboys.api.ReconnectFallbackCapability;
 import com.dbboys.util.MD5Util;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.vo.*;
 
+import java.nio.file.Files;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.Connection;
@@ -19,6 +21,8 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -236,6 +240,7 @@ public class ConnectionServiceImpl implements ConnectionService {
         DatabasePlatform dialect = platformResolver.requirePlatform(connect);
         try (Connection connection = getConnectionWithSessionInit(connect)) {
             String primaryInstance = dialect.populateConnectInfo(connection, connect);
+            populateNamedServerAddressInfo(connect, primaryInstance);
             if (connect.getDriver() != null && !connect.getDriver().isEmpty()) {
                 try {
                     connect.setDrivermd5(MD5Util.getMD5Checksum(
@@ -246,6 +251,50 @@ public class ConnectionServiceImpl implements ConnectionService {
             }
             return primaryInstance;
         }
+    }
+
+    private void populateNamedServerAddressInfo(Connect connect, String primaryInstance) {
+        if (connect == null) {
+            return;
+        }
+        String namedServerProp = platformResolver.capability(connect, NamedServerConnectionCapability.class)
+                .map(NamedServerConnectionCapability::namedServerPropertyName)
+                .orElse("");
+        if (namedServerProp.isEmpty()) {
+            return;
+        }
+        String groupName = connect.getPropByName(namedServerProp);
+        if (groupName == null || groupName.isBlank()) {
+            return;
+        }
+        if (primaryInstance == null || primaryInstance.isBlank()) {
+            return;
+        }
+        try {
+            String sqlhostsContent = Files.readString(Paths.get("extlib", connect.getDbtype(), "sqlhosts"));
+            Pattern pattern = Pattern.compile(
+                    "^" + Pattern.quote(primaryInstance.trim()) + "\\s+\\S+\\s+(\\S+)\\s+(\\S+)\\s+g="
+                            + Pattern.quote(groupName.trim()) + "\\s*$",
+                    Pattern.MULTILINE);
+            Matcher matcher = pattern.matcher(sqlhostsContent);
+            if (!matcher.find()) {
+                return;
+            }
+            connect.setIp(matcher.group(1).trim());
+            connect.setPort(matcher.group(2).trim());
+            connect.setInfo(replaceInfoValue(connect.getInfo(), namedServerProp, primaryInstance.trim()));
+        } catch (Exception e) {
+            log.debug("Populate named-server address info skipped", e);
+        }
+    }
+
+    private String replaceInfoValue(String info, String key, String value) {
+        if (info == null || info.isBlank() || key == null || key.isBlank()) {
+            return info;
+        }
+        return info.replaceAll(
+                "(?m)^(" + Pattern.quote(key) + "\\s+)\\S+\\s*$",
+                "$1" + Matcher.quoteReplacement(value == null ? "" : value));
     }
 
     public Boolean testConn(Connect connect) {

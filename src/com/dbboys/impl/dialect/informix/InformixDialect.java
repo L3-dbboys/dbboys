@@ -430,6 +430,7 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
         }
 
         DatabaseMetaData metaData = connection.getMetaData();
+        String primaryInstance = "";
         connect.setDbversion((metaData.getDatabaseProductName() == null ? "" : metaData.getDatabaseProductName()) + " "
                 + (metaData.getDatabaseProductVersion() == null ? "" : metaData.getDatabaseProductVersion()));
 
@@ -440,9 +441,13 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
 
         try (ResultSet envRs = connection.createStatement().executeQuery("select trim(env_name),trim(env_value) from sysmaster:sysenv")) {
             while (envRs.next()) {
-                info.append(String.format("%-30s", envRs.getString(1))).append(envRs.getString(2)).append("\n");
-                if ("DB_LOCALE".equals(envRs.getString(1))) {
-                    connect.setProps(modifyProps(connect, "DB_LOCALE", envRs.getString(2).toUpperCase().trim()));
+                String envName = envRs.getString(1);
+                String envValue = envRs.getString(2);
+                info.append(String.format("%-30s", envName)).append(envValue).append("\n");
+                if ("DB_LOCALE".equals(envName)) {
+                    connect.setProps(modifyProps(connect, "DB_LOCALE", envValue.toUpperCase().trim()));
+                } else if ("DBSERVERNAME".equalsIgnoreCase(envName) && envValue != null && !envValue.isBlank()) {
+                    primaryInstance = envValue.trim();
                 }
             }
         }
@@ -466,7 +471,7 @@ public final class InformixDialect implements DatabasePlatform, ConnectionSuppor
         if (connect.getDbversion() == null || connect.getDbversion().isBlank()) {
             connect.setDbversion(I18n.t("metadata.dbversion.no_permission", "褰撳墠鐢ㄦ埛鏃犳潈闄愯幏鍙栫増鏈俊鎭紝璇蜂娇鐢╥nformix鐢ㄦ埛杩炴帴鑾峰彇\n"));
         }
-        return "";
+        return primaryInstance;
     }
 
     @Override

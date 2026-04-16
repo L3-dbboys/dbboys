@@ -1,5 +1,6 @@
 package com.dbboys.util.tree;
 
+import com.dbboys.api.ConnectionService;
 import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.i18n.I18n;
@@ -52,6 +53,7 @@ public class TreeDataLoader {
                         try{
                               // 获取已经按当前数据库类型初始化过会话的连接
                               connect.setConnWithKeepAlive(TreeViewUtil.metadataService.getConnectionWithSessionInit(connect));
+                              AppContext.get(ConnectionService.class).setConnectInfo(connect);
 
 
                             //TreeItem<TreeData> scanItem=createTreeItem(checkTreeData);
