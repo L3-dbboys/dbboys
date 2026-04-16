@@ -533,12 +533,12 @@ public final class GbaseDialect implements DatabasePlatform, ConnectionSupport,
     @Override
     public List<String> getColumnTypes() {
         return List.of(
-                "SMALLINT", "INTEGER", "BIGINT", "SERIAL", "SERIAL8", "BIGSERIAL",
-                "DECIMAL", "NUMERIC", "FLOAT", "MONEY",
+                "TINYINT", "SMALLINT", "MEDIUMINT", "INTEGER", "BIGINT", "BIGINT UNSIGNED", "INT8", "SERIAL", "SERIAL8", "BIGSERIAL",
+                "DECIMAL", "NUMERIC", "SMALLFLOAT", "FLOAT", "MONEY",
                 "CHAR", "VARCHAR", "VARCHAR2", "LVARCHAR", "NCHAR", "NVARCHAR", "NVARCHAR2",
-                "DATE", "DATETIME YEAR TO SECOND", "DATETIME YEAR TO FRACTION(5)", "INTERVAL",
-                "RAW", "TEXT", "BYTE", "BLOB", "CLOB",
-                "BOOLEAN", "JSON", "BSON"
+                "DATE", "DATETIME", "TIME", "DATETIME YEAR TO SECOND", "DATETIME YEAR TO FRACTION(5)", "TIMESTAMP", "INTERVAL",
+                "RAW", "TEXT", "BYTE", "BLOB", "CLOB", "CLOB2",
+                "BOOLEAN", "JSON", "BSON", "BIT", "LONGTEXT"
         );
     }
 
