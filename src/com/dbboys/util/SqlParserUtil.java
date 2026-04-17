@@ -194,6 +194,17 @@ public class SqlParserUtil {
         boolean handle(Segment segment);
     }
 
+    @FunctionalInterface
+    public interface ThrowingSegmentHandler {
+        boolean handle(Segment segment) throws Exception;
+    }
+
+    private static final class SegmentProcessingRuntimeException extends RuntimeException {
+        private SegmentProcessingRuntimeException(Exception cause) {
+            super(cause);
+        }
+    }
+
     public static boolean isSingleStatement(String sql) {
         if (sql == null || sql.isBlank()) {
             return true;
@@ -226,6 +237,22 @@ public class SqlParserUtil {
             return true;
         });
         return segments;
+    }
+
+    public static boolean forEachSegment(String sql, ThrowingSegmentHandler handler) throws Exception {
+        try {
+            return processSegments(sql, segment -> {
+                try {
+                    return handler.handle(segment);
+                } catch (RuntimeException e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new SegmentProcessingRuntimeException(e);
+                }
+            });
+        } catch (SegmentProcessingRuntimeException e) {
+            throw (Exception) e.getCause();
+        }
     }
 
     public static StatementRange findStatementRangeAtCaret(String sqlText, int caretPosition) {

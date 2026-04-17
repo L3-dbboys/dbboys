@@ -110,9 +110,9 @@ public class SqlExecutionHelper {
                 ctrl.sqlExecutionResult = "";
                 updateMessage(I18n.t("sql.exec.running"));
 
-                Sql sql = new Sql();
+                final Sql[] currentSql = {new Sql()};
                 ctrl.sqlStatementCount = 0;
-                for (SqlParserUtil.Segment segment : SqlParserUtil.split(ctrl.sqlText)) {
+                SqlParserUtil.forEachSegment(ctrl.sqlText, segment -> {
                     String sqlChunk = segment.getText();
                     if (SqlParserUtil.sqlContrainMoreThanOneCommit(sqlChunk)) {
                         ctrl.isSingleSql = false;
@@ -121,43 +121,44 @@ public class SqlExecutionHelper {
                     Boolean sqlContainsCommit = false;
                     do {
                         if (isCancelled()) {
-                            return null;
+                            return false;
                         }
-                        sql = SqlParserUtil.modifySql(sql, sqlChunk);
-                        if (sql.getSqlEnd() && SqlParserUtil.isExecutableStatement(sql.getSqlstr())) {
+                        currentSql[0] = SqlParserUtil.modifySql(currentSql[0], sqlChunk);
+                        if (currentSql[0].getSqlEnd() && SqlParserUtil.isExecutableStatement(currentSql[0].getSqlstr())) {
                             ctrl.sqlParamList.clear();
-                            ctrl.sqlExe = stripTrailingSemicolon(sql.getSqlstr());
+                            ctrl.sqlExe = stripTrailingSemicolon(currentSql[0].getSqlstr());
                             ctrl.sqlStatementCount++;
-                            highlightCurrentSegment(segment, sql);
+                            highlightCurrentSegment(segment, currentSql[0]);
 
                             ctrl.updateResult = new UpdateResult();
 
-                            if (ctrl.isSingleSql && sql.getSqlType().equals("SELECT")) {
+                            if (ctrl.isSingleSql && currentSql[0].getSqlType().equals("SELECT")) {
                                 executeSingleSelect(sdf, this);
-                                if (isCancelled()) return null;
+                                if (isCancelled()) return false;
                             } else if (ctrl.sqlConnect.getReadonly()) {
                                 Platform.runLater(() -> {
                                     AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.error.readonly_select_only"));
                                 });
                             } else {
-                                executeNonSelect(sdf, sql, this);
-                                if (isCancelled()) return null;
+                                executeNonSelect(sdf, currentSql[0], this);
+                                if (isCancelled()) return false;
                             }
 
                             if (ctrl.sqlExecutionSuccess) {
-                                handlePostExecutionSuccess(sql);
+                                handlePostExecutionSuccess(currentSql[0]);
                             } else if (shouldClearTransactionAfterDdl(ctrl.sqlExe)) {
                                 ctrl.sqlTransactionText.set("");
                             }
 
-                            sql.setSqlStr("");
-                            sql.setSqlEnd(false);
-                            sql.setSqlType("");
+                            currentSql[0].setSqlStr("");
+                            currentSql[0].setSqlEnd(false);
+                            currentSql[0].setSqlType("");
                         }
                         sqlChunk = "";
-                        sqlContainsCommit = SqlParserUtil.sqlContrainCommit(sql.getSqlRemainder());
+                        sqlContainsCommit = SqlParserUtil.sqlContrainCommit(currentSql[0].getSqlRemainder());
                     } while (sqlContainsCommit);
-                }
+                    return true;
+                });
                 return null;
             }
         };
