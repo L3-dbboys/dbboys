@@ -126,10 +126,10 @@ public class SqlTabUiHelper {
         button.setStyle(
                 "-fx-background-radius: 999;" +
                         "-fx-border-radius: 999;" +
-                        "-fx-padding: 2 7 2 7;" +
-                        "-fx-font-size: 10px;" +
+                        "-fx-padding: 2 6 2 6;" +
+                        "-fx-font-size: 9px;" +
                         "-fx-font-weight: bold;" +
-                        "-fx-text-fill: white;" +
+                        "-fx-text-fill: -color-text-default;" +
                         "-fx-background-color: " + backgroundColor + ";" +
                         "-fx-border-color: transparent;" +
                         "-fx-border-width: 0;"

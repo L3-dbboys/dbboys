@@ -305,12 +305,12 @@ public class SqlTabController {
         button.setStyle(
                 "-fx-background-radius: 999;" +
                         "-fx-border-radius: 999;" +
-                        "-fx-padding: 2 7 2 7;" +
-                        "-fx-font-size: 10px;" +
+                        "-fx-padding: 2 6 2 6;" +
+                        "-fx-font-size: 9px;" +
                         "-fx-font-weight: bold;" +
                         "-fx-text-fill: white;" +
                         "-fx-background-color: " + background + ";" +
-                        "-fx-border-color: " + (active ? "white" : "transparent") + ";" +
+                        "-fx-border-color: " + (active ? "-color-fg-default" : "transparent") + ";" +
                         "-fx-border-width: " + (active ? "1.5" : "0") + ";" +
                         (active ? "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 8, 0.2, 0, 1);" : "")
         );
