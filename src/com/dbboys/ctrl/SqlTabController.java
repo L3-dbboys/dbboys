@@ -18,8 +18,11 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
@@ -80,6 +83,7 @@ public class SqlTabController {
     public CustomResultsetTab customResultsetTab;
     //结果集表格相关列表
     public ObservableList<UpdateResult> updateResults;
+    public FilteredList<UpdateResult> filteredUpdateResults;
     public UpdateResult updateResult;
     public String sqlInit = "";  //表或视图拖动新建tab后自动执行的sql
     public String sqlExe;
@@ -137,6 +141,9 @@ public class SqlTabController {
     CustomTableView resultsetTotalTableView;
     @FXML
     StackPane resultsetStackPane;
+    Button resultSuccessFilterButton;
+    Button resultFailureFilterButton;
+    HBox resultFilterButtonBox;
     //执行过程中提示面板
     @FXML
     StackPane sqlExecuteProcessStackPane;
@@ -176,9 +183,19 @@ public class SqlTabController {
     SqlTabI18nHelper i18nHelper;
     SqlConnectionHandler connectionHandler;
     SqlResultHandler resultHandler;
+    private ResultFilterMode resultFilterMode = ResultFilterMode.ALL;
+
+    private enum ResultFilterMode {
+        ALL,
+        SUCCESS,
+        FAILURE
+    }
 
     void clearUpdateResults() {
-        Platform.runLater(() -> updateResults.clear());
+        Platform.runLater(() -> {
+            updateResults.clear();
+            refreshResultFilterButtons();
+        });
     }
 
     void finishExecution(int selectionStart, int selectionEnd) {
@@ -222,7 +239,112 @@ public class SqlTabController {
                 updateResults.clear();
             }
             updateResults.add(result);
+            refreshResultFilterButtons();
         });
+    }
+
+    void setupResultFilterButtons() {
+        if (resultsetStackPane == null || resultFilterButtonBox != null) {
+            return;
+        }
+        resultSuccessFilterButton = createResultFilterButton("#2E9E5B");
+        resultFailureFilterButton = createResultFilterButton("#CC3D3D");
+
+        resultSuccessFilterButton.setOnAction(event -> toggleResultFilter(ResultFilterMode.SUCCESS));
+        resultFailureFilterButton.setOnAction(event -> toggleResultFilter(ResultFilterMode.FAILURE));
+
+        resultFilterButtonBox = new HBox(8, resultSuccessFilterButton, resultFailureFilterButton);
+        resultFilterButtonBox.setAlignment(Pos.BOTTOM_RIGHT);
+        resultFilterButtonBox.setPickOnBounds(false);
+
+        resultsetStackPane.getChildren().add(resultFilterButtonBox);
+        StackPane.setAlignment(resultFilterButtonBox, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(resultFilterButtonBox, new Insets(0, 12, 10, 0));
+        refreshResultFilterButtons();
+    }
+
+    private Button createResultFilterButton(String backgroundColor) {
+        Button button = new Button();
+        button.setFocusTraversable(false);
+        button.setStyle(
+                "-fx-background-radius: 999;" +
+                        "-fx-border-radius: 999;" +
+                        "-fx-padding: 4 12 4 12;" +
+                        "-fx-font-size: 11px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-color: " + backgroundColor + ";" +
+                        "-fx-border-color: transparent;" +
+                        "-fx-border-width: 0;"
+        );
+        return button;
+    }
+
+    void applyUpdateResultFilter() {
+        if (filteredUpdateResults == null) {
+            return;
+        }
+        filteredUpdateResults.setPredicate(item -> {
+            if (item == null) {
+                return false;
+            }
+            if (resultFilterMode == ResultFilterMode.SUCCESS) {
+                return isSuccessResult(item);
+            }
+            if (resultFilterMode == ResultFilterMode.FAILURE) {
+                return !isSuccessResult(item);
+            }
+            return true;
+        });
+    }
+
+    void refreshResultFilterButtons() {
+        if (resultSuccessFilterButton == null || resultFailureFilterButton == null || updateResults == null) {
+            return;
+        }
+        int successCount = 0;
+        int failureCount = 0;
+        for (UpdateResult item : updateResults) {
+            if (isSuccessResult(item)) {
+                successCount++;
+            } else {
+                failureCount++;
+            }
+        }
+        resultSuccessFilterButton.setText(I18n.t("sql.result.filter.success", "成功") + " " + successCount);
+        resultFailureFilterButton.setText(I18n.t("sql.result.filter.failure", "失败") + " " + failureCount);
+        applyResultFilterButtonState(resultSuccessFilterButton, "#2E9E5B", resultFilterMode == ResultFilterMode.SUCCESS);
+        applyResultFilterButtonState(resultFailureFilterButton, "#CC3D3D", resultFilterMode == ResultFilterMode.FAILURE);
+    }
+
+    private void toggleResultFilter(ResultFilterMode mode) {
+        resultFilterMode = resultFilterMode == mode ? ResultFilterMode.ALL : mode;
+        applyUpdateResultFilter();
+        refreshResultFilterButtons();
+    }
+
+    private boolean isSuccessResult(UpdateResult item) {
+        return item != null
+                && item.getResult() != null
+                && item.getResult().startsWith(I18n.t("sql.exec.success"));
+    }
+
+    private void applyResultFilterButtonState(Button button, String background, boolean active) {
+        if (button == null) {
+            return;
+        }
+        button.setStyle(
+                "-fx-background-radius: 999;" +
+                        "-fx-border-radius: 999;" +
+                        "-fx-padding: 4 12 4 12;" +
+                        "-fx-font-size: 11px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-color: " + background + ";" +
+                        "-fx-border-color: " + (active ? "white" : "transparent") + ";" +
+                        "-fx-border-width: " + (active ? "1.5" : "0") + ";" +
+                        (active ? "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 8, 0.2, 0, 1);" : "")
+        );
     }
 
 

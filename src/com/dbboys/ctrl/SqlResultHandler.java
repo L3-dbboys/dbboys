@@ -5,6 +5,7 @@ import com.dbboys.i18n.I18n;
 import com.dbboys.vo.UpdateResult;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -94,6 +95,7 @@ public class SqlResultHandler {
 
         ctrl.resultsetTotalTableView.getColumns().addAll(resultcol, databasecol, sqlcol, affect, drution, begin, stop, markcol);
         ctrl.updateResults = FXCollections.observableArrayList();
+        ctrl.filteredUpdateResults = new FilteredList<>(ctrl.updateResults, item -> true);
         UpdateResult updateResult = new UpdateResult();
         updateResult.setResult(I18n.t("sql.table.sample.result"));
         updateResult.setDatabase(I18n.t("sql.table.sample.database"));
@@ -102,6 +104,9 @@ public class SqlResultHandler {
         updateResult.setEndTime(I18n.t("sql.table.sample.end_time"));
         updateResult.setElapsedTime(I18n.t("sql.table.sample.elapsed"));
         updateResult.setAffectedRows(0);
-        ctrl.resultsetTotalTableView.setItems(ctrl.updateResults);
+        ctrl.resultsetTotalTableView.setItems(ctrl.filteredUpdateResults);
+        ctrl.setupResultFilterButtons();
+        ctrl.applyUpdateResultFilter();
+        ctrl.refreshResultFilterButtons();
     }
 }

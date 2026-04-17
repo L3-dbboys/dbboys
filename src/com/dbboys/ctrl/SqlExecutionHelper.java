@@ -305,6 +305,7 @@ public class SqlExecutionHelper {
         CountDownLatch uiLatch = new CountDownLatch(1);
         Platform.runLater(() -> {
             ctrl.updateResults.add(ctrl.updateResult);
+            ctrl.refreshResultFilterButtons();
             uiLatch.countDown();
         });
         try {
