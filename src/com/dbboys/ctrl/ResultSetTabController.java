@@ -245,9 +245,9 @@ public class ResultSetTabController {
     private void setupIcons() {
         lastSqlCopyButton.setGraphic(IconFactory.group(IconPaths.COPY, 0.6));
         lastSqlRefreshButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.6));
-        resultSetInsertRowButton.setGraphic(IconFactory.group(IconPaths.MAIN_ADD_CONNECT, 0.55));
+        resultSetInsertRowButton.setGraphic(IconFactory.group(IconPaths.TABLEINFO_ADD_COLUMN, 0.55));
         resultSetDeleteRowButton.setGraphic(IconFactory.group(IconPaths.TABLEINFO_DELETE_COLUMN, 0.55));
-        resultSetSaveEditsButton.setGraphic(IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.55));
+        resultSetSaveEditsButton.setGraphic(IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.495));
         resultSetCancelEditsButton.setGraphic(IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.45));
         resultSetNextPageButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_NEXT_PAGE, 0.6));
         resultSetAllRowsButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_ALL_ROWS, 0.5));
@@ -414,10 +414,11 @@ public class ResultSetTabController {
         int insertIndex;
         ObservableList<String> template;
         int anchor = minSelectedRowIndex();
+        boolean hasValidAnchor = anchor >= 0 && anchor < items.size();
         if (items.isEmpty()) {
             insertIndex = 0;
             template = null;
-        } else if (anchor >= 0) {
+        } else if (hasValidAnchor) {
             insertIndex = anchor + 1;
             template = (ObservableList<String>) items.get(anchor);
         } else {
@@ -477,13 +478,14 @@ public class ResultSetTabController {
     /** Smallest selected row index, or -1 if nothing selected. */
     private int minSelectedRowIndex() {
         ObservableList<? extends TablePosition> cells = resultSetTableView.getSelectionModel().getSelectedCells();
+        int itemCount = resultSetTableView.getItems() == null ? 0 : resultSetTableView.getItems().size();
         if (cells == null || cells.isEmpty()) {
             return -1;
         }
         int min = Integer.MAX_VALUE;
         for (TablePosition<?, ?> p : cells) {
             int r = p.getRow();
-            if (r >= 0 && r < min) {
+            if (r >= 0 && r < itemCount && r < min) {
                 min = r;
             }
         }
@@ -531,16 +533,31 @@ public class ResultSetTabController {
         if (snapshot.isEmpty()) {
             return;
         }
+        int firstDeletedIndex = rowNums.isEmpty() ? -1 : rowNums.last();
+        boolean physicallyRemoved = false;
         for (ObservableList<String> row : snapshot) {
             if (pendingInsertRows.contains(row)) {
-                resultSetTableView.getItems().remove(row);
+                physicallyRemoved |= removeResultSetRowByIdentity(row);
                 pendingInsertRows.remove(row);
                 continue;
             }
             pendingUpdatedCells.remove(row);
             pendingDeleteRows.add(row);
         }
+        if (physicallyRemoved) {
+            selectPreviousRowAfterDelete(firstDeletedIndex);
+        }
         resultSetTableView.refresh();
+    }
+
+    private void selectPreviousRowAfterDelete(int deletedRowIndex) {
+        ObservableList<ObservableList<String>> items = resultSetTableView.getItems();
+        resultSetTableView.getSelectionModel().clearSelection();
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        int targetIndex = deletedRowIndex <= 0 ? 0 : Math.min(deletedRowIndex - 1, items.size() - 1);
+        resultSetTableView.getSelectionModel().select(targetIndex);
     }
 
     private boolean hasPendingDml() {
@@ -609,7 +626,7 @@ public class ResultSetTabController {
                 }
                 Platform.runLater(() -> {
                     for (ObservableList<String> row : deletes) {
-                        resultSetTableView.getItems().remove(row);
+                        removeResultSetRowByIdentity(row);
                     }
                     clearAllPendingDmlState();
                 });
@@ -634,7 +651,7 @@ public class ResultSetTabController {
         for (Map.Entry<ObservableList<String>, ObservableList<String>> e : snapEntries) {
             ObservableList<String> row = e.getKey();
             ObservableList<String> snap = e.getValue();
-            if (!resultSetTableView.getItems().contains(row) || snap == null) {
+            if (!containsResultSetRowByIdentity(row) || snap == null) {
                 continue;
             }
             for (int i = 0; i < row.size() && i < snap.size(); i++) {
@@ -643,9 +660,36 @@ public class ResultSetTabController {
         }
         List<ObservableList<String>> insertCopy = new ArrayList<>(pendingInsertRows);
         for (ObservableList<String> row : insertCopy) {
-            resultSetTableView.getItems().remove(row);
+            removeResultSetRowByIdentity(row);
         }
         clearAllPendingDmlState();
+    }
+
+    private boolean removeResultSetRowByIdentity(ObservableList<String> targetRow) {
+        if (targetRow == null) {
+            return false;
+        }
+        ObservableList<ObservableList<String>> items = resultSetTableView.getItems();
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) == targetRow) {
+                items.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsResultSetRowByIdentity(ObservableList<String> targetRow) {
+        if (targetRow == null) {
+            return false;
+        }
+        ObservableList<ObservableList<String>> items = resultSetTableView.getItems();
+        for (ObservableList<String> row : items) {
+            if (row == targetRow) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void finishFetch() {
