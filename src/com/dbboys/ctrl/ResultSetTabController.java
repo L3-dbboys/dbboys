@@ -320,22 +320,23 @@ public class ResultSetTabController {
             Platform.runLater(() -> resultSetTableView.getSelectionModel().clearSelection());
             return true;
         });
-        resultSetTableView.setRowFactory(tv -> {
-            TableRow<ObservableList<String>> row = new TableRow<>();
-            row.itemProperty().addListener((obs, oldItem, newItem) -> {
-                row.getStyleClass().removeAll(
+        // 必须在 updateItem 里同步行样式：虚拟化复用 TableRow 时仅依赖 itemProperty 可能残留插入/删除着色
+        resultSetTableView.setRowFactory(tv -> new TableRow<ObservableList<String>>() {
+            @Override
+            protected void updateItem(ObservableList<String> item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll(
                         "resultset-pending-dml-row",
                         "resultset-pending-delete-row");
-                if (newItem == null) {
+                if (empty || item == null) {
                     return;
                 }
-                if (pendingDeleteRows.contains(newItem)) {
-                    row.getStyleClass().add("resultset-pending-delete-row");
-                } else if (pendingInsertRows.contains(newItem)) {
-                    row.getStyleClass().add("resultset-pending-dml-row");
+                if (pendingDeleteRows.contains(item)) {
+                    getStyleClass().add("resultset-pending-delete-row");
+                } else if (pendingInsertRows.contains(item)) {
+                    getStyleClass().add("resultset-pending-dml-row");
                 }
-            });
-            return row;
+            }
         });
     }
 
