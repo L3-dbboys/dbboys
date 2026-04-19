@@ -13,6 +13,8 @@ import com.dbboys.app.AppContext;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Catalog;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -38,17 +40,249 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     private static final String DB_TYPE = "ORACLE";
     private static final String DRIVER_CLASS = "oracle.jdbc.OracleDriver";
-    private static final String DEFAULT_CONNECTION_PROPS =
-            "[{\"propName\":\"oracle.net.CONNECT_TIMEOUT\",\"propValue\":\"\"}," +
-            "{\"propName\":\"oracle.jdbc.ReadTimeout\",\"propValue\":\"\"}," +
-            "{\"propName\":\"oracle.net.keepAlive\",\"propValue\":\"\"}," +
-            "{\"propName\":\"defaultRowPrefetch\",\"propValue\":\"\"}," +
-            "{\"propName\":\"defaultBatchValue\",\"propValue\":\"\"}," +
-            "{\"propName\":\"remarksReporting\",\"propValue\":\"\"}," +
-            "{\"propName\":\"includeSynonyms\",\"propValue\":\"\"}," +
-            "{\"propName\":\"defaultNChar\",\"propValue\":\"\"}," +
-            "{\"propName\":\"oracle.jdbc.timezoneAsRegion\",\"propValue\":\"\"}," +
-            "{\"propName\":\"oracle.net.disableOob\",\"propValue\":\"true\"}]";
+    private static final String DEFAULT_CONNECTION_PROPS = buildDefaultConnectionProps(
+            "AccumulateBatchResult",
+            "autoCommit",
+            "com.sun.jndi.ldap.connect.timeout",
+            "com.sun.jndi.ldap.read.timeout",
+            "database",
+            "defaultExecuteBatch",
+            "defaultNChar",
+            "defaultRowPrefetch",
+            "disableDefineColumnType",
+            "DMSName",
+            "DMSType",
+            "fixedString",
+            "includeSynonyms",
+            "internal_logon",
+            "javax.net.ssl.keyStore",
+            "javax.net.ssl.keyStorePassword",
+            "javax.net.ssl.keyStoreType",
+            "javax.net.ssl.trustStore",
+            "javax.net.ssl.trustStorePassword",
+            "javax.net.ssl.trustStoreType",
+            "JDBCDriverCharSetId",
+            "mapStringParameterToCHAR",
+            "OCIEnvHandle",
+            "OCIErrHandle",
+            "OCISvcCtxHandle",
+            "oracle.jdbc.accessToken",
+            "oracle.jdbc.allowedLogonVersion",
+            "oracle.jdbc.allowMixingJdbcAndNamedBinds",
+            "oracle.jdbc.allowSingleShardTransactionSupport",
+            "oracle.jdbc.applicationContext",
+            "oracle.jdbc.autoCommitSpecCompliant",
+            "oracle.jdbc.azureCredentials",
+            "oracle.jdbc.azureDatabaseApplicationIdUri",
+            "oracle.jdbc.backwardCompatibileUpdateableResultSet",
+            "oracle.jdbc.checkAuthResponseOnError",
+            "oracle.jdbc.clientCertificate",
+            "oracle.jdbc.clientCertificatePassword",
+            "oracle.jdbc.clientId",
+            "oracle.jdbc.clientSecret",
+            "oracle.jdbc.commitOption",
+            "oracle.jdbc.commitSelectOnAutocommit",
+            "oracle.jdbc.config.file",
+            "oracle.jdbc.configurationProviders",
+            "oracle.jdbc.continueBatchOnError",
+            "oracle.jdbc.convertNcharLiterals",
+            "oracle.jdbc.createDescriptorUseCurrentSchemaForSchemaName",
+            "oracle.jdbc.databaseStateRequirement",
+            "oracle.jdbc.dcnOptions",
+            "oracle.jdbc.debugJDWP",
+            "oracle.jdbc.defaultConnectionValidation",
+            "oracle.jdbc.defaultLobPrefetchSize",
+            "oracle.jdbc.diagnostic.bufferSize",
+            "oracle.jdbc.diagnostic.debugSQL",
+            "oracle.jdbc.diagnostic.debugTenant",
+            "oracle.jdbc.diagnostic.enableDiagnoseFirstFailure",
+            "oracle.jdbc.diagnostic.enableLogging",
+            "oracle.jdbc.diagnostic.enableObservability",
+            "oracle.jdbc.diagnostic.enableSensitiveDiagnostics",
+            "oracle.jdbc.diagnostic.loggerName",
+            "oracle.jdbc.diagnostic.permitSensitiveDiagnostics",
+            "oracle.jdbc.diagnostic.writeLogsToDiagnoseFirstFailure",
+            "oracle.jdbc.disabledBugFixes",
+            "oracle.jdbc.DMSStatementCachingMetrics",
+            "oracle.jdbc.DMSStatementMetrics",
+            "oracle.jdbc.DRCPConnectionClass",
+            "oracle.jdbc.DRCPConnectionPurity",
+            "oracle.jdbc.DRCPMultiplexingInRequestAPIs",
+            "oracle.jdbc.DRCPPLSQLCallback",
+            "oracle.jdbc.DRCPTagName",
+            "oracle.jdbc.driverNameAttribute",
+            "oracle.jdbc.editionName",
+            "oracle.jdbc.enableACSupport",
+            "oracle.jdbc.enableDataInLocator",
+            "oracle.jdbc.enableErrorUrl",
+            "oracle.jdbc.enableImplicitRequests",
+            "oracle.jdbc.enableProviderOverride",
+            "oracle.jdbc.enableQueryResultCache",
+            "oracle.jdbc.enableReadDataInLocator",
+            "oracle.jdbc.enableResultSetCache",
+            "oracle.jdbc.enableSSSCursor",
+            "oracle.jdbc.enableTempLobRefCnt",
+            "oracle.jdbc.enableTGSupport",
+            "oracle.jdbc.fanEnabled",
+            "oracle.jdbc.fetchSizeTuning",
+            "oracle.jdbc.implicitStatementCacheSize",
+            "oracle.jdbc.inbandNotification",
+            "oracle.jdbc.J2EE13Compliant",
+            "oracle.jdbc.JDBCStandardBehavior",
+            "oracle.jdbc.jsonDefaultGetObjectType",
+            "oracle.jdbc.LobStreamPosStandardCompliant",
+            "oracle.jdbc.localhostName",
+            "oracle.jdbc.loginTimeout",
+            "oracle.jdbc.mapDateToTimestamp",
+            "oracle.jdbc.maxBatchMemory",
+            "oracle.jdbc.maxCachedBufferSize",
+            "oracle.jdbc.newPassword",
+            "oracle.jdbc.ociCompartment",
+            "oracle.jdbc.ociConfigFile",
+            "oracle.jdbc.ociDatabase",
+            "oracle.jdbc.ociIamUrl",
+            "oracle.jdbc.ociProfile",
+            "oracle.jdbc.ociTenancy",
+            "oracle.jdbc.ons.protocol",
+            "oracle.jdbc.ons.walletfile",
+            "oracle.jdbc.ons.walletpassword",
+            "oracle.jdbc.parameterMetadataCacheIncludeParsing",
+            "oracle.jdbc.parameterMetadataCacheSize",
+            "oracle.jdbc.parameterMetadataPreprocess",
+            "oracle.jdbc.passwordAuthentication",
+            "oracle.jdbc.provider.accessToken",
+            "oracle.jdbc.provider.connectionString",
+            "oracle.jdbc.provider.json",
+            "oracle.jdbc.provider.password",
+            "oracle.jdbc.provider.tlsConfiguration",
+            "oracle.jdbc.provider.traceEventListener",
+            "oracle.jdbc.provider.username",
+            "oracle.jdbc.proxyClientName",
+            "oracle.jdbc.queryResultCacheMaxLag",
+            "oracle.jdbc.queryResultCacheMaxSize",
+            "oracle.jdbc.readOnlyInstanceAllowed",
+            "oracle.jdbc.ReadTimeout",
+            "oracle.jdbc.redirectUri",
+            "oracle.jdbc.remoteConfigurationFiltering",
+            "oracle.jdbc.replay.protectedRequestSizeLimit",
+            "oracle.jdbc.retainLobPrefetchData",
+            "oracle.jdbc.RetainV9LongBindBehavior",
+            "oracle.jdbc.sendAllDataForValueLobs",
+            "oracle.jdbc.sendBooleanAsNativeBoolean",
+            "oracle.jdbc.sendBooleanInPLSQL",
+            "oracle.jdbc.sessionFixUpParams",
+            "oracle.jdbc.sqlErrorTranslationFile",
+            "oracle.jdbc.sqlTranslationProfile",
+            "oracle.jdbc.StreamChunkSize",
+            "oracle.jdbc.strictASCIIConversion",
+            "oracle.jdbc.TcpNoDelay",
+            "oracle.jdbc.tenantId",
+            "oracle.jdbc.thinForceDNSLoadBalancing",
+            "oracle.jdbc.timestampTzInGmt",
+            "oracle.jdbc.timezoneAsRegion",
+            "oracle.jdbc.tokenAuthentication",
+            "oracle.jdbc.tokenLocation",
+            "oracle.jdbc.use1900AsYearForTime",
+            "oracle.jdbc.UseDRCPMultipletag",
+            "oracle.jdbc.useNio",
+            "oracle.jdbc.useShardingDriverConnection",
+            "oracle.jdbc.useThreadLocalBufferCache",
+            "oracle.jdbc.useTrueCacheDriverConnection",
+            "oracle.jdbc.vectorDefaultGetObjectType",
+            "oracle.jdbc.XAThroughSessionlessTransactions",
+            "oracle.net.allow_weak_crypto",
+            "oracle.net.authentication_services",
+            "oracle.net.CONNECT_TIMEOUT",
+            "oracle.net.connectionIdPrefix",
+            "oracle.net.crypto_checksum_client",
+            "oracle.net.crypto_checksum_types_client",
+            "oracle.net.crypto_seed",
+            "oracle.net.disableOob",
+            "oracle.net.DOWN_HOSTS_TIMEOUT",
+            "oracle.net.encryption_client",
+            "oracle.net.encryption_types_client",
+            "oracle.net.external_authentication",
+            "oracle.net.httpsProxyHost",
+            "oracle.net.httpsProxyPort",
+            "oracle.net.keepAlive",
+            "oracle.net.kerberos5_cc_name",
+            "oracle.net.kerberos5_mutual_authentication",
+            "oracle.net.KerberosJaasLoginModule",
+            "oracle.net.KerberosRealm",
+            "oracle.net.ldap.security.authentication",
+            "oracle.net.ldap.security.credentials",
+            "oracle.net.ldap.security.principal",
+            "oracle.net.ldap.ssl.keyManagerFactory.algorithm",
+            "oracle.net.ldap.ssl.keyStore",
+            "oracle.net.ldap.ssl.keyStorePassword",
+            "oracle.net.ldap.ssl.keyStoreType",
+            "oracle.net.ldap.ssl.ssl_context_protocol",
+            "oracle.net.ldap.ssl.supportedCiphers",
+            "oracle.net.ldap.ssl.supportedVersions",
+            "oracle.net.ldap.ssl.trustManagerFactory.algorithm",
+            "oracle.net.ldap.ssl.trustStore",
+            "oracle.net.ldap.ssl.trustStorePassword",
+            "oracle.net.ldap.ssl.trustStoreType",
+            "oracle.net.ldap.ssl.walletLocation",
+            "oracle.net.ldap.ssl.walletPassword",
+            "oracle.net.networkCompression",
+            "oracle.net.networkCompressionLevels",
+            "oracle.net.networkCompressionThreshold",
+            "oracle.net.oldSyntax",
+            "oracle.net.OUTBOUND_CONNECT_TIMEOUT",
+            "oracle.net.profile",
+            "oracle.net.proxyRemoteDNS",
+            "oracle.net.radius_challenge_response_handler",
+            "oracle.net.seps_wallet_location",
+            "oracle.net.seps_wallet_password",
+            "oracle.net.setFIPSMode",
+            "oracle.net.SNIIgnoreList",
+            "oracle.net.socksProxyHost",
+            "oracle.net.socksProxyPort",
+            "oracle.net.socksRemoteDNS",
+            "oracle.net.ssl_allow_weak_dn_match",
+            "oracle.net.ssl_certificate_alias",
+            "oracle.net.ssl_certificate_thumbprint",
+            "oracle.net.ssl_cipher_suites",
+            "oracle.net.ssl_context_protocol",
+            "oracle.net.ssl_pem_private_key_index",
+            "oracle.net.ssl_server_cert_dn",
+            "oracle.net.ssl_server_dn_match",
+            "oracle.net.ssl_version",
+            "oracle.net.sslContextCacheSize",
+            "oracle.net.TCP_KEEPCOUNT",
+            "oracle.net.TCP_KEEPIDLE",
+            "oracle.net.TCP_KEEPINTERVAL",
+            "oracle.net.tns_admin",
+            "oracle.net.useJCEAPI",
+            "oracle.net.useSNI",
+            "oracle.net.useTcpFastOpen",
+            "oracle.net.useZeroCopyIO",
+            "oracle.net.wallet_location",
+            "oracle.net.wallet_password",
+            "oracle.net.websocketPassword",
+            "oracle.net.websocketUser",
+            "password",
+            "prelim_auth",
+            "processEscapes",
+            "protocol",
+            "remarksReporting",
+            "RessourceManagerId",
+            "restrictGetTables",
+            "server",
+            "SetFloatAndDoubleUseBinary",
+            "ssl.keyManagerFactory.algorithm",
+            "ssl.trustManagerFactory.algorithm",
+            "useFetchSizeWithLongColumn",
+            "user",
+            "v$session.ename",
+            "v$session.iname",
+            "v$session.machine",
+            "v$session.osuser",
+            "v$session.process",
+            "v$session.program",
+            "v$session.terminal"
+    );
     private static final String SQL_INSTANCE_INFO = """
             select
                 instance_name,
@@ -175,7 +409,7 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
 
     @Override
     public boolean supportsStartStopTab(Connect connect) {
-        return resolveOracleAdminPrivileges(connect).canStartStopInstance();
+        return false;
     }
 
     @Override
@@ -1385,6 +1619,27 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
         return values;
     }
 
+    private static String buildDefaultConnectionProps(String... propNames) {
+        JSONArray array = new JSONArray();
+        if (propNames == null) {
+            return array.toString();
+        }
+        for (String propName : propNames) {
+            if (propName == null || propName.isBlank()) {
+                continue;
+            }
+            JSONObject object = new JSONObject();
+            object.put("propName", propName);
+            object.put("propValue", defaultConnectionPropValue(propName));
+            array.put(object);
+        }
+        return array.toString();
+    }
+
+    private static String defaultConnectionPropValue(String propName) {
+        return "";
+    }
+
     record OracleAdminPrivileges(boolean adminUser,
                                  boolean hasDbaRole,
                                  boolean hasSelectCatalogRole,
@@ -1402,4 +1657,3 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
                                  Set<String> privileges) {
     }
 }
-
