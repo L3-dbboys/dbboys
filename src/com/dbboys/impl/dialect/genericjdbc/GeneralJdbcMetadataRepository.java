@@ -86,7 +86,7 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
 
     @Override
     public int getUserTablesCount(Connection conn) throws SQLException {
-        return countTables(conn, "TABLE");
+        return 0;
     }
 
     @Override
@@ -231,7 +231,7 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
 
     @Override
     public int getIndexCount(Connection conn) throws SQLException {
-        return getIndexes(conn, currentScopeName(conn)).size();
+        return 0;
     }
 
     @Override
@@ -286,7 +286,7 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
 
     @Override
     public int getViewCount(Connection conn) throws SQLException {
-        return countTables(conn, "VIEW");
+        return 0;
     }
 
     @Override
@@ -318,7 +318,7 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
 
     @Override
     public int getFunctionCount(Connection conn, boolean filterType) throws SQLException {
-        return getFunctions(conn, currentScopeName(conn), filterType).size();
+        return 0;
     }
 
     @Override
@@ -341,7 +341,7 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
 
     @Override
     public int getProcedureCount(Connection conn, boolean filterType) throws SQLException {
-        return getProcedures(conn, currentScopeName(conn), filterType).size();
+        return 0;
     }
 
     @Override
@@ -416,20 +416,6 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
         return columns;
     }
 
-    private int countTables(Connection conn, String type) throws SQLException {
-        if (conn == null) {
-            return 0;
-        }
-        int count = 0;
-        DatabaseMetaData metaData = conn.getMetaData();
-        try (ResultSet rs = metaData.getTables(conn.getCatalog(), null, "%", new String[]{type})) {
-            while (rs.next()) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     private Set<String> loadPrimaryKeys(DatabaseMetaData metaData, NameParts parts) throws SQLException {
         LinkedHashSet<String> keys = new LinkedHashSet<>();
         try (ResultSet rs = metaData.getPrimaryKeys(parts.catalog(), parts.schema(), parts.objectName())) {
@@ -467,22 +453,6 @@ public final class GeneralJdbcMetadataRepository implements MetadataRepository {
             return new Scope(null, database, database);
         }
         return new Scope(database, null, database);
-    }
-
-    private String currentScopeName(Connection conn) throws SQLException {
-        String catalog = trimToEmpty(conn == null ? null : conn.getCatalog());
-        if (!catalog.isEmpty()) {
-            return catalog;
-        }
-        try {
-            String schema = trimToEmpty(conn == null ? null : conn.getSchema());
-            if (!schema.isEmpty()) {
-                return schema;
-            }
-        } catch (Throwable ignored) {
-            // ignore
-        }
-        return "DEFAULT";
     }
 
     private Catalog createCatalog(String name) {
