@@ -1207,6 +1207,11 @@ public final class GbaseDdlRepository implements DdlRepository {
         appendPrimaryConstraints(ddl, primaryKeys, sqlmode, patternConstraint);
         ddl.append("\n) ");
 
+        // 增加mysql模式下表的comment
+        if ("MySQL".equals(sqlmode) && tableInfo.getTableComm() != null){
+            ddl.append("COMMENT '").append(tableInfo.getTableComm()).append("' ");
+        }
+
         // E 外部表处理，不考虑maxrows，TODO：没处理外部数据类型对应
         if ("E".equals(tableInfo.getTableTypeCode())){
             appendExternalTableDefinition(connection, ddl, tableInfo);
@@ -1463,10 +1468,7 @@ public final class GbaseDdlRepository implements DdlRepository {
         } else {
             ddl.append("\n").append(tableInfo.getTableGlobalTemporaryLevel()).append(" ");
         }
-        // 增加mysql模式下表的comment
-        if ("MySQL".equals(sqlmode) && tableInfo.getTableComm() != null){
-            ddl.append("COMMENT '").append(tableInfo.getTableComm()).append("' ");
-        }
+        
         ddl.append("EXTENT SIZE ").append(tableInfo.getFirstExtSize()).append(" NEXT SIZE ").append(tableInfo.getNextExtSize());
         if ("MySQL".equals(sqlmode)){
             // mysql模式下暂时不支持 lock mode row的写法
@@ -3316,6 +3318,11 @@ public final class GbaseDdlRepository implements DdlRepository {
             appendPrimaryConstraints(ddl, currentTablePrimaryKeyInfoList, tableInfo.getTableSqlMode(),patternConstraint);
 
             ddl.append("\n) ");
+
+            // mysql 模式下表定义后追加表注释
+            if ("MySQL".equals(tableInfo.getTableSqlMode()) && tableInfo.getTableComm() != null){
+                ddl.append("COMMENT '").append(tableInfo.getTableComm().replace("'", "''")).append("' ");
+            }
             
             // E 外部表处理，不考虑maxrows，TODO：没处理外部数据类型对应
             if ("E".equals(tableInfo.getTableTypeCode())){
@@ -3337,10 +3344,6 @@ public final class GbaseDdlRepository implements DdlRepository {
                     ddl.append("\n").append(tableInfo.getTableGlobalTemporaryLevel()).append(" ");
                 }
 
-                // mysql 模式下表定义后追加表注释
-                if ("MySQL".equals(tableInfo.getTableSqlMode()) && tableInfo.getTableComm() != null){
-                    ddl.append("COMMENT '").append(tableInfo.getTableComm().replace("'", "''")).append("' ");
-                }
                 // 区段大小及锁模式
                 ddl.append("EXTENT SIZE ").append(tableInfo.getFirstExtSize()).append(" NEXT SIZE ").append(tableInfo.getNextExtSize());
                 ddl.append(" LOCK MODE ").append(tableInfo.getLockTypeFunc()).append(";\n");
