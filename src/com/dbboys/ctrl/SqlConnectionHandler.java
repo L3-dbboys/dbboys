@@ -17,6 +17,7 @@ import com.dbboys.vo.Catalog;
 import com.dbboys.vo.TreeData;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.SelectionMode;
@@ -378,14 +379,19 @@ public class SqlConnectionHandler {
         ctrl.sqlDbIconPane.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
         ctrl.sqlUserIconPane.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
         */
-        ctrl.sqlDbChoiceBox.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
+        BooleanBinding generalJdbcToolbar = Bindings.createBooleanBinding(
+                ctrl::isGeneralJdbcToolbarSelection,
+                ctrl.sqlConnectChoiceBox.valueProperty());
+        BooleanBinding dbUserDisabled = Bindings.or(ctrl.sqlConnectChoiceBox.disableProperty(), generalJdbcToolbar);
+        ctrl.sqlDbChoiceBox.disableProperty().bind(dbUserDisabled);
         ctrl.sqlSqlModeChoiceBox.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
         ctrl.sqlCommitModeChoiceBox.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
-        ctrl.sqlUserTextField.disableProperty().bind(ctrl.sqlConnectChoiceBox.disableProperty());
+        ctrl.sqlUserTextField.disableProperty().bind(dbUserDisabled);
 
         ctrl.sqlStopButton.disableProperty().bind(ctrl.sqlExecuteProcessStackPane.visibleProperty().not());
         ctrl.sqlRunButton.disableProperty().bind(ctrl.sqlExecuteProcessStackPane.visibleProperty());
-        ctrl.sqlExplainButton.disableProperty().bind(ctrl.sqlExecuteProcessStackPane.visibleProperty());
+        ctrl.sqlExplainButton.disableProperty().bind(
+                Bindings.or(ctrl.sqlExecuteProcessStackPane.visibleProperty(), generalJdbcToolbar));
 
         ctrl.resultsetTabPane.prefWidthProperty().bind(ctrl.bottomPane.widthProperty());
         ctrl.resultsetTabPane.prefHeightProperty().bind(ctrl.bottomPane.heightProperty());

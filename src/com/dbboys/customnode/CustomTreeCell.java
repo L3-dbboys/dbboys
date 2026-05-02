@@ -723,6 +723,15 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             return;
         }
         if (item instanceof Catalog) {
+            TreeItem<TreeData> catalogItem = getTreeItem();
+            if (catalogItem != null) {
+                Connect meta = TreeNavigator.getMetaConnect(catalogItem);
+                if (meta != null && meta.getDbtype() != null
+                        && "GENERAL JDBC".equalsIgnoreCase(meta.getDbtype().trim())) {
+                    TabpaneUtil.addCustomSqlTab(new Connect(meta));
+                    return;
+                }
+            }
             TreeViewUtil.databaseOpenFileItem.fire();
             return;
         }

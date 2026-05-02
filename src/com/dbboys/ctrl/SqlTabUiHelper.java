@@ -8,6 +8,7 @@ import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -50,6 +51,10 @@ public class SqlTabUiHelper {
         ctrl.sqlRecordButton.setGraphic(IconFactory.group(IconPaths.SQL_HISTORY, 0.8));
         ctrl.sqlReadOnlyLabel.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, IconFactory.stopColor()));
 
+        BooleanBinding sqlHeaderDbUserDimmed = Bindings.createBooleanBinding(
+                () -> ctrl.sqlConnectChoiceBox.isDisable() || ctrl.isGeneralJdbcToolbarSelection(),
+                ctrl.sqlConnectChoiceBox.disableProperty(),
+                ctrl.sqlConnectChoiceBox.valueProperty());
         if (ctrl.sqlDbIconPane != null) {
             ctrl.sqlDbIconPane.setMinSize(SQL_HEADER_ICON_SLOT, SQL_HEADER_ICON_SLOT);
             ctrl.sqlDbIconPane.setPrefSize(SQL_HEADER_ICON_SLOT, SQL_HEADER_ICON_SLOT);
@@ -57,13 +62,13 @@ public class SqlTabUiHelper {
             ctrl.sqlDbIconPane.setAlignment(Pos.CENTER);
             ctrl.sqlDbIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, Color.valueOf("rgb(220,220,220)")));
             ctrl.sqlDbIconPane.opacityProperty().bind(
-                    Bindings.when(ctrl.sqlConnectChoiceBox.disableProperty()).then(0.4).otherwise(1.0)
+                    Bindings.when(sqlHeaderDbUserDimmed).then(0.4).otherwise(1.0)
             );
         }
         if (ctrl.sqlUserIconPane != null) {
             ctrl.sqlUserIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_USER, 0.55, Color.valueOf("rgb(220,220,220)")));
             ctrl.sqlUserIconPane.opacityProperty().bind(
-                    Bindings.when(ctrl.sqlConnectChoiceBox.disableProperty()).then(0.4).otherwise(1.0)
+                    Bindings.when(sqlHeaderDbUserDimmed).then(0.4).otherwise(1.0)
             );
         }
     }

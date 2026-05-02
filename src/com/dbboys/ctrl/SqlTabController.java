@@ -159,6 +159,17 @@ public class SqlTabController {
     private final SqlexeService sqlexeService = AppContext.get(SqlexeService.class);
     final Connect defaultConnect = new Connect();
     final Catalog defaultDatabase = new Catalog();
+
+    /** 工具栏当前选中项为已保存的 General JDBC 连接时，禁用库选择与用户名展示（URL 已含库信息）。 */
+    public boolean isGeneralJdbcToolbarSelection() {
+        if (sqlConnectChoiceBox == null) {
+            return false;
+        }
+        Connect v = sqlConnectChoiceBox.getValue();
+        return v != null && v != defaultConnect && v.getDbtype() != null
+                && "GENERAL JDBC".equalsIgnoreCase(v.getDbtype().trim());
+    }
+
     List<Object> sqlParamList = new ArrayList<>();
     String sqlExecutionResult = "";
     boolean sqlExecutionSuccess = false;
