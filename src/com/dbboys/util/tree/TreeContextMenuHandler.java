@@ -1406,12 +1406,15 @@ public class TreeContextMenuHandler {
                 else if(selectedItem.getValue() instanceof Connect){
                     Connect connect =(Connect)selectedItem.getValue();
                     boolean hideOracleStartStopMenu = isOracleConnectForMenu(connect);
-                    healthCheckItem.setDisable(!supportsHealthCheck(connect));
-                    onlinelogItem.setDisable(!supportsOnlineLog(connect));
-                    spaceManagerItem.setDisable(!supportsSpaceManager(connect));
-                    onconfigItem.setDisable(!supportsConfigManagement(connect));
-                    if (!hideOracleStartStopMenu) {
-                        instanceStopItem.setDisable(!supportsStartStop(connect));
+                    boolean hideInstanceManagementMenu = isGeneralJdbcConnectForMenu(connect);
+                    if (!hideInstanceManagementMenu) {
+                        healthCheckItem.setDisable(!supportsHealthCheck(connect));
+                        onlinelogItem.setDisable(!supportsOnlineLog(connect));
+                        spaceManagerItem.setDisable(!supportsSpaceManager(connect));
+                        onconfigItem.setDisable(!supportsConfigManagement(connect));
+                        if (!hideOracleStartStopMenu) {
+                            instanceStopItem.setDisable(!supportsStartStop(connect));
+                        }
                     }
                     //treeview_menu.getItems().add(createConnectItem);
                     treeview_menu.getItems().add(sqlHisItem);
@@ -1426,14 +1429,16 @@ public class TreeContextMenuHandler {
                     //treeview_menu.getItems().add(refreshItem);
                     treeview_menu.getItems().add(renameItem);
                     treeview_menu.getItems().add(deleteItem);
-                    treeview_menu.getItems().add(separator2);
-                    treeview_menu.getItems().add(TreeViewUtil.connectInfoItem);
-                    treeview_menu.getItems().add(healthCheckItem);
-                    treeview_menu.getItems().add(onlinelogItem);
-                    treeview_menu.getItems().add(spaceManagerItem);
-                    treeview_menu.getItems().add(onconfigItem);
-                    if (!hideOracleStartStopMenu) {
-                        treeview_menu.getItems().add(instanceStopItem);
+                    if (!hideInstanceManagementMenu) {
+                        treeview_menu.getItems().add(separator2);
+                        treeview_menu.getItems().add(TreeViewUtil.connectInfoItem);
+                        treeview_menu.getItems().add(healthCheckItem);
+                        treeview_menu.getItems().add(onlinelogItem);
+                        treeview_menu.getItems().add(spaceManagerItem);
+                        treeview_menu.getItems().add(onconfigItem);
+                        if (!hideOracleStartStopMenu) {
+                            treeview_menu.getItems().add(instanceStopItem);
+                        }
                     }
 
 
@@ -1967,6 +1972,14 @@ public class TreeContextMenuHandler {
             return false;
         }
         return "ORACLE".equalsIgnoreCase(connect.getDbtype().trim());
+    }
+
+    /** General JDBC 无实例管理能力，右键不展示实例相关菜单。 */
+    private static boolean isGeneralJdbcConnectForMenu(Connect connect) {
+        if (connect == null || connect.getDbtype() == null) {
+            return false;
+        }
+        return "GENERAL JDBC".equalsIgnoreCase(connect.getDbtype().trim());
     }
 
     private static DatabasePlatformResolver resolvePlatformResolver() {

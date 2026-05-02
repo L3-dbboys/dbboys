@@ -12,6 +12,7 @@ import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.api.NamedServerConnectionCapability;
 import com.dbboys.impl.DatabasePlatforms;
+import com.dbboys.impl.dialect.genericjdbc.GeneralJdbcDialect;
 import com.dbboys.i18n.I18n;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
@@ -249,6 +250,18 @@ public class CreateConnectController {
                 }
 
                 selectChoiceValue(driverChoiceBox, ((Connect) treeDataParam).getDriver());
+                // applyDialectDefaults runs on db type change: if saved username equals the *previous* dialect's
+                // defaultUsername (e.g. gbasedbt), it is replaced with GENERAL JDBC's empty default — restore here.
+                Connect persisted = (Connect) treeDataParam;
+                usernameTextField.setText(Objects.toString(persisted.getUsername(), ""));
+                passwordTextField.setText(Objects.toString(persisted.getPassword(), ""));
+                if (isGeneralJdbcDbType(persisted.getDbtype())
+                        && usernameTextField.getText().isBlank()) {
+                    String fromUrl = GeneralJdbcDialect.suggestedUsernameFromJdbcUrl(ipAddressTextField.getText());
+                    if (fromUrl != null && !fromUrl.isBlank()) {
+                        usernameTextField.setText(fromUrl);
+                    }
+                }
             }
 
             int i=0;
@@ -342,7 +355,12 @@ public class CreateConnectController {
             connect.setPort(isGeneralJdbcDbType(connect.getDbtype()) ? "" : portTextField.getText());
             if (connectNameTextField.getText().isEmpty()) {
                 if (isGeneralJdbcDbType(connect.getDbtype())) {
-                    connect.setName("[" + connect.getIp() + "]");
+                    String fromUrl = GeneralJdbcDialect.suggestedHostPortLabelFromJdbcUrl(ipAddressTextField.getText());
+                    if (fromUrl != null && !fromUrl.isBlank()) {
+                        connect.setName("[" + fromUrl + "]");
+                    } else {
+                        connect.setName("[" + connect.getIp() + "]");
+                    }
                 } else {
                     connect.setName("[" + connect.getIp() + "_" + connect.getPort() + "]");
                 }

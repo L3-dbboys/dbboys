@@ -181,13 +181,23 @@ public class CustomInstanceInfoTableView extends CustomTableView {
             boolean oracleConnect = selectedConnect != null
                     && selectedConnect.getDbtype() != null
                     && "ORACLE".equalsIgnoreCase(selectedConnect.getDbtype().trim());
-            healthCheckItem.setDisable(selectedConnect == null || !admin.supportsHealthCheck(selectedConnect));
-            onlineLogItem.setDisable(selectedConnect == null || !admin.supportsOnlineLog(selectedConnect));
-            spaceManagerItem.setDisable(selectedConnect == null || !admin.supportsSpaceManager(selectedConnect));
-            onconfigItem.setDisable(selectedConnect == null || !admin.supportsConfigManagement(selectedConnect));
-            instanceStartStopItem.setVisible(!oracleConnect);
-            instanceStartStopItem.setDisable(
-                    selectedConnect == null || oracleConnect || !admin.supportsStartStop(selectedConnect));
+            boolean generalJdbc = selectedConnect != null
+                    && selectedConnect.getDbtype() != null
+                    && "GENERAL JDBC".equalsIgnoreCase(selectedConnect.getDbtype().trim());
+            boolean showInstanceMenu = selectedConnect != null && !generalJdbc;
+            instanceInfoItem.setVisible(showInstanceMenu);
+            healthCheckItem.setVisible(showInstanceMenu);
+            onlineLogItem.setVisible(showInstanceMenu);
+            spaceManagerItem.setVisible(showInstanceMenu);
+            onconfigItem.setVisible(showInstanceMenu);
+            instanceStartStopItem.setVisible(showInstanceMenu && !oracleConnect);
+            if (showInstanceMenu) {
+                healthCheckItem.setDisable(!admin.supportsHealthCheck(selectedConnect));
+                onlineLogItem.setDisable(!admin.supportsOnlineLog(selectedConnect));
+                spaceManagerItem.setDisable(!admin.supportsSpaceManager(selectedConnect));
+                onconfigItem.setDisable(!admin.supportsConfigManagement(selectedConnect));
+                instanceStartStopItem.setDisable(oracleConnect || !admin.supportsStartStop(selectedConnect));
+            }
             copyItem.setDisable(getSelectionModel().getSelectedCells().isEmpty());
         });
 
@@ -199,7 +209,13 @@ public class CustomInstanceInfoTableView extends CustomTableView {
             TableRow<Connect> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY && !row.isEmpty()) {
-                    TabpaneUtil.addCustomInstanceTab(row.getItem(), TAB_INSTANCE_INFO);
+                    Connect c = row.getItem();
+                    if (c != null && c.getDbtype() != null
+                            && "GENERAL JDBC".equalsIgnoreCase(c.getDbtype().trim())) {
+                        TabpaneUtil.addCustomSqlTab(new Connect(c));
+                    } else {
+                        TabpaneUtil.addCustomInstanceTab(row.getItem(), TAB_INSTANCE_INFO);
+                    }
                 }
             });
             return row;

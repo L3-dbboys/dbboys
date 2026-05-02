@@ -708,8 +708,12 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             }
             return;
         }
-        if (item instanceof Connect) {
-            TreeViewUtil.connectInfoItem.fire();
+        if (item instanceof Connect connect) {
+            if (connect.getDbtype() != null && "GENERAL JDBC".equalsIgnoreCase(connect.getDbtype().trim())) {
+                TabpaneUtil.addCustomSqlTab(new Connect(connect));
+            } else {
+                TreeViewUtil.connectInfoItem.fire();
+            }
             return;
         }
         if (item instanceof Catalog) {
