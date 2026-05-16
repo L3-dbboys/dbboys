@@ -649,6 +649,10 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         setGraphic(graphicHbox);
 
         setOnMouseClicked(null);
+        if (isGeneralJdbcMetadataItem(treeItem)) {
+            return;
+        }
+
         if (item instanceof Table) {
             setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
@@ -672,6 +676,9 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         setOnDragDone(null);
 
         if (!(item instanceof ConnectFolder || item instanceof Connect || item instanceof Table || item instanceof View || item instanceof Catalog)) {
+            return;
+        }
+        if ((item instanceof Table || item instanceof View) && isGeneralJdbcMetadataItem(getTreeItem())) {
             return;
         }
 
@@ -699,6 +706,24 @@ public class CustomTreeCell extends TreeCell<TreeData> {
             }
             handleDragMoveAction(item);
         });
+    }
+
+    private static boolean isGeneralJdbcMetadataItem(TreeItem<TreeData> treeItem) {
+        if (treeItem == null || treeItem.getValue() == null) {
+            return false;
+        }
+        TreeData value = treeItem.getValue();
+        if (value instanceof ConnectFolder || value instanceof Connect) {
+            return false;
+        }
+        try {
+            Connect connect = TreeNavigator.getMetaConnect(treeItem);
+            return connect != null
+                    && connect.getDbtype() != null
+                    && "GENERAL JDBC".equalsIgnoreCase(connect.getDbtype().trim());
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
 

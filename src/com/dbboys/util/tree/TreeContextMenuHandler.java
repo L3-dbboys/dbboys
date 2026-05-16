@@ -1205,6 +1205,22 @@ public class TreeContextMenuHandler {
                 treeview_menu.hide();
                 return;
             }
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            if (isGeneralJdbcMetadataSelection(selectedItems)) {
+                treeview_menu.getItems().clear();
+                if (selectedItems.size() == 1 && TreeNavigator.canRefreshItem(selectedItem)) {
+                    treeview_menu.getItems().add(TreeViewUtil.refreshItem);
+                }
+                if (canShowGeneralJdbcCopyItem(selectedItems)) {
+                    treeview_menu.getItems().add(copyItem);
+                }
+                if (treeview_menu.getItems().isEmpty()) {
+                    treeview_menu.hide();
+                } else {
+                    treeview_menu.show(treeView, event.getScreenX(), event.getScreenY());
+                }
+                return;
+            }
             if (selectedItems.size() > 1) {
                 TreeItem<TreeData> firstSelected = selectedItems.get(0);
                 TreeItem<TreeData> anchorParent = firstSelected == null ? null : firstSelected.getParent();
@@ -1232,7 +1248,6 @@ public class TreeContextMenuHandler {
                     return;
                 }
             }
-            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             if (selectedItem != null) {
                 // Rebuild menu each time and force-close any previous sub menu popup.
                 if (ddlMenu.isShowing()) {
@@ -1980,6 +1995,61 @@ public class TreeContextMenuHandler {
             return false;
         }
         return "GENERAL JDBC".equalsIgnoreCase(connect.getDbtype().trim());
+    }
+
+    private static boolean isGeneralJdbcMetadataSelection(List<TreeItem<TreeData>> selectedItems) {
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            return false;
+        }
+        for (TreeItem<TreeData> item : selectedItems) {
+            if (!isGeneralJdbcMetadataItem(item)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isGeneralJdbcMetadataItem(TreeItem<TreeData> item) {
+        if (item == null || item.getValue() == null) {
+            return false;
+        }
+        TreeData value = item.getValue();
+        if (value instanceof ConnectFolder || value instanceof Connect) {
+            return false;
+        }
+        try {
+            return isGeneralJdbcConnectForMenu(TreeNavigator.getMetaConnect(item));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean canShowGeneralJdbcCopyItem(List<TreeItem<TreeData>> selectedItems) {
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            return false;
+        }
+        if (selectedItems.size() == 1) {
+            return TreeNavigator.canCopyItem(selectedItems.get(0));
+        }
+        TreeItem<TreeData> firstSelected = selectedItems.get(0);
+        TreeItem<TreeData> anchorParent = firstSelected == null ? null : firstSelected.getParent();
+        Class<?> anchorType = firstSelected == null || firstSelected.getValue() == null
+                ? null
+                : firstSelected.getValue().getClass();
+        if (anchorType == Catalog.class || anchorType == ObjectFolder.class) {
+            return false;
+        }
+        for (TreeItem<TreeData> item : selectedItems) {
+            if (item == null
+                    || item.getValue() == null
+                    || !TreeNavigator.isDatabaseMenuObject(item.getValue())
+                    || item.getParent() != anchorParent
+                    || anchorType == null
+                    || item.getValue().getClass() != anchorType) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static DatabasePlatformResolver resolvePlatformResolver() {
