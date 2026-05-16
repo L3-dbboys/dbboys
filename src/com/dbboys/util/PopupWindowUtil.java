@@ -748,7 +748,10 @@ public class PopupWindowUtil {
                         "main.compatibility.feature.instance_space",
                         "main.compatibility.feature.instance_log",
                         "main.compatibility.feature.instance_params",
-                        "main.compatibility.feature.instance_inspection"))
+                        "main.compatibility.feature.instance_inspection")),
+                new CompatibilityRow("GENERAL JDBC", "JDBC 4.x", compatibilityFeaturesByKey(
+                        "main.compatibility.feature.metadata_list",
+                        "main.compatibility.feature.execute_sql"))
         );
     }
 
