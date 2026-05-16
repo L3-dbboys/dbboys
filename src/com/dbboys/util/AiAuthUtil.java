@@ -17,14 +17,16 @@ public final class AiAuthUtil {
     private static final Logger log = LogManager.getLogger(AiAuthUtil.class);
 
     private static final String PROVIDER_DOUBAO = "doubao";
+    private static final String PROVIDER_DEEPSEEK = "deepseek";
     private static final String PROVIDER_KIMI = "kimi";
     private static final String PROVIDER_QWEN = "qwen";
     private static final String DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
+    private static final String DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
     private static final String KIMI_BASE_URL = "https://api.moonshot.cn/v1";
     private static final String QWEN_BASE_URL =
             "https://dashscope.aliyuncs.com/api/v2/apps/protocols/compatible-mode/v1";
-    // 默认豆包模型与下拉框候选保持一致，避免配置缺失时出现额外模型项
-    private static final String DOUBAO_DEFAULT_MODEL = "doubao-seed-2-0-mini-260215";
+    // 默认模型与下拉框候选保持一致，避免配置缺失时出现额外模型项
+    private static final String DEFAULT_MODEL = "deepseek-v4-pro";
     private static final String KIMI_DEFAULT_MODEL = "kimi-k2.5";
     private static final String KIMI_LEGACY_MODEL = "kimi-latest";
     private static final String API_TOKEN_DIR_NAME = "dbboys";
@@ -40,6 +42,9 @@ public final class AiAuthUtil {
         if (isKimiModel()) {
             return KIMI_BASE_URL;
         }
+        if (isDeepSeekModel()) {
+            return DEEPSEEK_BASE_URL;
+        }
         if (isQwenModel()) {
             return QWEN_BASE_URL;
         }
@@ -52,7 +57,7 @@ public final class AiAuthUtil {
     public static String getModel() {
         String model = ConfigManagerUtil.getProperty("AI_MODEL", "").trim();
         if (model.isEmpty()) {
-            return DOUBAO_DEFAULT_MODEL;
+            return DEFAULT_MODEL;
         }
         return model;
     }
@@ -67,6 +72,10 @@ public final class AiAuthUtil {
 
     public static boolean isDoubaoModel() {
         return PROVIDER_DOUBAO.equals(getCurrentProviderKey());
+    }
+
+    public static boolean isDeepSeekModel() {
+        return PROVIDER_DEEPSEEK.equals(getCurrentProviderKey());
     }
 
     public static boolean isQwenModel() {
@@ -149,7 +158,7 @@ public final class AiAuthUtil {
     private static String sanitizeModelFileName(String model) {
         String safeModel = model == null ? "" : model.trim();
         if (safeModel.isEmpty()) {
-            safeModel = DOUBAO_DEFAULT_MODEL;
+            safeModel = DEFAULT_MODEL;
         }
         return safeModel.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
@@ -161,6 +170,9 @@ public final class AiAuthUtil {
         }
         if (normalized.startsWith("kimi-") || normalized.startsWith("moonshot-")) {
             return PROVIDER_KIMI;
+        }
+        if (normalized.startsWith("deepseek-")) {
+            return PROVIDER_DEEPSEEK;
         }
         if (normalized.startsWith("qwen")
                 || normalized.startsWith("qwq-")

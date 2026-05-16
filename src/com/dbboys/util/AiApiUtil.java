@@ -310,6 +310,9 @@ public final class AiApiUtil {
         if (AiAuthUtil.isKimiModel()) {
             return buildKimiRequestJson(userMessage, stream);
         }
+        if (AiAuthUtil.isDeepSeekModel()) {
+            return buildOpenAiCompatibleRequestJson(userMessage, stream);
+        }
         if (AiAuthUtil.isQwenModel()) {
             return buildQwenRequestJson(userMessage, stream);
         }
@@ -317,7 +320,7 @@ public final class AiApiUtil {
     }
 
     private static String buildChatEndpoint(String baseUrl) {
-        if (AiAuthUtil.isKimiModel()) {
+        if (AiAuthUtil.isKimiModel() || AiAuthUtil.isDeepSeekModel()) {
             return appendPath(baseUrl, "chat/completions");
         }
         return appendPath(baseUrl, "responses");
@@ -354,16 +357,25 @@ public final class AiApiUtil {
 
     /** Kimi OpenAI 兼容请求体。 */
     private static String buildKimiRequestJson(String userMessage, boolean stream) {
-        JSONObject systemInput = new JSONObject();
-        systemInput.put("role", "system");
-        systemInput.put("content", KIMI_SYSTEM_PROMPT);
+        return buildOpenAiCompatibleRequestJson(userMessage, stream, true);
+    }
+
+    private static String buildOpenAiCompatibleRequestJson(String userMessage, boolean stream) {
+        return buildOpenAiCompatibleRequestJson(userMessage, stream, false);
+    }
+
+    private static String buildOpenAiCompatibleRequestJson(String userMessage, boolean stream, boolean includeKimiSystemPrompt) {
+        JSONArray messages = new JSONArray();
+        if (includeKimiSystemPrompt) {
+            JSONObject systemInput = new JSONObject();
+            systemInput.put("role", "system");
+            systemInput.put("content", KIMI_SYSTEM_PROMPT);
+            messages.put(systemInput);
+        }
 
         JSONObject userInput = new JSONObject();
         userInput.put("role", "user");
         userInput.put("content", userMessage);
-
-        JSONArray messages = new JSONArray();
-        messages.put(systemInput);
         messages.put(userInput);
 
         JSONObject body = new JSONObject();

@@ -75,6 +75,7 @@ public class MainController {
                     + "-fx-text-fill: -color-accent-fg; -fx-font-size: 9px; -fx-padding: 3 8 3 8;";
     private static final List<String> AI_AVAILABLE_MODELS = List.of(
             "doubao-seed-2-0-mini-260215",
+            "deepseek-v4-pro",
             "qwen3.6-plus"
             // "kimi-k2.5"
     );
