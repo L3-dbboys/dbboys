@@ -137,6 +137,10 @@ public interface DatabasePlatform {
         return "系统表/视图";
     }
 
+    default String getUserMetadataDatabaseName(Connect connect) {
+        return "sysuser";
+    }
+
     default boolean supportsTableTypeModification() {
         return true;
     }
@@ -185,6 +189,14 @@ public interface DatabasePlatform {
 
     default String dropObjectSql(String objectType, String objectName) {
         return "drop " + objectType + " " + objectName;
+    }
+
+    default String createUserSql(String userName, String password) {
+        return "create user " + userName + " with password '" + escapeSqlString(password) + "'";
+    }
+
+    default String resetUserPasswordSql(String userName, String password) {
+        return "alter user " + userName + " modify password '" + escapeSqlString(password) + "'";
     }
 
     default String dropIndexSql(String indexName, String tableName) {
@@ -426,6 +438,10 @@ public interface DatabasePlatform {
 
     default boolean showMetadataTooltips() {
         return true;
+    }
+
+    static String escapeSqlString(String value) {
+        return value == null ? "" : value.replace("'", "''");
     }
 
     default <T> Optional<T> capability(Class<T> type) {

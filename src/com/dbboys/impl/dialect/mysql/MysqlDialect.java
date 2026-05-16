@@ -152,6 +152,19 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport {
     }
 
     @Override
+    public String getUserMetadataDatabaseName(Connect connect) {
+        String sessionCatalog = connect == null ? "" : connect.getSessionCatalog();
+        if (sessionCatalog != null && !sessionCatalog.isBlank()) {
+            return sessionCatalog.trim();
+        }
+        String catalog = connect == null ? "" : connect.getCatalog();
+        if (catalog != null && !catalog.isBlank()) {
+            return catalog.trim();
+        }
+        return "mysql";
+    }
+
+    @Override
     public boolean supportsTableTypeModification() {
         return false;
     }
@@ -194,6 +207,9 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport {
     @Override
     public String dropObjectSql(String objectType, String objectName) {
         String type = normalizeObjectType(objectType);
+        if ("user".equals(type)) {
+            return "DROP USER " + quoteAccount(objectName);
+        }
         String identifier = "database".equals(type) ? quoteIdentifier(objectName) : qualify(null, objectName);
         return switch (type) {
             case "database" -> "DROP DATABASE " + identifier;
@@ -204,6 +220,18 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport {
             case "procedure" -> "DROP PROCEDURE " + identifier;
             default -> "DROP " + type.toUpperCase(Locale.ROOT) + " " + identifier;
         };
+    }
+
+    @Override
+    public String createUserSql(String userName, String password) {
+        return "CREATE USER " + quoteAccount(userName)
+                + " IDENTIFIED BY '" + DatabasePlatform.escapeSqlString(password) + "'";
+    }
+
+    @Override
+    public String resetUserPasswordSql(String userName, String password) {
+        return "ALTER USER " + quoteAccount(userName)
+                + " IDENTIFIED BY '" + DatabasePlatform.escapeSqlString(password) + "'";
     }
 
     @Override
@@ -341,6 +369,45 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport {
             return value;
         }
         return "`" + value.replace("`", "``") + "`";
+    }
+
+    private static String quoteAccount(String account) {
+        String value = account == null ? "" : account.trim();
+        int at = findAccountSeparator(value);
+        if (at < 0) {
+            return quoteAccountPart(value) + "@'%'";
+        }
+        return quoteAccountPart(value.substring(0, at)) + "@" + quoteAccountPart(value.substring(at + 1));
+    }
+
+    private static int findAccountSeparator(String value) {
+        boolean inSingleQuote = false;
+        boolean inBacktick = false;
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '\'' && !inBacktick) {
+                boolean escaped = i + 1 < value.length() && value.charAt(i + 1) == '\'';
+                if (escaped) {
+                    i++;
+                } else {
+                    inSingleQuote = !inSingleQuote;
+                }
+            } else if (ch == '`' && !inSingleQuote) {
+                inBacktick = !inBacktick;
+            } else if (ch == '@' && !inSingleQuote && !inBacktick) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static String quoteAccountPart(String part) {
+        String value = part == null ? "" : part.trim();
+        if ((value.startsWith("'") && value.endsWith("'") && value.length() >= 2)
+                || (value.startsWith("`") && value.endsWith("`") && value.length() >= 2)) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return "'" + DatabasePlatform.escapeSqlString(value) + "'";
     }
 
     private static String normalizeObjectType(String objectType) {

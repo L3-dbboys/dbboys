@@ -719,7 +719,8 @@ public class TreeContextMenuHandler {
                 } else {
                     event1.consume();
                     Connect connect=TreeCrudHandler.buildObjectConnect(selectedItem,true);
-                    TreeViewUtil.userService.executeObjectSql(connect, "create user " + userName.getText().trim() + " with password '" + passwordField1.getText().trim() + "'", 
+                    DatabasePlatform platform = TreeNavigator.resolvePlatform(selectedItem);
+                    TreeViewUtil.userService.executeObjectSql(connect, platform.createUserSql(userName.getText().trim(), passwordField1.getText().trim()),
                     () -> {
                         selectedItem.getChildren().clear();
                         selectedItem.setExpanded(false);
@@ -791,9 +792,10 @@ public class TreeContextMenuHandler {
                 } else {
                     event1.consume();
                     Connect connect=TreeCrudHandler.buildObjectConnect(selectedItem,true);
+                    DatabasePlatform platform = TreeNavigator.resolvePlatform(selectedItem);
                     TreeViewUtil.userService.executeObjectSql(
                             connect,
-                            "alter user " + selectedItem.getValue().getName() + " modify password '" + passwordField1.getText().trim() + "'",
+                            platform.resetUserPasswordSql(selectedItem.getValue().getName(), passwordField1.getText().trim()),
                             () -> {
                                 NotificationUtil.showMainNotification(
                                         I18n.t("backsql.notice.user_password_reset", "用户\"%s\"密码已重置！")

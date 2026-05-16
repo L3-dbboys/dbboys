@@ -122,8 +122,20 @@ public class TreeNavigator {
         }else if(retrunTreeItem.getValue() instanceof ObjectFolder){
             return  (Catalog) retrunTreeItem.getParent().getValue();
         }else if(retrunTreeItem.getValue() instanceof UserFolder||retrunTreeItem.getValue() instanceof User){
-            Catalog db=new Catalog("sysuser");
-            db.setDbLocale("en_US.819");
+            Connect connect = getMetaConnect(treeItem);
+            String databaseName = "sysuser";
+            try {
+                DatabasePlatform platform = resolvePlatformResolver().requirePlatform(connect);
+                String platformDatabase = platform.getUserMetadataDatabaseName(connect);
+                if (platformDatabase != null && !platformDatabase.isBlank()) {
+                    databaseName = platformDatabase.trim();
+                }
+            } catch (Exception ignored) {
+            }
+            Catalog db=new Catalog(databaseName);
+            if ("sysuser".equalsIgnoreCase(databaseName)) {
+                db.setDbLocale("en_US.819");
+            }
             return db;
         }else if(
                 retrunTreeItem.getValue() instanceof SysTable||

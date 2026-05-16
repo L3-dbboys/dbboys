@@ -103,7 +103,7 @@ public class GbaseMetadataRepository implements com.dbboys.api.MetadataRepositor
             """;
 
     private static final String SQL_USERS = """
-            select username from sysuser:sysusermap where username!='public';
+            select trim(username) username from sysuser:sysusermap where username!='public';
             """;
 
     private static final String SQL_DBSPACE_FOR_CREATE_DATABASE = """

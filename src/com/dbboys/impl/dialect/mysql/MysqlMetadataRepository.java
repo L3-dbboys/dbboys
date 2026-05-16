@@ -19,8 +19,29 @@ public final class MysqlMetadataRepository implements MetadataRepository {
             Set.of("information_schema", "mysql", "performance_schema", "sys");
 
     @Override
-    public List<User> getUsers(Connection conn) {
-        return List.of();
+    public List<User> getUsers(Connection conn) throws SQLException {
+        String sql = """
+                select user, host
+                from mysql.user
+                order by case when user in ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema') then 0 else 1 end,
+                         user,
+                         host
+                """;
+        List<User> users = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                users.add(new User(toAccountName(rs.getString("user"), rs.getString("host"))));
+            }
+        } catch (SQLException e) {
+            users.addAll(getUsersFromPrivileges(conn));
+        }
+        return users;
+    }
+
+    @Override
+    public boolean supportsUsers(Connect connect) {
+        return true;
     }
 
     @Override
@@ -587,6 +608,66 @@ public final class MysqlMetadataRepository implements MetadataRepository {
 
     private static String blankToEmpty(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static List<User> getUsersFromPrivileges(Connection conn) throws SQLException {
+        String sql = """
+                select distinct grantee
+                from information_schema.user_privileges
+                order by grantee
+                """;
+        List<User> users = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                users.add(new User(normalizeAccountName(rs.getString("grantee"))));
+            }
+        }
+        return users;
+    }
+
+    private static String toAccountName(String user, String host) {
+        String userPart = user == null ? "" : user.trim();
+        String hostPart = host == null || host.isBlank() ? "%" : host.trim();
+        return userPart + "@" + hostPart;
+    }
+
+    private static String normalizeAccountName(String account) {
+        String value = account == null ? "" : account.trim();
+        if (value.isEmpty()) {
+            return value;
+        }
+        int at = findAccountSeparator(value);
+        if (at < 0) {
+            return unquoteAccountPart(value) + "@%";
+        }
+        return unquoteAccountPart(value.substring(0, at)) + "@" + unquoteAccountPart(value.substring(at + 1));
+    }
+
+    private static int findAccountSeparator(String value) {
+        boolean inQuote = false;
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '\'') {
+                boolean escaped = i + 1 < value.length() && value.charAt(i + 1) == '\'';
+                if (escaped) {
+                    i++;
+                } else {
+                    inQuote = !inQuote;
+                }
+            } else if (ch == '@' && !inQuote) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static String unquoteAccountPart(String part) {
+        String value = part == null ? "" : part.trim();
+        if (value.startsWith("'") && value.endsWith("'") && value.length() >= 2) {
+            return value.substring(1, value.length() - 1).replace("''", "'");
+        }
+        return value;
     }
 
     private static int firstPositive(long left, long right) {
