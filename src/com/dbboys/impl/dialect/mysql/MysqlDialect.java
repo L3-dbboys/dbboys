@@ -59,6 +59,9 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport {
         String host = connect.getIp() == null || connect.getIp().isBlank() ? "localhost" : connect.getIp().trim();
         String port = connect.getPort() == null || connect.getPort().isBlank() ? defaultPort() : connect.getPort().trim();
         String database = connect.getCatalog() == null ? "" : connect.getCatalog().trim();
+        if (!database.isBlank() && (connect.getSessionCatalog() == null || connect.getSessionCatalog().isBlank())) {
+            connect.setSessionCatalog(database);
+        }
         String url = "jdbc:mysql://" + host + ":" + port + "/" + database;
         String driver = connect.getDriver() == null || connect.getDriver().isBlank() ? DEFAULT_DRIVER : connect.getDriver().trim();
         String jarFilePath = Path.of("extlib", DB_TYPE, driver).toUri().toString();
@@ -69,7 +72,16 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport {
     public void sessionInit(Connection conn, Connect connect) throws SQLException {
         String sessionCatalog = getSessionCatalog(connect);
         if (conn != null && sessionCatalog != null && !sessionCatalog.isBlank()) {
-            conn.setCatalog(sessionCatalog.trim());
+            String catalog = sessionCatalog.trim();
+            conn.setCatalog(catalog);
+            connect.setSessionCatalog(catalog);
+            return;
+        }
+        if (conn != null && connect != null) {
+            String catalog = conn.getCatalog();
+            if (catalog != null && !catalog.isBlank()) {
+                connect.setSessionCatalog(catalog.trim());
+            }
         }
     }
 
