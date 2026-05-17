@@ -210,11 +210,16 @@ public final class MysqlMetadataRepository implements MetadataRepository {
                     String name = rs.getString("column_name");
                     column.setColNo(rs.getInt("ordinal_position"));
                     column.setColName(name);
-                    column.setColType(blankToEmpty(rs.getString("data_type")).toUpperCase(Locale.ROOT));
-                    int length = firstPositive(rs.getLong("character_maximum_length"), rs.getLong("numeric_precision"));
-                    column.setColLength(length);
-                    column.setTypeP(length);
-                    column.setTypeS(Math.max(rs.getInt("numeric_scale"), 0));
+                    String columnType = blankToEmpty(rs.getString("column_type"));
+                    if (!columnType.isEmpty()) {
+                        applyMysqlColumnTypeFromDefinition(column, columnType);
+                    } else {
+                        column.setColType(blankToEmpty(rs.getString("data_type")).toUpperCase(Locale.ROOT));
+                        int length = firstPositive(rs.getLong("character_maximum_length"), rs.getLong("numeric_precision"));
+                        column.setColLength(length);
+                        column.setTypeP(length);
+                        column.setTypeS(Math.max(rs.getInt("numeric_scale"), 0));
+                    }
                     column.setIsNullable("YES".equalsIgnoreCase(rs.getString("is_nullable")));
                     column.setIsPK(pks.contains(name.toLowerCase(Locale.ROOT)));
                     column.setColDef(rs.getString("column_default"));
@@ -687,6 +692,48 @@ public final class MysqlMetadataRepository implements MetadataRepository {
             return value.substring(1, value.length() - 1).replace("''", "'");
         }
         return value;
+    }
+
+    private static void applyMysqlColumnTypeFromDefinition(ColumnsInfo column, String columnType) {
+        String normalized = columnType.trim();
+        int open = normalized.indexOf('(');
+        String basePart = open >= 0 ? normalized.substring(0, open).trim() : normalized;
+        String baseWord = basePart.isEmpty() ? "" : basePart.split("\\s+")[0];
+        column.setColType(baseWord.toUpperCase(Locale.ROOT));
+        column.setColLength(0);
+        column.setTypeP(0);
+        column.setTypeS(0);
+        if (open < 0) {
+            return;
+        }
+        int close = normalized.indexOf(')', open);
+        if (close <= open) {
+            return;
+        }
+        String inside = normalized.substring(open + 1, close).trim();
+        if (inside.isEmpty()) {
+            return;
+        }
+        String[] parts = inside.split(",");
+        int precision = parseUnsignedInt(parts[0].trim());
+        if (precision > 0) {
+            column.setTypeP(precision);
+            column.setColLength(precision);
+        }
+        if (parts.length > 1) {
+            column.setTypeS(Math.max(parseUnsignedInt(parts[1].trim()), 0));
+        }
+    }
+
+    private static int parseUnsignedInt(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static int firstPositive(long left, long right) {

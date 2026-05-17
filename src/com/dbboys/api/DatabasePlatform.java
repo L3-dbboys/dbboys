@@ -74,6 +74,11 @@ public interface DatabasePlatform {
         return true;
     }
 
+    /** When true, table designer allows toggling AUTO_INCREMENT on columns (MySQL). */
+    default boolean supportsEditableAutoIncrement() {
+        return false;
+    }
+
     default List<String> getColumnTypes() {
         return List.of();
     }

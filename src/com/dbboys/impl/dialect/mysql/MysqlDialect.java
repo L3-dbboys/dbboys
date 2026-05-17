@@ -337,6 +337,11 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport, 
     }
 
     @Override
+    public boolean supportsEditableAutoIncrement() {
+        return true;
+    }
+
+    @Override
     public IconInfo iconInfo() {
         return new IconInfo(IconPaths.MYSQL_LOGO, 0.6, 0.6);
     }

@@ -63,6 +63,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
@@ -200,7 +201,8 @@ public class CustomTableInfoTab extends CustomTab {
                     column.setCellFactory(col -> {
                         return new TableCell<ObservableList<String>, String>() {
                             private final ChoiceBox<String> choiceBox = new ChoiceBox<>();
-                              
+                            private boolean bindingTypeValue;
+
                             {   // 初始化ChoiceBox
                                 ObservableList<String> dataTypes = buildCreateTableColumnTypes();
                                 choiceBox.setItems(dataTypes);
@@ -231,18 +233,20 @@ public class CustomTableInfoTab extends CustomTab {
                                 
                                 // 监听ChoiceBox的值变化，直接更新数据
                                 choiceBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-                                    if (newValue != null && !newValue.equals(oldValue)) {
-                                        int rowIndex = getIndex();
-                                        if (rowIndex < 0 || getTableView() == null || rowIndex >= getTableView().getItems().size()) {
-                                            return;
-                                        }
-                                        // 获取当前行的数据
-                                        ObservableList<String> rowData = getTableView().getItems().get(rowIndex);
-                                        // 更新列类型值
-                                        rowData.set(columnIndex, newValue);
-                                        // SERIAL/SERIAL8/BIGSERIAL 自动勾选自增
-                                        if (rowData.size() > 6) {
-                                            rowData.set(6, isAutoIncrementType(newValue) ? "是" : "否");
+                                    if (bindingTypeValue || newValue == null || newValue.equals(oldValue)) {
+                                        return;
+                                    }
+                                    int rowIndex = getIndex();
+                                    if (rowIndex < 0 || getTableView() == null || rowIndex >= getTableView().getItems().size()) {
+                                        return;
+                                    }
+                                    ObservableList<String> rowData = getTableView().getItems().get(rowIndex);
+                                    rowData.set(columnIndex, newValue);
+                                    if (rowData.size() > 6) {
+                                        if (isAutoIncrementType(newValue)) {
+                                            rowData.set(6, "是");
+                                        } else if (isAutoIncrementType(oldValue)) {
+                                            rowData.set(6, "否");
                                         }
                                     }
                                 });
@@ -258,8 +262,12 @@ public class CustomTableInfoTab extends CustomTab {
                                     setGraphic(null);
                                     setText(null);
                                 } else {
-                                    // 始终显示ChoiceBox
-                                    choiceBox.setValue(item);
+                                    bindingTypeValue = true;
+                                    try {
+                                        choiceBox.setValue(item);
+                                    } finally {
+                                        bindingTypeValue = false;
+                                    }
                                     setGraphic(choiceBox);
                                     setText(null);
                                 }
@@ -354,12 +362,27 @@ public class CustomTableInfoTab extends CustomTab {
                     column.setCellFactory(col -> {
                         return new TableCell<ObservableList<String>, String>() {
                             private final CheckBox checkBox = new CheckBox();
+                            private boolean bindingAutoIncrementValue;
+
                             {
-                                checkBox.setDisable(true); // 只读，按类型自动设置
+                                checkBox.setDisable(readOnlyConnect || !supportsEditableAutoIncrement());
                                 checkBox.setAlignment(Pos.CENTER);
                                 setAlignment(Pos.CENTER);
                                 checkBox.getStyleClass().add("table-check-box");
                                 setGraphic(checkBox);
+                                checkBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+                                    if (bindingAutoIncrementValue) {
+                                        return;
+                                    }
+                                    int rowIndex = getIndex();
+                                    if (rowIndex < 0 || getTableView() == null || rowIndex >= getTableView().getItems().size()) {
+                                        return;
+                                    }
+                                    ObservableList<String> rowData = getTableView().getItems().get(rowIndex);
+                                    if (rowData != null && rowData.size() > 6) {
+                                        rowData.set(6, Boolean.TRUE.equals(newValue) ? "是" : "否");
+                                    }
+                                });
                             }
 
                             @Override
@@ -368,8 +391,12 @@ public class CustomTableInfoTab extends CustomTab {
                                 if (empty) {
                                     setGraphic(null);
                                 } else {
-                                    checkBox.setSelected("是".equals(item));
-
+                                    bindingAutoIncrementValue = true;
+                                    try {
+                                        checkBox.setSelected("是".equals(item));
+                                    } finally {
+                                        bindingAutoIncrementValue = false;
+                                    }
                                     setGraphic(checkBox);
                                 }
                             }
@@ -1047,6 +1074,7 @@ public List<String> generateAlterTableSQL() {
             boolean scaleChanged = false;
             boolean notNullChanged = false;
             boolean defaultChanged = false;
+            boolean autoIncrementChanged = false;
             if (currentRow.size() > 1 && originalRow.size() > 1) {
                 typeChanged = !safeEquals(getComparableColumnType(currentRow), getComparableColumnType(originalRow));
             }
@@ -1059,29 +1087,34 @@ public List<String> generateAlterTableSQL() {
             if (currentRow.size() > 4 && originalRow.size() > 4) {
                 notNullChanged = !safeEquals(currentRow.get(4), originalRow.get(4));
             }
+            if (currentRow.size() > 6 && originalRow.size() > 6) {
+                autoIncrementChanged = !safeEquals(currentRow.get(6), originalRow.get(6));
+            }
             if (currentRow.size() > 7 && originalRow.size() > 7) {
                 defaultChanged = !safeEquals(currentRow.get(7), originalRow.get(7));
             }
 
-            // 类型/长度/标度/非空/默认值合并为一个 ALTER
-            if (typeChanged || lengthChanged || scaleChanged || notNullChanged || defaultChanged) {
+            if (supportsEditableAutoIncrement()) {
+                if (typeChanged || lengthChanged || scaleChanged || notNullChanged || defaultChanged || autoIncrementChanged) {
+                    addSql(sqlList, buildMysqlModifyColumnSql(tableName, currentColumnName, currentRow));
+                }
+            } else if (typeChanged || lengthChanged || scaleChanged || notNullChanged || defaultChanged) {
                 String modifyDef = buildModifyDefinition(currentRow, currentColumnName, 4, currentRow.get(4));
                 if (modifyDef != null && !modifyDef.isEmpty()) {
                     modifyDefs.add(modifyDef);
                 }
             }
 
-            // 比较每一列的数据，处理其他属性修改（跳过已合并的 1/2/3/4/7）
+            // 比较每一列的数据，处理其他属性修改（跳过已合并的 1/2/3/4/6/7）
             for (int j = 5; j < currentRow.size(); j++) {
                 if (j < originalRow.size()) {
-                    if (j == 7) {
+                    if (j == 7 || (j == 6 && supportsEditableAutoIncrement())) {
                         continue;
                     }
                     String currentValue = currentRow.get(j);
                     String originalValue = originalRow.get(j);
                     
                     if (!safeEquals(currentValue, originalValue)) {
-                        // 生成对应的ALTER TABLE语句
                         String alterSQL = generateColumnAlterSQL(schemaName, tableName, currentColumnName, j, currentValue, originalValue);
                         if (alterSQL != null && !alterSQL.isEmpty()) {
                             addSql(sqlList, alterSQL);
@@ -1194,7 +1227,11 @@ private String buildCreateColumnDefinition(ObservableList<String> columnRow) {
     sqlBuilder.append(colName).append(" ").append(colType);
     String length = columnRow.size() > 2 ? normalizeTableMetaValue(columnRow.get(2)) : "";
     String scale = columnRow.size() > 3 ? normalizeTableMetaValue(columnRow.get(3)) : "";
-    appendLengthAndScale(sqlBuilder, colType, length, scale);
+    if (supportsEditableAutoIncrement()) {
+        appendMysqlLengthAndScale(sqlBuilder, colType, length, scale);
+    } else {
+        appendLengthAndScale(sqlBuilder, colType, length, scale);
+    }
     if (columnRow.size() > 4 && "是".equals(columnRow.get(4))) {
         sqlBuilder.append(" NOT NULL");
     }
@@ -1203,6 +1240,9 @@ private String buildCreateColumnDefinition(ObservableList<String> columnRow) {
         if (!defaultValue.isEmpty()) {
             sqlBuilder.append(" DEFAULT ").append(formatDefaultValue(defaultValue));
         }
+    }
+    if (columnRow.size() > 6 && "是".equals(columnRow.get(6)) && supportsEditableAutoIncrement()) {
+        sqlBuilder.append(" AUTO_INCREMENT");
     }
     return sqlBuilder.toString();
 }
@@ -1313,8 +1353,10 @@ private String generateColumnAlterSQL(String schemaName, String tableName, Strin
             // 主键修改比较复杂，需要先删除再添加，暂时不支持
             return null;
         case 6: // 自增
-            // 自增属性修改比较复杂，暂时不支持
-            return null;
+            if (!supportsEditableAutoIncrement() || currentRow == null) {
+                return null;
+            }
+            return buildMysqlModifyColumnSql(tableName, columnName, currentRow);
         case 7: // 默认值
             if (currentValue != null && !currentValue.isEmpty()) {
                 sqlBuilder.append("SET DEFAULT ").append(formatDefaultValue(currentValue));
@@ -1569,6 +1611,108 @@ private String buildTableUserData(String tableName) {
     return "table:" + connect + "." + database + "." + currentTableName;
 }
 
+private boolean supportsEditableAutoIncrement() {
+    if (connect == null) {
+        return false;
+    }
+    try {
+        return platformResolver.requirePlatform(connect).supportsEditableAutoIncrement();
+    } catch (Exception ignored) {
+        return false;
+    }
+}
+
+private String buildMysqlModifyColumnSql(String tableName, String columnName, ObservableList<String> row) {
+    if (tableName == null || tableName.isBlank() || columnName == null || columnName.isBlank() || row == null || row.size() < 2) {
+        return null;
+    }
+    String colType = normalizeTableMetaValue(row.get(1));
+    if (colType.isEmpty()) {
+        return null;
+    }
+    StringBuilder sqlBuilder = new StringBuilder();
+    sqlBuilder.append("ALTER TABLE ").append(tableName.trim())
+            .append(" MODIFY COLUMN ").append(columnName.trim()).append(" ")
+            .append(colType);
+    String length = row.size() > 2 ? normalizeTableMetaValue(row.get(2)) : "";
+    String scale = row.size() > 3 ? normalizeTableMetaValue(row.get(3)) : "";
+    appendMysqlLengthAndScale(sqlBuilder, colType, length, scale);
+    appendMysqlColumnAttributes(sqlBuilder, row);
+    sqlBuilder.append(";");
+    return sqlBuilder.toString();
+}
+
+private void appendMysqlLengthAndScale(StringBuilder sqlBuilder, String type, String length, String scale) {
+    if (sqlBuilder == null) {
+        return;
+    }
+    String normalizedType = normalizeTableMetaValue(type).toUpperCase(Locale.ROOT);
+    String normalizedLength = normalizeTableMetaValue(length);
+    String normalizedScale = normalizeTableMetaValue(scale);
+    if (normalizedType.isEmpty()) {
+        return;
+    }
+    if (normalizedType.startsWith("FLOAT")
+            || normalizedType.startsWith("DOUBLE")
+            || normalizedType.startsWith("REAL")) {
+        if (!normalizedLength.isEmpty() && !normalizedScale.isEmpty()) {
+            sqlBuilder.append("(").append(normalizedLength).append(",").append(normalizedScale).append(")");
+        }
+        return;
+    }
+    if (normalizedType.startsWith("DECIMAL") || normalizedType.startsWith("NUMERIC")) {
+        if (!normalizedLength.isEmpty()) {
+            sqlBuilder.append("(").append(normalizedLength).append(",")
+                    .append(normalizedScale.isEmpty() ? "0" : normalizedScale).append(")");
+        }
+        return;
+    }
+    if (isMysqlIntegerDisplayWidthType(normalizedType)) {
+        if (!normalizedLength.isEmpty()) {
+            sqlBuilder.append("(").append(normalizedLength).append(")");
+        }
+        return;
+    }
+    if (isMysqlLengthOnlyType(normalizedType) && !normalizedLength.isEmpty()) {
+        sqlBuilder.append("(").append(normalizedLength).append(")");
+    }
+}
+
+private static boolean isMysqlIntegerDisplayWidthType(String upperType) {
+    return upperType.startsWith("TINYINT")
+            || upperType.startsWith("SMALLINT")
+            || upperType.startsWith("MEDIUMINT")
+            || upperType.equals("INT")
+            || upperType.equals("INTEGER")
+            || upperType.startsWith("BIGINT");
+}
+
+private static boolean isMysqlLengthOnlyType(String upperType) {
+    return upperType.startsWith("CHAR")
+            || upperType.startsWith("VARCHAR")
+            || upperType.startsWith("BINARY")
+            || upperType.startsWith("VARBINARY")
+            || upperType.startsWith("BIT");
+}
+
+private void appendMysqlColumnAttributes(StringBuilder sqlBuilder, ObservableList<String> row) {
+    if (sqlBuilder == null || row == null) {
+        return;
+    }
+    if (row.size() > 4 && "是".equals(row.get(4))) {
+        sqlBuilder.append(" NOT NULL");
+    }
+    if (row.size() > 7) {
+        String defaultValue = normalizeTableMetaValue(row.get(7));
+        if (!defaultValue.isEmpty()) {
+            sqlBuilder.append(" DEFAULT ").append(formatDefaultValue(defaultValue));
+        }
+    }
+    if (row.size() > 6 && "是".equals(row.get(6))) {
+        sqlBuilder.append(" AUTO_INCREMENT");
+    }
+}
+
 private boolean isAutoIncrementType(String type) {
     if (type == null) {
         return false;
@@ -1616,7 +1760,7 @@ private boolean isTypeWithoutLengthScale(String type) {
             "BOOLEAN",
             "BYTE", "BLOB", "CLOB", "TEXT",
             "JSON", "BSON",
-            "FLOAT"
+            "FLOAT", "DOUBLE", "REAL"
     );
     String upper = type.toUpperCase();
     for (String t : typesWithoutLengthScale) {
@@ -1748,7 +1892,11 @@ private String buildAddColumnDefinition(ObservableList<String> columnRow) {
     // 长度和标度
     String length = columnRow.get(2);
     String scale = columnRow.get(3);
-    appendLengthAndScale(sqlBuilder, columnRow.get(1), length, scale);
+    if (supportsEditableAutoIncrement()) {
+        appendMysqlLengthAndScale(sqlBuilder, columnRow.get(1), length, scale);
+    } else {
+        appendLengthAndScale(sqlBuilder, columnRow.get(1), length, scale);
+    }
 
     // 非空约束
     if ("是".equals(columnRow.get(4))) {
@@ -1759,6 +1907,10 @@ private String buildAddColumnDefinition(ObservableList<String> columnRow) {
     String defaultValue = columnRow.get(7);
     if (defaultValue != null && !defaultValue.isEmpty()) {
         sqlBuilder.append(" DEFAULT ").append(formatDefaultValue(defaultValue));
+    }
+
+    if (supportsEditableAutoIncrement() && columnRow.size() > 6 && "是".equals(columnRow.get(6))) {
+        sqlBuilder.append(" AUTO_INCREMENT");
     }
 
     // 位置（before xxx）
