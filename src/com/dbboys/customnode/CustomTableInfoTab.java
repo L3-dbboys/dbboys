@@ -967,6 +967,7 @@ public class CustomTableInfoTab extends CustomTab {
 public List<String> generateAlterTableSQL() {
     List<String> sqlList = new ArrayList<>();
     List<String> modifyDefs = new ArrayList<>();
+    List<String> mysqlModifyDefs = new ArrayList<>();
     
     // 获取表名（列变更使用旧表名，重命名放在最后执行）
     String tableName = originalTableName == null || originalTableName.trim().isEmpty()
@@ -1096,7 +1097,10 @@ public List<String> generateAlterTableSQL() {
 
             if (supportsEditableAutoIncrement()) {
                 if (typeChanged || lengthChanged || scaleChanged || notNullChanged || defaultChanged || autoIncrementChanged) {
-                    addSql(sqlList, buildMysqlModifyColumnSql(tableName, currentColumnName, currentRow));
+                    String mysqlDef = buildMysqlModifyColumnDefinition(currentColumnName, currentRow);
+                    if (mysqlDef != null && !mysqlDef.isEmpty()) {
+                        mysqlModifyDefs.add(mysqlDef);
+                    }
                 }
             } else if (typeChanged || lengthChanged || scaleChanged || notNullChanged || defaultChanged) {
                 String modifyDef = buildModifyDefinition(currentRow, currentColumnName, 4, currentRow.get(4));
@@ -1128,7 +1132,17 @@ public List<String> generateAlterTableSQL() {
         }
     }
 
-    // 多条 MODIFY 合并为一条
+    // MySQL: 多条 MODIFY COLUMN 合并为一条 ALTER TABLE
+    if (!mysqlModifyDefs.isEmpty()) {
+        String merged = "ALTER TABLE " + tableName + " "
+                + mysqlModifyDefs.stream()
+                .map(def -> "MODIFY COLUMN " + def)
+                .collect(Collectors.joining(", "))
+                + ";";
+        addSql(sqlList, merged);
+    }
+
+    // Informix/GBase: 多条 MODIFY 合并为一条
     if (!modifyDefs.isEmpty()) {
         String modifySQL = "ALTER TABLE " + tableName + " MODIFY (" + String.join(", ", modifyDefs) + ");";
         addSql(sqlList, modifySQL);
@@ -1352,11 +1366,8 @@ private String generateColumnAlterSQL(String schemaName, String tableName, Strin
         case 5: // 主键
             // 主键修改比较复杂，需要先删除再添加，暂时不支持
             return null;
-        case 6: // 自增
-            if (!supportsEditableAutoIncrement() || currentRow == null) {
-                return null;
-            }
-            return buildMysqlModifyColumnSql(tableName, columnName, currentRow);
+        case 6: // 自增（MySQL 已在 generateAlterTableSQL 中批量合并）
+            return null;
         case 7: // 默认值
             if (currentValue != null && !currentValue.isEmpty()) {
                 sqlBuilder.append("SET DEFAULT ").append(formatDefaultValue(currentValue));
@@ -1622,8 +1633,8 @@ private boolean supportsEditableAutoIncrement() {
     }
 }
 
-private String buildMysqlModifyColumnSql(String tableName, String columnName, ObservableList<String> row) {
-    if (tableName == null || tableName.isBlank() || columnName == null || columnName.isBlank() || row == null || row.size() < 2) {
+private String buildMysqlModifyColumnDefinition(String columnName, ObservableList<String> row) {
+    if (columnName == null || columnName.isBlank() || row == null || row.size() < 2) {
         return null;
     }
     String colType = normalizeTableMetaValue(row.get(1));
@@ -1631,14 +1642,11 @@ private String buildMysqlModifyColumnSql(String tableName, String columnName, Ob
         return null;
     }
     StringBuilder sqlBuilder = new StringBuilder();
-    sqlBuilder.append("ALTER TABLE ").append(tableName.trim())
-            .append(" MODIFY COLUMN ").append(columnName.trim()).append(" ")
-            .append(colType);
+    sqlBuilder.append(columnName.trim()).append(" ").append(colType);
     String length = row.size() > 2 ? normalizeTableMetaValue(row.get(2)) : "";
     String scale = row.size() > 3 ? normalizeTableMetaValue(row.get(3)) : "";
     appendMysqlLengthAndScale(sqlBuilder, colType, length, scale);
     appendMysqlColumnAttributes(sqlBuilder, row);
-    sqlBuilder.append(";");
     return sqlBuilder.toString();
 }
 
