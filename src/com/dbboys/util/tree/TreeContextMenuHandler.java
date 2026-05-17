@@ -1426,14 +1426,14 @@ public class TreeContextMenuHandler {
                 //连接
                 else if(selectedItem.getValue() instanceof Connect){
                     Connect connect =(Connect)selectedItem.getValue();
-                    boolean hideOracleStartStopMenu = isOracleConnectForMenu(connect);
+                    boolean hideStartStopMenu = isOracleConnectForMenu(connect) || isMysqlConnectForMenu(connect);
                     boolean hideInstanceManagementMenu = isGeneralJdbcConnectForMenu(connect);
                     if (!hideInstanceManagementMenu) {
                         healthCheckItem.setDisable(!supportsHealthCheck(connect));
                         onlinelogItem.setDisable(!supportsOnlineLog(connect));
                         spaceManagerItem.setDisable(!supportsSpaceManager(connect));
                         onconfigItem.setDisable(!supportsConfigManagement(connect));
-                        if (!hideOracleStartStopMenu) {
+                        if (!hideStartStopMenu) {
                             instanceStopItem.setDisable(!supportsStartStop(connect));
                         }
                     }
@@ -1457,7 +1457,7 @@ public class TreeContextMenuHandler {
                         treeview_menu.getItems().add(onlinelogItem);
                         treeview_menu.getItems().add(spaceManagerItem);
                         treeview_menu.getItems().add(onconfigItem);
-                        if (!hideOracleStartStopMenu) {
+                        if (!hideStartStopMenu) {
                             treeview_menu.getItems().add(instanceStopItem);
                         }
                     }
@@ -2030,6 +2030,13 @@ public class TreeContextMenuHandler {
             return false;
         }
         return "ORACLE".equalsIgnoreCase(connect.getDbtype().trim());
+    }
+
+    private static boolean isMysqlConnectForMenu(Connect connect) {
+        if (connect == null || connect.getDbtype() == null) {
+            return false;
+        }
+        return "MYSQL".equalsIgnoreCase(connect.getDbtype().trim());
     }
 
     /** General JDBC 无实例管理能力，右键不展示实例相关菜单。 */

@@ -65,7 +65,7 @@ public class CustomInstanceInfoTableView extends CustomTableView {
         TableColumn<Connect, String> databaseColumn = createColumn(
                 "sql.table.sample.database",
                 "库名",
-                "database",
+                "catalog",
                 IconPaths.TREECELL_DATABASE_FOLDER,
                 0.09
         );
@@ -181,6 +181,9 @@ public class CustomInstanceInfoTableView extends CustomTableView {
             boolean oracleConnect = selectedConnect != null
                     && selectedConnect.getDbtype() != null
                     && "ORACLE".equalsIgnoreCase(selectedConnect.getDbtype().trim());
+            boolean mysqlConnect = selectedConnect != null
+                    && selectedConnect.getDbtype() != null
+                    && "MYSQL".equalsIgnoreCase(selectedConnect.getDbtype().trim());
             boolean generalJdbc = selectedConnect != null
                     && selectedConnect.getDbtype() != null
                     && "GENERAL JDBC".equalsIgnoreCase(selectedConnect.getDbtype().trim());
@@ -190,13 +193,13 @@ public class CustomInstanceInfoTableView extends CustomTableView {
             onlineLogItem.setVisible(showInstanceMenu);
             spaceManagerItem.setVisible(showInstanceMenu);
             onconfigItem.setVisible(showInstanceMenu);
-            instanceStartStopItem.setVisible(showInstanceMenu && !oracleConnect);
+            instanceStartStopItem.setVisible(showInstanceMenu && !oracleConnect && !mysqlConnect);
             if (showInstanceMenu) {
                 healthCheckItem.setDisable(!admin.supportsHealthCheck(selectedConnect));
                 onlineLogItem.setDisable(!admin.supportsOnlineLog(selectedConnect));
                 spaceManagerItem.setDisable(!admin.supportsSpaceManager(selectedConnect));
                 onconfigItem.setDisable(!admin.supportsConfigManagement(selectedConnect));
-                instanceStartStopItem.setDisable(oracleConnect || !admin.supportsStartStop(selectedConnect));
+                instanceStartStopItem.setDisable(oracleConnect || mysqlConnect || !admin.supportsStartStop(selectedConnect));
             }
             copyItem.setDisable(getSelectionModel().getSelectedCells().isEmpty());
         });
