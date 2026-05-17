@@ -32,7 +32,6 @@ public final class MysqlDdlRepository implements DdlRepository {
         StringBuilder ddl = new StringBuilder();
         long completed = 0;
 
-        ddl.append("USE ").append(quoteIdentifier(db)).append(";\n\n");
         for (String table : objectNames(conn, db, "BASE TABLE")) {
             ddl.append(printTable(conn, qualified(db, table))).append("\n\n");
             completed = notifyProgress(progressCallback, completed);

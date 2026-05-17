@@ -611,7 +611,7 @@ public final class MysqlDialect implements DatabasePlatform, ConnectionSupport, 
 
     @Override
     public String supportedVersionLabel() {
-        return "5.7 / 8.0";
+        return "8.0";
     }
 
     @Override

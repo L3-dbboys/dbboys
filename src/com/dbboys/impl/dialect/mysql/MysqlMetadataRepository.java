@@ -219,12 +219,31 @@ public final class MysqlMetadataRepository implements MetadataRepository {
                     column.setIsPK(pks.contains(name.toLowerCase(Locale.ROOT)));
                     column.setColDef(rs.getString("column_default"));
                     column.setColComm(blankToEmpty(rs.getString("column_comment")));
-                    column.setIsAutoincrement(blankToEmpty(rs.getString("extra")).toLowerCase(Locale.ROOT).contains("auto_increment"));
+                    boolean autoIncrement = blankToEmpty(rs.getString("extra")).toLowerCase(Locale.ROOT).contains("auto_increment")
+                            || blankToEmpty(rs.getString("column_type")).toLowerCase(Locale.ROOT).contains("auto_increment")
+                            || isAutoIncrementColumn(conn, qn.database(), qn.object(), name);
+                    column.setIsAutoincrement(autoIncrement);
                     columns.add(column);
                 }
             }
         }
         return columns;
+    }
+
+    private static boolean isAutoIncrementColumn(Connection conn, String database, String table, String column) {
+        if (conn == null || table == null || column == null) {
+            return false;
+        }
+        try (ResultSet rs = conn.getMetaData().getColumns(database, null, table, column)) {
+            while (rs.next()) {
+                String value = rs.getString("IS_AUTOINCREMENT");
+                if ("YES".equalsIgnoreCase(value)) {
+                    return true;
+                }
+            }
+        } catch (SQLException ignored) {
+        }
+        return false;
     }
 
     @Override

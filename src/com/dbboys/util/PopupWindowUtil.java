@@ -749,11 +749,18 @@ public class PopupWindowUtil {
                         "main.compatibility.feature.instance_log",
                         "main.compatibility.feature.instance_params",
                         "main.compatibility.feature.instance_inspection")),
-                new CompatibilityRow("MYSQL", "5.7 / 8.0", compatibilityFeaturesByKey(
+                new CompatibilityRow("MYSQL", "8.0", compatibilityFeaturesByKey(
                         "main.compatibility.feature.metadata_list",
                         "main.compatibility.feature.metadata_detail",
+                        "main.compatibility.feature.metadata_change",
                         "main.compatibility.feature.execute_sql",
-                        "main.compatibility.feature.import_export")),
+                        "main.compatibility.feature.execution_plan",
+                        "main.compatibility.feature.import_export",
+                        "main.compatibility.feature.instance_info",
+                        "main.compatibility.feature.instance_space",
+                        "main.compatibility.feature.instance_log",
+                        "main.compatibility.feature.instance_params",
+                        "main.compatibility.feature.instance_inspection")),
                 new CompatibilityRow("GENERAL JDBC", "JDBC 4.x", compatibilityFeaturesByKey(
                         "main.compatibility.feature.metadata_list",
                         "main.compatibility.feature.execute_sql"))
