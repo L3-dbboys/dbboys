@@ -41,6 +41,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SqlTabController {
+
+    /** Same colors as execution-result summary success/failure filter buttons. */
+    public static final String RESULT_SUCCESS_BUTTON_COLOR = "#2E9E5B";
+    public static final String RESULT_FAILURE_BUTTON_COLOR = "#CC3D3D";
     private static final Logger log = LogManager.getLogger(SqlTabController.class);
     static final String SQL_EXECUTE_PROCESS_TASK_LABEL_KEY = "sqlExecuteProcessTaskLabel";
     private static final String SQL_PANEL_KEEPALIVE_INTERVAL_CONFIG_KEY = "CONNECT_KEEPALIVE_SECONDS";
@@ -285,8 +289,8 @@ public class SqlTabController {
         }
         resultSuccessFilterButton.setText(I18n.t("sql.result.filter.success", "成功") + " " + successCount);
         resultFailureFilterButton.setText(I18n.t("sql.result.filter.failure", "失败") + " " + failureCount);
-        applyResultFilterButtonState(resultSuccessFilterButton, "#2E9E5B", resultFilterMode == ResultFilterMode.SUCCESS);
-        applyResultFilterButtonState(resultFailureFilterButton, "#CC3D3D", resultFilterMode == ResultFilterMode.FAILURE);
+        applyResultFilterButtonState(resultSuccessFilterButton, RESULT_SUCCESS_BUTTON_COLOR, resultFilterMode == ResultFilterMode.SUCCESS);
+        applyResultFilterButtonState(resultFailureFilterButton, RESULT_FAILURE_BUTTON_COLOR, resultFilterMode == ResultFilterMode.FAILURE);
     }
 
     private void toggleResultFilter(ResultFilterMode mode) {

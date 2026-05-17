@@ -5682,26 +5682,20 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 }
 
 
-/*提交回滚按钮*/
-.commit-btn {
-  -fx-background-color: -color-base-7;
-  -fx-padding: 0;
+/*提交回滚按钮（颜色由 Java 与结果集成功/失败筛选按钮共用 #2E9E5B / #CC3D3D）*/
+.commit-btn,
+.rollback-btn {
   -fx-pref-width: 50;
+  -fx-padding: 0;
   -fx-border-width: 0;
 }
 
 .commit-btn:hover {
-  -fx-background-color:  -color-accent-emphasis;
+  -fx-background-color: #268a4f;
 }
 
-.rollback-btn {
-  -fx-background-color: -color-base-7;
-  -fx-padding: 0;
-  -fx-pref-width: 50;
-  -fx-border-width: 0;
-}
 .rollback-btn:hover {
-  -fx-background-color:  -color-danger-7;
+  -fx-background-color: #b83535;
 }
 
 /*执行结果颜色*/

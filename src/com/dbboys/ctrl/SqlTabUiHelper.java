@@ -41,6 +41,8 @@ public class SqlTabUiHelper {
         ctrl.commitButtonTooltip.setShowDelay(Duration.millis(100));
         ctrl.transactionCommitButton.setTooltip(ctrl.commitButtonTooltip);
         ctrl.transactionRollbackButton.setTooltip(ctrl.commitButtonTooltip);
+        ctrl.transactionCommitButton.setStyle(buildAccentPillButtonStyle(SqlTabController.RESULT_SUCCESS_BUTTON_COLOR));
+        ctrl.transactionRollbackButton.setStyle(buildAccentPillButtonStyle(SqlTabController.RESULT_FAILURE_BUTTON_COLOR));
     }
 
     public void setupSqlTabIcons() {
@@ -99,8 +101,8 @@ public class SqlTabUiHelper {
             }
         });
         ctrl.resultSetVBox = loader.load();
-        ctrl.resultSuccessFilterButton = createResultFilterButton("#2E9E5B");
-        ctrl.resultFailureFilterButton = createResultFilterButton("#CC3D3D");
+        ctrl.resultSuccessFilterButton = createResultFilterButton(SqlTabController.RESULT_SUCCESS_BUTTON_COLOR);
+        ctrl.resultFailureFilterButton = createResultFilterButton(SqlTabController.RESULT_FAILURE_BUTTON_COLOR);
         ctrl.resultSuccessFilterButton.setOnAction(event -> ctrl.toggleResultFilterSuccess());
         ctrl.resultFailureFilterButton.setOnAction(event -> ctrl.toggleResultFilterFailure());
         ctrl.resultFilterButtonBox = new HBox(8, ctrl.resultSuccessFilterButton, ctrl.resultFailureFilterButton);
@@ -126,20 +128,22 @@ public class SqlTabUiHelper {
         });
     }
 
+    static String buildAccentPillButtonStyle(String backgroundColor) {
+        return "-fx-background-radius: 999;" +
+                "-fx-border-radius: 999;" +
+                "-fx-padding: 2 6 2 6;" +
+                "-fx-font-size: 9px;" +
+                "-fx-font-weight: bold;" +
+                "-fx-text-fill: white;" +
+                "-fx-background-color: " + backgroundColor + ";" +
+                "-fx-border-color: transparent;" +
+                "-fx-border-width: 0;";
+    }
+
     private Button createResultFilterButton(String backgroundColor) {
         Button button = new Button();
         button.setFocusTraversable(false);
-        button.setStyle(
-                "-fx-background-radius: 999;" +
-                        "-fx-border-radius: 999;" +
-                        "-fx-padding: 2 6 2 6;" +
-                        "-fx-font-size: 9px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: -color-text-default;" +
-                        "-fx-background-color: " + backgroundColor + ";" +
-                        "-fx-border-color: transparent;" +
-                        "-fx-border-width: 0;"
-        );
+        button.setStyle(buildAccentPillButtonStyle(backgroundColor));
         return button;
     }
 

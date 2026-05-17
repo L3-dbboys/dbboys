@@ -1,6 +1,7 @@
-### 20260516
+### 20260517
 增加deepseek 4.0pro模型  
-增加通用jdbc  
+增加GENERAL JDBC    
+增加支持MYSQL  
 修复部分gbase 8s ddl缺陷  
 
 ### 20260416
