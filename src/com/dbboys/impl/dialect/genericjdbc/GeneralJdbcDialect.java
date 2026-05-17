@@ -119,6 +119,11 @@ public final class GeneralJdbcDialect implements DatabasePlatform, ConnectionSup
     }
 
     @Override
+    public boolean supportsSystemTablesFolder() {
+        return false;
+    }
+
+    @Override
     public MetadataRepository metadata() {
         return metadataRepository;
     }
