@@ -1126,6 +1126,11 @@ Text {
   -fx-background-color: rgba(110, 248, 130, 0.52);
   -fx-background-insets: 0;
 }
+.table-view.resultset-table-view > .virtual-flow > .clipped-container > .sheet > .table-row-cell > .table-cell.custom-table-cell-null,
+.table-view.resultset-table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell > .table-cell.custom-table-cell-null:selected,
+.table-view.resultset-table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell > .table-cell.custom-table-cell-null:selected:focused {
+  -fx-text-fill: -color-fg-subtle;
+}
 
 .table-view > .virtual-flow > .corner {
   -fx-background-color: -color-cell-border;
