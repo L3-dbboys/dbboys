@@ -76,6 +76,8 @@ public class TreeContextMenuHandler {
                 IconFactory.group(IconPaths.METADATA_UPDATE_STATISTICS_ITEM, 0.66, 0.66));
         CustomShortcutMenuItem truncateItem = MenuItemUtil.createMenuItemI18n("metadata.menu.truncate",
                 IconFactory.group(IconPaths.METADATA_TRUNCATE_ITEM, 0.7, 0.7));
+        CustomShortcutMenuItem lockSessionItem = MenuItemUtil.createMenuItemI18n("metadata.menu.lock_session",
+                IconFactory.group(IconPaths.METADATA_LOCK_SESSION_ITEM, 0.675, 0.675));
         CustomShortcutMenuItem enableItem = MenuItemUtil.createMenuItemI18n("metadata.menu.enable",
                 IconFactory.group(IconPaths.METADATA_ENABLE_ITEM, 0.7, 0.7));
         CustomShortcutMenuItem disableItem = MenuItemUtil.createMenuItemI18n("metadata.menu.disable",
@@ -1186,6 +1188,10 @@ public class TreeContextMenuHandler {
             TabpaneUtil.addCustomCreateTableTab(selectedItem);
         });
         //设置默认数据库
+        lockSessionItem.setOnAction(event -> {
+            TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
+            TabpaneUtil.addCustomLockSessionTab(selectedItem);
+        });
         setDefaultDatabaseItem.setOnAction(event-> {
             TreeItem<TreeData> selectedItem = treeView.getSelectionModel().getSelectedItem();
             ConnectionService.ChangeDefaultDatabaseResult result =
@@ -1572,6 +1578,7 @@ public class TreeContextMenuHandler {
                     DatabasePlatform tablePlatform = TreeNavigator.resolvePlatform(selectedItem);
                     boolean canModifyTableType = tablePlatform == null || tablePlatform.supportsTableTypeModification();
                     boolean canToggleLogging = tablePlatform != null && tablePlatform.supportsTableLoggingToggle();
+                    boolean canShowLockSession = isGbaseOrInformixConnect(TreeNavigator.getMetaConnect(selectedItem));
                     if(!isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         if (canModifyTableType) {
@@ -1583,6 +1590,9 @@ public class TreeContextMenuHandler {
                             treeview_menu.getItems().add(tableNologgingItem);
                         }
                         treeview_menu.getItems().add(truncateItem);
+                    }
+                    if (canShowLockSession) {
+                        treeview_menu.getItems().add(lockSessionItem);
                     }
                     if (canModifyTableType) {
                         if(isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "raw")){
@@ -2045,6 +2055,14 @@ public class TreeContextMenuHandler {
             return false;
         }
         return "GENERAL JDBC".equalsIgnoreCase(connect.getDbtype().trim());
+    }
+
+    private static boolean isGbaseOrInformixConnect(Connect connect) {
+        if (connect == null || connect.getDbtype() == null) {
+            return false;
+        }
+        String dbType = connect.getDbtype().trim().toUpperCase();
+        return dbType.contains("GBASE") || dbType.contains("INFORMIX");
     }
 
     private static boolean isGeneralJdbcMetadataSelection(List<TreeItem<TreeData>> selectedItems) {

@@ -52,6 +52,23 @@ public class AdminService {
         return result;
     }
 
+    public InstanceAdminRepository.LockSessionResult getLockSessions(Connect connect, String databaseName, String tableName) throws Exception {
+        try (Connection conn = connectionService.getConnectionWithSessionInit(connect)) {
+            return getLockSessions(platformResolver.admin(connect), conn, databaseName, tableName);
+        }
+    }
+
+    public void killLockSession(Connect connect, String owner) throws Exception {
+        platformResolver.admin(connect).killLockSession(connect, owner);
+    }
+
+    public boolean canKillLockSession(Connect connect) {
+        if (connect == null || connect.getReadonly()) {
+            return false;
+        }
+        return platformResolver.admin(connect).canKillLockSession(connect);
+    }
+
     private void setStorageSegmentExtendable(InstanceAdminRepository adminRepository, Connection conn, int segmentId, boolean extendable) throws SQLException {
         adminRepository.setStorageSegmentExtendable(conn, segmentId, extendable);
     }
@@ -66,6 +83,13 @@ public class AdminService {
 
     private double getMaxStorageSpaceUsage(InstanceAdminRepository adminRepository, Connection conn) throws SQLException {
         return adminRepository.getMaxStorageSpaceUsage(conn);
+    }
+
+    private InstanceAdminRepository.LockSessionResult getLockSessions(InstanceAdminRepository adminRepository,
+                                                                      Connection conn,
+                                                                      String databaseName,
+                                                                      String tableName) throws SQLException {
+        return adminRepository.getLockSessions(conn, databaseName, tableName);
     }
 
     private static ConnectionService resolveConnectionService() {

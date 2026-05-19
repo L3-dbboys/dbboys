@@ -47,4 +47,19 @@ public interface InstanceAdminRepository {
     List<List<CustomSpaceChart.SpaceUsage>> getStorageSpaceUsage(Connection conn) throws SQLException;
 
     double getMaxStorageSpaceUsage(Connection conn) throws SQLException;
+
+    default LockSessionResult getLockSessions(Connection conn, String databaseName, String tableName) throws SQLException {
+        throw new UnsupportedOperationException("Lock sessions are not supported");
+    }
+
+    default void killLockSession(Connect connect, String owner) throws Exception {
+        throw new UnsupportedOperationException("KILL lock session is not supported");
+    }
+
+    default boolean canKillLockSession(Connect connect) {
+        return false;
+    }
+
+    record LockSessionResult(List<String> columns, List<List<String>> rows) {
+    }
 }

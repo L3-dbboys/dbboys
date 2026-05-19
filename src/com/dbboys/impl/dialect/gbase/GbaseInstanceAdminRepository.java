@@ -2,16 +2,21 @@ package com.dbboys.impl.dialect.gbase;
 
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.customnode.CustomSpaceChart;
+import com.dbboys.i18n.I18n;
+import com.dbboys.util.remote.RemoteSessionClient;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class GbaseInstanceAdminRepository implements InstanceAdminRepository {
+    private static final String LOCK_SQL = "select first 100 * from sysmaster:syslocks where dbsname = ? and tabname = ?";
+
     @Override
     public boolean supportsAdminFeatures(Connect connect) {
         return connect != null && "gbasedbt".equalsIgnoreCase(connect.getUsername());
@@ -225,5 +230,55 @@ public final class GbaseInstanceAdminRepository implements InstanceAdminReposito
             }
             return 0;
         }
+    }
+
+    @Override
+    public LockSessionResult getLockSessions(Connection conn, String databaseName, String tableName) throws SQLException {
+        try (PreparedStatement statement = conn.prepareStatement(LOCK_SQL)) {
+            statement.setString(1, databaseName);
+            statement.setString(2, tableName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                List<String> columns = new ArrayList<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    String name = metaData.getColumnLabel(i);
+                    if (name == null || name.isBlank()) {
+                        name = metaData.getColumnName(i);
+                    }
+                    columns.add(name == null || name.isBlank() ? "COL" + i : name);
+                }
+
+                List<List<String>> rows = new ArrayList<>();
+                while (resultSet.next()) {
+                    List<String> row = new ArrayList<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        Object value = resultSet.getObject(i);
+                        row.add(value == null || resultSet.wasNull() ? null : String.valueOf(value));
+                    }
+                    rows.add(row);
+                }
+                return new LockSessionResult(columns, rows);
+            }
+        }
+    }
+
+    @Override
+    public void killLockSession(Connect connect, String owner) throws Exception {
+        RemoteSessionClient remoteClient = new RemoteSessionClient();
+        try {
+            remoteClient.connect(connect.getUsername(), connect.getIp(), 22, connect.getPassword(), 5000);
+            int status = remoteClient.executeCommandWithExitStatus("source ~/.bash_profile && onmode -z " + owner);
+            if (status != 0) {
+                throw new Exception(I18n.t("locksession.error.kill_failed", "KILL会话执行失败，退出码：%d").formatted(status));
+            }
+        } finally {
+            remoteClient.disconnect();
+        }
+    }
+
+    @Override
+    public boolean canKillLockSession(Connect connect) {
+        return connect != null && "gbasedbt".equalsIgnoreCase(connect.getUsername());
     }
 }

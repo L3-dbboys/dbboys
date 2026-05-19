@@ -10,6 +10,8 @@ import com.dbboys.i18n.I18n;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.ConnectFolder;
 import com.dbboys.vo.TreeData;
+import com.dbboys.util.tree.TreeCrudHandler;
+import com.dbboys.util.tree.TreeNavigator;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -30,6 +32,7 @@ public class TabpaneUtil {
     private static final String TAB_KEY_CONNECTS_INFO = "connectsInfo:";
     private static final String TAB_KEY_INSTANCE = "instance:";
     private static final String TAB_KEY_TABLE = "table:";
+    private static final String TAB_KEY_LOCK_SESSION = "lockSession:";
 
     private TabpaneUtil() {
     }
@@ -346,6 +349,30 @@ public class TabpaneUtil {
             }
         }
         return null;
+    }
+
+    public static void addCustomLockSessionTab(TreeItem<TreeData> treeItem) {
+        if (treeItem == null || treeItem.getValue() == null) {
+            return;
+        }
+        Platform.runLater(() -> {
+            Connect connect = TreeCrudHandler.buildObjectConnect(treeItem, false);
+            Connect metaConnect = TreeNavigator.getMetaConnect(treeItem);
+            String connectName = metaConnect == null ? "" : metaConnect.getName();
+            String databaseName = TreeNavigator.getCurrentDatabase(treeItem).getName();
+            String tableName = treeItem.getValue().getName();
+            String tabTitle = "[lock]" + connectName + "." + databaseName + "." + tableName;
+            String tabKey = TAB_KEY_LOCK_SESSION + tabTitle;
+            Tab existing = findTabByUserData(tabKey);
+            if (existing != null) {
+                tabPane().getSelectionModel().select(existing);
+                return;
+            }
+            CustomLockSessionTab newtab = new CustomLockSessionTab(connect, tabTitle, databaseName, tableName);
+            newtab.setUserData(tabKey);
+            tabPane().getTabs().add(newtab);
+            tabPane().getSelectionModel().select(newtab);
+        });
     }
 
     private static void refreshOpenConnectsInfoTables(Connect updatedConnect) {
