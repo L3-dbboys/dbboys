@@ -18,7 +18,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
+import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,6 +29,9 @@ public class SqlTabUiHelper {
     private static final Logger log = LogManager.getLogger(SqlTabUiHelper.class);
     /** Same slot as {@link com.dbboys.customnode.CustomTreeCell} connect icons — stable toolbar alignment. */
     private static final double SQL_HEADER_ICON_SLOT = 16.0;
+    private static final String SQL_HEADER_ICON_STYLE = "sql-header-icon";
+    static final String SQL_HEADER_ICON_CONNECTED_STYLE = "sql-header-icon-connected";
+    static final String SQL_HEADER_ICON_DISCONNECTED_STYLE = "sql-header-icon-disconnected";
 
     private final SqlTabController ctrl;
 
@@ -47,7 +50,7 @@ public class SqlTabUiHelper {
 
     public void setupSqlTabIcons() {
         ctrl.sqlExecuteLoadingLabel.setGraphic(IconFactory.imageView(IconPaths.LOADING_GIF, 11, 11, true));
-        ctrl.sqlRunButton.setGraphic(IconFactory.group(IconPaths.SQL_RUN, 0.8, Color.valueOf("#51dd66")));
+        ctrl.sqlRunButton.setGraphic(IconFactory.group(IconPaths.SQL_RUN, 0.85, Color.valueOf("#51dd66")));
         ctrl.sqlExplainButton.setGraphic(IconFactory.group(IconPaths.SQL_EXPLAIN, 0.45));
         ctrl.sqlStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));
         ctrl.sqlRecordButton.setGraphic(IconFactory.group(IconPaths.SQL_HISTORY, 0.8));
@@ -62,13 +65,17 @@ public class SqlTabUiHelper {
             ctrl.sqlDbIconPane.setPrefSize(SQL_HEADER_ICON_SLOT, SQL_HEADER_ICON_SLOT);
             ctrl.sqlDbIconPane.setMaxSize(SQL_HEADER_ICON_SLOT, SQL_HEADER_ICON_SLOT);
             ctrl.sqlDbIconPane.setAlignment(Pos.CENTER);
-            ctrl.sqlDbIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_DATABASE, 0.4, Color.valueOf("rgb(220,220,220)")));
+            ctrl.sqlDbIconPath = IconFactory.create(IconPaths.SQL_DATABASE, 0.4, 0.4);
+            applySqlHeaderIconState(ctrl.sqlDbIconPath, false);
+            ctrl.sqlDbIconPane.getChildren().setAll(new Group(ctrl.sqlDbIconPath));
             ctrl.sqlDbIconPane.opacityProperty().bind(
                     Bindings.when(sqlHeaderDbUserDimmed).then(0.4).otherwise(1.0)
             );
         }
         if (ctrl.sqlUserIconPane != null) {
-            ctrl.sqlUserIconPane.getChildren().setAll(IconFactory.group(IconPaths.SQL_USER, 0.55, Color.valueOf("rgb(220,220,220)")));
+            ctrl.sqlUserIconPath = IconFactory.create(IconPaths.SQL_USER, 0.55, 0.55);
+            applySqlHeaderIconState(ctrl.sqlUserIconPath, false);
+            ctrl.sqlUserIconPane.getChildren().setAll(new Group(ctrl.sqlUserIconPath));
             ctrl.sqlUserIconPane.opacityProperty().bind(
                     Bindings.when(sqlHeaderDbUserDimmed).then(0.4).otherwise(1.0)
             );
@@ -173,7 +180,8 @@ public class SqlTabUiHelper {
         ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
         ctrl.sqlConnectChoiceBoxIconStackPane.getChildren().addAll(ctrl.sqlConnectChoiceBoxDbIcon, ctrl.sqlConnectChoiceBoxLoadingIcon);
 
-        ctrl.sqlConnectIconPath = IconFactory.create(IconPaths.CONNECTION_LINK, 0.6, 0.6, Color.valueOf("#888"));
+        ctrl.sqlConnectIconPath = IconFactory.create(IconPaths.CONNECTION_LINK, 0.6, 0.6);
+        applySqlHeaderIconState(ctrl.sqlConnectIconPath, false);
         Group connectGraphic = new Group(ctrl.sqlConnectIconPath);
         StackPane connectSlot = new StackPane(connectGraphic);
         connectSlot.setMinSize(SQL_HEADER_ICON_SLOT, SQL_HEADER_ICON_SLOT);
@@ -188,7 +196,16 @@ public class SqlTabUiHelper {
         tooltip.textProperty().bind(I18n.bind("sql.tooltip.connecting"));
         tooltip.setShowDelay(Duration.millis(100));
         ctrl.sqlConnectChoiceBoxLoadingIcon.setTooltip(tooltip);
+    }
 
-        ctrl.sqlConnectIconPath.setFill(Paint.valueOf("rgb(220,220,220)"));
+    static void applySqlHeaderIconState(SVGPath icon, boolean connected) {
+        if (icon == null) {
+            return;
+        }
+        if (!icon.getStyleClass().contains(SQL_HEADER_ICON_STYLE)) {
+            icon.getStyleClass().add(SQL_HEADER_ICON_STYLE);
+        }
+        icon.getStyleClass().removeAll(SQL_HEADER_ICON_CONNECTED_STYLE, SQL_HEADER_ICON_DISCONNECTED_STYLE);
+        icon.getStyleClass().add(connected ? SQL_HEADER_ICON_CONNECTED_STYLE : SQL_HEADER_ICON_DISCONNECTED_STYLE);
     }
 }

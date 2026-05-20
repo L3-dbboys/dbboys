@@ -7,10 +7,8 @@ import com.dbboys.api.ConnectionService;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.api.SqlModeCapability;
 import com.dbboys.app.AppErrorHandler;
-import com.dbboys.util.SqlErrorUtil;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Catalog;
-import com.dbboys.util.tree.TreeViewUtil;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -68,18 +66,8 @@ public class SqlexeService {
         return result;
     }
 
-    public List<Catalog> getDatabases(Connect connect) {
-        List<Catalog> catalogs = new ArrayList<>();
-        try {
-            catalogs = databaseService.getDatabases(connect);
-        } catch (SQLException e) {
-            if (SqlErrorUtil.isDisconnectError(connect, e)) {
-                TreeViewUtil.connectionDisconnected();
-            } else {
-                AppErrorHandler.handle(e);
-            }
-        }
-        return catalogs;
+    public List<Catalog> getDatabases(Connect connect) throws SQLException {
+        return databaseService.getDatabases(connect);
     }
 }
 

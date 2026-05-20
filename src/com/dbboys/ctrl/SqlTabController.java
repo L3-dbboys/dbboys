@@ -188,6 +188,8 @@ public class SqlTabController {
     Label sqlConnectChoiceBoxDbIcon;
     Label sqlConnectChoiceBoxLoadingIcon;
     SVGPath sqlConnectIconPath;
+    SVGPath sqlDbIconPath;
+    SVGPath sqlUserIconPath;
     Timeline sqlPanelKeepAliveTimeline;
     final AtomicBoolean sqlPanelKeepAliveChecking = new AtomicBoolean(false);
 

@@ -83,6 +83,8 @@
   -color-danger-subtle: rgb(255, 226, 224);
   -color-button-default: #074675;
   -color-hover-bg: -color-accent-subtle;
+  -color-custom-button-hover-bg: #d7ecff;
+  -color-menu-bar-hover-bg: #d7ecff;
   -color-window-button-fg: #074675;
   -color-window-button-hover-fg: #0055b3;
   -color-window-button-hover-bg: -color-accent-subtle;
@@ -95,15 +97,31 @@
   -color-app-inactive-fg: #636366;
   -color-table-null-fg: -color-fg-subtle;
   -color-side-tab-border: -color-border-default;
+  -color-badge-type: #486783;
+  -color-badge-primary: #9f453c;
+  -color-badge-rowid: #8f6d1d;
+  -color-badge-type-bg: rgba(7, 70, 117, 0.08);
+  -color-badge-primary-bg: rgba(159, 69, 60, 0.10);
+  -color-badge-rowid-bg: rgba(143, 109, 29, 0.12);
+  -color-badge-type-border: rgba(72, 103, 131, 0.78);
+  -color-badge-primary-border: rgba(159, 69, 60, 0.78);
+  -color-badge-rowid-border: rgba(143, 109, 29, 0.78);
+  -color-dialog-title-fg: #074675;
+  -color-table-header-fg: #074675;
+  -color-sql-header-icon-connected: #074675;
+  -color-sql-header-icon-disconnected: #888;
+  -color-context-focused-label-fg: -color-fg-default;
+  -color-context-checked-label-fg: -color-fg-default;
+  -color-tree-disclosure-hover-bg: -color-code-selection-bg;
   -color-code-text: -color-fg-default;
-  -color-code-keyword: #005cc5;
-  -color-code-function: #6f42c1;
-  -color-code-number: #116329;
-  -color-code-string: #a31515;
-  -color-code-comment: #6a737d;
+  -color-code-keyword: #005a9e;
+  -color-code-function: #9f453c;
+  -color-code-number: #4f7f3b;
+  -color-code-string: #9b4f36;
+  -color-code-comment: #4f7f42;
   -color-code-punctuation: -color-fg-default;
   -color-code-error: -color-danger-fg;
-  -color-code-bracket-highlight: #8f6d1d;
+  -color-code-bracket-highlight: #a66f00;
   -color-code-bracket-highlight-bg: -color-warning-subtle;
   -color-code-current-line-bg: -color-accent-subtle;
   -color-code-selection-bg: #b3d7ff;
@@ -118,20 +136,4 @@
   -color-modal-progress-overlay: rgba(0, 0, 0, 0.18);
   -color-modal-progress-overlay-strong: rgba(0, 0, 0, 0.24);
   -color-modal-progress-card-bg: rgba(58, 58, 60, 0.9);
-}
-
-.button .font-icon,
-.button .ikonli-font-icon,
-.menu-button .font-icon,
-.menu-button .ikonli-font-icon,
-.split-menu-button .font-icon,
-.split-menu-button .ikonli-font-icon,
-.toggle-button .font-icon,
-.toggle-button .ikonli-font-icon {
-  -fx-icon-color: -color-button-default;
-  -fx-fill: -color-button-default;
-}
-
-.icon-button-default {
-  -fx-fill: -color-button-default;
 }

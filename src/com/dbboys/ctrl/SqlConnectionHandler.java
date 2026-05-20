@@ -11,6 +11,7 @@ import com.dbboys.impl.DatabasePlatforms;
 import com.dbboys.service.SqlexeService;
 import com.dbboys.ui.IconPaths;
 import com.dbboys.app.AppErrorHandler;
+import com.dbboys.util.AlertUtil;
 import com.dbboys.util.SqlErrorUtil;
 import com.dbboys.vo.Connect;
 import com.dbboys.vo.Catalog;
@@ -62,6 +63,7 @@ public class SqlConnectionHandler {
     private void handleDefaultConnectSelected() {
         ctrl.sqlConnect.setConn(null);
         applyConnectIcon(null);
+        applySqlHeaderIconState(false);
         ctrl.sqlConnectChoiceBoxDbIcon.setVisible(true);
         ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
         try {
@@ -89,7 +91,9 @@ public class SqlConnectionHandler {
                 conn = connectionService.createConnection(newVal);
                 connectionService.changeCommitMode(conn, ctrl.sqlCommitModeChoiceBox.getSelectionModel().getSelectedIndex());
             } catch (Exception e) {
-                AppErrorHandler.handle(e);
+                closeQuietly(conn);
+                conn = null;
+                handleConnectSelectionFailure(e);
             }
             if (conn != null) {
                 if (ctrl.sqlConnect.getConn() != null)
@@ -121,6 +125,30 @@ public class SqlConnectionHandler {
         });
     }
 
+    private void handleConnectSelectionFailure(Exception e) {
+        log.error("SQL editor connection selection failed.", e);
+        Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), buildConnectionErrorMessage(e)));
+    }
+
+    private String buildConnectionErrorMessage(Exception e) {
+        if (e instanceof SQLException se) {
+            return "[" + se.getErrorCode() + "]" + se.getMessage();
+        }
+        String message = e == null ? null : e.getMessage();
+        return message == null || message.isBlank() ? String.valueOf(e) : message;
+    }
+
+    private void closeQuietly(Connection conn) {
+        if (conn == null) {
+            return;
+        }
+        try {
+            conn.close();
+        } catch (SQLException closeEx) {
+            log.debug("Close failed SQL editor connection after selection failure.", closeEx);
+        }
+    }
+
     private void refreshMetaTreeForConnect() {
         for (TreeItem<TreeData> ti : AppState.getDatabaseMetaTreeView().getRoot().getChildren()) {
             for (TreeItem<TreeData> t : ti.getChildren()) {
@@ -148,6 +176,7 @@ public class SqlConnectionHandler {
     private void updateConnectIcon() {
         Platform.runLater(() -> {
             applyConnectIcon(ctrl.sqlConnect == null ? null : ctrl.sqlConnect.getDbtype());
+            applySqlHeaderIconState(ctrl.sqlConnect != null && ctrl.sqlConnect.getConn() != null);
 
             if (ctrl.sqlConnect.getReadonly()) {
                 ctrl.sqlRecordButton.setVisible(false);
@@ -175,17 +204,36 @@ public class SqlConnectionHandler {
         // Graphic is a fixed-size StackPane from SqlTabUiHelper.setupConnectIcons(); only mutate sqlConnectIconPath.
     }
 
+    private void applySqlHeaderIconState(boolean connected) {
+        SqlTabUiHelper.applySqlHeaderIconState(ctrl.sqlConnectIconPath, connected);
+        SqlTabUiHelper.applySqlHeaderIconState(ctrl.sqlDbIconPath, connected);
+        SqlTabUiHelper.applySqlHeaderIconState(ctrl.sqlUserIconPath, connected);
+    }
+
     private void loadDatabasesForConnect() {
-        List<Catalog> db_names = sqlexeService.getDatabases(ctrl.sqlConnect);
-        ctrl.databaseChoiceBoxList = FXCollections.observableArrayList(db_names);
-        Platform.runLater(() -> {
-            ctrl.sqlDbChoiceBox.setValue(ctrl.defaultDatabase);
-            ctrl.sqlDbChoiceBox.setItems(ctrl.databaseChoiceBoxList);
-            selectCurrentDatabase();
-            ctrl.sqlUserTextField.setText(ctrl.sqlConnect.getUsername());
-            ctrl.sqlConnectChoiceBoxDbIcon.setVisible(true);
-            ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
-        });
+        try {
+            List<Catalog> db_names = sqlexeService.getDatabases(ctrl.sqlConnect);
+            ctrl.databaseChoiceBoxList = FXCollections.observableArrayList(db_names);
+            Platform.runLater(() -> {
+                ctrl.sqlDbChoiceBox.setValue(ctrl.defaultDatabase);
+                ctrl.sqlDbChoiceBox.setItems(ctrl.databaseChoiceBoxList);
+                selectCurrentDatabase();
+                ctrl.sqlUserTextField.setText(ctrl.sqlConnect.getUsername());
+                ctrl.sqlConnectChoiceBoxDbIcon.setVisible(true);
+                ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
+            });
+        } catch (SQLException e) {
+            log.error("Load SQL editor databases failed.", e);
+            if (SqlErrorUtil.isDisconnectError(ctrl.sqlConnect, e)) {
+                ctrl.connectionDisconnected();
+            } else {
+                AppErrorHandler.handle(e);
+                Platform.runLater(() -> {
+                    ctrl.sqlConnectChoiceBoxDbIcon.setVisible(true);
+                    ctrl.sqlConnectChoiceBoxLoadingIcon.setVisible(false);
+                });
+            }
+        }
     }
 
     private void selectCurrentDatabase() {
