@@ -6436,6 +6436,9 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 .rollback-btn {
   -fx-pref-width: 50;
   -fx-padding: 0;
+  -fx-font-size: 9.9px;
+  -fx-background-radius: 3px;
+  -fx-border-radius: 3px;
   -fx-border-width: 0;
 }
 
