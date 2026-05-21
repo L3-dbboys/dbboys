@@ -4,6 +4,7 @@ import com.dbboys.app.AppState;
 import com.dbboys.ui.IconFactory;
 import com.dbboys.ui.IconPaths;
 import javafx.beans.value.ObservableValue;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
@@ -11,6 +12,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
@@ -129,10 +131,14 @@ public final class CustomWindowFrameUtil {
         closeButton.setFocusTraversable(false);
         closeButton.getStyleClass().add("window-close-button");
 
-        HBox titleBar = new HBox(titleLabel, dragRegion);
+        HBox titleBar = new HBox();
         if (titleBarLeft != null) {
-            titleBar.getChildren().add(0, titleBarLeft);
+            titleBar.getChildren().add(titleBarLeft);
         }
+        if (!mainWindow) {
+            titleBar.getChildren().add(createPopupTitleLogo());
+        }
+        titleBar.getChildren().addAll(titleLabel, dragRegion);
         if (showMinButton) {
             titleBar.getChildren().add(minButton);
         } else {
@@ -165,6 +171,11 @@ public final class CustomWindowFrameUtil {
         stage.setMinWidth(200);
         stage.setMinHeight(100);
         AppState.applyAppStylesheet(scene);
+        stage.showingProperty().addListener((obs, wasShowing, isShowing) -> {
+            if (isShowing) {
+                AppState.applyAppStylesheet(scene);
+            }
+        });
         if (enableResize) {
             stage.getProperties().put(RESIZE_HANDLES_KEY, installResizeHandles(stage, root, scene));
         }
@@ -178,6 +189,15 @@ public final class CustomWindowFrameUtil {
 
     private static boolean isMainWindowFrame(Node titleBarLeft, boolean showMinButton, boolean showMaxButton) {
         return titleBarLeft != null && showMinButton && showMaxButton;
+    }
+
+    private static ImageView createPopupTitleLogo() {
+        ImageView logo = new ImageView(new Image(IconPaths.MAIN_LOGO));
+        logo.setPreserveRatio(true);
+        logo.setFitHeight(14.4);
+        logo.getStyleClass().add("window-title-logo");
+        HBox.setMargin(logo, new Insets(0, 6, 0, 0));
+        return logo;
     }
 
     private static void applyPopupChoiceBoxStyle(Node node) {

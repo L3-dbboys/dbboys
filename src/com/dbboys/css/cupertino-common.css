@@ -475,6 +475,9 @@ Text {
   -color-button-fg-pressed: -color-fg-emphasis;
   -color-button-border-pressed: transparent;
 }
+.button:default {
+  -color-button-fg: -color-fg-default;
+}
 .button:default.button-outlined, .button.accent.button-outlined {
   -color-button-bg: -color-bg-default;
   -color-button-fg: -color-accent-fg;

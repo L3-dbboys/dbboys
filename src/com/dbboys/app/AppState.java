@@ -62,7 +62,7 @@ public final class AppState {
 
     public static void setCurrentTheme(String theme) {
         ConfigManagerUtil.setProperty(UI_THEME_KEY, THEME_LIGHT.equalsIgnoreCase(theme) ? THEME_LIGHT : THEME_DARK);
-        applyAppStylesheet(getScene());
+        applyOpenWindowStylesheets();
     }
 
     private static String getCurrentThemeStylesheet() {
@@ -81,6 +81,14 @@ public final class AppState {
 
     public static void applyAppStylesheet(javafx.scene.control.Alert alert) {
         if (alert != null) applyAppStylesheet(alert.getDialogPane().getScene());
+    }
+
+    public static void applyOpenWindowStylesheets() {
+        for (Window window : Window.getWindows()) {
+            if (window != null) {
+                applyAppStylesheet(window.getScene());
+            }
+        }
     }
 
     // --- MainController ---

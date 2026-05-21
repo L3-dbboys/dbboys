@@ -90,10 +90,10 @@
   -color-window-button-hover-fg: #0055b3;
   -color-window-button-hover-bg: -color-accent-subtle;
   -color-window-button-pressed-bg: #d7ecff;
-  -color-window-close-hover-bg: -color-danger-subtle;
-  -color-window-close-hover-fg: -color-danger-8;
-  -color-window-close-pressed-bg: -color-danger-muted;
-  -color-window-close-pressed-fg: -color-danger-9;
+  -color-window-close-hover-bg: -color-danger-5;
+  -color-window-close-hover-fg: white;
+  -color-window-close-pressed-bg: -color-danger-5;
+  -color-window-close-pressed-fg: white;
   -color-app-subtle-fg: #636366;
   -color-app-inactive-fg: #636366;
   -color-table-null-fg: -color-fg-subtle;
