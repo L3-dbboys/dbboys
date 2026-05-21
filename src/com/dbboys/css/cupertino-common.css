@@ -887,7 +887,7 @@ Text {
 .table-view > .virtual-flow > .clipped-container > .sheet > .table-row-cell .table-cell:selected,
 .tree-table-view > .virtual-flow > .clipped-container > .sheet > .tree-table-row-cell .tree-table-cell:selected {
   -fx-background-color: -color-cell-border, -color-cell-bg-selected;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell .table-cell:selected,
@@ -1036,7 +1036,7 @@ Text {
   -fx-focus-color: transparent;
   -fx-faint-focus-color: transparent;
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 1px;
+  -fx-border-width: 0.5px;
   -fx-border-radius: 0;
   -color-header-bg: -color-bg-default;
   -color-header-fg: -color-table-header-fg;
@@ -1173,11 +1173,11 @@ Text {
 }
 .table-view.bordered > .column-header-background .column-header {
   -fx-background-color: -color-cell-border, -color-header-bg;
-  -fx-background-insets: 0, 0 1 0 0;
+  -fx-background-insets: 0, 0 0.5 0 0;
 }
 .table-view > .column-header-background {
   -fx-background-color: -color-cell-border, -color-header-bg;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 .table-view > .column-header-background .column-header {
   -fx-background-color: transparent;
@@ -1215,11 +1215,11 @@ Text {
 .table-view > .column-header-background > .filler {
   -fx-background-color: transparent;
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 0 0 1 0;
+  -fx-border-width: 0 0 0.5px 0;
 }
 .table-view > .column-header-background > .show-hide-columns-button {
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 0 0 1 0;
+  -fx-border-width: 0 0 0.5px 0;
   -fx-cursor: hand;
 }
 .table-view > .column-header-background > .show-hide-columns-button > .show-hide-column-image {
@@ -1243,7 +1243,7 @@ Text {
 }
 .table-view.bordered .table-row-cell > .table-cell {
   -fx-border-color: -color-border-default;
-  -fx-border-width: 0.5px;
+  -fx-border-width: 0 0.5px 0.5px 0;
 }
 .table-view.bordered .table-row-cell > .table-cell:empty {
   -fx-border-color: transparent;
@@ -1258,7 +1258,7 @@ Text {
   -fx-background-insets: 0;
 }
 .table-view.striped.bordered .table-row-cell {
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 .table-view.striped .table-row-cell:filled:odd {
   -fx-background-color: -color-cell-border, -color-cell-bg-odd;
@@ -1270,7 +1270,7 @@ Text {
 }
 .table-view .table-row-cell {
   -fx-background-color: -color-cell-border, -color-cell-bg;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
   -fx-padding: 0;
   -fx-cell-size: 22px;
 }
@@ -1290,7 +1290,7 @@ Text {
 }
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled:focused {
   -fx-background-color: -color-cell-border, -color-cell-bg;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled > .table-cell:focused {
   -fx-background-color: transparent;
@@ -1299,7 +1299,7 @@ Text {
 }
 .table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled > .table-cell:selected:focused {
   -fx-background-color: -color-cell-border, -color-cell-bg-selected-focused;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 .table-view.resultset-table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled.resultset-pending-dml-row > .table-cell:selected:focused,
 .table-view.resultset-table-view:focused > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled.resultset-pending-delete-row > .table-cell:selected:focused {
@@ -1328,7 +1328,7 @@ Text {
 .table-view:constrained-resize > .virtual-flow > .clipped-container > .sheet > .table-row-cell > .table-cell:last-visible,
 .tree-table-view:constrained-resize > .virtual-flow > .clipped-container > .sheet > .tree-table-row-cell > .tree-table-cell:last-visible {
   -fx-border-color: -color-border-default;
-  -fx-border-width: 0.5px;
+  -fx-border-width: 0 0.5px 0.5px 0;
 }
 
 .table-view .table-row-cell > .table-cell.check-box-table-cell,
@@ -1471,7 +1471,7 @@ Text {
   -color-cell-border: -color-border-default;
   -color-disclosure: -color-fg-muted;
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 1px;
+  -fx-border-width: 0.5px;
   -fx-border-radius: 0;
   -color-header-bg: -color-bg-default;
   -color-header-fg: -color-table-header-fg;
@@ -1488,11 +1488,11 @@ Text {
 }
 .tree-table-view.bordered > .column-header-background .column-header {
   -fx-background-color: -color-cell-border, -color-header-bg;
-  -fx-background-insets: 0, 0 1 0 0;
+  -fx-background-insets: 0, 0 0.5 0 0;
 }
 .tree-table-view > .column-header-background {
   -fx-background-color: -color-cell-border, -color-header-bg;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 .tree-table-view > .column-header-background .column-header {
   -fx-background-color: transparent;
@@ -1501,7 +1501,7 @@ Text {
   -fx-padding: 0;
   -fx-font-weight: bold;
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 0 1 1 0;
+  -fx-border-width: 0 0.5px 0.5px 0;
 }
 .tree-table-view > .column-header-background .column-header .label {
   -fx-text-fill: -color-header-fg;
@@ -1530,11 +1530,11 @@ Text {
 .tree-table-view > .column-header-background > .filler {
   -fx-background-color: transparent;
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 0 0 1 0;
+  -fx-border-width: 0 0 0.5px 0;
 }
 .tree-table-view > .column-header-background > .show-hide-columns-button {
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 0 0 1 0;
+  -fx-border-width: 0 0 0.5px 0;
   -fx-cursor: hand;
 }
 .tree-table-view > .column-header-background > .show-hide-columns-button > .show-hide-column-image {
@@ -1557,7 +1557,8 @@ Text {
   -fx-font-size: 1.25em;
 }
 .tree-table-view.bordered .tree-table-row-cell > .tree-table-cell {
-  -fx-border-color: transparent -color-cell-border transparent transparent;
+  -fx-border-color: -color-cell-border;
+  -fx-border-width: 0 0.5px 0.5px 0;
 }
 .tree-table-view.bordered .tree-table-row-cell > .tree-table-cell:empty {
   -fx-border-color: transparent;
@@ -1575,7 +1576,7 @@ Text {
   -fx-background-insets: 0;
 }
 .tree-table-view.striped.bordered .tree-table-row-cell {
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
 }
 .tree-table-view.striped .tree-table-row-cell:filled:odd {
   -fx-background-color: -color-cell-border, -color-cell-bg-odd;
@@ -1587,7 +1588,7 @@ Text {
 }
 .tree-table-view .tree-table-row-cell {
   -fx-background-color: -color-cell-border, -color-cell-bg;
-  -fx-background-insets: 0, 0 0 1 0;
+  -fx-background-insets: 0, 0 0 0.5 0;
   -fx-padding: 0;
   -fx-cell-size: 3em;
   -fx-indent: 1em;
@@ -1604,6 +1605,8 @@ Text {
   -fx-padding: 0 0.5em 0 0.5em;
   -fx-text-fill: -color-cell-fg;
   -fx-alignment: BASELINE_LEFT;
+  -fx-border-color: -color-border-default;
+  -fx-border-width: 0 0.5px 0.5px 0;
 }
 .tree-table-view .tree-table-row-cell > .tree-table-cell.table-column.align-left {
   -fx-alignment: BASELINE_LEFT;
