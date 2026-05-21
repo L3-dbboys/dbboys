@@ -104,6 +104,8 @@ public class ResultSetTabController {
     @FXML
     public Label resultSetLabelTotalSuffix;
     @FXML
+    public Label resultSetLabelTimePrefix;
+    @FXML
     public Label resultSetLabelTimeSuffix;
     @FXML
     public Label resultSetLabelEnd;
@@ -230,6 +232,7 @@ public class ResultSetTabController {
         bindText(resultSetLabelFetchedSuffix, "resultset.label.fetched_suffix");
         bindText(resultSetLabelTotalPrefix, "resultset.label.total_prefix");
         bindText(resultSetLabelTotalSuffix, "resultset.label.total_suffix");
+        bindText(resultSetLabelTimePrefix, "resultset.label.time_prefix");
         bindText(resultSetLabelTimeSuffix, "resultset.label.time_suffix");
         bindText(resultSetLabelEnd, "resultset.label.end");
 

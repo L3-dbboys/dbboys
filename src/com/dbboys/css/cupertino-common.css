@@ -6014,6 +6014,15 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-background-color: -color-app-result-bg;
 }
 
+#resultSetButtonHBox > .resultset-toolbar-separator {
+  -fx-padding: 0 3px 0 3px;
+}
+
+#resultSetButtonHBox > .resultset-toolbar-separator:vertical > .line {
+  -fx-border-color: transparent -color-border-muted transparent transparent;
+  -fx-border-width: 0 0.5px 0 0;
+}
+
 #noticePane,
 .notice-pane {
   -fx-background-color: none;

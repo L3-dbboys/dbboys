@@ -23,13 +23,15 @@
                 <CustomTableView fx:id="resultSetTableView">
                 </CustomTableView>
             </HBox>
-            <HBox fx:id="resultSetButtonHBox" minHeight="20" alignment="CENTER_LEFT">
-                <Label fx:id="resultSetLabelLeftBracket" />
+            <HBox fx:id="resultSetButtonHBox" minHeight="20" alignment="CENTER_LEFT" spacing="4">
+                <Label fx:id="resultSetLabelLeftBracket" visible="false" managed="false" />
+                <Separator orientation="VERTICAL" styleClass="resultset-toolbar-separator" />
                 <Button fx:id="resultSetInsertRowButton" styleClass="small" focusTraversable="false" />
                 <Button fx:id="resultSetDeleteRowButton" styleClass="small" focusTraversable="false" />
                 <Button fx:id="resultSetSaveEditsButton" styleClass="small" focusTraversable="false" />
                 <Button fx:id="resultSetCancelEditsButton" styleClass="small" focusTraversable="false" />
-                <Label fx:id="resultSetLabelRightBracket" />
+                <Label fx:id="resultSetLabelRightBracket" visible="false" managed="false" />
+                <Separator orientation="VERTICAL" styleClass="resultset-toolbar-separator" />
                 <Label fx:id="resultSetLabelPerTimePrefix" />
                 <CustomUserTextField fx:id="resultSetPerTimeTextField" text="200">
                 </CustomUserTextField>
@@ -42,14 +44,18 @@
                 <Label fx:id="resultSetLabelFetchedPrefix" />
                 <Label fx:id="resultSetFetchedRowsLabel">?</Label>
                 <Label fx:id="resultSetLabelFetchedSuffix" />
+                <Separator orientation="VERTICAL" styleClass="resultset-toolbar-separator" />
                 <Button fx:id="resultSetCountButton" styleClass="small" focusTraversable="false" />
                 <Label fx:id="resultSetLabelTotalPrefix" />
                 <Label fx:id="resultSetTotalRowsLabel">?</Label>
                 <Label fx:id="resultSetLabelTotalSuffix" />
+                <Separator orientation="VERTICAL" styleClass="resultset-toolbar-separator" />
+                <Label fx:id="resultSetLabelTimePrefix" />
                 <Label fx:id="sqlUsedTimeLabel">?</Label>
                 <Label fx:id="resultSetLabelTimeSuffix" />
+                <Separator orientation="VERTICAL" styleClass="resultset-toolbar-separator" />
                 <Button fx:id="resultSetExportButton" styleClass="small" focusTraversable="false" />
-                <Label fx:id="resultSetLabelEnd" />
+                <Label fx:id="resultSetLabelEnd" visible="false" managed="false" />
             </HBox>
         </VBox>
     </StackPane>
