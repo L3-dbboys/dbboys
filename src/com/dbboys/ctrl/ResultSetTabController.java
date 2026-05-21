@@ -21,11 +21,13 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.scene.Group;
 import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.shape.SVGPath;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
@@ -248,14 +250,21 @@ public class ResultSetTabController {
     private void setupIcons() {
         lastSqlCopyButton.setGraphic(IconFactory.group(IconPaths.COPY, 0.6));
         lastSqlRefreshButton.setGraphic(IconFactory.group(IconPaths.MAIN_REBUILD, 0.6));
-        resultSetInsertRowButton.setGraphic(IconFactory.group(IconPaths.TABLEINFO_ADD_COLUMN, 0.55));
-        resultSetDeleteRowButton.setGraphic(IconFactory.group(IconPaths.TABLEINFO_DELETE_COLUMN, 0.55));
+        resultSetInsertRowButton.setGraphic(semanticIcon(IconPaths.TABLEINFO_ADD_COLUMN, 0.55, "icon-success"));
+        resultSetDeleteRowButton.setGraphic(semanticIcon(IconPaths.TABLEINFO_DELETE_COLUMN, 0.55, "icon-danger"));
         resultSetSaveEditsButton.setGraphic(IconFactory.group(IconPaths.GENERIC_SAVE_AS, 0.495));
-        resultSetCancelEditsButton.setGraphic(IconFactory.group(IconPaths.TAB_CLOSE_MENU_ITEM, 0.45));
+        resultSetCancelEditsButton.setGraphic(semanticIcon(IconPaths.TAB_CLOSE_MENU_ITEM, 0.45, "icon-danger"));
         resultSetNextPageButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_NEXT_PAGE, 0.6));
         resultSetAllRowsButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_ALL_ROWS, 0.5));
         resultSetCountButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_COUNT, 0.5));
         resultSetExportButton.setGraphic(IconFactory.group(IconPaths.RESULTSET_EXPORT, 0.5));
+    }
+
+    private Group semanticIcon(String path, double scale, String styleClass) {
+        SVGPath icon = IconFactory.create(path, scale);
+        icon.getStyleClass().remove("icon-button-default");
+        icon.getStyleClass().add(styleClass);
+        return new Group(icon);
     }
 
     private void bindText(Labeled labeled, String key) {

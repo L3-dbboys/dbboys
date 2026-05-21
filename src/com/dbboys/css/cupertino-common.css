@@ -6094,6 +6094,10 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-fill: -color-button-default;
 }
 
+.icon-success {
+  -fx-fill: -color-success-fg;
+}
+
 .sql-header-icon {
   -fx-fill: -color-sql-header-icon-disconnected;
 }
@@ -6107,7 +6111,7 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 }
 
 .icon-danger {
-  -fx-fill: -color-danger-7;
+  -fx-fill: -color-danger-fg;
 }
 
 .tree-cell-description {
