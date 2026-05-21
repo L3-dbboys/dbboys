@@ -53,10 +53,11 @@
   -color-button-bg-hover: -color-hover-bg;
   -color-custom-button-hover-bg: -color-button-bg-hover;
   -color-menu-bar-hover-bg: -color-base-7;
-  -color-accent-pill-success-bg: #2E9E5B;
-  -color-accent-pill-failure-bg: #CC3D3D;
-  -color-action-success-hover-bg: #268a4f;
-  -color-action-danger-hover-bg: #b83535;
+  -color-resultset-delete-icon-fg: -color-danger-fg;
+  -color-accent-pill-success-bg: -color-success-fg;
+  -color-accent-pill-failure-bg: -color-resultset-delete-icon-fg;
+  -color-action-success-hover-bg: -color-success-emphasis;
+  -color-action-danger-hover-bg: -color-resultset-delete-icon-fg;
   -color-markdown-search-title: #5f6672;
   -color-markdown-search-snippet: #8a8f98;
   -fx-background-color: -color-bg-default;
@@ -6275,12 +6276,14 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 .accent-pill-button {
   -fx-background-radius: 999;
   -fx-border-radius: 999;
+  -fx-background-insets: 0;
   -fx-padding: 2 6 2 6;
   -fx-font-size: 9px;
   -fx-font-weight: bold;
   -fx-text-fill: -color-fg-emphasis;
   -fx-border-color: transparent;
   -fx-border-width: 0;
+  -fx-cursor: hand;
 }
 
 .accent-pill-success {
@@ -6291,9 +6294,25 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-background-color: -color-accent-pill-failure-bg;
 }
 
+.accent-pill-success:hover,
+.accent-pill-success:focused,
+.accent-pill-success:armed,
+.accent-pill-success:pressed {
+  -fx-background-color: -color-action-success-hover-bg;
+  -fx-text-fill: -color-fg-emphasis;
+}
+
+.accent-pill-failure:hover,
+.accent-pill-failure:focused,
+.accent-pill-failure:armed,
+.accent-pill-failure:pressed {
+  -fx-background-color: -color-action-danger-hover-bg;
+  -fx-text-fill: -color-fg-emphasis;
+}
+
 .accent-pill-active {
-  -fx-border-color: -color-fg-default;
-  -fx-border-width: 1.5;
+  -fx-border-color: -color-fg-emphasis;
+  -fx-border-width: 1px;
   -fx-effect: dropshadow(gaussian, -color-accent-pill-active-shadow, 8, 0.2, 0, 1);
 }
 
