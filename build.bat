@@ -9,7 +9,7 @@ set "LC_ALL=zh_CN.UTF-8"
 setlocal enabledelayedexpansion
 
 :: Define variable; JAVAFX_JMODS is the path to javafx-jmods
-set JAVAFX_JMODS=D:\Programs\javafx-jmods-25.0.1
+set JAVAFX_JMODS=D:\Programs\javafx-jmods-25.0.3
 
 :: Compile all source files under subdirectories (space-separate files from different dirs)
 dir /b /s src\*.java > sources.txt

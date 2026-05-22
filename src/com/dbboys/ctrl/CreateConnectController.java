@@ -771,7 +771,10 @@ public class CreateConnectController {
             fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("Jar Files", "*.jar")
             );
-            fileChooser.setInitialDirectory(new File(System.getProperty("user.home") + "/Desktop"));
+            File initialDirectory = resolveInitialFileChooserDirectory();
+            if (initialDirectory != null) {
+                fileChooser.setInitialDirectory(initialDirectory);
+            }
             Window owner = dialogPane != null && dialogPane.getScene() != null
                     ? dialogPane.getScene().getWindow()
                     : AppState.getWindow();
@@ -819,6 +822,22 @@ public class CreateConnectController {
         }
 
         //删除当前驱动包
+        private File resolveInitialFileChooserDirectory() {
+            String userHome = System.getProperty("user.home");
+            if (userHome != null && !userHome.isBlank()) {
+                File desktop = new File(userHome, "Desktop");
+                if (desktop.isDirectory()) {
+                    return desktop;
+                }
+                File home = new File(userHome);
+                if (home.isDirectory()) {
+                    return home;
+                }
+            }
+            File workingDirectory = new File(".");
+            return workingDirectory.isDirectory() ? workingDirectory.getAbsoluteFile() : null;
+        }
+
         public void deleteDriverClicked(){
             if(driverChoiceBox.getItems().isEmpty() || driverChoiceBox.getValue() == null){
                 return;
