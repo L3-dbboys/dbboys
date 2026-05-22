@@ -61,13 +61,16 @@ public final class MysqlInstanceAdminRepository implements InstanceAdminReposito
     public List<List<CustomSpaceChart.SpaceUsage>> getStorageSpaceUsage(Connection conn) throws SQLException {
         List<CustomSpaceChart.SpaceUsage> engineUsage = new ArrayList<>();
         String sql = """
-                select coalesce(engine, 'UNKNOWN') as engine_name,
-                       coalesce(sum(data_length), 0) as data_bytes,
-                       coalesce(sum(index_length), 0) as index_bytes,
-                       count(*) as table_count
-                from information_schema.tables
-                where table_schema not in ('information_schema', 'mysql', 'performance_schema', 'sys')
-                group by coalesce(engine, 'UNKNOWN')
+                select engine_name, data_bytes, index_bytes, table_count
+                from (
+                    select coalesce(engine, 'UNKNOWN') as engine_name,
+                           coalesce(sum(data_length), 0) as data_bytes,
+                           coalesce(sum(index_length), 0) as index_bytes,
+                           count(*) as table_count
+                    from information_schema.tables
+                    where table_schema not in ('information_schema', 'mysql', 'performance_schema', 'sys')
+                    group by coalesce(engine, 'UNKNOWN')
+                ) t
                 order by data_bytes + index_bytes desc
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql);
@@ -94,13 +97,16 @@ public final class MysqlInstanceAdminRepository implements InstanceAdminReposito
 
         List<CustomSpaceChart.SpaceUsage> databaseUsage = new ArrayList<>();
         sql = """
-                select table_schema,
-                       coalesce(sum(data_length), 0) as data_bytes,
-                       coalesce(sum(index_length), 0) as index_bytes,
-                       count(*) as table_count
-                from information_schema.tables
-                where table_schema not in ('information_schema', 'mysql', 'performance_schema', 'sys')
-                group by table_schema
+                select table_schema, data_bytes, index_bytes, table_count
+                from (
+                    select table_schema,
+                           coalesce(sum(data_length), 0) as data_bytes,
+                           coalesce(sum(index_length), 0) as index_bytes,
+                           count(*) as table_count
+                    from information_schema.tables
+                    where table_schema not in ('information_schema', 'mysql', 'performance_schema', 'sys')
+                    group by table_schema
+                ) t
                 order by data_bytes + index_bytes desc
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql);

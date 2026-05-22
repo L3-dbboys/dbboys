@@ -217,6 +217,12 @@ public class MainController {
     @FXML
     private CustomShortcutMenuItem menuConfigUninstallInformix;
     @FXML
+    private Menu menuConfigMysql;
+    @FXML
+    private CustomShortcutMenuItem menuConfigInstallMysql;
+    @FXML
+    private CustomShortcutMenuItem menuConfigUninstallMysql;
+    @FXML
     private Menu menuConfigGbase;
     @FXML
     private CustomShortcutMenuItem menuConfigInstallGbase;
@@ -356,6 +362,9 @@ public class MainController {
 
         menuConfigInstallInformix.setGraphic(null);
         menuConfigUninstallInformix.setGraphic(null);
+        menuConfigMysql.setGraphic(IconFactory.group(IconPaths.MYSQL_LOGO, 0.58));
+        menuConfigInstallMysql.setGraphic(null);
+        menuConfigUninstallMysql.setGraphic(null);
         menuConfigGbase.setGraphic(IconFactory.group(IconPaths.GBASE_LOGO, 0.22));
         menuConfigInstallGbase.setGraphic(null);
         menuConfigUninstallGbase.setGraphic(null);
@@ -656,7 +665,7 @@ public class MainController {
     }
 
     private void installConfigMenuBehavior() {
-        installHoverHideMenuBehavior(menuConfig, "configMenuHoverFixInstalled", menuConfigInformix, menuConfigGbase);
+        installHoverHideMenuBehavior(menuConfig, "configMenuHoverFixInstalled", menuConfigInformix, menuConfigMysql, menuConfigGbase);
     }
 
     private void installHoverHideMenuBehavior(Menu ownerMenu, String propertyKey, Menu... submenus) {
@@ -755,6 +764,9 @@ public class MainController {
         bindText(menuConfigInformix, "main.menu.config.informix");
         bindText(menuConfigInstallInformix, "main.menu.config.install_informix");
         bindText(menuConfigUninstallInformix, "main.menu.config.uninstall_informix");
+        bindText(menuConfigMysql, "main.menu.config.mysql");
+        bindText(menuConfigInstallMysql, "main.menu.config.install_mysql");
+        bindText(menuConfigUninstallMysql, "main.menu.config.uninstall_mysql");
         bindText(menuConfigGbase, "main.menu.config.gbase");
         bindText(menuConfigInstallGbase, "main.menu.config.install_gbase");
         bindText(menuConfigUninstallGbase, "main.menu.config.uninstall_gbase");
@@ -1520,6 +1532,14 @@ public class MainController {
 
     public void unInstallInformix(){
         RemoteDatabaseProviders.informix().startUninstallWizard((Stage) AppState.getWindow());
+    }
+
+    public void installMysql(){
+        RemoteDatabaseProviders.mysql().startInstallWizard((Stage) AppState.getWindow());
+    }
+
+    public void unInstallMysql(){
+        RemoteDatabaseProviders.mysql().startUninstallWizard((Stage) AppState.getWindow());
     }
 
     public void setLanguageZh() {

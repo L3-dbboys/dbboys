@@ -134,7 +134,13 @@ public class CustomInstanceTab extends CustomTab {
         instancePortText.set(connect.getPort());
         instanceInfoLabel=new Label();
         instanceInfoLabel.textProperty().bind(Bindings.createStringBinding(
-                () -> String.format(
+                () -> isMysqlConnect()
+                        ? String.format(
+                        I18n.t("instance.info.current.mysql.format", "当前实例信息 ( IP：%s   端口：%s )"),
+                        instanceIpText.get(),
+                        instancePortText.get()
+                )
+                        : String.format(
                         I18n.t("instance.info.current.format", "当前实例信息 ( IP：%s   端口：%s   实例名：%s )"),
                         instanceIpText.get(),
                         instancePortText.get(),
@@ -1571,7 +1577,7 @@ public class CustomInstanceTab extends CustomTab {
         StackPane.setAlignment(refreshButton,Pos.BOTTOM_RIGHT);
         StackPane.setAlignment(instanceInfoLabel,Pos.BOTTOM_RIGHT);
         StackPane.setMargin(refreshButton, new Insets(0, 15, 20, 0));
-        StackPane.setMargin(instanceInfoLabel, new Insets(0, 15, 3, 0));
+        StackPane.setMargin(instanceInfoLabel, new Insets(0, 15, 0, 0));
 
         setContent(stackPane);
         mainTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
@@ -1677,6 +1683,10 @@ public class CustomInstanceTab extends CustomTab {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    private boolean isMysqlConnect() {
+        return connect != null && "MYSQL".equalsIgnoreCase(connect.getDbtype());
     }
 
     private String resolveNamedServerPropertyName() {

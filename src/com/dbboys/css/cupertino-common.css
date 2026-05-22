@@ -5631,6 +5631,14 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-font-size: 9;
 }
 
+.instance-info-label {
+  -fx-font-size: 9;
+  -fx-alignment: center;
+  -fx-min-height: 21;
+  -fx-pref-height: 21;
+  -fx-padding: 0;
+}
+
 .custom-button:hover .font-icon,
 .custom-button:hover .ikonli-font-icon {
   -fx-icon-color: -color-button-default;
@@ -6064,6 +6072,55 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
   -fx-padding: 0 5 0 5;
 }
 
+#connectingStatusBox .label,
+.modal-progress-card .label,
+.modal-progress-card-padded .label {
+  -fx-text-fill: white;
+}
+
+#connectingStatusBox .button.small,
+.modal-progress-card .button.small,
+.modal-progress-card-padded .button.small {
+  -fx-background-color: transparent;
+  -fx-background-radius: 4;
+  -fx-border-color: transparent;
+}
+
+#connectingStatusBox .button.small .icon-danger,
+.modal-progress-card .button.small .icon-danger,
+.modal-progress-card-padded .button.small .icon-danger {
+  -fx-fill: -color-modal-progress-stop-icon;
+}
+
+#connectingStatusBox .button.small:hover,
+#connectingStatusBox .button.small:focused:hover,
+.modal-progress-card .button.small:hover,
+.modal-progress-card .button.small:focused:hover,
+.modal-progress-card-padded .button.small:hover,
+.modal-progress-card-padded .button.small:focused:hover {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+}
+
+#connectingStatusBox .button.small:hover .icon-danger,
+#connectingStatusBox .button.small:focused:hover .icon-danger,
+.modal-progress-card .button.small:hover .icon-danger,
+.modal-progress-card .button.small:focused:hover .icon-danger,
+.modal-progress-card-padded .button.small:hover .icon-danger,
+.modal-progress-card-padded .button.small:focused:hover .icon-danger {
+  -fx-fill: -color-modal-progress-stop-icon-hover;
+}
+
+#connectingStatusBox .button.small:armed,
+#connectingStatusBox .button.small:pressed,
+.modal-progress-card .button.small:armed,
+.modal-progress-card .button.small:pressed,
+.modal-progress-card-padded .button.small:armed,
+.modal-progress-card-padded .button.small:pressed {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+}
+
 .modal-progress-overlay-strong {
   -fx-background-color: -color-modal-progress-overlay-strong;
   -fx-background-radius: 2;
@@ -6367,6 +6424,10 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 .install-step-desc {
   -fx-text-fill: -color-app-muted-fg;
   -fx-font-size: 9;
+}
+
+.install-step-arrow-icon {
+  -fx-fill: -color-install-step-current-icon;
 }
 
 .modify-button {

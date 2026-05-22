@@ -299,26 +299,26 @@ public class RemoteInstallerUtil {
                                         Platform.runLater(() -> {
                                             systemInfoArea.replaceText("");
 
-                                            systemInfoArea.append(I18n.t("remote.install.info.machine", "服务器型号") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.machine", "服务器型号") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(machineInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
                                             // 省略其他信息的显示代码（与原逻辑相同）
-                                            systemInfoArea.append(I18n.t("remote.install.info.os", "操作系统版本") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.os", "操作系统版本") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(osInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append(I18n.t("remote.install.info.kernel", "内核版本") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.kernel", "内核版本") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(kernelInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append(I18n.t("remote.install.info.cpu", "CPU信息") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.cpu", "CPU信息") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(cpuInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append(I18n.t("remote.install.info.memory", "内存信息") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.memory", "内存信息") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(memInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append(I18n.t("remote.install.info.disk", "磁盘信息") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.disk", "磁盘信息") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(diskInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
-                                            systemInfoArea.append(I18n.t("remote.install.info.filesystem", "文件系统信息") + "\n","-fx-fill: #569cd6;-fx-font-weight: bold;-fx-font-family:system;");
+                                            systemInfoArea.append(I18n.t("remote.install.info.filesystem", "文件系统信息") + "\n","-fx-fill: -color-dialog-title-fg;-fx-font-weight: bold;-fx-font-family:system;");
                                             systemInfoArea.append(fileSystemInfo + "\n\n","-fx-fill: -color-fg-default; -fx-font-weight: normal;-fx-font-family:Courier New;");
 
 
@@ -566,9 +566,15 @@ public class RemoteInstallerUtil {
                     installTask.setOnFailed(event1 -> {
                         backgroundHBox.setVisible(false);
                         hideAllInstallStepIcons();
+                        restoreInstallStepDisabledState();
 
                         String error = installTask.getException().getMessage();
                         AlertUtil.CustomAlert(I18n.t("common.error", "错误"), error);
+                    });
+                    installTask.setOnCancelled(event1 -> {
+                        backgroundHBox.setVisible(false);
+                        hideAllInstallStepIcons();
+                        restoreInstallStepDisabledState();
                     });
 
                     try {
@@ -581,7 +587,7 @@ public class RemoteInstallerUtil {
                         installTask.cancel();
                         backgroundHBox.setVisible(false);
                         hideAllInstallStepIcons();
-                        setInstallStepDisabledRange(6, 14, false);
+                        restoreInstallStepDisabledState();
 
                     });
                     mainDialog.setOnCloseRequest(event1 -> {
@@ -1060,6 +1066,17 @@ public class RemoteInstallerUtil {
     private static void setAllInstallStepsDisabled(boolean disabled) {
         for (CustomInstallStepHbox stepBox : installStepBoxes) {
             stepBox.checkBox.setDisable(disabled);
+        }
+    }
+
+    private static void restoreInstallStepDisabledState() {
+        if (activeProvider == null || installStepBoxes.isEmpty()) {
+            return;
+        }
+        List<RemoteInstallStepSpec> stepSpecs = activeProvider.buildInstallStepSpecs();
+        int count = Math.min(installStepBoxes.size(), stepSpecs.size());
+        for (int index = 0; index < count; index++) {
+            installStepBoxes.get(index).checkBox.setDisable(stepSpecs.get(index).disabled());
         }
     }
 

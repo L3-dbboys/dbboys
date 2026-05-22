@@ -123,7 +123,7 @@ public final class InformixRemoteProvider implements RemoteDatabaseProvider {
         }
 
         List<RemoteInstallField> fields = new ArrayList<>();
-        fields.add(new RemoteInstallField(InformixRemoteFields.INFORMIX_PASSWORD, I18n.t("remote.install.cfg.informix_password.name", "informix用户密码"), "8S*P)0Od@.&", I18n.t("remote.install.cfg.informix_password.desc", "保持密码强度，部分系统如强度不够可能导致设置密码失败")));
+        fields.add(new RemoteInstallField(InformixRemoteFields.INFORMIX_PASSWORD, I18n.t("remote.install.cfg.informix_password.name", "informix用户密码"), RemotePasswordUtil.generateComplexPassword(), I18n.t("remote.install.cfg.informix_password.desc", "保持密码强度，部分系统如强度不够可能导致设置密码失败")));
         fields.add(new RemoteInstallField(InformixRemoteFields.INFORMIXDIR, "INFORMIXDIR", "/opt/informix", I18n.t("remote.install.cfg.informixdir.desc", "数据库软件安装路径，无特殊要求不修改")));
         fields.add(new RemoteInstallField(InformixRemoteFields.INFORMIXSERVER, "INFORMIXSERVER", "ifx01", I18n.t("remote.install.cfg.informixserver.desc", "数据库实例名，无特殊要求不修改")));
         fields.add(new RemoteInstallField(InformixRemoteFields.DB_LOCALE, "DB_LOCALE", "zh_CN.utf8", I18n.t("remote.install.cfg.db_locale.desc", "默认字符集推荐utf8，如要兼容GBK使用zh_CN.gb18030-2000")));

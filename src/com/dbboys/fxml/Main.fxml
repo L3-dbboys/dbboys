@@ -54,6 +54,14 @@
                                     </CustomShortcutMenuItem>
                                 </items>
                             </Menu>
+                            <Menu fx:id="menuConfigMysql" mnemonicParsing="false">
+                                <items>
+                                    <CustomShortcutMenuItem fx:id="menuConfigInstallMysql" mnemonicParsing="false" onAction="#installMysql">
+                                    </CustomShortcutMenuItem>
+                                    <CustomShortcutMenuItem fx:id="menuConfigUninstallMysql" mnemonicParsing="false" onAction="#unInstallMysql">
+                                    </CustomShortcutMenuItem>
+                                </items>
+                            </Menu>
                             <Menu fx:id="menuConfigGbase" mnemonicParsing="false">
                                 <items>
                                     <CustomShortcutMenuItem fx:id="menuConfigInstallGbase" mnemonicParsing="false" onAction="#installGBase8S">

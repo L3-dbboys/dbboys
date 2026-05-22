@@ -112,9 +112,6 @@
                         <Tooltip text="%createconnect.tooltip.stop_connecting"/>
                     </tooltip>
                 </Button>
-                <!--
-                <ProgressBar minWidth="300" maxHeight="3"></ProgressBar>
-                -->
                 </HBox>
             </HBox>
         </StackPane>

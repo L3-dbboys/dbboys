@@ -6,6 +6,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.shape.SVGPath;
 
 public class CustomInstallStepHbox extends HBox {
     public CheckBox checkBox=new CheckBox();
@@ -14,7 +15,9 @@ public class CustomInstallStepHbox extends HBox {
     public Label descLabel=new Label();
     public CustomInstallStepHbox(String name,String desc) {
 
-        iconLabel.setGraphic(IconFactory.create(IconPaths.INSTALL_STEP_ARROW, 0.6, 0.6));
+        SVGPath stepArrowIcon = IconFactory.create(IconPaths.INSTALL_STEP_ARROW, 0.6, 0.6);
+        stepArrowIcon.getStyleClass().add("install-step-arrow-icon");
+        iconLabel.setGraphic(stepArrowIcon);
         iconLabel.setVisible(false);
 
         //setPadding(new Insets(0,0,0,20));
