@@ -874,6 +874,12 @@ public final class OracleDialect implements DatabasePlatform, ConnectionSupport,
     }
 
     @Override
+    public String createUserSql(String userName, String password) {
+        String escapedPassword = "\"" + (password == null ? "" : password.trim()).replace("\"", "\"\"") + "\"";
+        return "CREATE USER " + userName + " IDENTIFIED BY " + escapedPassword + " QUOTA UNLIMITED ON USERS";
+    }
+
+    @Override
     public String toggleIndexSql(String indexName, boolean enabled) {
         return enabled ? "ALTER INDEX " + indexName + " REBUILD" : "ALTER INDEX " + indexName + " UNUSABLE";
     }

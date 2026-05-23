@@ -248,15 +248,98 @@ public class ResultSetEditHelper {
         if (row == null || snapshot == null || row.size() != snapshot.size()) {
             return;
         }
+        List<Integer> changedCols = new ArrayList<>();
         for (int col = 1; col < row.size(); col++) {
             String cur = row.get(col);
             String orig = snapshot.get(col);
-            if (Objects.equals(cur, orig)) {
-                continue;
+            if (!Objects.equals(cur, orig)) {
+                changedCols.add(col);
             }
-            String newVal = (cur == null || "[NULL]".equals(cur)) ? "[NULL]" : cur;
-            updateCellValue(col, newVal, row, orig, sqlTransactionText, commitmode);
         }
+        if (changedCols.isEmpty()) {
+            return;
+        }
+
+        StringBuilder updateSql = new StringBuilder("update ")
+                .append(ctrl.resultFromTable)
+                .append(" set ");
+        for (int i = 0; i < changedCols.size(); i++) {
+            if (i > 0) {
+                updateSql.append(", ");
+            }
+            int col = changedCols.get(i);
+            String rawUpdateCol = String.valueOf(ctrl.resultTableCols.get(col - 1));
+            String updateCol = oracleBareColumnNameForUpdate(rawUpdateCol);
+            ensureNotWildcardResultColumn(updateCol);
+            updateSql.append(updateCol).append("=?");
+        }
+        updateSql.append(" where 1=1 ");
+        if (ctrl.resultTablePriNum != null && !ctrl.resultTablePriNum.isEmpty()) {
+            for (Integer colnum : ctrl.resultTablePriNum) {
+                String rawWhereCol = ctrl.resultTableCols.get(colnum);
+                String whereCol = oracleBareColumnNameForUpdate(rawWhereCol);
+                ensureNotWildcardResultColumn(whereCol);
+                updateSql.append(" and ").append(whereCol).append("=?");
+            }
+        }
+
+        String updateSqlText = updateSql.toString();
+        ctrl.sqlStatement = ctrl.sqlConnect.getConn().prepareStatement(updateSqlText);
+        int prepareNum = 1;
+        StringBuilder setParams = new StringBuilder();
+        for (Integer col : changedCols) {
+            Object param = resultCellValueForSql(row.get(col));
+            ctrl.sqlStatement.setObject(prepareNum++, param);
+            if (setParams.length() > 0) {
+                setParams.append(",");
+            }
+            setParams.append(param == null ? "null" : param);
+        }
+
+        StringBuilder sqlParams = new StringBuilder();
+        if (ctrl.resultTablePriNum != null) {
+            for (Integer colnum : ctrl.resultTablePriNum) {
+                Object pkVal = resultCellValueForSql(snapshot.get(colnum + 1));
+                ctrl.sqlStatement.setObject(prepareNum++, pkVal);
+                if (sqlParams.length() > 0) {
+                    sqlParams.append(",");
+                }
+                sqlParams.append(pkVal == null ? "null" : pkVal);
+            }
+        }
+
+        log.info("Result set edit UPDATE: {} | setParams=[{}] | whereParams=[{}]",
+                updateSqlText,
+                setParams,
+                sqlParams);
+
+        if (changedCols.stream().anyMatch(col -> row.get(col) == null || "[NULL]".equals(row.get(col)))) {
+            ctrl.resultSetTableView.refresh();
+        }
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        long sqlBegin = System.currentTimeMillis();
+        int sqlAffect = ctrl.sqlStatement.executeUpdate();
+        long sqlFinish = System.currentTimeMillis();
+
+        UpdateResult updateResult = new UpdateResult();
+        updateResult.setConnectId(ctrl.sqlConnect.getId());
+        updateResult.setStartTime(sdf.format(sqlBegin));
+        updateResult.setEndTime(sdf.format(sqlFinish));
+        updateResult.setElapsedTime(String.format("%.3f", (sqlFinish - sqlBegin) / 1000.0) + " sec");
+        updateResult.setAffectedRows(sqlAffect);
+        updateResult.setDatabase(ctrl.sqlConnect.getEffectiveCatalog());
+        updateResult.setUpdateSql(updateSqlText);
+        if (isManualCommitMode(commitmode)) {
+            updateResult.setMark(String.format(I18n.t("resultset.mark.manual_edit", "鎵嬪姩鎻愪氦锛屾煡璇㈢粨鏋滈泦缂栬緫锛屽弬鏁癧%s,%s]"), setParams, sqlParams));
+            appendPendingTransactionSql(sqlTransactionText, updateSqlText + "\n");
+            NotificationUtil.showMainNotification(I18n.t("resultset.notice.manual_commit_pending", "褰撳墠杩炴帴涓烘墜鍔ㄦ彁浜わ紝淇敼鏆傛湭鎻愪氦锛岃鐐瑰嚮鎻愪氦鎴栧洖婊氾紒"));
+        } else {
+            updateResult.setMark(String.format(I18n.t("resultset.mark.auto_edit", "鑷姩鎻愪氦锛屾煡璇㈢粨鏋滈泦缂栬緫锛屽弬鏁癧%s,%s]"), setParams, sqlParams));
+        }
+        LocalDbRepository.saveSqlHistory(updateResult);
+        ctrl.sqlStatement.close();
+        ctrl.sqlStatement = null;
     }
 
     public boolean prepareParams(ParameterMetaData meta, Statement stmt) {
@@ -481,6 +564,10 @@ public class ResultSetEditHelper {
         }
         String cur = sqlTransactionText.get();
         sqlTransactionText.set((cur == null ? "" : cur) + fragment);
+    }
+
+    private static Object resultCellValueForSql(String value) {
+        return value == null || "[NULL]".equals(value) ? null : value;
     }
 
     private static String normalizeIdentifier(String identifier) {

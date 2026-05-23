@@ -257,7 +257,9 @@ public class CustomTreeCell extends TreeCell<TreeData> {
                 bindNameLabel(item);
                 descripLabel.textProperty().unbind();
                 descripLabel.setText("BIN");
-                if (showMetadataTooltips(treeItem)) {
+                if (isOracleTreeItem(treeItem)) {
+                    setTooltip(null);
+                } else if (showMetadataTooltips(treeItem)) {
                     bindTooltip(metadataCatalogTooltipLabelTight(), "RECYCLE: ", binObj.nameProperty());
                 }
             }
@@ -1008,6 +1010,11 @@ public class CustomTreeCell extends TreeCell<TreeData> {
     private boolean showMetadataTooltips(TreeItem<TreeData> treeItem) {
         DatabasePlatform platform = safeResolvePlatform(treeItem);
         return platform == null || platform.showMetadataTooltips();
+    }
+
+    private boolean isOracleTreeItem(TreeItem<TreeData> treeItem) {
+        DatabasePlatform platform = safeResolvePlatform(treeItem);
+        return platform != null && "ORACLE".equalsIgnoreCase(platform.getDbType());
     }
 
     private DatabasePlatform safeResolvePlatform(TreeItem<TreeData> treeItem) {

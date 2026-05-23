@@ -1691,10 +1691,12 @@ public class TreeContextMenuHandler {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(ddlMenu);
                 }
-                else if(selectedItem.getValue() instanceof SchedulerJob
-                        || selectedItem.getValue() instanceof RecycleBinObject) {
+                else if(selectedItem.getValue() instanceof SchedulerJob) {
                     treeview_menu.getItems().add(copyItem);
                     treeview_menu.getItems().add(ddlMenu);
+                }
+                else if(selectedItem.getValue() instanceof RecycleBinObject) {
+                    treeview_menu.getItems().add(copyItem);
                 }
                 //同义词
                 else if(selectedItem.getValue() instanceof Synonym) {
@@ -1956,9 +1958,11 @@ public class TreeContextMenuHandler {
                 event.consume();
                 Connect connect = new Connect((Connect) selectedItem.getParent().getValue());
                 String name = schemaName.getText().trim();
-                String escapedPassword = "\"" + passwordField1.getText().trim().replace("\"", "\"\"") + "\"";
-                String sql = "CREATE USER " + name + " IDENTIFIED BY " + escapedPassword
-                        + " QUOTA UNLIMITED ON USERS";
+                DatabasePlatform schemaPlatform = TreeNavigator.resolvePlatform(selectedItem);
+                if (schemaPlatform == null) {
+                    schemaPlatform = resolvePlatformResolver().requirePlatform(connect);
+                }
+                String sql = schemaPlatform.createUserSql(name, passwordField1.getText().trim());
                 TreeViewUtil.databaseService.executeObjectSql(connect, sql, () -> {
                     selectedItem.getChildren().clear();
                     selectedItem.setExpanded(false);
