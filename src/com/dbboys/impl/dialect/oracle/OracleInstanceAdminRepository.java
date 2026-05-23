@@ -2,12 +2,16 @@ package com.dbboys.impl.dialect.oracle;
 
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.customnode.CustomSpaceChart;
+import com.dbboys.impl.ConnectionServiceImpl;
 import com.dbboys.vo.Connect;
 
 import java.sql.Connection;
+import java.sql.Clob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -95,6 +99,48 @@ public final class OracleInstanceAdminRepository implements InstanceAdminReposit
             select nvl(max(used_percent), 0)
             from dba_tablespace_usage_metrics
             """;
+    private static final String SQL_LOCK_SESSIONS = """
+            select
+                to_char(s.sid) as owner,
+                to_char(s.serial#) as serial_no,
+                s.username,
+                s.machine,
+                s.program,
+                s.status,
+                o.owner as object_owner,
+                o.object_name as table_name,
+                to_char(lo.locked_mode) as locked_mode,
+                s.sql_id
+            from v$locked_object lo
+            join dba_objects o
+              on o.object_id = lo.object_id
+            join v$session s
+              on s.sid = lo.session_id
+            where o.owner = ?
+              and o.object_name = ?
+            order by s.sid, s.serial#
+            """;
+    private static final String SQL_SESSION_DETAIL = """
+            select to_char(s.sid) as sid,
+                   to_char(s.serial#) as serial_no,
+                   s.username,
+                   s.machine,
+                   s.program,
+                   s.status,
+                   s.event,
+                   s.wait_class,
+                   s.sql_id,
+                   q.sql_fulltext as sql_text,
+                   s.prev_sql_id,
+                   pq.sql_fulltext as prev_sql_text
+            from v$session s
+            left join v$sql q
+              on q.sql_id = s.sql_id
+            left join v$sql pq
+              on pq.sql_id = s.prev_sql_id
+            where s.sid = ?
+            """;
+    private static final String SQL_SESSION_SERIAL = "select serial# from v$session where sid = ?";
 
     @Override
     public boolean supportsAdminFeatures(Connect connect) {
@@ -140,6 +186,74 @@ public final class OracleInstanceAdminRepository implements InstanceAdminReposit
             }
         }
         return 0;
+    }
+
+    @Override
+    public boolean supportsLockSession(Connect connect) {
+        return true;
+    }
+
+    @Override
+    public LockSessionResult getLockSessions(Connection conn, String databaseName, String tableName) throws SQLException {
+        try (PreparedStatement pstmt = conn.prepareStatement(SQL_LOCK_SESSIONS)) {
+            pstmt.setString(1, normalizeOracleName(databaseName));
+            pstmt.setString(2, normalizeOracleName(tableName));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return toLockSessionResult(rs);
+            }
+        }
+    }
+
+    @Override
+    public void killLockSession(Connect connect, String owner) throws Exception {
+        validateSid(owner);
+        try (Connection conn = new ConnectionServiceImpl().getConnectionWithSessionInit(connect);
+             PreparedStatement serialStmt = conn.prepareStatement(SQL_SESSION_SERIAL)) {
+            serialStmt.setLong(1, Long.parseLong(owner));
+            try (ResultSet rs = serialStmt.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Oracle session not found: " + owner);
+                }
+                String serial = rs.getString(1);
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER SYSTEM KILL SESSION '" + owner + "," + serial + "'");
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean canKillLockSession(Connect connect) {
+        return connect != null;
+    }
+
+    @Override
+    public String killLockSessionCommand(String owner) {
+        validateSid(owner);
+        return "ALTER SYSTEM KILL SESSION '" + owner + ",<serial#>'";
+    }
+
+    @Override
+    public String getLockSessionDetail(Connect connect, String sid) throws Exception {
+        validateSid(sid);
+        try (Connection conn = new ConnectionServiceImpl().getConnectionWithSessionInit(connect);
+             PreparedStatement pstmt = conn.prepareStatement(SQL_SESSION_DETAIL)) {
+            pstmt.setLong(1, Long.parseLong(sid));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return formatResult(toLockSessionResult(rs));
+            }
+        }
+    }
+
+    @Override
+    public boolean canShowLockSessionDetail(Connect connect) {
+        return connect != null;
+    }
+
+    @Override
+    public String lockSessionDetailCommand(String sid) {
+        validateSid(sid);
+        return "SELECT * FROM v$session WHERE sid = " + sid;
     }
 
     private List<CustomSpaceChart.SpaceUsage> loadTablespaces(Connection conn) throws SQLException {
@@ -242,5 +356,68 @@ public final class OracleInstanceAdminRepository implements InstanceAdminReposit
             }
         }
         return result;
+    }
+
+    private static String normalizeOracleName(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
+    }
+
+    private static void validateSid(String sid) {
+        if (sid == null || !sid.trim().matches("\\d+")) {
+            throw new IllegalArgumentException("Invalid Oracle SID: " + sid);
+        }
+    }
+
+    private static String formatResult(LockSessionResult result) {
+        if (result.rows().isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        List<String> columns = result.columns();
+        for (List<String> row : result.rows()) {
+            for (int i = 0; i < columns.size(); i++) {
+                sb.append(columns.get(i)).append(": ");
+                if (i < row.size() && row.get(i) != null) {
+                    sb.append(row.get(i));
+                }
+                sb.append('\n');
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private static LockSessionResult toLockSessionResult(ResultSet resultSet) throws SQLException {
+        ResultSetMetaData metaData = resultSet.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        List<String> columns = new ArrayList<>();
+        for (int i = 1; i <= columnCount; i++) {
+            String name = metaData.getColumnLabel(i);
+            if (name == null || name.isBlank()) {
+                name = metaData.getColumnName(i);
+            }
+            columns.add(name == null || name.isBlank() ? "COL" + i : name);
+        }
+        List<List<String>> rows = new ArrayList<>();
+        while (resultSet.next()) {
+            List<String> row = new ArrayList<>();
+            for (int i = 1; i <= columnCount; i++) {
+                Object value = resultSet.getObject(i);
+                row.add(value == null || resultSet.wasNull() ? null : toDisplayValue(value));
+            }
+            rows.add(row);
+        }
+        return new LockSessionResult(columns, rows);
+    }
+
+    private static String toDisplayValue(Object value) throws SQLException {
+        if (value instanceof Clob clob) {
+            long length = clob.length();
+            if (length <= 0) {
+                return "";
+            }
+            int readLength = (int) Math.min(length, Integer.MAX_VALUE);
+            return clob.getSubString(1, readLength);
+        }
+        return String.valueOf(value);
     }
 }

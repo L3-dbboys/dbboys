@@ -1599,7 +1599,7 @@ public class TreeContextMenuHandler {
                     DatabasePlatform tablePlatform = TreeNavigator.resolvePlatform(selectedItem);
                     boolean canModifyTableType = tablePlatform == null || tablePlatform.supportsTableTypeModification();
                     boolean canToggleLogging = tablePlatform != null && tablePlatform.supportsTableLoggingToggle();
-                    boolean canShowLockSession = isGbaseOrInformixConnect(TreeNavigator.getMetaConnect(selectedItem));
+                    boolean canShowLockSession = supportsLockSession(TreeNavigator.getMetaConnect(selectedItem));
                     if(!isTableType(((Table)selectedItem.getValue()).getTableTypeCode(), "external")){
                         treeview_menu.getItems().add(updateStatisticsItem);
                         if (canModifyTableType) {
@@ -1995,6 +1995,17 @@ public class TreeContextMenuHandler {
         }
         try {
             return resolvePlatformResolver().admin(connect).supportsAdminFeatures(connect);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean supportsLockSession(Connect connect) {
+        if (connect == null || isGeneralJdbcConnectForMenu(connect)) {
+            return false;
+        }
+        try {
+            return resolvePlatformResolver().admin(connect).supportsLockSession(connect);
         } catch (Exception ignored) {
             return false;
         }

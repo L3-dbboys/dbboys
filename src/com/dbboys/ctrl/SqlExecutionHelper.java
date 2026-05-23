@@ -132,13 +132,11 @@ public class SqlExecutionHelper {
 
                             ctrl.updateResult = new UpdateResult();
 
-                            if (ctrl.isSingleSql && currentSql[0].getSqlType().equals("SELECT")) {
+                            if (!ReadOnlyGuard.canExecuteSql(ctrl.sqlConnect, currentSql[0].getSqlstr())) {
+                                blockReadOnlyStatement(sdf);
+                            } else if (ctrl.isSingleSql && currentSql[0].getSqlType().equals("SELECT")) {
                                 executeSingleSelect(sdf, this);
                                 if (isCancelled()) return false;
-                            } else if (ctrl.sqlConnect.getReadonly()) {
-                                Platform.runLater(() -> {
-                                    AlertUtil.CustomAlert(I18n.t("common.error"), I18n.t("sql.error.readonly_select_only"));
-                                });
                             } else {
                                 executeNonSelect(sdf, currentSql[0], this);
                                 if (isCancelled()) return false;
@@ -179,6 +177,27 @@ public class SqlExecutionHelper {
         });
 
         return ctrl.sqlTask;
+    }
+
+    private void blockReadOnlyStatement(SimpleDateFormat sdf) {
+        ctrl.setResultsetVisible(false);
+        ctrl.setExplainVisible(false);
+        ctrl.sqlStartTime = System.currentTimeMillis();
+        ctrl.sqlEndTime = ctrl.sqlStartTime;
+        ctrl.sqlUsedTime = 0;
+        ctrl.sqlExecutionSuccess = false;
+        ctrl.sqlExecutionResult = ReadOnlyGuard.message();
+        ctrl.updateResult.setResult(ctrl.sqlExecutionResult);
+        ctrl.updateResult.setConnectId(ctrl.sqlConnect.getId());
+        ctrl.updateResult.setDatabase(resolveEffectiveDatabase());
+        ctrl.updateResult.setUpdateSql(ctrl.sqlExe == null ? "" : ctrl.sqlExe.trim());
+        ctrl.updateResult.setStartTime(sdf.format(ctrl.sqlStartTime));
+        ctrl.updateResult.setEndTime(sdf.format(ctrl.sqlEndTime));
+        ctrl.updateResult.setElapsedTime(ctrl.i18nHelper.formatElapsedSeconds(0));
+        ctrl.updateResult.setAffectedRows(0);
+        ctrl.updateResult.setMark(ctrl.i18nHelper.buildExecutionMark());
+        ctrl.addUpdateResult(ctrl.updateResult, ctrl.isSingleSql);
+        Platform.runLater(() -> AlertUtil.CustomAlert(I18n.t("common.error"), ctrl.sqlExecutionResult));
     }
 
     private void highlightCurrentSegment(SqlParserUtil.Segment segment, Sql sql) {

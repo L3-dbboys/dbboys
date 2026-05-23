@@ -36,6 +36,10 @@ public interface InstanceAdminRepository {
         return supportsAdminFeatures(connect);
     }
 
+    default boolean supportsLockSession(Connect connect) {
+        return false;
+    }
+
     default boolean supportsSpaceMutation(Connect connect) {
         return supportsSpaceManager(connect);
     }
@@ -58,6 +62,22 @@ public interface InstanceAdminRepository {
 
     default boolean canKillLockSession(Connect connect) {
         return false;
+    }
+
+    default String killLockSessionCommand(String owner) {
+        return "onmode -z " + owner;
+    }
+
+    default String getLockSessionDetail(Connect connect, String sid) throws Exception {
+        throw new UnsupportedOperationException("Lock session detail is not supported");
+    }
+
+    default boolean canShowLockSessionDetail(Connect connect) {
+        return false;
+    }
+
+    default String lockSessionDetailCommand(String sid) {
+        return "onstat -g ses " + sid;
     }
 
     record LockSessionResult(List<String> columns, List<List<String>> rows) {

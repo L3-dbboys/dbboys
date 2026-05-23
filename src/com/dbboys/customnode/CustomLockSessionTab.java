@@ -9,6 +9,7 @@ import com.dbboys.ui.IconPaths;
 import com.dbboys.util.AlertUtil;
 import com.dbboys.util.MenuItemUtil;
 import com.dbboys.util.NotificationUtil;
+import com.dbboys.util.PopupWindowUtil;
 import com.dbboys.vo.Connect;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -20,8 +21,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TablePosition;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 
 import java.util.List;
@@ -35,6 +39,7 @@ public class CustomLockSessionTab extends CustomTab {
     private final Button refreshButton = new Button();
     private final ImageView loadingIcon = IconFactory.loadingImageView(0.7);
     private int ownerColumnIndex = -1;
+    private volatile boolean sessionDetailLoading = false;
 
     public CustomLockSessionTab(Connect connect, String tabTitle, String databaseName, String tableName) {
         super(tabTitle);
@@ -53,6 +58,15 @@ public class CustomLockSessionTab extends CustomTab {
         StackPane.setAlignment(refreshButton, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(refreshButton, new Insets(0, 15, 20, 0));
         setContent(root);
+        tableView.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
+            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+                ObservableList<String> row = resolveSelectedRow();
+                if (row != null) {
+                    showSessionDetailFromRow(row);
+                    event.consume();
+                }
+            }
+        });
 
         loadLocks();
     }
@@ -135,7 +149,8 @@ public class CustomLockSessionTab extends CustomTab {
         }
         if (!AlertUtil.CustomAlertConfirm(
                 I18n.t("locksession.confirm.kill.title", "KILL会话"),
-                I18n.t("locksession.confirm.kill.content", "确定要执行 onmode -z %s 吗？").formatted(owner)
+                I18n.t("locksession.confirm.kill.content", "确定要执行 %s 吗？")
+                        .formatted(adminService.killLockSessionCommand(connect, owner))
         )) {
             return;
         }
@@ -161,12 +176,70 @@ public class CustomLockSessionTab extends CustomTab {
         });
     }
 
+    private void showSessionDetailFromRow(ObservableList<String> row) {
+        if (sessionDetailLoading) {
+            return;
+        }
+        if (!adminService.canShowLockSessionDetail(connect)) {
+            return;
+        }
+        String sid = resolveOwner(row);
+        if (sid.isEmpty()) {
+            AlertUtil.CustomAlert(
+                    I18n.t("common.error", "Error"),
+                    I18n.t("locksession.error.sid_missing", "当前行没有会话号，无法查看会话详情。")
+            );
+            return;
+        }
+        if (!sid.matches("\\d+")) {
+            AlertUtil.CustomAlert(
+                    I18n.t("common.error", "Error"),
+                    I18n.t("locksession.error.sid_invalid", "会话号不是合法数字：%s").formatted(sid)
+            );
+            return;
+        }
+
+        sessionDetailLoading = true;
+        refreshButton.setDisable(true);
+        loadingIcon.setVisible(true);
+        AppExecutor.runAsync(() -> {
+            String command = adminService.lockSessionDetailCommand(connect, sid);
+            try {
+                String output = adminService.getLockSessionDetail(connect, sid);
+                Platform.runLater(() -> {
+                    sessionDetailLoading = false;
+                    refreshButton.setDisable(false);
+                    loadingIcon.setVisible(false);
+                    PopupWindowUtil.openCmdOutputPopupWindow(command + "\n\n" + output);
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    sessionDetailLoading = false;
+                    refreshButton.setDisable(false);
+                    loadingIcon.setVisible(false);
+                    AlertUtil.CustomAlert(I18n.t("common.error", "Error"), e.getMessage());
+                });
+            }
+        });
+    }
+
     private String resolveOwner(ObservableList<String> row) {
         if (row == null || ownerColumnIndex < 0 || ownerColumnIndex >= row.size()) {
             return "";
         }
         String owner = row.get(ownerColumnIndex);
         return owner == null ? "" : owner.trim();
+    }
+
+    private ObservableList<String> resolveSelectedRow() {
+        ObservableList<TablePosition> selectedCells = tableView.getSelectionModel().getSelectedCells();
+        if (!selectedCells.isEmpty()) {
+            int rowIndex = selectedCells.get(0).getRow();
+            if (rowIndex >= 0 && rowIndex < tableView.getItems().size()) {
+                return tableView.getItems().get(rowIndex);
+            }
+        }
+        return tableView.getSelectionModel().getSelectedItem();
     }
 
     private int findColumnIndex(List<String> columns, String name) {

@@ -3,6 +3,7 @@ package com.dbboys.impl.dialect.gbase;
 import com.dbboys.api.InstanceAdminRepository;
 import com.dbboys.customnode.CustomSpaceChart;
 import com.dbboys.i18n.I18n;
+import com.dbboys.util.JschUtil;
 import com.dbboys.util.remote.RemoteSessionClient;
 import com.dbboys.vo.Connect;
 
@@ -280,5 +281,32 @@ public final class GbaseInstanceAdminRepository implements InstanceAdminReposito
     @Override
     public boolean canKillLockSession(Connect connect) {
         return connect != null && "gbasedbt".equalsIgnoreCase(connect.getUsername());
+    }
+
+    @Override
+    public boolean supportsLockSession(Connect connect) {
+        return true;
+    }
+
+    @Override
+    public String getLockSessionDetail(Connect connect, String sid) throws Exception {
+        RemoteSessionClient remoteClient = new RemoteSessionClient();
+        try {
+            remoteClient.connect(connect.getUsername(), connect.getIp(), 22, connect.getPassword(), 5000);
+            String command = remoteCommandPrefix(connect) + "onstat -g ses " + sid;
+            return remoteClient.executeCommand(command);
+        } finally {
+            remoteClient.disconnect();
+        }
+    }
+
+    @Override
+    public boolean canShowLockSessionDetail(Connect connect) {
+        return connect != null;
+    }
+
+    private String remoteCommandPrefix(Connect connect) {
+        String env = connect == null || connect.getInfo() == null ? "" : JschUtil.extractEnvValue(connect.getInfo());
+        return env == null || env.isBlank() ? "source ~/.bash_profile && " : env;
     }
 }

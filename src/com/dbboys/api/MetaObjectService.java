@@ -2,6 +2,7 @@ package com.dbboys.api;
 
 import com.dbboys.i18n.I18n;
 import com.dbboys.util.BackgroundSqlUtil;
+import com.dbboys.util.ReadOnlyGuard;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.vo.BackgroundSqlTask;
 import com.dbboys.vo.Connect;
@@ -59,6 +60,9 @@ public interface MetaObjectService {
     }
 
     default void executeObjectSql(Connect connect, String sql, Runnable onSucceededUi) {
+        if (ReadOnlyGuard.showBlockedAlertIfReadOnly(connect)) {
+            return;
+        }
         BackgroundSqlTask backSqlTask = new BackgroundSqlTask();
         Task<Void> bgTask = new Task<>() {
             @Override
@@ -122,6 +126,12 @@ public interface MetaObjectService {
     }
 
     default void executeObjectSqls(Connect connect, List<String> sqlList, Runnable onSucceededUi, Runnable onNotSucceededUi) {
+        if (ReadOnlyGuard.showBlockedAlertIfReadOnly(connect)) {
+            if (onNotSucceededUi != null) {
+                onNotSucceededUi.run();
+            }
+            return;
+        }
         if (sqlList == null || sqlList.isEmpty()) {
             return;
         }

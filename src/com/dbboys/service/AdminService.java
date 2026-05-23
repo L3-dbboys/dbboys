@@ -69,6 +69,22 @@ public class AdminService {
         return platformResolver.admin(connect).canKillLockSession(connect);
     }
 
+    public String killLockSessionCommand(Connect connect, String owner) {
+        return platformResolver.admin(connect).killLockSessionCommand(owner);
+    }
+
+    public String getLockSessionDetail(Connect connect, String sid) throws Exception {
+        return platformResolver.admin(connect).getLockSessionDetail(connect, sid);
+    }
+
+    public boolean canShowLockSessionDetail(Connect connect) {
+        return connect != null && platformResolver.admin(connect).canShowLockSessionDetail(connect);
+    }
+
+    public String lockSessionDetailCommand(Connect connect, String sid) {
+        return platformResolver.admin(connect).lockSessionDetailCommand(sid);
+    }
+
     private void setStorageSegmentExtendable(InstanceAdminRepository adminRepository, Connection conn, int segmentId, boolean extendable) throws SQLException {
         adminRepository.setStorageSegmentExtendable(conn, segmentId, extendable);
     }

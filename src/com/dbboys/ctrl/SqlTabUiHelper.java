@@ -30,6 +30,8 @@ public class SqlTabUiHelper {
     /** Same slot as {@link com.dbboys.customnode.CustomTreeCell} connect icons — stable toolbar alignment. */
     private static final double SQL_HEADER_ICON_SLOT = 16.0;
     private static final String SQL_HEADER_ICON_STYLE = "sql-header-icon";
+    private static final String ICON_BUTTON_DEFAULT_STYLE = "icon-button-default";
+    private static final String ICON_WARN_STYLE = "icon-warn";
     static final String SQL_HEADER_ICON_CONNECTED_STYLE = "sql-header-icon-connected";
     static final String SQL_HEADER_ICON_DISCONNECTED_STYLE = "sql-header-icon-disconnected";
 
@@ -54,7 +56,10 @@ public class SqlTabUiHelper {
         ctrl.sqlExplainButton.setGraphic(IconFactory.group(IconPaths.SQL_EXPLAIN, 0.45));
         ctrl.sqlStopButton.setGraphic(IconFactory.groupFixedColor(IconPaths.SQL_STOP, 0.7, IconFactory.stopColor()));
         ctrl.sqlRecordButton.setGraphic(IconFactory.group(IconPaths.SQL_HISTORY, 0.8));
-        ctrl.sqlReadOnlyLabel.setGraphic(IconFactory.group(IconPaths.SQL_READONLY, 0.5, IconFactory.stopColor()));
+        SVGPath readOnlyIcon = IconFactory.create(IconPaths.SQL_READONLY, 0.5, 0.5);
+        readOnlyIcon.getStyleClass().remove(ICON_BUTTON_DEFAULT_STYLE);
+        readOnlyIcon.getStyleClass().add(ICON_WARN_STYLE);
+        ctrl.sqlReadOnlyLabel.setGraphic(new Group(readOnlyIcon));
 
         BooleanBinding sqlHeaderDbUserDimmed = Bindings.createBooleanBinding(
                 () -> ctrl.sqlConnectChoiceBox.isDisable() || ctrl.isGeneralJdbcToolbarSelection(),
