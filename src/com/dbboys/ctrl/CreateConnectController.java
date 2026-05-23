@@ -1089,10 +1089,22 @@ public class CreateConnectController {
                         return null;
                     }catch (Exception e1){
                         log.error(e1.getMessage(),e1);
+                        if(isCancelled())return  null;
+
+                        end=System.currentTimeMillis();
+                        Long finalEnd = end;
+                        Platform.runLater(()-> {
+                            AlertUtil.CustomAlert(
+                                    I18n.t("common.error"),
+                                    String.format(I18n.t("createconnect.error.connect_failed"), "", e1.getMessage(), (finalEnd - start))
+                            );
+                            setConnectingVisible(false);
+                        });
                         return null;
                     }finally {
                         if(connect.getConn()!=null)
                             connect.getConn().close();
+                        connect.setConn(null);
                     }
 
                     Long finalEnd = end;

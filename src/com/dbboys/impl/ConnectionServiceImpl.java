@@ -7,6 +7,7 @@ import com.dbboys.api.DatabasePlatform;
 import com.dbboys.api.DatabasePlatformResolver;
 import com.dbboys.api.NamedServerConnectionCapability;
 import com.dbboys.api.ReconnectFallbackCapability;
+import com.dbboys.i18n.I18n;
 import com.dbboys.util.MD5Util;
 import com.dbboys.db.local.LocalDbRepository;
 import com.dbboys.vo.*;
@@ -51,7 +52,11 @@ public class ConnectionServiceImpl implements ConnectionService {
         ConnectionSupport.ConnectionParams params = dialect.connection().getConnectionParams(connect);
         Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
         Properties info = buildConnectionProperties(connect, false);
-        return driver.connect(params.getUrl(), info);
+        Connection conn = driver.connect(params.getUrl(), info);
+        if (conn == null) {
+            throw new SQLException(buildDriverRejectedUrlMessage(params, driver));
+        }
+        return conn;
     }
 
     private static Properties buildConnectionProperties(Connect connect, boolean ignoreTrimTrailingSpaces) {
@@ -104,8 +109,48 @@ public class ConnectionServiceImpl implements ConnectionService {
         Driver driver = getOrLoadDriver(params.getDriverClassName(), params.getJarFilePath());
         Properties info = buildConnectionProperties(connect, shouldIgnoreTrimTrailingSpaces(connect));
         Connection conn = driver.connect(params.getUrl(), info);
+        if (conn == null) {
+            throw new SQLException(buildDriverRejectedUrlMessage(params, driver));
+        }
         initializeSessionIfSupported(connect, conn);
         return conn;
+    }
+
+    private String buildDriverRejectedUrlMessage(ConnectionSupport.ConnectionParams params, Driver driver) {
+        String url = params == null ? "" : params.getUrl();
+        String driverClass = params == null ? "" : params.getDriverClassName();
+        String driverName = driver == null ? driverClass : driver.getClass().getName();
+        String lowerDriver = driverName == null ? "" : driverName.toLowerCase();
+        String example = jdbcUrlExample(lowerDriver);
+        String exampleText = example.isEmpty()
+                ? ""
+                : "\n" + I18n.t("createconnect.error.jdbc_url_rejected.example", "示例：%s").formatted(example);
+        return I18n.t(
+                "createconnect.error.jdbc_url_rejected",
+                "JDBC URL格式不匹配，当前驱动无法处理该URL。\n驱动：%s\nURL：%s\n请确认已选择正确驱动，并填写完整JDBC URL。%s"
+        ).formatted(driverName, url, exampleText);
+    }
+
+    private String jdbcUrlExample(String lowerDriver) {
+        if (lowerDriver == null) {
+            return "";
+        }
+        if (lowerDriver.contains("mysql")) {
+            return "jdbc:mysql://127.0.0.1:3306/database";
+        }
+        if (lowerDriver.contains("postgresql")) {
+            return "jdbc:postgresql://127.0.0.1:5432/database";
+        }
+        if (lowerDriver.contains("oracle")) {
+            return "jdbc:oracle:thin:@//127.0.0.1:1521/service";
+        }
+        if (lowerDriver.contains("sqlserver")) {
+            return "jdbc:sqlserver://127.0.0.1:1433;databaseName=database";
+        }
+        if (lowerDriver.contains("sqlite")) {
+            return "jdbc:sqlite:/path/to/database.db";
+        }
+        return "";
     }
 
     private boolean shouldIgnoreTrimTrailingSpaces(Connect connect) {

@@ -18,6 +18,10 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
 import java.sql.Driver;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -85,7 +89,27 @@ public final class GeneralJdbcDialect implements DatabasePlatform, ConnectionSup
 
     @Override
     public String testConnectionSql() {
-        return "SELECT 1 from dual";
+        return "SELECT 1";
+    }
+
+    @Override
+    public boolean testConnection(Connection conn) {
+        if (conn == null) {
+            return false;
+        }
+        try {
+            if (conn.isValid(3)) {
+                return true;
+            }
+        } catch (SQLException ignored) {
+            // Some general JDBC drivers do not implement isValid reliably; try SQL below.
+        }
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(testConnectionSql())) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
     }
 
     @Override
