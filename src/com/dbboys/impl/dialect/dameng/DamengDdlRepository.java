@@ -43,15 +43,14 @@ public final class DamengDdlRepository implements DdlRepository {
      */
     private static final String SQL_EXPORT_ITEM_COUNT_SPLIT = """
             SELECT
-              (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SEQUENCE' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TABLE' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'VIEW' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SYNONYM' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'FUNCTION' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PROCEDURE' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PACKAGE' AND secondary = 'N')
-            + (SELECT COUNT(*) FROM all_scheduler_jobs WHERE owner = ?)
-            + (SELECT COUNT(*) FROM all_objects i WHERE i.owner = ? AND i.object_type = 'INDEX' AND i.secondary = 'N'
+              (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SEQUENCE')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TABLE')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'VIEW')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'SYNONYM')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'FUNCTION')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PROCEDURE')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'PACKAGE')
+            + (SELECT COUNT(*) FROM all_objects i WHERE i.owner = ? AND i.object_type = 'INDEX'
                AND NOT EXISTS (
                    SELECT 1 FROM all_constraints c
                    WHERE c.owner = i.owner
@@ -61,7 +60,7 @@ public final class DamengDdlRepository implements DdlRepository {
                WHERE owner = ? AND status = 'ENABLED'
                  AND constraint_type IN ('P','U','C','R')
                  AND (generated IS NULL OR generated = 'USER NAME'))
-            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TRIGGER' AND secondary = 'N')
+            + (SELECT COUNT(*) FROM all_objects WHERE owner = ? AND object_type = 'TRIGGER')
             AS cnt FROM dual
             """;
 
@@ -71,7 +70,6 @@ public final class DamengDdlRepository implements DdlRepository {
             FROM all_objects i
             WHERE i.owner = ?
               AND i.object_type = 'INDEX'
-              AND i.secondary = 'N'
               AND NOT EXISTS (
                   SELECT 1 FROM all_constraints c
                   WHERE c.owner = i.owner
@@ -105,7 +103,7 @@ public final class DamengDdlRepository implements DdlRepository {
 
     private static final String SQL_SCHEMA_OBJECTS = """
             SELECT object_name, object_type FROM all_objects
-            WHERE owner = ? AND object_type = ? AND secondary = 'N'
+            WHERE owner = ? AND object_type = ?
             ORDER BY object_name
             """;
 
@@ -627,11 +625,26 @@ public final class DamengDdlRepository implements DdlRepository {
         String damengObjectType = mapDamengGetDdlObjectType(objectType);
         String sql = "SELECT DBMS_METADATA.GET_DDL(?, ?, ?) FROM dual";
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
-        String ddl = runner.queryOne(sql, List.of(damengObjectType, objectName, schema), rs -> readDdlClob(rs, 1));
-        if (ddl != null) {
-            ddl = ddl.trim();
-        } else {
-            ddl = "";
+        String ddl = "";
+        try {
+            ddl = runner.queryOne(sql, List.of(damengObjectType, objectName, schema), rs -> readDdlClob(rs, 1));
+            if (ddl != null) {
+                ddl = ddl.trim();
+            } else {
+                ddl = "";
+            }
+        } catch (SQLException e) {
+            log.debug("GET_DDL for {} {}.{} failed: {}, trying SP_GETDDL", objectType, schema, objectName, e.getMessage());
+            // Dameng DBMS_METADATA.GET_DDL may not support all object types (error 20008 etc.)
+            // Fallback to SP_GETDDL system procedure
+            try {
+                String spResult = callSpGetDdl(conn, schema, objectName);
+                if (spResult != null && !spResult.isBlank()) {
+                    ddl = spResult.trim();
+                }
+            } catch (Exception ex) {
+                log.debug("SP_GETDDL fallback for {} {}.{} also failed: {}", objectType, schema, objectName, ex.getMessage());
+            }
         }
         if ("PACKAGE_SPEC".equals(objectType) && !damengPlSqlLooksComplete(ddl)) {
             try {
@@ -835,17 +848,95 @@ public final class DamengDdlRepository implements DdlRepository {
     @Override
     public String printType(Connection conn, String objectName) throws SQLException {
         String schema = currentSchema(conn);
-        configureMetadataTransform(conn);
-        String spec = getDdl(conn, "TYPE", objectName, schema);
-        String body;
+        String upperName = objectName.toUpperCase();
+
+        // Dameng DBMS_METADATA.GET_DDL does not support TYPE (error 20008).
+        // Use SP_GETDDL system procedure or all_source to reconstruct DDL.
+        String spec = "";
+
+        // 1. Try SP_GETDDL (Dameng built-in system procedure)
+        try {
+            spec = callSpGetDdl(conn, schema, upperName);
+            if (spec != null) spec = spec.trim();
+        } catch (Exception e) {
+            log.debug("SP_GETDDL for TYPE {}.{} failed: {}", schema, upperName, e.getMessage());
+            spec = "";
+        }
+
+        // 2. Try all_source with TYPE
+        if (spec == null || spec.isBlank()) {
+            try {
+                String fromDict = fetchPlSqlFromAllSource(conn, schema, upperName, "TYPE");
+                if (!fromDict.isBlank()) {
+                    spec = fromDict.trim();
+                    if (!spec.toUpperCase(Locale.ROOT).startsWith("CREATE")) {
+                        spec = "CREATE OR REPLACE " + spec;
+                    }
+                }
+            } catch (SQLException e) {
+                log.debug("ALL_SOURCE fallback for TYPE {}.{}: {}", schema, upperName, e.getMessage());
+            }
+        }
+
+        // 3. Try all_source with CLASS (Dameng stores some types as CLASS)
+        if (spec == null || spec.isBlank()) {
+            try {
+                String fromDict = fetchPlSqlFromAllSource(conn, schema, upperName, "CLASS");
+                if (!fromDict.isBlank()) {
+                    spec = fromDict.trim();
+                    if (!spec.toUpperCase(Locale.ROOT).startsWith("CREATE")) {
+                        spec = "CREATE OR REPLACE " + spec;
+                    }
+                }
+            } catch (SQLException e) {
+                log.debug("ALL_SOURCE fallback for CLASS {}.{}: {}", schema, upperName, e.getMessage());
+            }
+        }
+
+        // 4. Fallback to GET_DDL
+        if (spec == null || spec.isBlank()) {
+            try {
+                configureMetadataTransform(conn);
+                spec = getDdl(conn, "TYPE", upperName, schema);
+            } catch (Exception e) {
+                log.debug("GET_DDL for TYPE {}.{} failed: {}", schema, upperName, e.getMessage());
+                spec = "";
+            }
+        }
+
+        String body = "";
         
         
         StringBuilder sb = new StringBuilder();
-        sb.append(spec).append("\n/\n");
+        try {
+            String fromDict = fetchPlSqlFromAllSource(conn, schema, upperName, "TYPE BODY");
+            if (!fromDict.isBlank()) {
+                body = fromDict.trim();
+                if (!body.toUpperCase(Locale.ROOT).startsWith("CREATE")) {
+                    body = "CREATE OR REPLACE " + body;
+                }
+            }
+        } catch (SQLException e) {
+            log.debug("ALL_SOURCE fallback for TYPE BODY {}.{}: {}", schema, upperName, e.getMessage());
+        }
+        if (body.isBlank()) {
+            try {
+                configureMetadataTransform(conn);
+                body = getDdl(conn, "TYPE_BODY", upperName, schema);
+            } catch (Exception e) {
+                log.debug("GET_DDL for TYPE_BODY {}.{} failed: {}", schema, upperName, e.getMessage());
+                body = "";
+            }
+        }
+        if (!spec.isEmpty()) {
+            sb.append(spec).append("\n/\n");
+        }
+        if (!body.isEmpty() && !body.startsWith("-- ERROR")) {
+            sb.append(body).append("\n/\n");
+        }
         return sb.toString().stripTrailing();
     }
 
-    @Override
     public String printQueue(Connection conn, String objectName) throws SQLException {
         String schema = currentSchema(conn);
         configureMetadataTransform(conn);
@@ -864,7 +955,7 @@ public final class DamengDdlRepository implements DdlRepository {
         String schema = databaseName != null ? databaseName.toUpperCase() : currentSchema(conn).toUpperCase();
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
         List<Object> binds = new ArrayList<>();
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < 10; i++) {
             binds.add(schema);
         }
         Long count = runner.queryOne(SQL_EXPORT_ITEM_COUNT_SPLIT, binds, rs -> Long.valueOf(rs.getLong(1)));
@@ -895,7 +986,6 @@ public final class DamengDdlRepository implements DdlRepository {
         completed = appendObjectsDdl(conn, pre, schema, "FUNCTION", "Functions", completed, progressCallback);
         completed = appendObjectsDdl(conn, pre, schema, "PROCEDURE", "Procedures", completed, progressCallback);
         completed = appendPackagesDdl(conn, pre, schema, completed, progressCallback);
-        completed = appendSchedulerJobsDdl(conn, pre, schema, completed, progressCallback);
         appendTableComments(conn, pre, schema);
         appendColumnComments(conn, pre, schema);
 
@@ -1063,7 +1153,34 @@ public final class DamengDdlRepository implements DdlRepository {
                 progressCallback.accept(completed);
             }
         }
-        ddl.append("-- ### FINISH: Queues\n\n");
+        //ddl.append("-- ### FINISH: Queues\n\n");
+        return completed;
+    }
+
+    private long appendSchedulerJobsDdl(Connection conn, StringBuilder ddl, String schema,
+                                        long completed, LongConsumer progressCallback) throws SQLException {
+        SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+        List<String> names = runner.query(SQL_SCHEDULER_JOB_NAMES, List.of(schema), rs -> rs.getString("job_name"));
+        if (names.isEmpty()) {
+            return completed;
+        }
+
+        ddl.append("-- ### Scheduler Jobs (").append(names.size()).append(")\n\n");
+        for (String name : names) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Export cancelled");
+            }
+            String objDdl = withTrailingSqlPlusSlash(getDdlSafe(conn, "PROCOBJ", name, schema));
+            if (!objDdl.isEmpty()) {
+                ddl.append(objDdl);
+                ddl.append("\n\n");
+            }
+            completed++;
+            if (progressCallback != null) {
+                progressCallback.accept(completed);
+            }
+        }
+        ddl.append("-- ### FINISH: Scheduler Jobs\n\n");
         return completed;
     }
 
@@ -1099,33 +1216,6 @@ public final class DamengDdlRepository implements DdlRepository {
         return completed;
     }
 
-    private long appendSchedulerJobsDdl(Connection conn, StringBuilder ddl, String schema,
-                                        long completed, LongConsumer progressCallback) throws SQLException {
-        SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
-        List<String> names = runner.query(SQL_SCHEDULER_JOB_NAMES, List.of(schema), rs -> rs.getString("job_name"));
-        if (names.isEmpty()) {
-            return completed;
-        }
-
-        ddl.append("-- ### Scheduler Jobs (").append(names.size()).append(")\n\n");
-        for (String name : names) {
-            if (Thread.currentThread().isInterrupted()) {
-                throw new CancellationException("Export cancelled");
-            }
-            String objDdl = withTrailingSqlPlusSlash(getDdlSafe(conn, "PROCOBJ", name, schema));
-            if (!objDdl.isEmpty()) {
-                ddl.append(objDdl);
-                ddl.append("\n\n");
-            }
-            completed++;
-            if (progressCallback != null) {
-                progressCallback.accept(completed);
-            }
-        }
-        ddl.append("-- ### FINISH: Scheduler Jobs\n\n");
-        return completed;
-    }
-
     private void appendTableComments(Connection conn, StringBuilder ddl, String schema) throws SQLException {
         SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
         List<String[]> comments = runner.query(SQL_TABLE_COMMENTS, List.of(schema),
@@ -1156,5 +1246,33 @@ public final class DamengDdlRepository implements DdlRepository {
                     .append("\".\"").append(row[1]).append("\" IS '").append(escapedComment).append("';\n");
         }
         ddl.append("\n");
+    }
+
+    /**
+     * Call Dameng built-in system procedure {@code SP_GETDDL} to get object DDL.
+     * Falls back to querying SYSOBJECTS.DEFINITION if SP_GETDDL is not available.
+     */
+    private String callSpGetDdl(Connection conn, String schema, String objectName) throws SQLException {
+        // Try SP_GETDDL first
+        try {
+            String sql = "SELECT SP_GETDDL(?, ?)";
+            SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+            String result = runner.queryOne(sql, List.of(schema, objectName), rs -> readDdlClob(rs, 1));
+            if (result != null && !result.isBlank()) {
+                return result;
+            }
+        } catch (Exception e) {
+            log.debug("SP_GETDDL not available for {}.{}: {}", schema, objectName, e.getMessage());
+        }
+
+        // Fallback: query SYSOBJECTS.DEFINITION
+        try {
+            String sql = "SELECT DEFINITION FROM SYSOBJECTS WHERE SCHID = (SELECT ID FROM SYSOBJECTS WHERE NAME = ? AND TYPE$ = 'SCH') AND NAME = ? AND DEFINITION IS NOT NULL";
+            SqlRunner runner = new SqlRunner(conn, QUERY_TIMEOUT);
+            return runner.queryOne(sql, List.of(schema, objectName), rs -> readDdlClob(rs, 1));
+        } catch (Exception e) {
+            log.debug("SYSOBJECTS fallback for {}.{}: {}", schema, objectName, e.getMessage());
+            return null;
+        }
     }
 }
