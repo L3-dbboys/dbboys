@@ -1082,13 +1082,24 @@ public class CustomGenericStyledArea extends GenericStyledArea {
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setRequestMethod("HEAD");
-                conn.setInstanceFollowRedirects(true);
+                conn.setInstanceFollowRedirects(false);
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(5000);
                 int code = conn.getResponseCode();
-                valid = isAcceptableHttpLinkStatus(code);
+                if (isRedirect(code)) {
+                    String location = conn.getHeaderField("Location");
+                    if (location == null || location.isEmpty()) {
+                        valid = false;
+                    } else {
+                        String redirectUrl = buildRedirectUrl(url, location);
+                        valid = validateFinalUrl(redirectUrl, 0);
+                    }
+                } else {
+                    valid = isAcceptableHttpLinkStatus(code);
+                }
             } catch (Exception ex) {
-                log.warn("Skip invalidating link because validation request failed: {}", url, ex);
+                log.warn("Link validation request failed, marking as invalid: {}", url, ex);
+                valid = false;
             } finally {
                 LINK_CHECK_IN_FLIGHT.remove(url);
                 if (valid != null) {
@@ -1105,6 +1116,51 @@ public class CustomGenericStyledArea extends GenericStyledArea {
     private static boolean isAcceptableHttpLinkStatus(int code) {
         return (code >= 200 && code < 400) || code == HttpURLConnection.HTTP_UNAUTHORIZED
                 || code == HttpURLConnection.HTTP_FORBIDDEN || code == HttpURLConnection.HTTP_BAD_METHOD;
+    }
+
+    private static boolean isRedirect(int code) {
+        return code == HttpURLConnection.HTTP_MOVED_PERM
+                || code == HttpURLConnection.HTTP_MOVED_TEMP
+                || code == HttpURLConnection.HTTP_SEE_OTHER
+                || code == 307 /* HTTP_TEMP_REDIRECT */
+                || code == 308 /* HTTP_PERMANENT_REDIRECT */;
+    }
+
+    private static final int MAX_REDIRECTS = 5;
+
+    private static Boolean validateFinalUrl(String url, int depth) {
+        if (depth >= MAX_REDIRECTS) {
+            return false;
+        }
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.setInstanceFollowRedirects(false);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            int code = conn.getResponseCode();
+            if (isRedirect(code)) {
+                String location = conn.getHeaderField("Location");
+                if (location == null || location.isEmpty()) {
+                    return false;
+                }
+                String redirectUrl = buildRedirectUrl(url, location);
+                return validateFinalUrl(redirectUrl, depth + 1);
+            }
+            return isAcceptableHttpLinkStatus(code);
+        } catch (Exception ex) {
+            log.warn("Redirect target validation failed: {}", url, ex);
+            return false;
+        }
+    }
+
+    private static String buildRedirectUrl(String baseUrl, String location) {
+        try {
+            URL base = new URL(baseUrl);
+            return new URL(base, location).toString();
+        } catch (Exception ex) {
+            return location;
+        }
     }
 
     private static boolean shouldSkipStrictHttpValidation(String url) {
