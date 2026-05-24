@@ -40,7 +40,7 @@ public class SqlExecutionHelper {
             return ctrl.currentResultSetTabController.lastSqlTextField.getTooltip().getText();
         }
         if (ctrl.sqlEditCodeArea.getSelectedText().isEmpty()) {
-            return ctrl.sqlEditCodeArea.getText();
+            ctrl.sqlEditCodeArea.ensureExecuteTargetSelected();
         }
         return ctrl.sqlEditCodeArea.getSelectedText();
     }
