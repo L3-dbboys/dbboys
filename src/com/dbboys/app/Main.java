@@ -27,6 +27,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.apache.logging.log4j.LogManager;
@@ -109,7 +110,9 @@ public class Main extends Application {
             HBox headerBox = new HBox(12, bootLogo, textBox);
             headerBox.setAlignment(Pos.CENTER_LEFT);
 
-            VBox loadCard = new VBox(16, headerBox, loadProgressBar, bootStatus);
+            //VBox loadCard = new VBox(16, headerBox, loadProgressBar, bootStatus);
+            VBox loadCard = new VBox(36, headerBox, bootStatus);
+
             loadCard.setAlignment(Pos.CENTER_LEFT);
             loadCard.getStyleClass().add("boot-card");
             loadCard.setPrefSize(320, 132);
@@ -220,6 +223,7 @@ public class Main extends Application {
                 public void run() {
                     Thread.currentThread().setUncaughtExceptionHandler((t, e) -> AppErrorHandler.handle(e));
                     primaryStage.setScene(scene);
+                    
                         //打开软件默认打开一个sql编辑面板
                         //StageStyle.UNDECORATED
                         //StageStyle.DECORATED

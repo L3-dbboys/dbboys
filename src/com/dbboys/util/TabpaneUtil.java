@@ -60,6 +60,7 @@ public class TabpaneUtil {
         //newtab.setContent(new CustomSqlTab().getSqlTab());
         tabPane().getTabs().add(newtab);
         tabPane().getSelectionModel().select(newtab);
+        refreshSqlTabHeaderLayout();
         //设置一个id，用于生效分隔条CSS
         //newtab.data_manager_splitpane.setId("runSplitPane");
 
@@ -69,6 +70,20 @@ public class TabpaneUtil {
         }
     }
 
+
+    private static void refreshSqlTabHeaderLayout() {
+        TabPane sqlTabPane = tabPane();
+        if (sqlTabPane == null) {
+            return;
+        }
+        Platform.runLater(() -> {
+            sqlTabPane.applyCss();
+            sqlTabPane.requestLayout();
+            if (sqlTabPane.getParent() != null) {
+                sqlTabPane.getParent().requestLayout();
+            }
+        });
+    }
 
     public static void isRefreshConnectList() {
         for (Tab tab : tabPane().getTabs()) {
