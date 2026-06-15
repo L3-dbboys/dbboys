@@ -99,10 +99,7 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         treeViewProperty().addListener((obs, oldTv, newTv) -> {
             if (newTv != null) {
                 newTv.addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, e -> {
-                    Tooltip tt = getTooltip();
-                    if (tt != null) {
-                        tt.hide();
-                    }
+                    tooltip.hide();
                 });
             }
         });
