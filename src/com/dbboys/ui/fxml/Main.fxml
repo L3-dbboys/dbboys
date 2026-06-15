@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--导入JavaFXML类-->
+<?import javafx.scene.text.*?>
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.*?>
+
+<!--布局控件BorderPane，fx:controller属性用于声明事件处理的Controller，值为Controller类的类全名-->
+<!--xmlns用于声明默认命名空间，这里的声明随着你安装的Java JDK版本号的不同可以不同，但是最好不要比你安装的JDK版本高-->
+<?import com.dbboys.ui.component.CustomLabelTextField?>
+<?import com.dbboys.ui.component.CustomShortcutMenuItem?>
+<?import com.dbboys.ui.component.CustomUserTextarea?>
+<?import com.dbboys.ui.component.CustomUserTextField?>
+<?import com.dbboys.ui.component.CustomTreeviewTab?>
+<StackPane fx:controller="com.dbboys.ui.controller.MainController" fx:id="root" xmlns="http://javafx.com/javafx/8.0.31" xmlns:fx="http://javafx.com/fxml/1">
+    <VBox fx:id="mainVBox">
+        <HBox alignment="CENTER_LEFT" spacing="0">
+            <Label fx:id="appLogoLabel" />
+            <MenuBar>
+                <menus >
+                    <Menu fx:id="menuFile" mnemonicParsing="false" >
+                        <items>
+                            <CustomShortcutMenuItem fx:id="menuFileAddFolder" mnemonicParsing="false" onAction="#createConnectFolder">
+                            </CustomShortcutMenuItem>
+                            <CustomShortcutMenuItem fx:id="menuFileNewConnection" mnemonicParsing="false" id="fileMenu" onAction="#createConnectLeaf">
+                            </CustomShortcutMenuItem>
+
+                            <CustomShortcutMenuItem fx:id="menuFileDisconnectAll" mnemonicParsing="false" onAction="#disconnectAll">
+                            </CustomShortcutMenuItem>
+
+                            <CustomShortcutMenuItem fx:id="newSqlFileMenuItem" mnemonicParsing="false" >
+                            </CustomShortcutMenuItem>
+                            <CustomShortcutMenuItem fx:id="menuFileOpenSql" mnemonicParsing="false" onAction="#openSqlFile">
+                            </CustomShortcutMenuItem>
+                        </items>
+                    </Menu>
+                    <Menu fx:id="menuConfig" mnemonicParsing="false">
+                        <items>
+                            <CustomShortcutMenuItem fx:id="menuConfigCheckEnv" mnemonicParsing="false" id="modifyMenu" onAction="#checkInstallEnv">
+                            </CustomShortcutMenuItem>
+                            <!--
+                            <MenuItem mnemonicParsing="false"  text="安装ORACLE ( coding )">
+                            </MenuItem>
+                            <MenuItem mnemonicParsing="false"  text="安装MYSQL ( coding )">
+                            </MenuItem>
+                            -->
+                            <Menu fx:id="menuConfigInformix" mnemonicParsing="false">
+                                <items>
+                                    <CustomShortcutMenuItem fx:id="menuConfigInstallInformix" mnemonicParsing="false" onAction="#installInformix">
+                                    </CustomShortcutMenuItem>
+                                    <CustomShortcutMenuItem fx:id="menuConfigUninstallInformix" mnemonicParsing="false" onAction="#unInstallInformix">
+                                    </CustomShortcutMenuItem>
+                                </items>
+                            </Menu>
+                            <Menu fx:id="menuConfigMysql" mnemonicParsing="false">
+                                <items>
+                                    <CustomShortcutMenuItem fx:id="menuConfigInstallMysql" mnemonicParsing="false" onAction="#installMysql">
+                                    </CustomShortcutMenuItem>
+                                    <CustomShortcutMenuItem fx:id="menuConfigUninstallMysql" mnemonicParsing="false" onAction="#unInstallMysql">
+                                    </CustomShortcutMenuItem>
+                                </items>
+                            </Menu>
+                            <Menu fx:id="menuConfigGbase" mnemonicParsing="false">
+                                <items>
+                                    <CustomShortcutMenuItem fx:id="menuConfigInstallGbase" mnemonicParsing="false" onAction="#installGBase8S">
+                                    </CustomShortcutMenuItem>
+                                    <CustomShortcutMenuItem fx:id="menuConfigUninstallGbase" mnemonicParsing="false" onAction="#unInstallGBase8S">
+                                    </CustomShortcutMenuItem>
+                                </items>
+                            </Menu>
+
+                            <!--
+                            <MenuItem mnemonicParsing="false"  text="安装PG(Install POSTGRESQL)">
+                            </MenuItem>
+                            <MenuItem mnemonicParsing="false"  text="安装DAMENG(Install DAMENG)">
+                            </MenuItem>
+
+                            <MenuItem mnemonicParsing="false"  text="安装KINGBASE(Install KINGBASE)">
+                            </MenuItem>
+                             -->
+                        </items>
+                    </Menu>
+                    <Menu fx:id="menuSettings" mnemonicParsing="false" >
+                        <items>
+                            <Menu fx:id="menuSettingsLanguage" mnemonicParsing="false">
+                                <items>
+                                    <CustomShortcutMenuItem fx:id="menuSettingsLanguageZh" mnemonicParsing="false" onAction="#setLanguageZh"/>
+                                    <CustomShortcutMenuItem fx:id="menuSettingsLanguageEn" mnemonicParsing="false" onAction="#setLanguageEn"/>
+                                    <CustomShortcutMenuItem fx:id="menuSettingsLanguageZhTw" mnemonicParsing="false" onAction="#setLanguageZhHant"/>
+                                </items>
+                            </Menu>
+                            <Menu fx:id="menuSettingsTheme" mnemonicParsing="false">
+                                <items>
+                                    <CustomShortcutMenuItem fx:id="menuSettingsThemeDark" mnemonicParsing="false" onAction="#setThemeDark"/>
+                                    <CustomShortcutMenuItem fx:id="menuSettingsThemeLight" mnemonicParsing="false" onAction="#setThemeLight"/>
+                                </items>
+                            </Menu>
+                            <CustomShortcutMenuItem fx:id="menuSettingsReset" mnemonicParsing="false"  id="settingMenu" onAction="#initDB">
+                            </CustomShortcutMenuItem>
+                        </items>
+                    </Menu>
+                    <Menu fx:id="menuHelp" mnemonicParsing="false" >
+                        <items>
+                            <CustomShortcutMenuItem fx:id="menuHelpAbout" mnemonicParsing="false"  id="helpMenu" onAction="#aboutDBboys">
+                            </CustomShortcutMenuItem>
+                            <CustomShortcutMenuItem fx:id="menuHelpCompatibilityList" mnemonicParsing="false" onAction="#showCompatibilityList">
+                            </CustomShortcutMenuItem>
+                        </items>
+                        <CustomShortcutMenuItem fx:id="menuHelpCommunity" mnemonicParsing="false"  id="community" onAction="#community">
+                        </CustomShortcutMenuItem>
+                        <CustomShortcutMenuItem fx:id="menuHelpCheckUpdate" mnemonicParsing="false"  id="checkVersion" onAction="#checkVersion">
+                        </CustomShortcutMenuItem>
+                    </Menu>
+                </menus>
+            </MenuBar>
+        </HBox>
+        <!--
+        <HBox alignment="CENTER_LEFT" spacing="10" minHeight="26">
+            <Label text="  | "></Label>
+            <Label text="[192.168.17.101_9088]">
+            </Label>
+        </HBox>
+        -->
+        <SplitPane fx:id="mainSplitPane">
+            <VBox alignment="TOP_LEFT" >
+                <StackPane prefHeight="2000">
+                    <TabPane fx:id="treeviewTabPane" side="LEFT" minWidth="35" tabClosingPolicy="UNAVAILABLE">
+                        <CustomTreeviewTab fx:id="connectTab" closable="false">
+                            <VBox>
+                                <HBox minHeight="30" alignment="CENTER_LEFT">
+                                    <Button fx:id="create_connect"  focusTraversable="false"  onAction="#createConnectLeaf">
+                                        <tooltip>
+                                            <Tooltip/>
+                                        </tooltip>
+                                    </Button>
+                                    <CustomUserTextField fx:id="connectSearchTextField" prefWidth="2000">
+                                        <tooltip>
+                                            <Tooltip/>
+                                        </tooltip>
+                                    </CustomUserTextField>
+                                    <Button fx:id="connectSearchButton"  focusTraversable="false" styleClass="small" disable="true">
+                                        <tooltip>
+                                            <Tooltip/>
+                                        </tooltip>
+                                    </Button>
+                                </HBox>
+                                <TreeView fx:id="databaseMetaTreeView" prefHeight="2000"></TreeView>
+                            </VBox>
+                        </CustomTreeviewTab>
+                        <CustomTreeviewTab fx:id="markdownTab" closable="false">
+                            <VBox fx:id="markdownTreeViewVBox" >
+                                <HBox minHeight="30" alignment="CENTER_LEFT">
+                                    <StackPane fx:id="rebuildMarkdownIndexButton_stackpane">
+                                    <Button fx:id="rebuildMarkdownIndexButton"  focusTraversable="false" styleClass="small" onAction="#rebuildMarkdownIndex">
+                                        <tooltip>
+                                            <Tooltip/>
+                                        </tooltip>
+                                    </Button>
+                                    </StackPane>
+                                    <CustomUserTextField fx:id="markdownSearchTextField" prefWidth="2000">
+                                        <tooltip>
+                                            <Tooltip/>
+                                        </tooltip>
+                                    </CustomUserTextField>
+                                    <StackPane fx:id="markdownSearchIconStackPane" >
+                                    <Button fx:id="markdownSearchButton"  focusTraversable="false" styleClass="small" disable="true">
+                                        <tooltip>
+                                            <Tooltip/>
+                                        </tooltip>
+                                    </Button>
+                                    </StackPane>
+                                </HBox>
+                                <!--
+                               <TreeView fx:id="knowledge_treeview" prefHeight="2000"></TreeView>
+                                   -->
+                            </VBox>
+                        </CustomTreeviewTab>
+                        <CustomTreeviewTab fx:id="aiTab" closable="false">
+                            <VBox fx:id="aiTabVBox"  VBox.vgrow="ALWAYS">
+                                <StackPane VBox.vgrow="ALWAYS">
+                                    <ScrollPane fx:id="aiChatScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" >
+                                        <VBox fx:id="aiChatMessages" spacing="8"/>
+                                    </ScrollPane>
+                                    <Button fx:id="aiMemoryToggleButton" focusTraversable="false"
+                                            StackPane.alignment="TOP_LEFT" translateX="6.0" translateY="6.0"/>
+                                </StackPane>
+                                <AnchorPane minHeight="90" prefHeight="90" maxHeight="90" VBox.vgrow="NEVER" pickOnBounds="false">
+                                    <CustomUserTextarea fx:id="aiInputField" promptText="输入消息..." wrapText="true" prefRowCount="3" prefHeight="90" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" />
+                                    <HBox alignment="CENTER_LEFT" spacing="4" pickOnBounds="false" AnchorPane.leftAnchor="6.0" AnchorPane.bottomAnchor="6.0">
+                                        <ChoiceBox fx:id="aiModelChoiceBox" focusTraversable="false" prefWidth="162"/>
+                                        <Button fx:id="aiSettingsButton" styleClass="small" focusTraversable="false"/>
+                                    </HBox>
+                                    <Button fx:id="aiSendButton" text="发送" styleClass="small" onAction="#sendAiMessage" focusTraversable="false" AnchorPane.rightAnchor="6.0" AnchorPane.bottomAnchor="6.0"/>
+                                </AnchorPane>
+                            </VBox>
+                        </CustomTreeviewTab>
+                    </TabPane>
+                </StackPane>
+            </VBox>
+            <StackPane fx:id="sqlTabStackPane">
+                <Label fx:id="doubleClickNewSqlLabel" ></Label>
+                <TabPane tabDragPolicy="REORDER" tabClosingPolicy="ALL_TABS" fx:id="sqlTabPane">
+                </TabPane>
+            </StackPane>
+        </SplitPane>
+        <HBox spacing="10" fx:id="statusHBox" alignment="CENTER">
+            <Button fx:id="statusBackSqlStopButton" styleClass="small" focusTraversable="false" disable="true">
+                <tooltip>
+                    <Tooltip/>
+                </tooltip>
+            </Button>
+            <Label fx:id="statusBackSqlCountLabel" translateY="0">
+            </Label>
+            <Button fx:id="statusBackSqlListButton" styleClass="small" focusTraversable="false">
+                <tooltip>
+                    <Tooltip/>
+                </tooltip>
+            </Button>
+            <ImageView fx:id="statusBackSqlProgress" fitHeight="10" fitWidth="10" preserveRatio="true" />
+            <Region HBox.hgrow="ALWAYS">
+            </Region>
+            <StackPane>
+                <StackPane>
+                    <HBox alignment="CENTER_LEFT">
+                        <Button fx:id="snapshotRootButton" styleClass="small" focusTraversable="false">
+                            <tooltip>
+                                <Tooltip/>
+                            </tooltip>
+                        </Button>
+                        <CustomLabelTextField text="www.dbboys.com" prefWidth="90"></CustomLabelTextField>
+                    </HBox>
+                </StackPane>
+                <StackPane fx:id="downloadStackPane">
+                </StackPane>
+            </StackPane>
+        </HBox>
+    </VBox>
+    <StackPane fx:id="noticePane" maxWidth="360" maxHeight="25" StackPane.alignment="CENTER" visible="false">
+    </StackPane>
+</StackPane>

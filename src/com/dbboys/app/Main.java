@@ -1,14 +1,14 @@
 package com.dbboys.app;
 
-import com.dbboys.i18n.I18n;
-import com.dbboys.util.ConfigManagerUtil;
-import com.dbboys.util.CustomWindowFrameUtil;
-import com.dbboys.ctrl.MainController;
-import com.dbboys.customnode.CustomSqlEditCodeArea;
-import com.dbboys.util.TabpaneUtil;
-import com.dbboys.util.UpgradeUtil;
-import com.dbboys.vo.Connect;
-import com.dbboys.vo.Version;
+import com.dbboys.infra.i18n.I18n;
+import com.dbboys.infra.config.ConfigManagerUtil;
+import com.dbboys.ui.dialog.CustomWindowFrameUtil;
+import com.dbboys.ui.controller.MainController;
+import com.dbboys.ui.component.CustomSqlEditCodeArea;
+import com.dbboys.infra.util.TabpaneUtil;
+import com.dbboys.infra.config.UpgradeUtil;
+import com.dbboys.model.Connect;
+import com.dbboys.model.Version;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -159,7 +159,7 @@ public class Main extends Application {
                 AppState.setSplit2Pos(Double.parseDouble(ConfigManagerUtil.getProperty("SPLIT_DRIVER_SQL", "0.6")));
 
                 //加载主界面
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/Main.fxml"));
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/dbboys/ui/fxml/Main.fxml"));
                     Pane root = null;
                     try {
                         root = loader.load();
@@ -202,10 +202,10 @@ public class Main extends Application {
                 AppExecutor.runAsync(() -> {
                     try {
                         // 预加载FXML文件
-                        FXMLLoader sqlTabLoader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/SqlTab.fxml"));
+                        FXMLLoader sqlTabLoader = new FXMLLoader(getClass().getResource("/com/dbboys/ui/fxml/SqlTab.fxml"));
                         sqlTabLoader.load();
                         
-                        //FXMLLoader resultSetLoader = new FXMLLoader(getClass().getResource("/com/dbboys/fxml/ResultSetTab.fxml"));
+                        //FXMLLoader resultSetLoader = new FXMLLoader(getClass().getResource("/com/dbboys/ui/fxml/ResultSetTab.fxml"));
                         //resultSetLoader.load();
                         
                         // 预创建CustomSqlEditCodeArea实例
@@ -231,7 +231,7 @@ public class Main extends Application {
                         loadingStage.hide();
                         primaryStage.show();//此处有黑色闪现，不使用系统自带窗口后正常
                         // 根据当前选中的左侧 Tab 设置初始分割线位置（AI 标签时分割线最右）
-                        if (mainController.treeviewTabPane.getSelectionModel().getSelectedItem() instanceof com.dbboys.customnode.CustomTreeviewTab currentLeft) {
+                        if (mainController.treeviewTabPane.getSelectionModel().getSelectedItem() instanceof com.dbboys.ui.component.CustomTreeviewTab currentLeft) {
                             if (currentLeft == mainController.aiTab) {
                                 mainController.mainSplitPane.setDividerPositions(1.0);
                             } else {

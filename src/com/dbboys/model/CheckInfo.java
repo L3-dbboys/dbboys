@@ -1,0 +1,55 @@
+package com.dbboys.model;
+
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
+public class CheckInfo {
+    private IntegerProperty tableId = new SimpleIntegerProperty();      // 表ID
+    private StringProperty constrName = new SimpleStringProperty();     // check约束名
+    private StringProperty checkText = new SimpleStringProperty();      // check约束内容
+
+    public int getTableId() {
+        return tableId.get();
+    }
+
+    public IntegerProperty tableIdProperty() {
+        return tableId;
+    }
+
+    public void setTableId(int tableId) {
+        this.tableId.set(tableId);
+    }
+
+    public String getConstrName() {
+        return constrName.get();
+    }
+
+    public StringProperty constrNameProperty() {
+        return constrName;
+    }
+
+    public void setConstrName(String constrName) {
+        this.constrName.set(constrName);
+    }
+
+    public String getCheckText() {
+        return checkText.get();
+    }
+
+    public StringProperty checkTextProperty() {
+        return checkText;
+    }
+
+    public void setCheckText(String checkText) {
+        this.checkText.set(checkText);
+    }
+
+    @Override
+    public String toString(){
+        return "CheckName: " + this.constrName + "\n" +
+                "CheckText: " + this.checkText;
+    }
+}
+

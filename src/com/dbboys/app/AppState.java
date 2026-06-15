@@ -1,8 +1,8 @@
 package com.dbboys.app;
 
-import com.dbboys.ctrl.MainController;
-import com.dbboys.vo.Connect;
-import com.dbboys.vo.Version;
+import com.dbboys.ui.controller.MainController;
+import com.dbboys.model.Connect;
+import com.dbboys.model.Version;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -16,11 +16,11 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 
-import com.dbboys.customnode.CustomShortcutMenuItem;
-import com.dbboys.customnode.CustomTreeviewTab;
-import com.dbboys.customnode.CustomUserTextField;
-import com.dbboys.util.ConfigManagerUtil;
-import com.dbboys.vo.TreeData;
+import com.dbboys.ui.component.CustomShortcutMenuItem;
+import com.dbboys.ui.component.CustomTreeviewTab;
+import com.dbboys.ui.component.CustomUserTextField;
+import com.dbboys.infra.config.ConfigManagerUtil;
+import com.dbboys.model.TreeData;
 
 import java.util.List;
 
@@ -38,11 +38,11 @@ public final class AppState {
     public static final String THEME_LIGHT = "light";
     private static final String UI_THEME_KEY = "UI_THEME";
     private static final String DARK_STYLESHEET =
-            AppState.class.getResource("/com/dbboys/css/cupertino-dark.css").toExternalForm();
+            AppState.class.getResource("/com/dbboys/ui/css/cupertino-dark.css").toExternalForm();
     private static final String COMMON_STYLESHEET =
-            AppState.class.getResource("/com/dbboys/css/cupertino-common.css").toExternalForm();
+            AppState.class.getResource("/com/dbboys/ui/css/cupertino-common.css").toExternalForm();
     private static final String LIGHT_STYLESHEET =
-            AppState.class.getResource("/com/dbboys/css/cupertino-light.css").toExternalForm();
+            AppState.class.getResource("/com/dbboys/ui/css/cupertino-light.css").toExternalForm();
 
     private AppState() {}
 

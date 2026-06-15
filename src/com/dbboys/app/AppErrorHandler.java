@@ -1,11 +1,11 @@
 package com.dbboys.app;
 
-import com.dbboys.i18n.I18n;
-import com.dbboys.util.AlertUtil;
-import com.dbboys.util.SqlErrorUtil;
-import com.dbboys.util.tree.TreeViewUtil;
-import com.dbboys.vo.Connect;
-import com.dbboys.vo.TreeData;
+import com.dbboys.infra.i18n.I18n;
+import com.dbboys.ui.dialog.AlertUtil;
+import com.dbboys.infra.util.SqlErrorUtil;
+import com.dbboys.ui.controller.tree.TreeViewUtil;
+import com.dbboys.model.Connect;
+import com.dbboys.model.TreeData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

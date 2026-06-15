@@ -1,13 +1,11 @@
 package com.dbboys.service;
 
-import com.dbboys.api.DatabasePlatformResolver;
-import com.dbboys.api.InstanceAdminRepository;
+import com.dbboys.core.DatabasePlatformResolver;
+import com.dbboys.core.InstanceAdminRepository;
 import com.dbboys.app.AppContext;
-import com.dbboys.customnode.CustomSpaceChart;
-import com.dbboys.api.ConnectionService;
-import com.dbboys.impl.ConnectionServiceImpl;
-import com.dbboys.impl.DatabasePlatforms;
-import com.dbboys.vo.Connect;
+import com.dbboys.model.SpaceUsage;
+import com.dbboys.core.ConnectionService;
+import com.dbboys.model.Connect;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -38,9 +36,9 @@ public class AdminService {
         conn.close();
     }
 
-    public List<List<CustomSpaceChart.SpaceUsage>> getStorageSpaceUsage(Connect connect) throws Exception {
+    public List<List<SpaceUsage>> getStorageSpaceUsage(Connect connect) throws Exception {
         Connection conn = connectionService.getConnectionWithSessionInit(connect);
-        List<List<CustomSpaceChart.SpaceUsage>> result = getStorageSpaceUsage(platformResolver.admin(connect), conn);
+        List<List<SpaceUsage>> result = getStorageSpaceUsage(platformResolver.admin(connect), conn);
         conn.close();
         return result;
     }
@@ -93,7 +91,7 @@ public class AdminService {
         adminRepository.resizeStorageSpace(conn, storageSpaceName, size1, size2, size3);
     }
 
-    private List<List<CustomSpaceChart.SpaceUsage>> getStorageSpaceUsage(InstanceAdminRepository adminRepository, Connection conn) throws SQLException {
+    private List<List<SpaceUsage>> getStorageSpaceUsage(InstanceAdminRepository adminRepository, Connection conn) throws SQLException {
         return adminRepository.getStorageSpaceUsage(conn);
     }
 
@@ -112,15 +110,11 @@ public class AdminService {
         try {
             return AppContext.get(ConnectionService.class);
         } catch (IllegalStateException e) {
-            return new ConnectionServiceImpl();
+            return new com.dbboys.core.ConnectionServiceImpl();
         }
     }
 
     private static DatabasePlatformResolver resolvePlatformResolver() {
-        try {
-            return AppContext.get(DatabasePlatformResolver.class);
-        } catch (IllegalStateException e) {
-            return DatabasePlatforms.createDefault();
-        }
+        return DatabasePlatformResolver.getInstance();
     }
 }

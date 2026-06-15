@@ -1,12 +1,12 @@
 package com.dbboys.service;
 
-import com.dbboys.api.DatabasePlatformResolver;
-import com.dbboys.api.MetaObjectService;
-import com.dbboys.api.MetaObjectService.DdlFetcher;
-import com.dbboys.vo.Connect;
-import com.dbboys.vo.Catalog;
-import com.dbboys.vo.ObjectList;
-import com.dbboys.vo.Procedure;
+import com.dbboys.core.DatabasePlatformResolver;
+import com.dbboys.core.MetaObjectService;
+import com.dbboys.core.MetaObjectService.DdlFetcher;
+import com.dbboys.model.Connect;
+import com.dbboys.model.Catalog;
+import com.dbboys.model.ObjectList;
+import com.dbboys.model.Procedure;
 
 import java.sql.Connection;
 import java.sql.SQLException;

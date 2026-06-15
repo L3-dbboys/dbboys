@@ -1,14 +1,13 @@
 package com.dbboys.service;
 
-import com.dbboys.ctrl.SqlTabController;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.dbboys.api.ConnectionService;
-import com.dbboys.api.DatabasePlatformResolver;
-import com.dbboys.api.SqlModeCapability;
+import com.dbboys.core.ConnectionService;
+import com.dbboys.core.DatabasePlatformResolver;
+import com.dbboys.core.SqlModeCapability;
 import com.dbboys.app.AppErrorHandler;
-import com.dbboys.vo.Connect;
-import com.dbboys.vo.Catalog;
+import com.dbboys.model.Connect;
+import com.dbboys.model.Catalog;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -47,14 +46,10 @@ public class SqlexeService {
     }
 
     public ConnectionService.ChangeDefaultDatabaseResult activeDatabase(Connect connect,
-                                                                       Catalog database,
-                                                                       SqlTabController sqlTabController) {
+                                                                       Catalog database) {
         ConnectionService.ChangeDefaultDatabaseResult result =
                 connectionService.changeSessionDatabase(connect, database, false);
         if (result.isSuccess()) {
-            if (result.isReconnected()) {
-                sqlTabController.closeResultSet();
-            }
             return result;
         }
         if (result.isDisconnected()) {

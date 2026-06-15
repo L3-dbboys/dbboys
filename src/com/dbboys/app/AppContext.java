@@ -14,13 +14,13 @@ public final class AppContext {
         synchronized (AppContext.class) {
             if (initialized) return;
 
-            var platforms = com.dbboys.impl.DatabasePlatforms.createDefault();
+            var platforms = com.dbboys.core.DatabasePlatforms.createDefault();
 
-            register(com.dbboys.api.DatabasePlatformResolver.class, platforms);
-            register(com.dbboys.impl.DatabasePlatforms.class, platforms);
+            register(com.dbboys.core.DatabasePlatformResolver.class, platforms);
+            register(com.dbboys.core.DatabasePlatforms.class, platforms);
 
-            var connService = new com.dbboys.impl.ConnectionServiceImpl(platforms);
-            register(com.dbboys.api.ConnectionService.class, connService);
+            var connService = new com.dbboys.core.ConnectionServiceImpl(platforms);
+            register(com.dbboys.core.ConnectionService.class, connService);
 
             register(com.dbboys.service.DatabaseService.class, new com.dbboys.service.DatabaseService(platforms));
             register(com.dbboys.service.TableService.class, new com.dbboys.service.TableService(platforms));

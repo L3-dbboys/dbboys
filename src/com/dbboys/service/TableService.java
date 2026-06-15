@@ -1,15 +1,15 @@
 package com.dbboys.service;
 
 import com.dbboys.app.AppExecutor;
-import com.dbboys.api.DatabasePlatformResolver;
-import com.dbboys.api.MetaObjectService;
-import com.dbboys.api.MetaObjectService.DdlFetcher;
+import com.dbboys.core.DatabasePlatformResolver;
+import com.dbboys.core.MetaObjectService;
+import com.dbboys.core.MetaObjectService.DdlFetcher;
 import com.dbboys.app.AppErrorHandler;
-import com.dbboys.db.local.LocalDbRepository;
-import com.dbboys.i18n.I18n;
-import com.dbboys.util.AlertUtil;
-import com.dbboys.util.BackgroundSqlUtil;
-import com.dbboys.vo.*;
+import com.dbboys.infra.db.LocalDbRepository;
+import com.dbboys.infra.i18n.I18n;
+import com.dbboys.ui.dialog.AlertUtil;
+import com.dbboys.infra.util.BackgroundSqlUtil;
+import com.dbboys.model.*;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import org.json.JSONArray;
@@ -163,7 +163,7 @@ public class TableService implements MetaObjectService {
     }
 
     public void updateStatisticsForTable(Connect connect, String tableName,
-                                         com.dbboys.api.DatabasePlatform platform, String schemaName,
+                                         com.dbboys.core.DatabasePlatform platform, String schemaName,
                                          Runnable onSucceededUi){
         Task<List<String>> loadIndexColumnsTask = new Task<>() {
             @Override

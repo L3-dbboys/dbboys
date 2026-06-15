@@ -1,20 +1,20 @@
 package com.dbboys.service;
 
-import com.dbboys.api.DatabasePlatformResolver;
-import com.dbboys.api.MetaObjectService;
-import com.dbboys.api.DdlRepository;
-import com.dbboys.db.local.LocalDbRepository;
-import com.dbboys.i18n.I18n;
-import com.dbboys.util.BackgroundSqlUtil;
-import com.dbboys.util.ConnectionPropertyUtil;
-import com.dbboys.util.SqlParserUtil;
-import com.dbboys.vo.Connect;
-import com.dbboys.vo.BackgroundSqlTask;
-import com.dbboys.vo.Catalog;
-import com.dbboys.vo.ObjectList;
-import com.dbboys.vo.Sql;
-import com.dbboys.vo.Table;
-import com.dbboys.vo.UpdateResult;
+import com.dbboys.core.DatabasePlatformResolver;
+import com.dbboys.core.MetaObjectService;
+import com.dbboys.core.DdlRepository;
+import com.dbboys.infra.db.LocalDbRepository;
+import com.dbboys.infra.i18n.I18n;
+import com.dbboys.infra.util.BackgroundSqlUtil;
+import com.dbboys.infra.util.ConnectionPropertyUtil;
+import com.dbboys.infra.util.SqlParserUtil;
+import com.dbboys.model.Connect;
+import com.dbboys.model.BackgroundSqlTask;
+import com.dbboys.model.Catalog;
+import com.dbboys.model.ObjectList;
+import com.dbboys.model.Sql;
+import com.dbboys.model.Table;
+import com.dbboys.model.UpdateResult;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import java.io.File;
@@ -40,7 +40,7 @@ import java.util.function.LongConsumer;
 import javafx.application.Platform;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.dbboys.util.AlertUtil;
+import com.dbboys.ui.dialog.AlertUtil;
 
 public class DatabaseService implements MetaObjectService {
     private static final Logger log = LogManager.getLogger(DatabaseService.class);
