@@ -26,6 +26,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -95,7 +96,16 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         defaultDbIcon.setContent(IconPaths.METADATA_SET_DEFAULT_DATABASE_ITEM);
         applyPrimaryIconStyle(defaultDbIcon);
 
-
+        treeViewProperty().addListener((obs, oldTv, newTv) -> {
+            if (newTv != null) {
+                newTv.addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, e -> {
+                    Tooltip tt = getTooltip();
+                    if (tt != null) {
+                        tt.hide();
+                    }
+                });
+            }
+        });
     }
 
     @Override
