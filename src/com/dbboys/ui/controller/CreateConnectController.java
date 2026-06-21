@@ -1004,17 +1004,22 @@ public class CreateConnectController {
         Button delPropButton = new Button(I18n.t("createconnect.button.del_prop"));
         delPropButton.getStyleClass().add("small");
         delPropButton.setOnAction(event -> {
-            ObservableList<String> selectedRow = tableView.getSelectionModel().getSelectedItem();
-            if (selectedRow == null) {
+            ObservableList<Integer> selectedIndices = tableView.getSelectionModel().getSelectedIndices();
+            if (selectedIndices.isEmpty()) {
                 return;
             }
-            int selectedIndex = tableView.getSelectionModel().getSelectedIndex();
-            datalist.remove(selectedRow);
+            // 从后往前删除，避免索引偏移问题
+            List<Integer> sortedIndices = new ArrayList<>(selectedIndices);
+            sortedIndices.sort(Comparator.reverseOrder());
+            for (int idx : sortedIndices) {
+                if (idx >= 0 && idx < datalist.size()) {
+                    datalist.remove(idx);
+                }
+            }
             tableView.refresh();
             javafx.application.Platform.runLater(() -> {
-                // 选中删除后的相邻行
                 if (datalist.size() > 0) {
-                    int selectIdx = Math.min(selectedIndex, datalist.size() - 1);
+                    int selectIdx = Math.min(sortedIndices.get(sortedIndices.size() - 1), datalist.size() - 1);
                     tableView.getSelectionModel().clearAndSelect(selectIdx);
                 }
             });

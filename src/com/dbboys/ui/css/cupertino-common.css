@@ -1038,7 +1038,7 @@ Text {
   -fx-focus-color: transparent;
   -fx-faint-focus-color: transparent;
   -fx-border-color: -color-cell-border;
-  -fx-border-width: 1px 0 0 1px;
+  -fx-border-width: 1px 1px 1px 1px;
   -fx-border-radius: 0;
   -color-header-bg: -color-bg-default;
   -color-header-fg: -color-table-header-fg;
