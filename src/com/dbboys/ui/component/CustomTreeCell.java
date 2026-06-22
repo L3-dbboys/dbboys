@@ -725,7 +725,8 @@ public class CustomTreeCell extends TreeCell<TreeData> {
         });
 
         setOnDragDone(event -> {
-            if (event.getTransferMode() != TransferMode.MOVE) {
+            TransferMode mode = event.getTransferMode();
+            if (mode != TransferMode.MOVE && mode != TransferMode.COPY) {
                 return;
             }
             handleDragMoveAction(item);

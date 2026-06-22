@@ -17,9 +17,9 @@ javac -encoding UTF-8 -d bin -sourcepath src -cp lib\lib_modular\*;lib\lib_nonmo
 echo Source compilation completed.
 
 :: Copy runtime resources to bin
-xcopy /e /h /y /q "src\com\dbboys\fxml\*" "bin\com\dbboys\fxml\"
-xcopy /e /h /y /q "src\com\dbboys\css\*" "bin\com\dbboys\css\"
-xcopy /e /h /y /q "src\com\dbboys\i18n\*.properties" "bin\com\dbboys\i18n\"
+xcopy /e /h /y /q "src\com\dbboys\ui\fxml\*" "bin\com\dbboys\ui\fxml\"
+xcopy /e /h /y /q "src\com\dbboys\ui\css\*" "bin\com\dbboys\ui\css\"
+xcopy /e /h /y /q "src\com\dbboys\ui\i18n\*.properties" "bin\com\dbboys\ui\i18n\"
 copy /y "src\IKAnalyzer.cfg.xml" "bin\" >nul
 copy /y "src\ik-stopwords.dic" "bin\" >nul
 

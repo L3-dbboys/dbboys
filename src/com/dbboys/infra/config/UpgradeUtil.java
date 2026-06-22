@@ -262,5 +262,6 @@ public class UpgradeUtil {
         ConfigManagerUtil.setProperty("SPLIT_DRIVER_MAIN", "0.2");
         ConfigManagerUtil.setProperty("SPLIT_DRIVER_SQL", "0.6");
         ConfigManagerUtil.setProperty("UI_LANG", "zh-CN");
+        ConfigManagerUtil.setProperty("UI_THEME", "dark");
     }
 }

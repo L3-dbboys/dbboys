@@ -3,3 +3,4 @@
 *.properties text working-tree-encoding=UTF-8
 *.css text working-tree-encoding=UTF-8
 *.xml text working-tree-encoding=UTF-8
+*.sh text eol=lf
