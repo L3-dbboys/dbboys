@@ -95,6 +95,8 @@ public final class AppErrorHandler {
         return "[" + e.getErrorCode() + "]" + e.getMessage();
     }
 
+    /** @deprecated No longer used - disconnect decisions are made at the source. */
+    @Deprecated
     private static boolean hasActiveSelectedMetadataConnection() {
         TreeView<TreeData> treeView = AppState.getDatabaseMetaTreeView();
         if (treeView == null || treeView.getSelectionModel() == null) {
@@ -123,11 +125,7 @@ public final class AppErrorHandler {
             try {
                 log.error("Operation failed. code={}, sqlState={}, message={}",
                         se.getErrorCode(), se.getSQLState(), se.getMessage(), e);
-                if (!hasActiveSelectedMetadataConnection()) {
-                    showSqlErrorAlert(se);
-                    return;
-                }
-                TreeViewUtil.connectionDisconnected();
+                showSqlErrorAlert(se);
             } catch (Exception ex) {
                 log.error("Connection disconnected. {}", formatExceptionDetails(ex));
                 showSqlErrorAlert(se);

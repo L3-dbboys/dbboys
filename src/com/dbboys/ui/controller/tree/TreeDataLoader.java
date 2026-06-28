@@ -89,9 +89,17 @@ public class TreeDataLoader {
                                 treeItem.getChildren().clear();
                                 treeItem.setExpanded(false);
                             });
+                            if (connect.getConn() != null) {
+                                try { connect.getConn().close(); } catch (SQLException ignored) {}
+                                connect.setConn(null);
+                            }
                             AppErrorHandler.handle(e);
                         }
                         catch (Exception e) {
+                            if (connect.getConn() != null) {
+                                try { connect.getConn().close(); } catch (SQLException ignored) {}
+                                connect.setConn(null);
+                            }
                             Platform.runLater(() -> {
                                 treeItem.getChildren().clear();
                                 treeItem.setExpanded(false);
