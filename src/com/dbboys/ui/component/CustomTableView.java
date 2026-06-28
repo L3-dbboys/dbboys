@@ -13,6 +13,14 @@ import java.util.Comparator;
 import java.util.List;
 
 public class CustomTableView<S> extends TableView<S> {
+
+    public final CustomShortcutMenuItem copyMenuItem;
+    public final Menu generateSqlMenu;
+    public final CustomShortcutMenuItem generateInsertSqlMenuItem;
+    public final CustomShortcutMenuItem generateUpdateSqlMenuItem;
+    public final CustomShortcutMenuItem generateDeleteSqlMenuItem;
+    public final CustomShortcutMenuItem generateSelectSqlMenuItem;
+
     public CustomTableView() {
         super();
         TableColumn<S, Object> rowNumberColumn = new TableColumn<>("");
@@ -47,14 +55,46 @@ public class CustomTableView<S> extends TableView<S> {
         rowNumberColumn.setPrefWidth(30);
         getColumns().add(rowNumberColumn);
 
-        ContextMenu contextMenu = new ContextMenu();
-        CustomShortcutMenuItem copyMenuItem = MenuItemUtil.createMenuItemI18n(
+        copyMenuItem = MenuItemUtil.createMenuItemI18n(
                 "resultset.table.menu.copy",
                 "Ctrl+C",
                 IconFactory.group(IconPaths.COPY, 0.7)
         );
         copyMenuItem.setOnAction(e -> copySelectionToClipboard());
-        contextMenu.getItems().add(copyMenuItem);
+
+        generateInsertSqlMenuItem = MenuItemUtil.createMenuItemI18n(
+                "resultset.table.menu.generateInsertSql",
+                null
+        );
+        generateUpdateSqlMenuItem = MenuItemUtil.createMenuItemI18n(
+                "resultset.table.menu.generateUpdateSql",
+                null
+        );
+        generateDeleteSqlMenuItem = MenuItemUtil.createMenuItemI18n(
+                "resultset.table.menu.generateDeleteSql",
+                null
+        );
+        generateSelectSqlMenuItem = MenuItemUtil.createMenuItemI18n(
+                "resultset.table.menu.generateSelectSql",
+                null
+        );
+
+        generateSqlMenu = new Menu();
+        generateSqlMenu.textProperty().bind(com.dbboys.infra.i18n.I18n.bind("resultset.table.menu.generateSql", "生成SQL"));
+        generateSqlMenu.setGraphic(IconFactory.group(IconPaths.METADATA_DDL_MENU, 0.65, 0.65));
+        generateSqlMenu.getItems().addAll(
+                generateInsertSqlMenuItem,
+                generateUpdateSqlMenuItem,
+                generateDeleteSqlMenuItem,
+                generateSelectSqlMenuItem
+        );
+
+        ContextMenu contextMenu = new ContextMenu();
+        contextMenu.getItems().addAll(
+                copyMenuItem,
+                new SeparatorMenuItem(),
+                generateSqlMenu
+        );
         setContextMenu(contextMenu);
 
         addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -67,6 +107,7 @@ public class CustomTableView<S> extends TableView<S> {
         contextMenu.setOnShowing(e -> {
             boolean hasSelection = !getSelectionModel().getSelectedCells().isEmpty();
             copyMenuItem.setDisable(!hasSelection); // 没有选中则禁用
+            if (generateSqlMenu.isShowing()) generateSqlMenu.hide();
         });
     }
 

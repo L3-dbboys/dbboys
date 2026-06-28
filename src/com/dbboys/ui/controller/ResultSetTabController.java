@@ -357,6 +357,36 @@ public class ResultSetTabController {
                 }
             }
         });
+
+        setupResultSetContextMenu();
+    }
+
+    private void setupResultSetContextMenu() {
+        resultSetTableView.generateInsertSqlMenuItem.setOnAction(e -> generateInsertSql());
+        resultSetTableView.generateUpdateSqlMenuItem.setOnAction(e -> generateUpdateSql());
+        resultSetTableView.generateDeleteSqlMenuItem.setOnAction(e -> generateDeleteSql());
+        resultSetTableView.generateSelectSqlMenuItem.setOnAction(e -> generateSelectSql());
+
+        // 覆盖单元格级 ContextMenu（CustomTableCell 有独立的复制菜单），强制弹出 TableView 级菜单
+        resultSetTableView.addEventFilter(javafx.scene.input.ContextMenuEvent.CONTEXT_MENU_REQUESTED, e -> {
+            e.consume();
+            javafx.application.Platform.runLater(() -> {
+                ContextMenu menu = resultSetTableView.getContextMenu();
+                if (menu != null) {
+                    menu.show(resultSetTableView, e.getScreenX(), e.getScreenY());
+                }
+            });
+        });
+        resultSetTableView.getContextMenu().setOnShowing(e -> {
+            boolean hasSelection = !resultSetTableView.getSelectionModel().getSelectedCells().isEmpty();
+            resultSetTableView.copyMenuItem.setDisable(!hasSelection);
+
+            boolean editable = resultSetEditAllowed.get();
+            resultSetTableView.generateInsertSqlMenuItem.setDisable(!hasSelection);
+            resultSetTableView.generateUpdateSqlMenuItem.setDisable(!hasSelection || !editable);
+            resultSetTableView.generateDeleteSqlMenuItem.setDisable(!hasSelection || !editable);
+            resultSetTableView.generateSelectSqlMenuItem.setDisable(!hasSelection || !editable);
+        });
     }
 
     private void setupPerTimeField() {
@@ -1070,5 +1100,207 @@ public class ResultSetTabController {
 
     String getNullLabel() {
         return I18n.t("customtablecell.null", "[NULL]");
+    }
+
+    // ==================== 右键菜单 SQL 生成 ====================
+
+    private void generateInsertSql() {
+        String sql = buildInsertSql();
+        closeSqlGenerationMenu();
+        if (sql != null && !sql.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(sql);
+            Clipboard.getSystemClipboard().setContent(content);
+            NotificationUtil.showMainNotification(I18n.t("resultset.notice.sql_copied", "SQL已复制到剪贴板！"));
+        }
+    }
+
+    private void generateUpdateSql() {
+        String sql = buildUpdateSql();
+        closeSqlGenerationMenu();
+        if (sql != null && !sql.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(sql);
+            Clipboard.getSystemClipboard().setContent(content);
+            NotificationUtil.showMainNotification(I18n.t("resultset.notice.sql_copied", "SQL已复制到剪贴板！"));
+        }
+    }
+
+    private void generateDeleteSql() {
+        String sql = buildDeleteSql();
+        closeSqlGenerationMenu();
+        if (sql != null && !sql.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(sql);
+            Clipboard.getSystemClipboard().setContent(content);
+            NotificationUtil.showMainNotification(I18n.t("resultset.notice.sql_copied", "SQL已复制到剪贴板！"));
+        }
+    }
+
+    private void generateSelectSql() {
+        String sql = buildSelectSql();
+        closeSqlGenerationMenu();
+        if (sql != null && !sql.isEmpty()) {
+            ClipboardContent content = new ClipboardContent();
+            content.putString(sql);
+            Clipboard.getSystemClipboard().setContent(content);
+            NotificationUtil.showMainNotification(I18n.t("resultset.notice.sql_copied", "SQL已复制到剪贴板！"));
+        }
+    }
+
+    private void closeSqlGenerationMenu() {
+        if (resultSetTableView.generateSqlMenu != null) resultSetTableView.generateSqlMenu.hide();
+        ContextMenu ctx = resultSetTableView.getContextMenu();
+        if (ctx != null) ctx.hide();
+    }
+
+    private String formatSqlValue(String val) {
+        if (val == null || "[NULL]".equals(val)) return "NULL";
+        if (val.isEmpty()) return "''";
+        try {
+            Double.parseDouble(val);
+            return val;
+        } catch (NumberFormatException ignored) {}
+        return "'" + val.replace("'", "''") + "'";
+    }
+
+    private String bareCol(String colName) {
+        if (colName == null || colName.isBlank()) return colName;
+        String s = colName.trim();
+        if (s.startsWith("\"")) return s;
+        int idx = s.lastIndexOf('.');
+        return idx > 0 && idx < s.length() - 1 ? s.substring(idx + 1) : s;
+    }
+
+    private List<String> colNames() {
+        List<String> names = new ArrayList<>();
+        for (TableColumn<ObservableList<String>, Object> col : colList) {
+            // 列名存在 column 的 properties 中（由 ResultSetColumnBuilder.HEADER_NAME 存储）
+            Object name = col.getProperties().get("resultset.header.name");
+            names.add(name != null ? name.toString() : col.getText());
+        }
+        return names;
+    }
+
+    /** 获取选中行（去重，按行号升序），多行时逐行生成 SQL。 */
+    private List<ObservableList<String>> selectedRows() {
+        ObservableList<? extends TablePosition> cells = resultSetTableView.getSelectionModel().getSelectedCells();
+        if (cells.isEmpty()) return new ArrayList<>();
+        Set<Integer> rowSet = new TreeSet<>();
+        for (TablePosition<?, ?> pos : cells) rowSet.add(pos.getRow());
+        ObservableList<ObservableList<String>> items = resultSetTableView.getItems();
+        List<ObservableList<String>> rows = new ArrayList<>();
+        for (int r : rowSet) {
+            if (r >= 0 && r < items.size()) rows.add(items.get(r));
+        }
+        return rows;
+    }
+
+    String buildInsertSql() {
+        if (resultFromTable == null || resultFromTable.isBlank()) return "";
+        List<ObservableList<String>> rows = selectedRows();
+        if (rows.isEmpty()) return "";
+        List<String> cols = colNames();
+        if (cols.isEmpty()) return "";
+
+        List<Integer> idxs = new ArrayList<>();
+        List<String> exprs = new ArrayList<>();
+        for (int i = 0; i < cols.size(); i++) {
+            String bare = bareCol(cols.get(i));
+            if ("rowid".equalsIgnoreCase(bare)) continue;
+            exprs.add(bare);
+            idxs.add(i);
+        }
+        if (exprs.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (ObservableList<String> row : rows) {
+            sb.append("INSERT INTO ").append(resultFromTable).append(" (");
+            sb.append(String.join(", ", exprs)).append(") VALUES (");
+            for (int j = 0; j < idxs.size(); j++) {
+                if (j > 0) sb.append(", ");
+                sb.append(formatSqlValue(row.get(idxs.get(j) + 1)));
+            }
+            sb.append(");\n");
+        }
+        return sb.toString().trim();
+    }
+
+    String buildUpdateSql() {
+        if (resultFromTable == null || resultFromTable.isBlank()) return "";
+        if (resultTablePriNum.isEmpty()) return "";
+        List<ObservableList<String>> rows = selectedRows();
+        if (rows.isEmpty()) return "";
+        List<String> cols = colNames();
+        if (cols.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (ObservableList<String> row : rows) {
+            sb.append("UPDATE ").append(resultFromTable).append(" SET ");
+            Set<Integer> pkSet = new HashSet<>(resultTablePriNum);
+            List<String> setParts = new ArrayList<>();
+            for (int i = 0; i < cols.size(); i++) {
+                if (pkSet.contains(i)) continue;
+                String bare = bareCol(cols.get(i));
+                if ("rowid".equalsIgnoreCase(bare)) continue;
+                setParts.add(bare + "=" + formatSqlValue(row.get(i + 1)));
+            }
+            if (setParts.isEmpty()) continue;
+            sb.append(String.join(", ", setParts)).append(" WHERE ");
+            List<String> where = new ArrayList<>();
+            for (int idx : resultTablePriNum) {
+                if (idx < cols.size())
+                    where.add(bareCol(cols.get(idx)) + "=" + formatSqlValue(row.get(idx + 1)));
+            }
+            if (where.isEmpty()) continue;
+            sb.append(String.join(" AND ", where)).append(";\n");
+        }
+        return sb.toString().trim();
+    }
+
+    String buildDeleteSql() {
+        if (resultFromTable == null || resultFromTable.isBlank()) return "";
+        if (resultTablePriNum.isEmpty()) return "";
+        List<ObservableList<String>> rows = selectedRows();
+        if (rows.isEmpty()) return "";
+        List<String> cols = colNames();
+        if (cols.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (ObservableList<String> row : rows) {
+            sb.append("DELETE FROM ").append(resultFromTable).append(" WHERE ");
+            List<String> where = new ArrayList<>();
+            for (int idx : resultTablePriNum) {
+                if (idx < cols.size())
+                    where.add(bareCol(cols.get(idx)) + "=" + formatSqlValue(row.get(idx + 1)));
+            }
+            if (where.isEmpty()) continue;
+            sb.append(String.join(" AND ", where)).append(";\n");
+        }
+        return sb.toString().trim();
+    }
+
+    String buildSelectSql() {
+        if (resultFromTable == null || resultFromTable.isBlank()) return "";
+        List<ObservableList<String>> rows = selectedRows();
+        if (rows.isEmpty()) return "";
+        List<String> cols = colNames();
+        if (cols.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (ObservableList<String> row : rows) {
+            sb.append("SELECT * FROM ").append(resultFromTable).append(" WHERE ");
+            List<String> where = new ArrayList<>();
+            if (!resultTablePriNum.isEmpty()) {
+                for (int idx : resultTablePriNum)
+                    if (idx < cols.size())
+                        where.add(bareCol(cols.get(idx)) + "=" + formatSqlValue(row.get(idx + 1)));
+            } else {
+                for (int i = 0; i < cols.size(); i++)
+                    where.add(bareCol(cols.get(i)) + "=" + formatSqlValue(row.get(i + 1)));
+            }
+            sb.append(String.join(" AND ", where)).append(";\n");
+        }
+        return sb.toString().trim();
     }
 }
