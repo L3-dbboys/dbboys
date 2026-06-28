@@ -8,6 +8,8 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D4.svg)]()
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624.svg)]()
+[![Platform: Linux ARM64](https://img.shields.io/badge/Platform-Linux_ARM64-0078D4.svg)]()
 [![JavaFX](https://img.shields.io/badge/JavaFX-25.0.3-FF6F00.svg)]()
 [![JDK](https://img.shields.io/badge/JDK-25.0.2-ED8B00.svg)]()
 
@@ -27,6 +29,7 @@
 
 - 支持按分类管理数据库连接，连接树支持新建分类、新建连接、复制连接、编辑连接、重命名、移动、删除和刷新
 - 连接配置支持数据库类型、驱动、地址、端口、用户名、密码、连接属性和只读标记
+- 连接属性支持可视化添加和删除
 - 支持添加、删除和切换 JDBC 驱动，驱动文件按数据库类型放在 `extlib/` 对应目录下
 - 支持测试连接、断开连接、断开分类下连接、断开所有连接和断线重连
 - GBase 8s / Informix 支持 IP 端口连接，也支持通过数据库组名和 `sqlhosts` 文件连接
@@ -50,8 +53,10 @@
 - 结果集为空时显示空状态，长时间执行时显示进度和任务信息
 - 单表查询且结果集中包含主键或 `rowid` 时支持编辑结果集
 - 可编辑结果集支持单元格修改、插入行、删除行、保存编辑和取消未保存编辑
+- 表格行背景色采用交替色设计，提升长数据浏览的可读性
 - 手动提交连接下的结果集修改会保留事务状态，提示用户提交或回滚
 - 大对象（LOB）支持点击查看与编辑
+- 结果集右键菜单支持快速生成 INSERT / UPDATE / DELETE / SELECT SQL 语句，支持多行选中；结果集可编辑时所有生成选项激活，不可编辑时仅 INSERT 可用
 
 ### 🌳 对象管理
 
@@ -145,7 +150,7 @@
 
 | 项目 | 要求 |
 |------|------|
-| 操作系统 | Windows 10 / 11 |
+| 操作系统 | Windows 10 / 11、Linux x64、Linux aarch64 |
 | JDK | 25.0.2（需包含 `javac`、`jar`、`jlink`、`jpackage`） |
 | JavaFX JMods | 25.0.3（路径在 `build.bat` 的 `JAVAFX_JMODS` 变量中配置） |
 | JavaFX SDK | 25.0.3 |
@@ -235,27 +240,34 @@ Linux aarch64：
 dbboys/
 ├── src/                          # JavaFX 客户端源码、FXML、CSS、国际化资源
 │   └── com/dbboys/
-│       ├── api/                  # 核心接口层（连接、元数据、DDL、SQL 执行等接口）
-│       ├── app/                  # 应用入口与全局状态
-│       ├── ctrl/                 # 控制器层（主界面、SQL、结果集、连接管理等）
-│       ├── css/                  # 主题样式（Cupertino 风格，亮色/暗色）
-│       ├── customnode/           # 自定义 UI 组件（编辑器、表格、树节点等）
-│       ├── db/local/             # 本地嵌入式数据库访问
-│       ├── fxml/                 # FXML 页面布局
-│       ├── i18n/                 # 国际化资源（简中/繁中/英文）
-│       ├── impl/dialect/         # 数据库方言与适配实现
+│       ├── app/                  # 应用入口与全局状态（Main、AppState、AppErrorHandler 等）
+│       ├── core/                 # 核心接口层（ConnectionService、DatabasePlatform、MetadataRepository 等）
+│       ├── dialect/              # 数据库方言与适配实现
 │       │   ├── gbase/            #   GBase 8s 方言
 │       │   ├── informix/         #   Informix 方言
 │       │   ├── mysql/            #   MySQL 方言
 │       │   ├── oracle/           #   Oracle 方言
 │       │   ├── dameng/           #   达梦方言
 │       │   └── genericjdbc/      #   通用 JDBC 方言
+│       ├── infra/                # 基础设施
+│       │   ├── config/           #   配置管理
+│       │   ├── db/               #   本地 SQLite 数据存储
+│       │   ├── i18n/             #   国际化（简中/繁中/英文）
+│       │   └── util/             #   工具类（SQL 解析、错误处理、菜单工具等）
+│       ├── model/                # 值对象（Connect、Table、Index、Catalog 等 40+ 个模型）
 │       ├── service/              # 业务服务层（表、索引、过程、序列等对象管理）
-│       ├── ui/                   # 图标工厂与资源路径
-│       ├── util/                 # 工具类
-│       │   ├── remote/           #   远程安装/卸载/SSH 工具
-│       │   └── tree/             #   树形导航（右键菜单、CRUD、数据加载）
-│       └── vo/                   # 值对象（连接、表、索引、序列等 40+ 个 VO）
+│       ├── ui/                   # 用户界面
+│       │   ├── component/        #   自定义 UI 组件（编辑器、表格、树节点、标签页等）
+│       │   ├── controller/       #   控制器层（主界面、SQL、结果集、连接管理等）
+│       │   │   └── tree/         #     树形导航（右键菜单、CRUD、数据加载）
+│       │   ├── css/              #   主题样式（Cupertino 风格，公共/亮色/暗色）
+│       │   ├── dialog/           #   弹窗工具
+│       │   ├── fxml/             #   FXML 页面布局
+│       │   ├── icon/             #   图标工厂与 SVG 路径
+│       │   └── notification/     #   通知组件
+│       ├── remote/               # 远程安装/卸载/SSH 会话
+│       ├── search/               # Markdown 知识库索引（Lucene + IK Analyzer）
+│       ├── html/                 # 主页信息页面资源
 ├── extlib/                       # 各数据库类型的外部驱动与扩展资源
 │   ├── GBASE 8S/
 │   ├── INFORMIX/
@@ -267,8 +279,8 @@ dbboys/
 ├── images/                       # 应用图标与界面资源
 ├── docs/                         # 项目和数据库相关文档
 ├── data/                         # 运行期本地数据目录
-├── index/                        # Lucene 全文检索索引
 ├── build.bat                     # Windows 一键编译打包脚本
+├── build.sh                      # Linux 一键编译打包脚本
 ├── CHANGELOG.md                  # 更新日志
 ├── LICENSE                       # GPL v3 许可证
 └── README.md                     # 项目说明
@@ -316,12 +328,12 @@ DBboys 会在本地保存运行数据，典型内容包括：
 |------|------|------|
 | 应用入口 | `src/com/dbboys/app/Main.java` | 程序启动入口 |
 | 全局状态 | `src/com/dbboys/app/AppState.java` | 运行期全局状态管理 |
-| 控制器 | `src/com/dbboys/ctrl/` | 界面交互逻辑 |
-| 自定义组件 | `src/com/dbboys/customnode/` | UI 组件扩展 |
+| 控制器 | `src/com/dbboys/ui/controller/` | 界面交互逻辑 |
+| 自定义组件 | `src/com/dbboys/ui/component/` | UI 组件扩展 |
 | 服务层 | `src/com/dbboys/service/` | 业务逻辑封装 |
-| 数据库方言 | `src/com/dbboys/impl/dialect/` | 多数据库适配实现 |
-| 工具类 | `src/com/dbboys/util/` | 通用工具与远程运维 |
-| 值对象 | `src/com/dbboys/vo/` | 数据传输对象 |
+| 数据库方言 | `src/com/dbboys/dialect/` | 多数据库适配实现 |
+| 工具类 | `src/com/dbboys/infra/util/` | 通用工具与远程运维 |
+| 值对象 | `src/com/dbboys/model/` | 数据传输对象 |
 
 ### 新增数据库适配
 
@@ -373,13 +385,15 @@ DBboys 会在本地保存运行数据，典型内容包括：
 
 ## 📋 更新日志
 
-当前版本：**DBboys V2.0.0beta.20260517**
+当前版本：**DBboys V2.0.0beta.20260628**
 
 ### 近期更新
 
 | 日期 | 更新内容 |
 |------|----------|
-| 20260522 | JDK 升级到 25.0.2，OpenJFX 升级到 25.0.3；新增 MySQL 5.7 适配与远程安装/卸载；增加浅色主题；锁表处理与 Kill 会话 |
+| 20260628 | 项目目录结构重构；新增 Linux x64 / ARM64 版本；连接属性可视化添加/删除；结果集右键生成 INSERT/UPDATE/DELETE/SELECT SQL；表格交替行背景色；UI 优化；修复失败连接导致已有连接断连缺陷 |
+| 20260525 | 修复 SQL 面板缩放 UI 异常；修复弹出框边框丢失问题；删除加载面板进度条 |
+| 20260524 | JDK 升级到 25.0.2，OpenJFX 升级到 25.0.3；新增 MySQL 5.7 适配与远程安装/卸载；新增达梦数据库支持；增加浅色主题；锁表处理与 Kill 会话；修复元数据连接误断连；新增只读工具类 |
 | 20260517 | 新增 DeepSeek 4.0pro 模型、通用 JDBC、MySQL 支持 |
 | 20260416 | 修复多 SELECT 内存泄露；新增结果集插入、删除行、保存、取消功能 |
 | 20260412 | GBase MySQL 模式 DDL 支持；完善 Oracle；AI 增加 Qwen3.6 大模型与记忆开关 |

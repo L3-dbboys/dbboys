@@ -267,14 +267,7 @@ public class UpgradeUtil {
 
     public static void initDefaultConfig() {
         LocalDbRepository.initDB();
-        // 与 etc/config.properties 中出厂默认一致
-        ConfigManagerUtil.setProperty("AI_MODEL", "deepseek-v4-pro");
-        ConfigManagerUtil.setProperty("CONNECT_KEEPALIVE_SECONDS", "180");
-        ConfigManagerUtil.setProperty("DEFAULT_LISTVIEW_TAB", "0");
-        ConfigManagerUtil.setProperty("RESULT_FETCH_PER_TIME", "200");
-        ConfigManagerUtil.setProperty("SPLIT_DRIVER_MAIN", "0.2");
-        ConfigManagerUtil.setProperty("SPLIT_DRIVER_SQL", "0.6");
-        ConfigManagerUtil.setProperty("UI_LANG", "zh-CN");
-        ConfigManagerUtil.setProperty("UI_THEME", "dark");
+        // 引用 ConfigManagerUtil 中的出厂默认常量
+        ConfigManagerUtil.getDefaults().forEach(ConfigManagerUtil::setProperty);
     }
 }

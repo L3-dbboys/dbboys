@@ -1,452 +1,127 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DBboys — 新一代开源数据库开发与运维客户端</title>
-    <meta name="description" content="DBboys 是面向数据库全生命周期的开源桌面客户端：连接管理、SQL 工作台、对象浏览、数据导入导出、实例运维、远程安装卸载、Markdown 知识库与 AI 辅助。">
-    <link rel="icon" type="image/png" href="images/logo.png">
-    <style>
-        /* ===== Reset & Base ===== */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DBboys</title>
+<link rel="icon" type="image/png" href="images/logo.png">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08080a;
+  --bg-card:#141416;
+  --border:#26262a;
+  --fg:#e5e5ea;
+  --fg-muted:#8e8e93;
+  --accent:#0A84FF;
+  --accent-hover:#2f96ff;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+  --mono:"SF Mono","Cascadia Code","Consolas",monospace;
+  --mw:840px
+}
+html,body{height:100%}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--fg);
+  display:flex;flex-direction:column;align-items:center;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--fg-muted);text-decoration:none;transition:color .2s}
+a:hover{color:var(--fg)}
 
-        :root {
-            /* Cupertino dark palette — mirrors the app's cupertino-dark.css */
-            --color-base-0:   #f2f2f7;
-            --color-base-4:   #8e8e93;
-            --color-base-7:   #3a3a3c;
-            --color-base-8:   #2c2c2e;
-            --color-base-9:   #1c1c1e;
-            --color-accent-4: #2f96ff;
-            --color-accent-5: #0A84FF;
-            --color-accent-6: #0970d9;
-            --color-accent-9: #043566;
-            --color-success-5:#32d74b;
-            --color-warning-5:#ff9f0a;
-            --color-danger-5: #ff453a;
+/* Wrapper constrains all content */
+.wrap{width:100%;max-width:var(--mw);display:flex;flex-direction:column;flex:1;padding:0 20px}
 
-            --bg-default:   var(--color-base-9);
-            --bg-subtle:    var(--color-base-8);
-            --bg-inset:     #0b0b0c;
-            --fg-default:   #dcdcdc;
-            --fg-muted:     #aeaeb2;
-            --fg-subtle:    #8d8d93;
-            --border:       #28282a;
-            --accent:       var(--color-accent-5);
-            --accent-hover: var(--color-accent-6);
-            --accent-fg:    var(--color-accent-4);
+/* Top bar */
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 0 0}
+.top .logo{display:flex;align-items:center;gap:8px}
+.top .logo img{width:30px;height:30px;border-radius:6px}
+.top .logo span{font-weight:700;font-size:.9rem}
+.top .gh{display:flex;align-items:center;gap:5px;font-size:.8rem;color:var(--fg-muted);padding:5px 10px;border-radius:6px;border:1px solid var(--border);transition:border-color .2s}
+.top .gh:hover{color:var(--fg);border-color:var(--fg-muted)}
 
-            --radius-sm: 6px;
-            --radius-md: 10px;
-            --radius-lg: 16px;
-            --radius-xl: 20px;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
-            --shadow-md: 0 4px 16px rgba(0,0,0,.5);
-            --shadow-lg: 0 8px 32px rgba(0,0,0,.6);
-            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
-            --font-mono: "SF Mono", "Cascadia Code", "Consolas", "Monaco", monospace;
-        }
+/* Carousel - intrinsic size, constrained by wrap */
+.carousel-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:28px}
+.carousel{display:grid;width:100%}
+.carousel > *{grid-area:1/1;width:100%;height:auto;opacity:0;transition:opacity .8s ease-in-out}
+.carousel > .active{opacity:1;z-index:1}
+.carousel img{background:var(--bg-card);border-radius:8px;border:1px solid var(--border)}
 
-        html { scroll-behavior: smooth; }
-        body {
-            font-family: var(--font-sans);
-            background: var(--bg-default);
-            color: var(--fg-default);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
+/* Dots */
+.dots{display:flex;gap:8px;justify-content:center;margin-top:14px}
+.dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.18);transition:all .4s;cursor:pointer}
+.dots span.active{background:var(--accent);width:18px;border-radius:3px}
 
-        a { color: var(--accent); text-decoration: none; transition: color .15s; }
-        a:hover { color: var(--accent-fg); }
+/* Download - single row */
+.dwl{display:flex;justify-content:center;gap:10px;padding:24px 0 32px;flex-wrap:wrap}
+.dwl a{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 14px;border-radius:8px;
+  background:var(--bg-card);border:1px solid var(--border);
+  font-size:.82rem;font-weight:600;color:var(--fg);
+  transition:border-color .2s;white-space:nowrap
+}
+.dwl a:hover{border-color:var(--fg-muted)}
+.dwl a .os{font-size:1.1rem}
+.dwl a .note{font-weight:400;font-size:.72rem;color:var(--fg-muted)}
 
-        /* ===== Utility ===== */
-        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-        .section-label {
-            display: inline-block;
-            font-size: .8rem;
-            font-weight: 600;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-            color: var(--accent);
-            margin-bottom: 8px;
-        }
-        .section-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 16px; letter-spacing: -.02em; }
-        .section-desc  { font-size: 1.05rem; color: var(--fg-muted); max-width: 640px; margin-bottom: 48px; }
-
-        /* ===== Nav ===== */
-        nav {
-            position: sticky; top: 0; z-index: 100;
-            background: rgba(28,28,30,.82);
-            backdrop-filter: saturate(180%) blur(20px);
-            -webkit-backdrop-filter: saturate(180%) blur(20px);
-            border-bottom: 1px solid var(--border);
-        }
-        nav .nav-inner {
-            display: flex; align-items: center; justify-content: space-between;
-            height: 52px; max-width: 1100px; margin: 0 auto; padding: 0 24px;
-        }
-        nav .nav-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; color: var(--fg-default); }
-        nav .nav-brand img { height: 28px; width: 28px; }
-        nav .nav-links { display: flex; gap: 28px; list-style: none; }
-        nav .nav-links a { color: var(--fg-muted); font-size: .9rem; font-weight: 500; transition: color .15s; }
-        nav .nav-links a:hover { color: var(--fg-default); }
-        nav .btn-nav-dl {
-            background: var(--accent); color: #fff !important;
-            padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: .85rem;
-            transition: background .15s;
-        }
-        nav .btn-nav-dl:hover { background: var(--accent-hover); }
-
-        /* ===== Hero ===== */
-        .hero {
-            text-align: center; padding: 80px 24px 64px;
-            background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(10,132,255,.13) 0%, transparent 70%);
-        }
-        .hero .logo { width: 96px; height: 96px; margin-bottom: 24px; filter: drop-shadow(0 4px 20px rgba(10,132,255,.35)); }
-        .hero h1 { font-size: 3rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: 12px; }
-        .hero h1 .emoji { font-size: 2.6rem; vertical-align: middle; margin-right: 4px; }
-        .hero .tagline { font-size: 1.25rem; color: var(--fg-muted); margin-bottom: 8px; }
-        .hero .subtitle { font-size: .95rem; color: var(--fg-subtle); margin-bottom: 32px; }
-        .hero .version-badge {
-            display: inline-block;
-            background: var(--bg-subtle); border: 1px solid var(--border);
-            border-radius: 20px; padding: 4px 14px; font-size: .8rem;
-            color: var(--fg-muted); font-family: var(--font-mono); margin-bottom: 28px;
-        }
-        .hero .cta-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-        .btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 12px 28px; border-radius: 24px; font-weight: 600; font-size: .95rem;
-            border: none; cursor: pointer; transition: all .18s;
-            font-family: var(--font-sans);
-        }
-        .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 12px rgba(10,132,255,.35); }
-        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(10,132,255,.45); color: #fff; }
-        .btn-secondary { background: var(--bg-subtle); color: var(--fg-default); border: 1px solid var(--border); }
-        .btn-secondary:hover { background: var(--color-base-7); border-color: var(--color-base-4); }
-        .btn-ghost { background: transparent; color: var(--fg-muted); border: 1px solid var(--border); }
-        .btn-ghost:hover { color: var(--fg-default); border-color: var(--color-base-4); }
-
-        /* ===== Feature Grid ===== */
-        .features { padding: 80px 0; border-top: 1px solid var(--border); }
-        .features .grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
-        }
-        .features .card {
-            background: var(--bg-subtle); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); padding: 28px 24px;
-            transition: border-color .2s, transform .2s;
-        }
-        .features .card:hover { border-color: var(--color-base-7); transform: translateY(-2px); }
-        .features .card .icon {
-            width: 44px; height: 44px; border-radius: var(--radius-md);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.4rem; margin-bottom: 16px;
-        }
-        .features .card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
-        .features .card p  { color: var(--fg-muted); font-size: .9rem; line-height: 1.6; }
-        .icon-connect  { background: rgba(10,132,255,.15); color: var(--accent); }
-        .icon-sql      { background: rgba(50,215,75,.15);  color: var(--color-success-5); }
-        .icon-data     { background: rgba(255,159,10,.15); color: var(--color-warning-5); }
-        .icon-objects  { background: rgba(10,132,255,.15); color: var(--accent); }
-        .icon-ops      { background: rgba(255,69,58,.15);  color: var(--color-danger-5); }
-        .icon-remote   { background: rgba(10,132,255,.15); color: var(--accent); }
-        .icon-kb       { background: rgba(50,215,75,.15);  color: var(--color-success-5); }
-        .icon-ai       { background: rgba(255,159,10,.15); color: var(--color-warning-5); }
-        .icon-theme    { background: rgba(10,132,255,.15); color: var(--accent); }
-
-        /* ===== Database Table ===== */
-        .databases { padding: 80px 0; border-top: 1px solid var(--border); }
-        .db-table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
-        .db-table {
-            width: 100%; border-collapse: collapse; font-size: .9rem;
-        }
-        .db-table thead { background: var(--bg-subtle); }
-        .db-table th {
-            padding: 14px 18px; text-align: left; font-weight: 600;
-            color: var(--fg-muted); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase;
-            white-space: nowrap;
-        }
-        .db-table th:first-child { border-radius: var(--radius-lg) 0 0 0; }
-        .db-table td { padding: 12px 18px; border-top: 1px solid var(--border); white-space: nowrap; }
-        .db-table tbody tr:hover { background: rgba(255,255,255,.02); }
-        .db-table .db-name { font-weight: 700; }
-        .db-table .check { color: var(--color-success-5); font-weight: 600; }
-        .db-table .dash  { color: var(--fg-subtle); }
-
-        /* ===== Download ===== */
-        .download { padding: 80px 0; border-top: 1px solid var(--border); }
-        .download .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .download .dl-card {
-            background: var(--bg-subtle); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); padding: 32px 24px; text-align: center;
-            transition: border-color .2s;
-            position: relative;
-        }
-        .download .dl-card.featured { border-color: rgba(10,132,255,.4); }
-        .download .dl-card.featured::before {
-            content: "推荐"; position: absolute; top: -1px; left: 50%; transform: translate(-50%, -50%);
-            background: var(--accent); color: #fff; font-size: .72rem; font-weight: 700;
-            padding: 2px 14px; border-radius: 10px; letter-spacing: .04em; white-space: nowrap;
-        }
-        .download .dl-card .os-icon { font-size: 2.4rem; margin-bottom: 12px; }
-        .download .dl-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
-        .download .dl-card .format { color: var(--fg-subtle); font-size: .82rem; margin-bottom: 8px; }
-        .download .dl-card .size { color: var(--fg-muted); font-size: .82rem; margin-bottom: 20px; }
-        .download .dl-card .btn { width: 100%; justify-content: center; }
-        .download .checksum {
-            text-align: center; margin-top: 16px; font-size: .78rem; color: var(--fg-subtle);
-            font-family: var(--font-mono);
-        }
-
-        /* ===== Stats / Quote ===== */
-        .stats { padding: 60px 0; border-top: 1px solid var(--border); text-align: center; }
-        .stats .stat-grid { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; }
-        .stats .stat-item .num { font-size: 2.4rem; font-weight: 800; color: var(--accent); letter-spacing: -.02em; }
-        .stats .stat-item .label { font-size: .85rem; color: var(--fg-muted); margin-top: 2px; }
-
-        /* ===== Footer ===== */
-        footer {
-            border-top: 1px solid var(--border); padding: 40px 0;
-            text-align: center; color: var(--fg-subtle); font-size: .82rem;
-        }
-        footer .links { display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
-        footer .links a { color: var(--fg-muted); }
-        footer .links a:hover { color: var(--fg-default); }
-        footer .copyright { color: var(--fg-subtle); }
-
-        /* ===== Responsive ===== */
-        @media (max-width: 768px) {
-            nav .nav-links { gap: 16px; }
-            nav .nav-links a { font-size: .8rem; }
-            .hero h1 { font-size: 2rem; }
-            .hero .tagline { font-size: 1rem; }
-            .section-title { font-size: 1.6rem; }
-            .features .grid { grid-template-columns: 1fr; }
-        }
-    </style>
+@media(max-width:520px){
+  .wrap{padding:0 12px}
+  .top{padding:14px 0 0}
+  .top .logo img{width:24px;height:24px}
+  .top .logo span{font-size:.82rem}
+  .dwl{gap:8px;padding:16px 0 24px}
+  .dwl a{padding:6px 10px;font-size:.76rem}
+}
+</style>
 </head>
 <body>
 
-<!-- ===== Navigation ===== -->
-<nav>
-    <div class="nav-inner">
-        <a href="#" class="nav-brand">
-            <img src="images/logo.png" alt="DBboys logo" onerror="this.style.display='none'">
-            <span>DBboys</span>
-        </a>
-        <ul class="nav-links">
-            <li><a href="#features">功能</a></li>
-            <li><a href="#databases">数据库适配</a></li>
-            <li><a href="#download" class="btn-nav-dl">下载</a></li>
-        </ul>
-    </div>
-</nav>
+<div class="wrap">
 
-<!-- ===== Hero ===== -->
-<section class="hero">
-    <img src="images/logo.png" alt="DBboys" class="logo" onerror="this.outerHTML='<div style=font-size:80px;margin-bottom:24px>🗄️</div>'">
-    <h1><span class="emoji">🗄️</span>DBboys</h1>
-    <p class="tagline">新一代开源数据库开发与运维客户端</p>
-    <p class="subtitle">装 · 用 · 管 · 卸 — 数据库全生命周期管理</p>
-    <div class="version-badge">V3.0.0beta.20260525</div>
-    <div class="cta-group">
-        <a href="#download" class="btn btn-primary">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            免费下载（Windows）
-        </a>
-        <a href="https://github.com/L3-dbboys/dbboys" class="btn btn-secondary" target="_blank" rel="noopener">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
-            GitHub
-        </a>
-        <a href="CHANGELOG.md" class="btn btn-ghost">更新日志</a>
-    </div>
-</section>
+<div class="top">
+<a href="#" class="logo"><img src="images/logo.png" alt=""><span>DBboys</span></a>
+<a href="https://github.com/L3-dbboys/dbboys" class="gh" target="_blank" rel="noopener">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
+GitHub
+</a>
+</div>
 
-<!-- ===== Features ===== -->
-<section class="features" id="features">
-    <div class="container">
-        <span class="section-label">功能特性</span>
-        <h2 class="section-title">覆盖数据库全生命周期</h2>
-        <p class="section-desc">从连接、开发、管理到卸载，提供一站式的数据库桌面工具。本地客户端形态运行，连接信息和运行数据保留在本地。</p>
-        <div class="grid">
+<div class="carousel-wrap">
+<div class="carousel" id="carousel">
+<img src="images/img1.png" alt="screenshot" class="active" onerror="this.style.display='none'">
+<img src="images/img2.png" alt="screenshot" onerror="this.style.display='none'">
+<img src="images/img3.png" alt="screenshot" onerror="this.style.display='none'">
+<img src="images/img4.png" alt="screenshot" onerror="this.style.display='none'">
+</div>
+<div class="dots" id="dots">
+<span class="active"></span><span></span><span></span><span></span>
+</div>
+</div>
 
-            <div class="card">
-                <div class="icon icon-connect">🔌</div>
-                <h3>连接管理</h3>
-                <p>按分类管理连接、支持多种 JDBC 驱动切换、GBase 8s / Informix 组名连接、只读模式、断线重连与长连接保活。</p>
-            </div>
+<div class="dwl">
+<a href="#"><span class="os">🖥️</span> Windows <span class="note">.zip</span></a>
+<a href="#"><span class="os">🐧</span> Linux x64 <span class="note">.zip</span></a>
+<a href="#"><span class="os">🧩</span> Linux ARM64 <span class="note">.zip</span></a>
+</div>
 
-            <div class="card">
-                <div class="icon icon-sql">📝</div>
-                <h3>SQL 工作台</h3>
-                <p>多标签页编辑器，语法高亮、自动补全、格式化、绑定变量、执行计划、自动/手动提交模式与变更历史追踪。</p>
-            </div>
+</div>
 
-            <div class="card">
-                <div class="icon icon-data">📊</div>
-                <h3>结果集 &amp; 数据导入导出</h3>
-                <p>分页加载、在线编辑（支持主键/rowid）、LOB 查看编辑；导出到 CSV / JSON / SQL，DDL 批量生成。</p>
-            </div>
-
-            <div class="card">
-                <div class="icon icon-objects">🌳</div>
-                <h3>对象管理</h3>
-                <p>浏览数据库/模式、表、视图、索引、序列、函数、存储过程、触发器、包、用户等对象，图形化建表改表，DDL 导出。</p>
-            </div>
-
-            <div class="card">
-                <div class="icon icon-ops">🏠</div>
-                <h3>实例运维</h3>
-                <p>一键巡检、运行日志、空间容量图表、参数管理、锁表处理与 Kill 会话、实例启停。按数据库能力动态展示功能。</p>
-            </div>
-
-            <div class="card">
-                <div class="icon icon-remote">🚀</div>
-                <h3>远程安装卸载</h3>
-                <p>通过 SSH 远程安装/卸载 GBase 8s、Informix、MySQL。向导式流程，自动处理用户、目录、依赖、初始化和参数优化。</p>
-            </div>
-
-            <div class="card">
-                <div class="icon icon-kb">📖</div>
-                <h3>Markdown 知识库</h3>
-                <p>内置树形组织笔记，Markdown 编辑预览，Lucene + IK Analyzer 中文全文搜索，支持图片粘贴与截图。</p>
-            </div>
-
-            <div class="card">
-                <div class="icon icon-ai">🤖</div>
-                <h3>AI 辅助</h3>
-                <p>内置 AI 问答面板，支持 DeepSeek、Qwen 等大模型，记忆开关灵活控制上下文，辅助 SQL 编写与问题排查。</p>
-            </div>
-
-            <div class="card">
-                <div class="icon icon-theme">🎨</div>
-                <h3>主题与国际化</h3>
-                <p>深色 / 浅色 Cupertino 主题，支持简体中文、繁体中文、英文界面切换。自定义无边框窗口，统一样式覆盖全部控件。</p>
-            </div>
-
-        </div>
-    </div>
-</section>
-
-<!-- ===== Database Support ===== -->
-<section class="databases" id="databases">
-    <div class="container">
-        <span class="section-label">数据库适配</span>
-        <h2 class="section-title">多数据库方言支持</h2>
-        <p class="section-desc">通过方言模块扩展，不同数据库共享通用能力，同时可按自身特性提供专门的管理入口。</p>
-        <div class="db-table-wrap">
-            <table class="db-table">
-                <thead>
-                    <tr>
-                        <th>数据库</th>
-                        <th>连接</th>
-                        <th>SQL</th>
-                        <th>对象</th>
-                        <th>DDL</th>
-                        <th>巡检</th>
-                        <th>空间</th>
-                        <th>参数</th>
-                        <th>远程安装</th>
-                        <th>启停</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="db-name">GBase 8s</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="db-name">Informix</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="db-name">MySQL</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="dash">—</td>
-                    </tr>
-                    <tr>
-                        <td class="db-name">Oracle</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="dash">—</td><td class="dash">—</td>
-                    </tr>
-                    <tr>
-                        <td class="db-name">达梦 (DM)</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                        <td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td>
-                    </tr>
-                    <tr>
-                        <td class="db-name">通用 JDBC</td>
-                        <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
-                        <td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</section>
-
-<!-- ===== Download ===== -->
-<section class="download" id="download">
-    <div class="container">
-        <span class="section-label">下载</span>
-        <h2 class="section-title">获取 DBboys</h2>
-        <p class="section-desc">当前版本 <strong>V3.0.0beta.20260525</strong>（Build 13）。仅支持 Windows 10 / 11 平台，其他平台可通过源码构建。</p>
-
-        <div class="cards">
-            <div class="dl-card featured">
-                <div class="os-icon">🖥️</div>
-                <h3>Windows 安装包</h3>
-                <p class="format">app-image（含运行时，解压即用）</p>
-                <p class="size">dbboys.zip · ~120 MB</p>
-                <a href="#" class="btn btn-primary">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    下载 .zip
-                </a>
-            </div>
-            <div class="dl-card">
-                <div class="os-icon">📦</div>
-                <h3>从源码构建</h3>
-                <p class="format">使用 build.bat 一键编译打包</p>
-                <p class="size">需要 JDK 25.0.2 + JavaFX 25.0.3</p>
-                <a href="https://github.com/L3-dbboys/dbboys" class="btn btn-secondary" target="_blank" rel="noopener">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
-                    GitHub 仓库
-                </a>
-            </div>
-        </div>
-        <p class="checksum">解压后运行 <code>dbboys/bin/dbboys.exe</code> 即可启动</p>
-    </div>
-</section>
-
-<!-- ===== Stats ===== -->
-<section class="stats">
-    <div class="container">
-        <div class="stat-grid">
-            <div class="stat-item"><div class="num">6</div><div class="label">数据库方言</div></div>
-            <div class="stat-item"><div class="num">229+</div><div class="label">Java 源文件</div></div>
-            <div class="stat-item"><div class="num">3</div><div class="label">界面语言</div></div>
-            <div class="stat-item"><div class="num">GPL v3</div><div class="label">开源许可</div></div>
-        </div>
-    </div>
-</section>
-
-<!-- ===== Footer ===== -->
-<footer>
-    <div class="container">
-        <div class="links">
-            <a href="https://github.com/L3-dbboys/dbboys" target="_blank" rel="noopener">GitHub</a>
-            <a href="CHANGELOG.md">更新日志</a>
-            <a href="LICENSE">License (GPL v3)</a>
-            <a href="README.md">文档</a>
-        </div>
-        <p class="copyright">&copy; 2026 DBboys. 基于 GNU General Public License v3.0 开源。</p>
-    </div>
-</footer>
+<script>
+(function(){
+  const imgs = document.querySelectorAll('#carousel img');
+  const dots = document.querySelectorAll('#dots span');
+  if(imgs.length<2) return;
+  let idx = 0, timer;
+  function show(i){
+    imgs.forEach((img,j)=>{img.classList.toggle('active',j===i)});
+    dots.forEach((d,j)=>{d.classList.toggle('active',j===i)});
+    idx = i;
+  }
+  function next(){show((idx+1)%imgs.length)}
+  dots.forEach((d,i)=>{d.addEventListener('click',()=>{clearInterval(timer);show(i);timer=setInterval(next,4000)})});
+  timer = setInterval(next, 4000);
+})();
+</script>
 
 </body>
 </html>
