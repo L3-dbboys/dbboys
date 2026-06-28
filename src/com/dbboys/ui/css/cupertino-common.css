@@ -1962,60 +1962,31 @@ Text {
   -fx-fill: -color-fg-emphasis;
 }
 
-.context-menu.treeview-context-menu .menu-item:focused {
+.context-menu.custom-context-menu .menu-item:focused {
   -fx-background-color: -color-bg-default;
 }
-.context-menu.treeview-context-menu .menu-item:focused > .label {
+.context-menu.custom-context-menu .menu-item:focused > .label {
   -fx-text-fill: -color-fg-default;
 }
-.context-menu.treeview-context-menu .menu-item:focused > .right-container > .arrow {
+.context-menu.custom-context-menu .menu-item:focused > .right-container > .arrow {
   -fx-background-color: -color-fg-muted;
 }
-.context-menu.treeview-context-menu .menu-item:focused .font-icon,
-.context-menu.treeview-context-menu .menu-item:focused .ikonli-font-icon {
+.context-menu.custom-context-menu .menu-item:focused .font-icon,
+.context-menu.custom-context-menu .menu-item:focused .ikonli-font-icon {
   -fx-icon-color: -color-fg-default;
   -fx-fill: -color-fg-default;
 }
-.context-menu.treeview-context-menu .menu-item:hover {
+.context-menu.custom-context-menu .menu-item:hover {
   -fx-background-color: -color-base-7, -color-base-7;
 }
-.context-menu.treeview-context-menu .menu-item:hover > .label {
+.context-menu.custom-context-menu .menu-item:hover > .label {
   -fx-text-fill: -color-fg-emphasis;
 }
-.context-menu.treeview-context-menu .menu-item:hover > .right-container > .arrow {
+.context-menu.custom-context-menu .menu-item:hover > .right-container > .arrow {
   -fx-background-color: -color-fg-muted;
 }
-.context-menu.treeview-context-menu .menu-item:hover .font-icon,
-.context-menu.treeview-context-menu .menu-item:hover .ikonli-font-icon {
-  -fx-icon-color: -color-fg-emphasis;
-  -fx-fill: -color-fg-emphasis;
-}
-
-.context-menu.resultset-context-menu .menu-item:focused {
-  -fx-background-color: -color-bg-default;
-}
-.context-menu.resultset-context-menu .menu-item:focused > .label {
-  -fx-text-fill: -color-fg-default;
-}
-.context-menu.resultset-context-menu .menu-item:focused > .right-container > .arrow {
-  -fx-background-color: -color-fg-muted;
-}
-.context-menu.resultset-context-menu .menu-item:focused .font-icon,
-.context-menu.resultset-context-menu .menu-item:focused .ikonli-font-icon {
-  -fx-icon-color: -color-fg-default;
-  -fx-fill: -color-fg-default;
-}
-.context-menu.resultset-context-menu .menu-item:hover {
-  -fx-background-color: -color-base-7, -color-base-7;
-}
-.context-menu.resultset-context-menu .menu-item:hover > .label {
-  -fx-text-fill: -color-fg-emphasis;
-}
-.context-menu.resultset-context-menu .menu-item:hover > .right-container > .arrow {
-  -fx-background-color: -color-fg-muted;
-}
-.context-menu.resultset-context-menu .menu-item:hover .font-icon,
-.context-menu.resultset-context-menu .menu-item:hover .ikonli-font-icon {
+.context-menu.custom-context-menu .menu-item:hover .font-icon,
+.context-menu.custom-context-menu .menu-item:hover .ikonli-font-icon {
   -fx-icon-color: -color-fg-emphasis;
   -fx-fill: -color-fg-emphasis;
 }
@@ -5683,7 +5654,7 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 }
 
 .menu-item:focused,
-.context-menu.treeview-context-menu .menu-item:hover,
+.context-menu.custom-context-menu .menu-item:hover,
 .context-menu .radio-menu-item:hover:checked,
 .context-menu .radio-menu-item:focused:checked,
 .list-cell:filled:hover,
@@ -5703,7 +5674,7 @@ o6XsZown0t5sfo/4K+vj7PuXPn6i9evDgGGKFQyOjp6Qm3t7d/RDcBGmUYEP7jgoKCzYsWLfJYa7quU2
 }
 
 .menu-item:focused > .label,
-.context-menu.treeview-context-menu .menu-item:hover > .label,
+.context-menu.custom-context-menu .menu-item:hover > .label,
 .context-menu .radio-menu-item:hover:checked > .label,
 .context-menu .radio-menu-item:focused:checked > .label {
   -fx-text-fill: -color-fg-default;
